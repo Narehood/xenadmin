@@ -524,8 +524,11 @@ namespace XenAdmin.Wizards.ImportWizard
                 if (dlog.ShowDialog() != DialogResult.OK)
                     return false;
 
-                _downloadFolder = dlog.SelectedPath;
-                var downloadedPath = Path.Combine(_downloadFolder, Path.GetFileName(_uri.AbsolutePath));
+                _downloadFolder = Path.GetFullPath(dlog.SelectedPath);
+                var fileName = Path.GetFileName(_uri.AbsolutePath.TrimEnd('/', '\\'));
+                if (string.IsNullOrEmpty(fileName))
+                    fileName = "appliance";
+                var downloadedPath = Path.Combine(_downloadFolder, fileName);
                 if (string.IsNullOrEmpty(Path.GetExtension(downloadedPath))) //CA-41747
                     downloadedPath += ".ovf";
                 _primaryDownloadPath = downloadedPath;
@@ -623,11 +626,52 @@ namespace XenAdmin.Wizards.ImportWizard
             {
                 foreach (var file in envType.References.File)
                 {
+                    if (!TryGetSafeDownloadPath(_downloadFolder, file.href, out var localPath))
+                    {
+                        throw new InvalidOperationException(
+                            $"Refusing to download OVF file reference outside the download folder: {file.href}");
+                    }
+
                     var remoteUri = new Uri(remoteDir + file.href);
-                    var localPath = Path.Combine(_downloadFolder, file.href);
                     _filesToDownload.Enqueue(new ApplianceFile(remoteUri, localPath));
                 }
             }
+        }
+
+        /// <summary>
+        /// Resolves <paramref name="href"/> under <paramref name="downloadFolder"/> and rejects
+        /// absolute paths or .. traversal that escape the download folder.
+        /// </summary>
+        private static bool TryGetSafeDownloadPath(string downloadFolder, string href, out string localPath)
+        {
+            localPath = null;
+            if (string.IsNullOrWhiteSpace(href) || string.IsNullOrWhiteSpace(downloadFolder))
+                return false;
+
+            // Rooted / absolute hrefs must not ignore downloadFolder via Path.Combine.
+            if (Path.IsPathRooted(href))
+                return false;
+
+            string canonicalFolder;
+            string candidate;
+            try
+            {
+                canonicalFolder = Path.GetFullPath(downloadFolder);
+                candidate = Path.GetFullPath(Path.Combine(canonicalFolder, href));
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            var boundary = canonicalFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                           + Path.DirectorySeparatorChar;
+
+            if (!candidate.StartsWith(boundary, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            localPath = candidate;
+            return true;
         }
 
         private void FinishDownloadSuccess(string localPath)
