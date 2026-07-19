@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using XenAdmin.Network;
 
 namespace XcpNgCenter.Shell.ViewModels;
 
@@ -14,5 +15,16 @@ public partial class ServerNode : ObservableObject
     private string _status = "Saved";
 
     [ObservableProperty]
+    private string _summary = string.Empty;
+
+    [ObservableProperty]
     private bool _isPublicIp;
+
+    [ObservableProperty]
+    private bool _isConnected;
+
+    [ObservableProperty]
+    private bool _isConnecting;
+
+    public IXenConnection? Connection { get; set; }
 }

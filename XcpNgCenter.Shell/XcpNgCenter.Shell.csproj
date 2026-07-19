@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\XenCenterLib\XenCenterLib.csproj" />
+    <ProjectReference Include="..\XenModel\XenModel.csproj" />
   </ItemGroup>
 
   <ItemGroup>

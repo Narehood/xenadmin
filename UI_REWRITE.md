@@ -16,20 +16,28 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 | `XenAdmin` | Current supported WinForms client (`net8.0-windows`) |
 | `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`, Windows-first; Linux later) |
 
-## First slice (this PR)
+## First slices (this PR)
 
 - Brand-first welcome composition (XCP-ng mark, product name, one CTA)
 - Design tokens (graphite + brand orange, Outfit type)
-- Add-server flow with public-IP warning via `HostnameAddressClassifier`
-- Infrastructure list placeholder (no live xapi session yet)
+- Live connect through `XenModel` (username/password, TOFU TLS pin store, disconnect)
+- Public-IP warning + acknowledgement via `HostnameAddressClassifier`
+- After connect: pool name + host/VM counts (full tree next)
+
+### How to try the preview
+
+```bash
+dotnet run --project XcpNgCenter.Shell -c Release
+```
+
+Pins are stored under `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (preview TOFU; silent pin / re-pin, no cert dialog yet).
 
 ## Next slices
 
-1. Live connect through `XenModel` (TOFU TLS, session, disconnect)
-2. Pool / host / VM tree parity for Infrastructure mode
-3. General tab summary
-4. Storage / Network tabs
-5. Console last (VNC; RDP strategy TBD on Avalonia)
+1. Pool / host / VM tree parity for Infrastructure mode
+2. General tab summary
+3. Storage / Network tabs
+4. Console last (VNC; RDP strategy TBD on Avalonia)
 
 ## Non-goals for the preview
 

@@ -28,10 +28,12 @@
       <Setter Property="Margin" Value="0,0,0,6" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+    </Style>
   </Window.Styles>
 
   <Grid>
-    <!-- Atmosphere: graphite with a restrained orange wash (not flat) -->
     <Grid.Background>
       <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Offset="0" Color="#0E1216" />
@@ -41,7 +43,6 @@
     </Grid.Background>
 
     <Grid ColumnDefinitions="280,*">
-      <!-- Left rail -->
       <Border Grid.Column="0"
               Background="#99161C22"
               BorderBrush="{StaticResource Brush.StrokeSubtle}"
@@ -81,6 +82,9 @@
                       <TextBlock Text="{Binding Address}"
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.TextMuted}" />
+                      <TextBlock Text="{Binding Status}"
+                                 FontSize="11"
+                                 Foreground="{StaticResource Brush.BrandOrange}" />
                     </StackPanel>
                   </Border>
                 </DataTemplate>
@@ -101,16 +105,9 @@
         </Grid>
       </Border>
 
-      <!-- Main stage -->
       <Grid Grid.Column="1">
-        <!-- Welcome / brand-first composition when empty -->
         <Grid IsVisible="{Binding ShowWelcome}" Margin="56,48">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-          </Grid.RowDefinitions>
-
-          <StackPanel VerticalAlignment="Center" Spacing="18" MaxWidth="560">
+          <StackPanel VerticalAlignment="Center" Spacing="16" MaxWidth="560">
             <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
                    Width="72" Height="72"
                    HorizontalAlignment="Left"
@@ -134,13 +131,19 @@
                        Foreground="{StaticResource Brush.TextMuted}"
                        MaxWidth="480" />
 
-            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
-              <TextBox Width="280"
-                       Watermark="host.example or 10.0.0.5"
+            <StackPanel Spacing="10" Margin="0,8,0,0" MaxWidth="420">
+              <TextBox Watermark="host.example or 10.0.0.5"
                        Text="{Binding HostInput}" />
+              <TextBox Watermark="Username"
+                       Text="{Binding Username}" />
+              <TextBox Watermark="Password"
+                       Text="{Binding Password}"
+                       PasswordChar="•" />
               <Button Classes="cta"
-                      Content="Add server"
-                      Command="{Binding AddServerCommand}" />
+                      Content="Connect"
+                      HorizontalAlignment="Left"
+                      Command="{Binding ConnectCommand}"
+                      IsEnabled="{Binding !IsBusy}" />
             </StackPanel>
 
             <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
@@ -148,6 +151,9 @@
                        TextWrapping="Wrap"
                        Foreground="{StaticResource Brush.BrandOrange}"
                        MaxWidth="520" />
+            <CheckBox IsVisible="{Binding ShowPublicIpWarning}"
+                      IsChecked="{Binding AcknowledgePublicIp}"
+                      Content="I understand the risk — connect anyway" />
 
             <TextBlock Text="{Binding StatusMessage}"
                        TextWrapping="Wrap"
@@ -155,8 +161,7 @@
                        MaxWidth="520" />
           </StackPanel>
 
-          <Border Grid.Row="0"
-                  HorizontalAlignment="Right"
+          <Border HorizontalAlignment="Right"
                   VerticalAlignment="Stretch"
                   Width="280"
                   Margin="0,-48,-56,-48"
@@ -171,7 +176,6 @@
           </Border>
         </Grid>
 
-        <!-- Connected / list state -->
         <Grid IsVisible="{Binding HasServers}" Margin="40,36" RowDefinitions="Auto,*,Auto">
           <DockPanel Margin="0,0,0,24">
             <StackPanel DockPanel.Dock="Left" Spacing="6">
@@ -186,11 +190,12 @@
                         Spacing="10"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center">
-              <TextBox Width="220"
-                       Watermark="Add another host"
-                       Text="{Binding HostInput}" />
-              <Button Classes="cta" Content="Add" Command="{Binding AddServerCommand}" />
-              <Button Classes="ghost" Content="Remove" Command="{Binding RemoveSelectedCommand}" />
+              <Button Classes="ghost"
+                      Content="Disconnect"
+                      Command="{Binding DisconnectSelectedCommand}" />
+              <Button Classes="ghost"
+                      Content="Remove"
+                      Command="{Binding RemoveSelectedCommand}" />
             </StackPanel>
           </DockPanel>
 
@@ -210,7 +215,11 @@
               <TextBlock Text="{Binding SelectedServer.Status, FallbackValue=''}"
                          Foreground="{StaticResource Brush.BrandOrange}"
                          Margin="0,8,0,0" />
-              <TextBlock Text="Next slice: live session connect through XenModel (TOFU TLS, pool tree, General tab)."
+              <TextBlock Text="{Binding SelectedServer.Summary, FallbackValue=''}"
+                         Foreground="{StaticResource Brush.TextPrimary}"
+                         FontSize="16"
+                         Margin="0,4,0,0" />
+              <TextBlock Text="Next: infrastructure tree, then General / Storage / Network tabs. Console last."
                          TextWrapping="Wrap"
                          Foreground="{StaticResource Brush.TextMuted}"
                          Margin="0,16,0,0"
