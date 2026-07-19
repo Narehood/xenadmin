@@ -1322,8 +1322,7 @@ namespace XenAdmin.TabPages
             {
                 String ChangeHomeReason = vm.IsOnSharedStorage();
 
-                return !Helpers.WlbEnabledAndConfigured(vm.Connection) &&
-                    (String.IsNullOrEmpty(ChangeHomeReason) || vm.HasNoDisksAndNoLocalCD());
+                return String.IsNullOrEmpty(ChangeHomeReason) || vm.HasNoDisksAndNoLocalCD();
             }
             return false;
         }

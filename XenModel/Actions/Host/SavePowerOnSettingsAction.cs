@@ -31,9 +31,7 @@
 using System.Collections.Generic;
 using XenAPI;
 using XenAdmin.Network;
-using XenAdmin.Actions.Wlb;
 using XenAdmin.Core;
-using XenAdmin.Wlb;
 
 
 namespace XenAdmin.Actions
@@ -99,29 +97,6 @@ namespace XenAdmin.Actions
                         config["power_on_password_secret"] = secretuuid;
                     }
                 }
-                else if (string.IsNullOrEmpty(newMode))
-                {
-                    //if WLB is on, we need to exclude the host from WLB power management,
-                    //since we cannot turn it back on if it is powered down automatically
-
-                    try
-                    {
-                        Pool pool = Helpers.GetPool(Connection);
-                        if (pool != null && WlbServerState.GetState(pool) == WlbServerState.ServerState.Enabled)
-                        {
-                            var hostConfig = new WlbHostConfiguration(host.uuid) {ParticipatesInPowerManagement = false};
-
-                            var wlbAction = new SendWlbConfigurationAction(pool, hostConfig.ToDictionary(),
-                                SendWlbConfigurationKind.SetHostConfiguration);
-                            wlbAction.RunSync(Session);
-                        }
-                    }
-                    catch
-                    {
-                        //Do nothing on failure.
-                    }
-                }
-
                 Host.set_power_on_mode(Session, host.opaque_ref, newMode, config);
             }
             catch

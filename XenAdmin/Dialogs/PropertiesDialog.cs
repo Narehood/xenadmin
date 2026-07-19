@@ -195,8 +195,7 @@ namespace XenAdmin.Dialogs
                 {
                     var theVm = (VM)_xenObjectCopy;
 
-                    if (!Helpers.WlbEnabledAndConfigured(_xenObjectCopy.Connection))
-                        ShowTab(HomeServerPage = new HomeServerEditPage());
+                    ShowTab(HomeServerPage = new HomeServerEditPage());
 
                     if (theVm.CanHaveGpu())
                     {

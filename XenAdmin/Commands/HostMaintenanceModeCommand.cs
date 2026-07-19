@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-using System.Collections.Generic;
 using XenAdmin.Network;
 using XenAPI;
 using XenAdmin.Core;
@@ -90,7 +89,7 @@ namespace XenAdmin.Commands
                 (pool == null || pool.Connection.Cache.Hosts.Length == 1 || !host.IsCoordinator()))
             {
                 Program.MainWindow.CloseActiveWizards(host.Connection);
-                var action = new EvacuateHostAction(host, null, new Dictionary<XenRef<VM>, string[]>(), AddHostToPoolCommand.NtolDialog, AddHostToPoolCommand.EnableNtolDialog);
+                var action = new EvacuateHostAction(host, null, AddHostToPoolCommand.NtolDialog, AddHostToPoolCommand.EnableNtolDialog);
                 action.Completed += Program.MainWindow.action_Completed;
                 action.RunAsync();
                 return;
