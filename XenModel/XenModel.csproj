@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net481</TargetFramework>
+		<TargetFrameworks>net481;net8.0</TargetFrameworks>
 		<Title>XenModel</Title>
 		<Description>XCP-ng Center library</Description>
 		<RootNamespace>XenAdmin</RootNamespace>
@@ -20,9 +20,11 @@
 		<ProjectReference Include="..\XenOvfApi\XenOvfApi.csproj" />
 		<ProjectReference Include="..\XenCenterLib\XenCenterLib.csproj" />
 	</ItemGroup>
-	<ItemGroup>
-		<Reference Include="System.Web" />
-		<Reference Include="System.Web.Extensions" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+		<Reference Include="System.Drawing" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PackageReference Include="System.Drawing.Common" />
 	</ItemGroup>
 	<ItemGroup>
 	  <Compile Update="FriendlyNames.Designer.cs">
