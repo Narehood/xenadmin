@@ -259,10 +259,10 @@ namespace XenAdmin.Diagnostics.Checks
         {
             Pool pool = Helpers.GetPool(Host.Connection);
 
-            if (pool == null || (!pool.ha_enabled && !pool.wlb_enabled))
+            if (pool == null || !pool.ha_enabled)
                 return null;
             
-            return new HaWlbEnabledWarning(this, pool, Host);
+            return new HaEnabledWarning(this, pool, Host);
         }
 
         public override List<Problem> RunAllChecks()

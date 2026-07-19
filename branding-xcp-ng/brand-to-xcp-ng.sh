@@ -1,4 +1,6 @@
 #!/bin/sh
+# NOTE: Parts of this branding helper still reference obsolete installer paths (e.g. WiX).
+# Supported builds are SDK-style XenAdmin.sln via GitHub Actions on development. See MODERNIZATION.md.
 
 # Copyright (c) Citrix Systems, Inc. 
 # All rights reserved.

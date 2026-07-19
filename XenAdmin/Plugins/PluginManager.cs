@@ -63,12 +63,12 @@ namespace XenAdmin.Plugins
         }
 
         /// <summary>
-        /// Gets a value indicating whether plugins functionality is enabled. This is driven by whether the Plugins folder exists.
+        /// Plugins are disabled by default for security (arbitrary assembly load).
+        /// Enable with registry value EnablePlugins=1, or disable explicitly with DisablePlugins=1.
         /// </summary>
-        /// <value><c>true</c> if enabled; otherwise, <c>false</c>.</value>
         public bool Enabled
         {
-            get { return !Registry.DisablePlugins; }
+            get { return Registry.EnablePlugins && !Registry.DisablePlugins; }
         }
 
         /// <summary>

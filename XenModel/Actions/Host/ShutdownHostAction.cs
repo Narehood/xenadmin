@@ -30,7 +30,6 @@
 
 using System;
 using XenAdmin.Core;
-using XenAdmin.Wlb;
 using XenAPI;
 
 
@@ -64,27 +63,7 @@ namespace XenAdmin.Actions
             ShutdownVMs(false);
             try
             {
-                // set host poweroff task key values for wlb reporting purpose
-                string wlbRecId = String.Empty;
-
-                if (Host.other_config.ContainsKey(WlbOptimizationRecommendation.OPTIMIZINGPOOL))
-                {
-                    wlbRecId = Host.other_config[WlbOptimizationRecommendation.OPTIMIZINGPOOL];
-                }
-
-                string hostopaque_ref = Host.opaque_ref;
-
                 RelatedTask = XenAPI.Host.async_shutdown(Session, Host.opaque_ref);
-
-                // set host poweroff task key values for wlb reporting purpose
-                if (Helpers.WlbEnabled(this.Connection) && !String.IsNullOrEmpty(wlbRecId))
-                {
-                    Task.add_to_other_config(this.Session, this.RelatedTask.opaque_ref, "wlb_advised", wlbRecId);
-                    Task.add_to_other_config(this.Session, this.RelatedTask.opaque_ref, "wlb_action", "host_poweroff");
-                    Task.add_to_other_config(this.Session, this.RelatedTask.opaque_ref, "wlb_action_obj_ref", hostopaque_ref);
-                    Task.add_to_other_config(this.Session, this.RelatedTask.opaque_ref, "wlb_action_obj_type", "host");
-                }
-
                 PollToCompletion(95, 100);
             }
             catch (Exception e)

@@ -743,86 +743,11 @@ namespace XenAdmin
 
             if (Properties.Settings.Default.ApplicationVersion != appVersionString)
             {
-                log.Info("Upgrading settings...");
-                Properties.Settings.Default.Upgrade();
-
-                // if program's hash has changed (e.g. by upgrading to .NET 4.0), then Upgrade() doesn't import the previous application settings 
-                // because it cannot locate a previous user.config file. In this case a new user.config file is created with the default settings.
-                // We will try and find a config file from a previous installation and update the settings from it
-
-                if (Properties.Settings.Default.ApplicationVersion == "" && Properties.Settings.Default.DoUpgrade)
-                    UpgradeFromPreviousInstallation();
-
-                log.InfoFormat("Settings upgraded from '{0}' to '{1}'", Properties.Settings.Default.ApplicationVersion, appVersionString);
+                // Portable Settings.xml intentionally does not migrate legacy user.config (see README).
+                log.InfoFormat("Updating settings ApplicationVersion from '{0}' to '{1}' (no legacy user.config migration)",
+                    Properties.Settings.Default.ApplicationVersion, appVersionString);
                 Properties.Settings.Default.ApplicationVersion = appVersionString;
                 TrySaveSettings();
-            }
-        }
-
-        /// <summary>
-        /// Looks for a config file from a previous installation of the application and updates the settings from it.
-        /// </summary>
-        private static void UpgradeFromPreviousInstallation()
-        {
-            try
-            {
-                // The path of the user.config files looks something like this:
-                // <Profile Directory>\<Company Name>\<App Name>_<Evidence Type>_<Evidence Hash>\<Version>\user.config
-                // Get a previous user.config file by enumerating through all the folders in <Profile Directory>\<Company Name> 
-
-                var currentConfigFolder = new DirectoryInfo(GetUserConfigPath()).Parent;
-
-                var companyFolder = currentConfigFolder?.Parent?.Parent;
-                if (companyFolder == null)
-                    return;
-
-                FileInfo previousConfig = null;
-                Version previousVersion = null;
-                Version currentVersion = Program.Version;
-
-                var directories = companyFolder.GetDirectories($"{BrandManager.BrandConsole}*");
-
-                foreach (var dir in directories)
-                {
-                    var configFiles = dir.GetFiles("user.config", SearchOption.AllDirectories);
-
-                    foreach (var file in configFiles)
-                    {
-                        var configFolderName = Path.GetFileName(Path.GetDirectoryName(file.FullName));
-                        if (configFolderName != null)
-                        {
-                            var configVersion = new Version(configFolderName);
-
-                            if (configVersion <= currentVersion && (previousVersion == null || configVersion > previousVersion))
-                            {
-                                previousVersion = configVersion;
-                                previousConfig = file;
-                            }
-                        }
-                    }
-                }
-
-                if (previousConfig != null)
-                {
-                    // copy previous config file to current config location
-                    var destinationFile = Path.GetDirectoryName(currentConfigFolder.FullName);
-
-                    destinationFile = Path.Combine(destinationFile, previousVersion.ToString());
-
-                    if (!Directory.Exists(destinationFile))
-                        Directory.CreateDirectory(destinationFile);
-
-                    destinationFile = Path.Combine(destinationFile, previousConfig.Name);
-
-                    File.Copy(previousConfig.FullName, destinationFile);
-
-                    // upgrade settings
-                    XenAdmin.Properties.Settings.Default.Upgrade();
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Debug("Exception while updating settings.", ex);
             }
         }
 

@@ -19814,6 +19814,15 @@ namespace XenAdmin {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Connect to an {0} host or pool to get started..
+        /// </summary>
+        public static string HOMEPAGE_BLURB {
+            get {
+                return ResourceManager.GetString("HOMEPAGE_BLURB", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The default web browser could not be started..
         /// </summary>
         public static string HOMEPAGE_ERROR_MESSAGE {

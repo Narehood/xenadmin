@@ -36,7 +36,6 @@ using XenAdmin.Alerts;
 using XenAdmin.Core;
 using XenAdmin.Model;
 using XenAdmin.Network;
-using XenAdmin.XCM;
 using XenAdmin.XenSearch;
 using XenAPI;
 
@@ -271,28 +270,6 @@ namespace XenAdmin
 
             return StaticImages.usagebar_10;
         }
-
-        public static Image GetImageFor(Conversion conversion)
-        {
-            switch (conversion.Status)
-            {
-                case (int)ConversionStatus.Successful:
-                    return StaticImages._075_TickRound_h32bit_16;
-                case (int)ConversionStatus.Failed:
-                    return StaticImages._000_error_h32bit_16;
-                case (int)ConversionStatus.Cancelled:
-                    return Images.StaticImages.cancelled_action_16;
-                case (int)ConversionStatus.Incomplete:
-                    return Images.StaticImages._075_WarningRound_h32bit_16;
-                case (int)ConversionStatus.Running:
-                    return Images.GetImageForPercentage(conversion.PercentComplete);
-                case (int)ConversionStatus.Created:
-                case (int)ConversionStatus.Queued:
-                default:
-                    return Images.StaticImages.queued;
-            }
-        }
-
 
         public static Icons GetIconFor(IXenObject o)
         {

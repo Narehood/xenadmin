@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="SharpZipLib" Version="1.4.2" />
+    <PackageVersion Include="log4net" Version="3.3.2" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageVersion Include="DiscUtils.Vhd" Version="0.16.13" />
+    <PackageVersion Include="DiscUtils.Vhdx" Version="0.16.13" />
+    <PackageVersion Include="DiscUtils.Vmdk" Version="0.16.13" />
+    <PackageVersion Include="DiscUtils.Wim" Version="0.16.13" />
+    <PackageVersion Include="DiscUtils.Iso9660" Version="0.16.13" />
+    <PackageVersion Include="lzfse-net" Version="1.0.15" />
+    <PackageVersion Include="lzo.net" Version="0.0.6" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageVersion Include="System.Management" Version="8.0.0" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+</Project>
+

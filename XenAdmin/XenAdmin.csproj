@@ -6,15 +6,16 @@
 		<OutputType>WinExe</OutputType>
 		<AssemblyName>XCP-ng Center</AssemblyName>
 		<ApplicationIcon>AppIcon.ico</ApplicationIcon>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<Title>XCP-ng Center</Title>
 		<Description>XCP-ng Center</Description>
 	</PropertyGroup>
-	<ItemGroup>
-	  <PackageReference Include="Microsoft.ReportViewer.Runtime.WinForms" Version="12.0.2402.15" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\XenModel\XenModel.csproj" />
+		<ProjectReference Include="..\XenCenterLib\XenCenterLib.csproj" />
+		<ProjectReference Include="..\XenOvfApi\XenOvfApi.csproj" />
+		<ProjectReference Include="..\CommandLib\CommandLib.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

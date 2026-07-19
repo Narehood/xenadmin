@@ -60,7 +60,6 @@ namespace XenAdmin
             this.TabPagePeformance = new System.Windows.Forms.TabPage();
             this.TabPageHA = new System.Windows.Forms.TabPage();
             this.TabPageSnapshots = new System.Windows.Forms.TabPage();
-            this.TabPageWLB = new System.Windows.Forms.TabPage();
             this.TabPageAD = new System.Windows.Forms.TabPage();
             this.TabPageGPU = new System.Windows.Forms.TabPage();
             this.TabPageSearch = new System.Windows.Forms.TabPage();
@@ -137,11 +136,6 @@ namespace XenAdmin
             this.drConfigureToolStripMenuItem = new XenAdmin.Commands.CommandToolStripMenuItem();
             this.DrWizardToolStripMenuItem = new XenAdmin.Commands.CommandToolStripMenuItem();
             this.VMSnapshotScheduleToolStripMenuItem = new XenAdmin.Commands.CommandToolStripMenuItem();
-            this.exportResourceReportPoolToolStripMenuItem = new XenAdmin.Commands.CommandToolStripMenuItem();
-            this.toolStripMenuItemWlb = new XenAdmin.Commands.CommandToolStripMenuItem();
-            this.wlbReportsToolStripMenuItem = new XenAdmin.Commands.CommandToolStripMenuItem();
-            this.wlbDisconnectToolStripMenuItem = new XenAdmin.Commands.CommandToolStripMenuItem();
-            this.conversionToolStripMenuItem = new XenAdmin.Commands.CommandToolStripMenuItem();
             this.toolStripSeparator9 = new System.Windows.Forms.ToolStripSeparator();
             this.changePoolPasswordToolStripMenuItem = new XenAdmin.Commands.CommandToolStripMenuItem();
             this.toolStripMenuItemRotateSecret = new XenAdmin.Commands.CommandToolStripMenuItem();
@@ -336,7 +330,6 @@ namespace XenAdmin
             this.TheTabControl.Controls.Add(this.TabPagePeformance);
             this.TheTabControl.Controls.Add(this.TabPageHA);
             this.TheTabControl.Controls.Add(this.TabPageSnapshots);
-            this.TheTabControl.Controls.Add(this.TabPageWLB);
             this.TheTabControl.Controls.Add(this.TabPageAD);
             this.TheTabControl.Controls.Add(this.TabPageGPU);
             this.TheTabControl.Controls.Add(this.TabPageSearch);
@@ -443,12 +436,6 @@ namespace XenAdmin
             resources.ApplyResources(this.TabPageSnapshots, "TabPageSnapshots");
             this.TabPageSnapshots.Name = "TabPageSnapshots";
             this.TabPageSnapshots.UseVisualStyleBackColor = true;
-            // 
-            // TabPageWLB
-            // 
-            resources.ApplyResources(this.TabPageWLB, "TabPageWLB");
-            this.TabPageWLB.Name = "TabPageWLB";
-            this.TabPageWLB.UseVisualStyleBackColor = true;
             // 
             // TabPageAD
             // 
@@ -889,9 +876,6 @@ namespace XenAdmin
             this.highAvailabilityToolStripMenuItem,
             this.disasterRecoveryToolStripMenuItem,
             this.VMSnapshotScheduleToolStripMenuItem,
-            this.exportResourceReportPoolToolStripMenuItem,
-            this.toolStripMenuItemWlb,
-            this.conversionToolStripMenuItem,
             this.toolStripSeparator9,
             this.changePoolPasswordToolStripMenuItem,
             this.toolStripMenuItemRotateSecret,
@@ -1001,39 +985,6 @@ namespace XenAdmin
             this.VMSnapshotScheduleToolStripMenuItem.Command = new XenAdmin.Commands.VMGroupCommandVMSS();
             this.VMSnapshotScheduleToolStripMenuItem.Name = "VMSnapshotScheduleToolStripMenuItem";
             resources.ApplyResources(this.VMSnapshotScheduleToolStripMenuItem, "VMSnapshotScheduleToolStripMenuItem");
-            // 
-            // exportResourceReportPoolToolStripMenuItem
-            // 
-            this.exportResourceReportPoolToolStripMenuItem.Command = new XenAdmin.Commands.ExportResourceReportCommand();
-            this.exportResourceReportPoolToolStripMenuItem.Name = "exportResourceReportPoolToolStripMenuItem";
-            resources.ApplyResources(this.exportResourceReportPoolToolStripMenuItem, "exportResourceReportPoolToolStripMenuItem");
-            // 
-            // toolStripMenuItemWlb
-            // 
-            this.toolStripMenuItemWlb.Command = new XenAdmin.Commands.WlbCommand();
-            this.toolStripMenuItemWlb.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.wlbReportsToolStripMenuItem,
-            this.wlbDisconnectToolStripMenuItem});
-            this.toolStripMenuItemWlb.Name = "toolStripMenuItemWlb";
-            resources.ApplyResources(this.toolStripMenuItemWlb, "toolStripMenuItemWlb");
-            // 
-            // wlbReportsToolStripMenuItem
-            // 
-            this.wlbReportsToolStripMenuItem.Command = new XenAdmin.Commands.ViewWorkloadReportsCommand();
-            this.wlbReportsToolStripMenuItem.Name = "wlbReportsToolStripMenuItem";
-            resources.ApplyResources(this.wlbReportsToolStripMenuItem, "wlbReportsToolStripMenuItem");
-            // 
-            // wlbDisconnectToolStripMenuItem
-            // 
-            this.wlbDisconnectToolStripMenuItem.Command = new XenAdmin.Commands.DisconnectWlbServerCommand();
-            this.wlbDisconnectToolStripMenuItem.Name = "wlbDisconnectToolStripMenuItem";
-            resources.ApplyResources(this.wlbDisconnectToolStripMenuItem, "wlbDisconnectToolStripMenuItem");
-            // 
-            // conversionToolStripMenuItem
-            // 
-            this.conversionToolStripMenuItem.Command = new XenAdmin.Commands.LaunchConversionManagerCommand();
-            this.conversionToolStripMenuItem.Name = "conversionToolStripMenuItem";
-            resources.ApplyResources(this.conversionToolStripMenuItem, "conversionToolStripMenuItem");
             // 
             // toolStripSeparator9
             // 
@@ -1992,14 +1943,11 @@ namespace XenAdmin
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator8;
         private XenAdmin.Commands.CommandToolStripMenuItem PoolPropertiesToolStripMenuItem;
         private XenAdmin.Commands.CommandToolStripMenuItem highAvailabilityToolStripMenuItem;
-        private XenAdmin.Commands.CommandToolStripMenuItem wlbReportsToolStripMenuItem;
-        private XenAdmin.Commands.CommandToolStripMenuItem wlbDisconnectToolStripMenuItem;
         private XenAdmin.Commands.AddHostToSelectedPoolToolStripMenuItem addServerToolStripMenuItem;
         private XenAdmin.Commands.PoolRemoveServerToolStripMenuItem removeServerToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator9;
         private XenAdmin.Commands.CommandToolStripMenuItem deleteToolStripMenuItem;
         private XenAdmin.Commands.CommandToolStripMenuItem disconnectPoolToolStripMenuItem;
-        private XenAdmin.Commands.CommandToolStripMenuItem exportResourceReportPoolToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem HostMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem11;
         private XenAdmin.Commands.CommandToolStripMenuItem ServerPropertiesToolStripMenuItem;
@@ -2072,7 +2020,6 @@ namespace XenAdmin
         private System.Windows.Forms.TabPage TabPageNICs;
         private System.Windows.Forms.TabPage TabPagePeformance;
         private System.Windows.Forms.TabPage TabPageHA;
-        internal System.Windows.Forms.TabPage TabPageWLB;
         private System.Windows.Forms.TabPage TabPageSnapshots;
         private System.Windows.Forms.TabPage TabPageDockerProcess;
         internal System.Windows.Forms.TabPage TabPageDockerDetails;
@@ -2168,13 +2115,11 @@ namespace XenAdmin
         private XenAdmin.Commands.CommandToolStripMenuItem disableCbtToolStripMenuItem;
         private Controls.GradientPanel.VerticalGradientPanel TitleBackPanel;
         private XenAdmin.Commands.CommandToolStripMenuItem menuItemRemoveFromPool;
-        private XenAdmin.Commands.CommandToolStripMenuItem conversionToolStripMenuItem;
         private XenAdmin.Commands.CommandToolStripMenuItem toolStripMenuItemInstallCertificate;
         private XenAdmin.Commands.CommandToolStripMenuItem toolStripMenuItemRotateSecret;
         private XenAdmin.Commands.CommandToolStripMenuItem toolStripMenuItemHaConfigure;
         private XenAdmin.Commands.CommandToolStripMenuItem toolStripMenuItemHaDisable;
         private XenAdmin.Commands.CommandToolStripMenuItem toolStripMenuItemEnableTls;
-        private XenAdmin.Commands.CommandToolStripMenuItem toolStripMenuItemWlb;
         private XenAdmin.Commands.CommandToolStripMenuItem toolStripMenuItemCertificate;
         private XenAdmin.Commands.CommandToolStripMenuItem toolStripMenuItemResetCertificate;
         private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemCfu;

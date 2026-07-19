@@ -1,4 +1,4 @@
-﻿/* Copyright (c) Cloud Software Group, Inc. / XCP-ng
+/* Copyright (c) XCP-ng
  *
  * Redistribution and use in source and binary forms,
  * with or without modification, are permitted provided
@@ -28,28 +28,28 @@
  * SUCH DAMAGE.
  */
 
-using System;
-using XenAdmin.Commands;
-using XenAdmin.Controls;
-using XenAdmin.Core;
+using System.Net;
+using System.Security.Authentication;
 
-namespace XenAdmin.TabPages
+namespace XenCenterLib
 {
-    public partial class HomePage : DoubleBufferedPanel
+    /// <summary>
+    /// Central TLS policy for the management client. TLS 1.0/1.1 are disabled.
+    /// </summary>
+    public static class TlsPolicy
     {
-        public HomePage()
-        {
-            InitializeComponent();
-            labelTitle.Text = BrandManager.BrandConsole;
-            labelBlurb.Text = string.Format(Messages.HOMEPAGE_BLURB, BrandManager.ProductBrand);
-            buttonAddServer.Text = Messages.ADD_NEW_CONNECT_TO;
-        }
+        public static SecurityProtocolType AllowedSecurityProtocols =>
+            SecurityProtocolType.Tls12
+#if NET6_0_OR_GREATER
+            | SecurityProtocolType.Tls13
+#endif
+            ;
 
-        private void buttonAddServer_Click(object sender, EventArgs e)
-        {
-            new AddHostCommand(Program.MainWindow, this).Run();
-        }
-
-        public string HelpID => "TabPageHome";
+        public static SslProtocols AllowedSslProtocols =>
+            SslProtocols.Tls12
+#if NET6_0_OR_GREATER
+            | SslProtocols.Tls13
+#endif
+            ;
     }
 }

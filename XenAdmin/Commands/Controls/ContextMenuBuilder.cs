@@ -665,8 +665,6 @@ namespace XenAdmin.Commands
                     items.Add(drItem);
                 }
 
-                items.AddIfEnabled(new LaunchConversionManagerCommand(mainWindow, selection));
-
                 items.AddSeparator();
                 items.Add(new AddHostToSelectedPoolToolStripMenuItem(mainWindow, selection, true));
                 items.Add(new DisconnectPoolCommand(mainWindow, selection));

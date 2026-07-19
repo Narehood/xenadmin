@@ -30,6 +30,7 @@
 
 using System;
 using System.IO;
+using System.Text;
 using ICSharpCode.SharpZipLib.Tar;
 using XenCenterLib.Compression;
 
@@ -57,19 +58,19 @@ namespace XenCenterLib.Archive
             else
                 throw new NotSupportedException($"Type {compressionType} is not supported by ArchiveIterator");
 
-            tarStream = new TarInputStream(compressionStream);
+            tarStream = new TarInputStream(compressionStream, Encoding.UTF8);
             disposed = false;
         }
 
         public TarArchiveIterator(Stream tarFile)
         {
-            tarStream = new TarInputStream(tarFile);
+            tarStream = new TarInputStream(tarFile, Encoding.UTF8);
             disposed = false;
         }
 
         public override void SetBaseStream(Stream stream)
         {
-            tarStream = new TarInputStream(stream);
+            tarStream = new TarInputStream(stream, Encoding.UTF8);
             disposed = false;
         }
 

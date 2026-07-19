@@ -39,6 +39,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.Serialization;
+using XenCenterLib;
 
 namespace XenAPI
 {
@@ -276,15 +277,6 @@ namespace XenAPI
             return uri.Scheme == "https" || uri.Port == DEFAULT_HTTPS_PORT;
         }
 
-        private static bool ValidateServerCertificate(
-              object sender,
-              X509Certificate certificate,
-              X509Chain chain,
-              SslPolicyErrors sslPolicyErrors)
-        {
-            return true;
-        }
-
         /// <summary>
         /// Returns a secure MD5 hash of the given input string.
         /// </summary>
@@ -481,9 +473,19 @@ namespace XenAPI
 
                 if (UseSSL(uri))
                 {
+                    // XCP-ng hosts commonly present self-signed certs. When the app has installed
+                    // its TOFU callback (SSL.ValidateServerCertificate), that path accepts and pins
+                    // them; we only fall back to strict chain validation when no app callback exists.
                     SslStream sslStream = new SslStream(stream, false,
-                        new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                    sslStream.AuthenticateAsClient("", null, SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12, true);
+                        (sender, certificate, chain, sslPolicyErrors) =>
+                        {
+                            var appCallback = ServicePointManager.ServerCertificateValidationCallback;
+                            if (appCallback != null)
+                                return appCallback(uri.Host, certificate, chain, sslPolicyErrors);
+
+                            return sslPolicyErrors == SslPolicyErrors.None;
+                        }, null);
+                    sslStream.AuthenticateAsClient(uri.Host, null, TlsPolicy.AllowedSslProtocols, true);
 
                     stream = sslStream;
                 }

@@ -52,21 +52,4 @@ namespace XenAdmin.Diagnostics.Checks
         public override string SuccessfulCheckDescription => string.Format(Messages.PATCHING_WIZARD_CHECK_ON_XENOBJECT_OK, Pool.Name(), Description);
     }
 
-
-    internal class WlbOffCheck : PoolCheck
-    {
-        public WlbOffCheck(Pool pool)
-            : base(pool)
-        {
-        }
-
-        protected override Problem RunCheck()
-        {
-            return Pool.wlb_enabled ? new WLBEnabledProblem(this, Pool) : null;
-        }
-
-        public override string Description => Messages.WLB_CHECK_DESCRIPTION;
-
-        public override string SuccessfulCheckDescription => string.Format(Messages.PATCHING_WIZARD_CHECK_ON_XENOBJECT_OK, Pool.Name(), Description);
-    }
 }

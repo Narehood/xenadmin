@@ -176,11 +176,18 @@ namespace XenAdmin.Dialogs
             }
             else if (!_changedPass)
             {
-                StringUtility.ParseHostnamePort(server, out var hostname, out var port);
+                // Prefer the security classifier helper so a future public-IP warning
+                // can plug in here without another architecture pass.
+                if (!HostnameAddressClassifier.TryParseHostPort(server, out var hostname, out var port))
+                    StringUtility.ParseHostnamePort(server, out hostname, out port);
 
                 if (port == 0)
                     port = ConnectionsManager.DEFAULT_XEN_PORT;
-                
+
+                // Hook: HostnameAddressClassifier.IsPublicIp(hostname) is available for a
+                // future warning dialog before BeginConnect (tunnel/VPN suggestion).
+                _ = HostnameAddressClassifier.Classify(hostname);
+
                 conn.Hostname = hostname;
                 conn.Port = port;
                 XenConnectionUI.BeginConnect(conn, true, Owner, false);

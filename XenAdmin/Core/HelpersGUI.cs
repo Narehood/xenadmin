@@ -35,7 +35,6 @@ using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
 using XenAdmin.Actions;
-using XenAdmin.Actions.Wlb;
 using XenAdmin.Alerts;
 using XenAdmin.Dialogs;
 using XenAdmin.Network;
@@ -183,67 +182,6 @@ namespace XenAdmin.Core
             }
 
             return false;
-        }
-
-
-        /// <summary>
-        /// WLB Optimize Pool
-        /// </summary>
-        /// <param name="connection">May not be null.</param>
-        /// <returns></returns>
-        internal static AsyncAction FindActiveOptAction(IXenConnection connection)
-        {
-            Program.AssertOnEventThread();
-            foreach (ActionBase action in ConnectionsManager.History)
-            {
-                if (action.IsCompleted || action.Connection != connection)
-                    continue;
-
-                if (action is WlbOptimizePoolAction optAction)
-                    return optAction;
-
-                if (action is WlbRetrieveRecommendationsAction optRecAction)
-                    return optRecAction;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Finds the WLBAction in progress that pertains to the given connection, or null
-        /// if there is no such action.
-        /// Must be called on the event thread.
-        /// </summary>
-        /// <param name="connection">May not be null.</param>
-        /// <returns></returns>
-        internal static AsyncAction FindActiveWLBAction(IXenConnection connection)
-        {
-            Program.AssertOnEventThread();
-            foreach (ActionBase action in ConnectionsManager.History)
-            {
-                if (action.IsCompleted)
-                    continue;
-
-                InitializeWLBAction configureAction = action as InitializeWLBAction;
-                if (configureAction != null && !configureAction.Cancelled && configureAction.Connection == connection)
-                    return configureAction;
-
-                EnableWLBAction enableAction = action as EnableWLBAction;
-                if (enableAction != null && !enableAction.Cancelled && enableAction.Connection == connection)
-                    return enableAction;
-
-                DisableWLBAction disableAction = action as DisableWLBAction;
-                if (disableAction != null && !disableAction.Cancelled && disableAction.Connection == connection)
-                    return disableAction;
-
-                RetrieveWlbConfigurationAction retrieveAction = action as RetrieveWlbConfigurationAction;
-                if (retrieveAction != null && !retrieveAction.Cancelled && retrieveAction.Connection == connection)
-                    return retrieveAction;
-
-                SendWlbConfigurationAction sendAction = action as SendWlbConfigurationAction;
-                if (sendAction != null && !sendAction.Cancelled && sendAction.Connection == connection)
-                    return sendAction;
-            }
-            return null;
         }
 
         /// <summary>

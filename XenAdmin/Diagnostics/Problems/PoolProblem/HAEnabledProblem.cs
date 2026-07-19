@@ -86,12 +86,12 @@ namespace XenAdmin.Diagnostics.Problems.PoolProblem
         public override string Description => Messages.DR_WIZARD_PROBLEM_HA_ENABLED;
     }
 
-    internal class HaWlbEnabledWarning : Warning
+    internal class HaEnabledWarning : Warning
     {
         private readonly Pool _pool;
         private readonly Host _host;
 
-        public HaWlbEnabledWarning(Check check, Pool pool, Host host)
+        public HaEnabledWarning(Check check, Pool pool, Host host)
             : base(check)
         {
             _pool = pool;
@@ -104,14 +104,8 @@ namespace XenAdmin.Diagnostics.Problems.PoolProblem
         {
             get
             {
-                if (_pool.ha_enabled && _pool.wlb_enabled)
-                    return string.Format(Messages.UPDATES_WIZARD_HA_AND_WLB_ON_WARNING, _host, _pool);
-
                 if (_pool.ha_enabled)
                     return string.Format(Messages.UPDATES_WIZARD_HA_ON_WARNING, _host, _pool);
-
-                if (_pool.wlb_enabled)
-                    return string.Format(Messages.UPDATES_WIZARD_WLB_ON_WARNING, _host, _pool);
 
                 return string.Empty;
             }
