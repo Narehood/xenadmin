@@ -23,7 +23,7 @@ XCP-ng Center is maintained by community members on their free time and hosted b
 ## Development branch
 All active development, CI, and releases target the **`development`** branch.
 GitHub Actions builds Release/Debug, runs unit tests, and uploads artifacts on every push and pull request to `development`.
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [MODERNIZATION.md](MODERNIZATION.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [MODERNIZATION.md](MODERNIZATION.md), and the Avalonia UI preview in [UI_REWRITE.md](UI_REWRITE.md).
 
 XCP-ng Center
 =============
