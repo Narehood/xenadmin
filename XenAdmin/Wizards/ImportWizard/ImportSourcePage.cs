@@ -645,6 +645,20 @@ namespace XenAdmin.Wizards.ImportWizard
                 Path.GetFileName(localPath ?? string.Empty));
             m_tlpError.Visible = true;
             log.Error($"Failed to download file {localPath}.", error);
+
+            if (!string.IsNullOrEmpty(localPath))
+            {
+                try
+                {
+                    if (File.Exists(localPath))
+                        File.Delete(localPath);
+                }
+                catch (Exception ex)
+                {
+                    log.Error($"Failed to delete partially downloaded file {localPath}.", ex);
+                }
+            }
+
             DisposeDownloader();
             PerformCheck(CheckPathValid);
         }
