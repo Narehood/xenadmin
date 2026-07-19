@@ -14,22 +14,24 @@
         Background="{StaticResource Brush.BgDeep}">
 
   <Window.Styles>
-    <Style Selector="Border.navItem">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="12,10" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Border.navItem:pointerover">
-      <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
-    </Style>
-    <Style Selector="ListBoxItem">
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="Margin" Value="0,0,0,6" />
-      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-    </Style>
     <Style Selector="CheckBox">
       <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+    </Style>
+    <Style Selector="TreeView">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TreeViewItem" x:DataType="vm:InfraTreeNode" x:CompileBindings="True">
+      <Setter Property="IsExpanded" Value="{Binding IsExpanded}" />
+      <Setter Property="Padding" Value="4,3" />
+      <Setter Property="Margin" Value="0,1" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+    </Style>
+    <Style Selector="TreeViewItem:selected /template/ Border#SelectionBorder">
+      <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
+    </Style>
+    <Style Selector="TreeViewItem:pointerover /template/ Border#SelectionBorder">
+      <Setter Property="Background" Value="#33273139" />
     </Style>
   </Window.Styles>
 
@@ -42,14 +44,14 @@
       </LinearGradientBrush>
     </Grid.Background>
 
-    <Grid ColumnDefinitions="280,*">
+    <Grid ColumnDefinitions="320,*">
       <Border Grid.Column="0"
               Background="#99161C22"
               BorderBrush="{StaticResource Brush.StrokeSubtle}"
               BorderThickness="0,0,1,0"
               Padding="20">
         <Grid RowDefinitions="Auto,*,Auto">
-          <StackPanel Spacing="10" Margin="0,4,0,28">
+          <StackPanel Spacing="10" Margin="0,4,0,24">
             <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
                    Width="44" Height="44"
                    HorizontalAlignment="Left" />
@@ -62,46 +64,49 @@
                        Foreground="{StaticResource Brush.BrandOrange}" />
           </StackPanel>
 
-          <StackPanel Grid.Row="1" Spacing="8">
+          <Grid Grid.Row="1" RowDefinitions="Auto,*">
             <TextBlock Text="INFRASTRUCTURE"
                        FontSize="11"
                        LetterSpacing="1.2"
                        Foreground="{StaticResource Brush.TextMuted}"
-                       Margin="4,0,0,4" />
-            <ListBox ItemsSource="{Binding Servers}"
-                     SelectedItem="{Binding SelectedServer}"
-                     Background="Transparent"
-                     BorderThickness="0">
-              <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="vm:ServerNode">
-                  <Border Classes="navItem" Background="{StaticResource Brush.BgElevated}">
-                    <StackPanel Spacing="2">
-                      <TextBlock Text="{Binding Name}"
-                                 FontWeight="SemiBold"
-                                 Foreground="{StaticResource Brush.TextPrimary}" />
-                      <TextBlock Text="{Binding Address}"
-                                 FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}" />
-                      <TextBlock Text="{Binding Status}"
-                                 FontSize="11"
-                                 Foreground="{StaticResource Brush.BrandOrange}" />
-                    </StackPanel>
-                  </Border>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-            <TextBlock IsVisible="{Binding ShowWelcome}"
+                       Margin="4,0,0,8" />
+
+            <TreeView Grid.Row="1"
+                      IsVisible="{Binding ShowInfrastructure}"
+                      ItemsSource="{Binding InfrastructureRoots}"
+                      SelectedItem="{Binding SelectedInfraNode}">
+              <TreeView.ItemTemplate>
+                <TreeDataTemplate ItemsSource="{Binding Children}"
+                                  DataType="vm:InfraTreeNode">
+                  <StackPanel Spacing="1" Margin="0,2">
+                    <TextBlock Text="{Binding Title}"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               Foreground="{StaticResource Brush.TextPrimary}"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Subtitle}"
+                               FontSize="11"
+                               Foreground="{StaticResource Brush.TextMuted}"
+                               TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </TreeDataTemplate>
+              </TreeView.ItemTemplate>
+            </TreeView>
+
+            <TextBlock Grid.Row="1"
+                       IsVisible="{Binding ShowWelcome}"
                        Text="No servers yet"
                        Foreground="{StaticResource Brush.TextMuted}"
                        Margin="4,8,0,0" />
-          </StackPanel>
+          </Grid>
 
           <TextBlock Grid.Row="2"
                      Text="WinForms XCP-ng Center remains the supported client."
                      TextWrapping="Wrap"
                      FontSize="11"
                      Foreground="{StaticResource Brush.TextMuted}"
-                     Opacity="0.85" />
+                     Opacity="0.85"
+                     Margin="0,16,0,0" />
         </Grid>
       </Border>
 
@@ -176,7 +181,7 @@
           </Border>
         </Grid>
 
-        <Grid IsVisible="{Binding HasServers}" Margin="40,36" RowDefinitions="Auto,*,Auto">
+        <Grid IsVisible="{Binding ShowInfrastructure}" Margin="40,36" RowDefinitions="Auto,*,Auto">
           <DockPanel Margin="0,0,0,24">
             <StackPanel DockPanel.Dock="Left" Spacing="6">
               <TextBlock Text="{Binding BrandName}"
@@ -205,24 +210,26 @@
                   BorderThickness="1"
                   CornerRadius="10"
                   Padding="28">
-            <StackPanel Spacing="12" VerticalAlignment="Center">
-              <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='Select a server'}"
-                         FontSize="26"
-                         FontWeight="SemiBold" />
-              <TextBlock Text="{Binding SelectedServer.Address, FallbackValue=''}"
+            <StackPanel Spacing="10" VerticalAlignment="Top">
+              <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
+                         FontSize="12"
+                         LetterSpacing="1.1"
+                         Foreground="{StaticResource Brush.BrandOrange}" />
+              <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Select a pool, host, or VM'}"
+                         FontSize="28"
+                         FontWeight="SemiBold"
+                         TextWrapping="Wrap" />
+              <TextBlock Text="{Binding SelectedInfraNode.Subtitle, FallbackValue=''}"
                          Foreground="{StaticResource Brush.TextMuted}"
                          FontSize="15" />
-              <TextBlock Text="{Binding SelectedServer.Status, FallbackValue=''}"
-                         Foreground="{StaticResource Brush.BrandOrange}"
-                         Margin="0,8,0,0" />
-              <TextBlock Text="{Binding SelectedServer.Summary, FallbackValue=''}"
+              <TextBlock Text="{Binding SelectedInfraNode.Detail, FallbackValue=''}"
                          Foreground="{StaticResource Brush.TextPrimary}"
                          FontSize="16"
-                         Margin="0,4,0,0" />
-              <TextBlock Text="Next: infrastructure tree, then General / Storage / Network tabs. Console last."
+                         Margin="0,6,0,0" />
+              <TextBlock Text="Next: General / Storage / Network tabs. Console last."
                          TextWrapping="Wrap"
                          Foreground="{StaticResource Brush.TextMuted}"
-                         Margin="0,16,0,0"
+                         Margin="0,20,0,0"
                          MaxWidth="640" />
             </StackPanel>
           </Border>

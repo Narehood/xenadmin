@@ -38,7 +38,11 @@ public partial class MainViewModel : ViewModelBase
     private ServerNode? _selectedServer;
 
     [ObservableProperty]
+    private InfraTreeNode? _selectedInfraNode;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowWelcome))]
+    [NotifyPropertyChangedFor(nameof(ShowInfrastructure))]
     private bool _hasServers;
 
     [ObservableProperty]
@@ -46,7 +50,11 @@ public partial class MainViewModel : ViewModelBase
 
     public bool ShowWelcome => !HasServers;
 
+    public bool ShowInfrastructure => HasServers;
+
     public ObservableCollection<ServerNode> Servers { get; } = new();
+
+    public ObservableCollection<InfraTreeNode> InfrastructureRoots { get; } = new();
 
     public MainViewModel()
     {
@@ -65,6 +73,12 @@ public partial class MainViewModel : ViewModelBase
         ShowPublicIpWarning = HostnameAddressClassifier.IsPublicIp(host);
         if (!ShowPublicIpWarning)
             AcknowledgePublicIp = false;
+    }
+
+    partial void OnSelectedInfraNodeChanged(InfraTreeNode? value)
+    {
+        if (value?.Server != null)
+            SelectedServer = value.Server;
     }
 
     [RelayCommand]
@@ -120,12 +134,11 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void DisconnectSelected()
     {
-        if (SelectedServer?.Connection is null)
+        var server = SelectedInfraNode?.Server ?? SelectedServer;
+        if (server?.Connection is null)
             return;
 
-        var node = SelectedServer;
-        var conn = node.Connection;
-        DetachConnectionHandlers(conn);
+        var conn = server.Connection;
         try
         {
             conn.EndConnect();
@@ -136,11 +149,13 @@ public partial class MainViewModel : ViewModelBase
         }
 
         ConnectionsManager.ClearCacheAndRemoveConnection(conn);
-        node.Connection = null;
-        node.IsConnected = false;
-        node.IsConnecting = false;
-        node.Status = "Disconnected";
-        node.Summary = string.Empty;
+        server.Connection = null;
+        server.IsConnected = false;
+        server.IsConnecting = false;
+        server.Status = "Disconnected";
+        server.Summary = string.Empty;
+        RemoveTreeForServer(server);
+        SelectedInfraNode = null;
         StatusMessage = "Disconnected.";
         IsBusy = false;
     }
@@ -148,14 +163,20 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void RemoveSelected()
     {
-        if (SelectedServer is null)
+        var server = SelectedInfraNode?.Server ?? SelectedServer;
+        if (server is null)
             return;
 
-        if (SelectedServer.Connection != null)
+        if (server.Connection != null)
+        {
+            SelectedServer = server;
             DisconnectSelected();
+        }
 
-        Servers.Remove(SelectedServer);
+        RemoveTreeForServer(server);
+        Servers.Remove(server);
         SelectedServer = Servers.Count > 0 ? Servers[0] : null;
+        SelectedInfraNode = InfrastructureRoots.FirstOrDefault();
         StatusMessage = Servers.Count == 0 ? string.Empty : "Server removed.";
     }
 
@@ -175,12 +196,18 @@ public partial class MainViewModel : ViewModelBase
 
         conn.ConnectionResult += (_, e) => Dispatcher.UIThread.Post(() => OnConnectionResult(node, e));
         conn.CachePopulated += c => Dispatcher.UIThread.Post(() => OnCachePopulated(node, c));
+        conn.XenObjectsUpdated += (_, _) => Dispatcher.UIThread.Post(() =>
+        {
+            if (node.Connection != null)
+                RebuildTreeForServer(node, node.Connection);
+        });
         conn.ConnectionClosed += _ => Dispatcher.UIThread.Post(() => OnConnectionClosed(node));
         conn.ConnectionLost += _ => Dispatcher.UIThread.Post(() =>
         {
             node.IsConnected = false;
             node.IsConnecting = false;
             node.Status = "Connection lost";
+            RemoveTreeForServer(node);
             StatusMessage = "Connection lost.";
             IsBusy = false;
         });
@@ -204,10 +231,7 @@ public partial class MainViewModel : ViewModelBase
     }
 
     private static bool PromptForNewPassword(IXenConnection connection, string oldPassword)
-    {
-        // Preview: no interactive re-prompt yet — surface as auth failure.
-        return false;
-    }
+        => false;
 
     private void OnConnectionResult(ServerNode node, ConnectionResultEventArgs e)
     {
@@ -239,13 +263,15 @@ public partial class MainViewModel : ViewModelBase
         var pool = Helpers.GetPoolOfOne(conn);
         var poolName = pool != null ? Helpers.GetName(pool) : conn.Name;
         var hosts = conn.Cache.Hosts?.Length ?? 0;
-        var vms = conn.Cache.VMs?.Count(vm => !vm.is_a_template && !vm.is_control_domain) ?? 0;
+        var vms = conn.Cache.VMs?.Count(vm => vm.IsRealVm()) ?? 0;
 
         node.Name = string.IsNullOrWhiteSpace(poolName) ? conn.Hostname : poolName;
         node.Address = conn.HostnameWithPort;
         node.Status = "Connected";
         node.Summary = $"{hosts} host(s), {vms} VM(s)";
         StatusMessage = $"Connected to {conn.HostnameWithPort}.";
+
+        RebuildTreeForServer(node, conn, selectRoot: true);
     }
 
     private void OnConnectionClosed(ServerNode node)
@@ -257,13 +283,60 @@ public partial class MainViewModel : ViewModelBase
         node.IsConnecting = false;
         if (node.Status == "Connected")
             node.Status = "Disconnected";
+        RemoveTreeForServer(node);
         IsBusy = false;
     }
 
-    private static void DetachConnectionHandlers(IXenConnection conn)
+    private void RebuildTreeForServer(ServerNode server, IXenConnection conn, bool selectRoot = false)
     {
-        // XenConnection events are typical multicast; clearing via new instance is enough for preview.
-        // Handlers are closed over node lifetime; EndConnect stops further callbacks for most paths.
-        _ = conn;
+        if (!server.IsConnected || !ReferenceEquals(server.Connection, conn))
+            return;
+
+        var selectedRef = SelectedInfraNode?.OpaqueRef;
+        var root = InfrastructureTreeBuilder.Build(server, conn);
+
+        var existing = InfrastructureRoots.FirstOrDefault(r => r.Server == server);
+        if (existing != null)
+        {
+            var index = InfrastructureRoots.IndexOf(existing);
+            InfrastructureRoots[index] = root;
+        }
+        else
+        {
+            InfrastructureRoots.Add(root);
+        }
+
+        if (selectRoot || SelectedInfraNode?.Server == server)
+        {
+            SelectedInfraNode = FindByOpaqueRef(root, selectedRef) ?? root;
+            SelectedServer = server;
+        }
+    }
+
+    private void RemoveTreeForServer(ServerNode server)
+    {
+        for (var i = InfrastructureRoots.Count - 1; i >= 0; i--)
+        {
+            if (InfrastructureRoots[i].Server == server)
+                InfrastructureRoots.RemoveAt(i);
+        }
+
+        if (SelectedInfraNode?.Server == server)
+            SelectedInfraNode = InfrastructureRoots.FirstOrDefault();
+    }
+
+    private static InfraTreeNode? FindByOpaqueRef(InfraTreeNode node, string? opaqueRef)
+    {
+        if (string.IsNullOrEmpty(opaqueRef))
+            return null;
+        if (node.OpaqueRef == opaqueRef)
+            return node;
+        foreach (var child in node.Children)
+        {
+            var match = FindByOpaqueRef(child, opaqueRef);
+            if (match != null)
+                return match;
+        }
+        return null;
     }
 }
