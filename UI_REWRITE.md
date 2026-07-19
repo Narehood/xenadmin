@@ -8,16 +8,14 @@ rewrite reaches feature parity for your environment.
 
 | Item | State |
 |------|--------|
-| Branch | `cursor/ui-overhaul-d7bd` |
-| PR | https://github.com/Narehood/xenadmin/pull/7 (draft; base `development`) |
-| Stacked on | PR #6 `cursor/plugins-net8-windows-d7bd` (net8 WinForms + plugin DoEvents) — merge #6 first when ready, then rebase #7 |
-| Test build | CI artifact **`drop-shell-win-x64`** (self-contained; no .NET SDK required) |
+| Integration branch | `development` (PRs [#6](https://github.com/Narehood/xenadmin/pull/6) and [#7](https://github.com/Narehood/xenadmin/pull/7) merged) |
+| Test build | CI artifact **`drop-shell-win-x64`** from Test Builds on `development` (self-contained; no .NET SDK required) |
 
 **Last soak-tested locally:** live connect to a private pool, infrastructure tree (pool → hosts → VMs), General summary pane, public-IP warning behavior.
 
 ## Branch basis
 
-Built on top of the modernization stack (CI, security, `HttpClient`, Import Wizard
+Lives on `development` with the modernization stack (CI, security, `HttpClient`, Import Wizard
 fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 
 ## Projects
@@ -65,8 +63,8 @@ Startup wiring: `ShellBootstrap` → `InvokeHelper` + `IXenAdminConfigProvider` 
 ## How to try the preview
 
 **Preferred (no SDK install):** download the CI artifact `drop-shell-win-x64` from the
-[Test Builds](https://github.com/Narehood/xenadmin/actions/workflows/test-builds.yml?query=branch%3Acursor%2Fui-overhaul-d7bd)
-run for this branch, unzip, and run `XcpNgCenter.Shell.exe`.
+[Test Builds](https://github.com/Narehood/xenadmin/actions/workflows/test-builds.yml?query=branch%3Adevelopment)
+run on `development`, unzip, and run `XcpNgCenter.Shell.exe`.
 
 **From source (requires .NET 8 SDK):**
 
