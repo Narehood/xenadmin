@@ -103,11 +103,11 @@ namespace XenAdmin.Actions
 
                     Match m = AuthFailedReg.Match(f.ErrorDescription[2]);
                     if (!m.Success)
-                        throw f;
+                        throw;
 
                     int errorId;
                     if (!int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out errorId))
-                        throw f;
+                        throw;
 
                     log.Error($"Received errorId {errorId} from likewise when attempting to join domain.", f);
                 }

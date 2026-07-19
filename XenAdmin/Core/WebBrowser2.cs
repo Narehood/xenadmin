@@ -30,7 +30,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 using System.Windows.Forms;
 using XenCenterLib;
 
@@ -84,7 +83,6 @@ namespace XenAdmin.Core
             }
         }
 
-        [PermissionSet(SecurityAction.LinkDemand, Name = "FullTrust")]
         protected override void CreateSink()
         {
             base.CreateSink();
@@ -95,7 +93,6 @@ namespace XenAdmin.Core
             cookie = new AxHost.ConnectionPointCookie(ActiveXInstance, helper, typeof(DWebBrowserEvents2));
         }
 
-        [PermissionSet(SecurityAction.LinkDemand, Name = "FullTrust")]
         protected override void DetachSink()
         {
             // Disconnect the client that handles the event

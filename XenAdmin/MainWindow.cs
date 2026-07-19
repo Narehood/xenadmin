@@ -37,7 +37,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -63,7 +62,6 @@ using XenAdmin.Controls.GradientPanel;
 
 namespace XenAdmin
 {
-    [PermissionSet(SecurityAction.Demand, Name = "FullTrust")]
     [ComVisibleAttribute(true)]
     public partial class MainWindow : Form, ISynchronizeInvoke, IMainWindow
     {

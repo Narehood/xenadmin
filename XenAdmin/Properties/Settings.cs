@@ -910,7 +910,9 @@ namespace XenAdmin.Properties
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+#pragma warning disable CS0067 // Reserved for settings change notifications
         public event SettingChangingEventHandler SettingChanging;
+#pragma warning restore CS0067
 
         internal static void Load()
         {

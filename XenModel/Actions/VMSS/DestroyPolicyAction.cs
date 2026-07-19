@@ -66,7 +66,7 @@ namespace XenAdmin.Actions
                 catch (Exception e)
                 {
                     if (!e.Message.StartsWith("Object has been deleted"))
-                        throw e;
+                        throw;
                 }
             }
 

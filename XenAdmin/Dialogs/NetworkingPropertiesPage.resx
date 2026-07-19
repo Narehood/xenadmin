@@ -795,19 +795,7 @@
   <data name="InUseWarningText.TabIndex" type="System.Int32, mscorlib">
     <value>0</value>
   </data>
-  <data name="&gt;&gt;InUseWarningText.Name" xml:space="preserve">
-    <value>InUseWarningText</value>
-  </data>
-  <data name="&gt;&gt;InUseWarningText.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;InUseWarningText.Parent" xml:space="preserve">
-    <value>panelInUseWarning</value>
-  </data>
-  <data name="&gt;&gt;InUseWarningText.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="haEnabledRubric.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
+          <data name="haEnabledRubric.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
     <value>Fill</value>
   </data>
   <data name="haEnabledRubric.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
@@ -825,19 +813,7 @@
   <data name="haEnabledRubric.Text" xml:space="preserve">
     <value>The primary interface cannot be reconfigured because HA is enabled</value>
   </data>
-  <data name="&gt;&gt;haEnabledRubric.Name" xml:space="preserve">
-    <value>haEnabledRubric</value>
-  </data>
-  <data name="&gt;&gt;haEnabledRubric.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;haEnabledRubric.Parent" xml:space="preserve">
-    <value>panelHAEnabledWarning</value>
-  </data>
-  <data name="&gt;&gt;haEnabledRubric.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="AlternateDNS2TextBox.Location" type="System.Drawing.Point, System.Drawing">
+          <data name="AlternateDNS2TextBox.Location" type="System.Drawing.Point, System.Drawing">
     <value>151, 120</value>
   </data>
   <data name="AlternateDNS2TextBox.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">
@@ -849,19 +825,7 @@
   <data name="AlternateDNS2TextBox.TabIndex" type="System.Int32, mscorlib">
     <value>12</value>
   </data>
-  <data name="&gt;&gt;AlternateDNS2TextBox.Name" xml:space="preserve">
-    <value>AlternateDNS2TextBox</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS2TextBox.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS2TextBox.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS2TextBox.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="AlternateDNS2Label.AutoSize" type="System.Boolean, mscorlib">
+          <data name="AlternateDNS2Label.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="AlternateDNS2Label.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
@@ -888,19 +852,7 @@
   <data name="AlternateDNS2Label.TextAlign" type="System.Drawing.ContentAlignment, System.Drawing">
     <value>MiddleLeft</value>
   </data>
-  <data name="&gt;&gt;AlternateDNS2Label.Name" xml:space="preserve">
-    <value>AlternateDNS2Label</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS2Label.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS2Label.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS2Label.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="IPAddressLabel.AutoSize" type="System.Boolean, mscorlib">
+          <data name="IPAddressLabel.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="IPAddressLabel.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
@@ -927,19 +879,7 @@
   <data name="IPAddressLabel.TextAlign" type="System.Drawing.ContentAlignment, System.Drawing">
     <value>MiddleLeft</value>
   </data>
-  <data name="&gt;&gt;IPAddressLabel.Name" xml:space="preserve">
-    <value>IPAddressLabel</value>
-  </data>
-  <data name="&gt;&gt;IPAddressLabel.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;IPAddressLabel.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;IPAddressLabel.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="RangeEndLabel.AutoSize" type="System.Boolean, mscorlib">
+          <data name="RangeEndLabel.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="RangeEndLabel.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
@@ -963,19 +903,7 @@
   <data name="RangeEndLabel.TextAlign" type="System.Drawing.ContentAlignment, System.Drawing">
     <value>MiddleLeft</value>
   </data>
-  <data name="&gt;&gt;RangeEndLabel.Name" xml:space="preserve">
-    <value>RangeEndLabel</value>
-  </data>
-  <data name="&gt;&gt;RangeEndLabel.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;RangeEndLabel.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;RangeEndLabel.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="IPAddressTextBox.Location" type="System.Drawing.Point, System.Drawing">
+          <data name="IPAddressTextBox.Location" type="System.Drawing.Point, System.Drawing">
     <value>151, 0</value>
   </data>
   <data name="IPAddressTextBox.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">
@@ -990,19 +918,7 @@
   <data name="IPAddressTextBox.Text" xml:space="preserve">
     <value>192.168.0.200</value>
   </data>
-  <data name="&gt;&gt;IPAddressTextBox.Name" xml:space="preserve">
-    <value>IPAddressTextBox</value>
-  </data>
-  <data name="&gt;&gt;IPAddressTextBox.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;IPAddressTextBox.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;IPAddressTextBox.ZOrder" xml:space="preserve">
-    <value>4</value>
-  </data>
-  <data name="AlternateDNS1TextBox.Location" type="System.Drawing.Point, System.Drawing">
+          <data name="AlternateDNS1TextBox.Location" type="System.Drawing.Point, System.Drawing">
     <value>151, 96</value>
   </data>
   <data name="AlternateDNS1TextBox.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">
@@ -1014,19 +930,7 @@
   <data name="AlternateDNS1TextBox.TabIndex" type="System.Int32, mscorlib">
     <value>10</value>
   </data>
-  <data name="&gt;&gt;AlternateDNS1TextBox.Name" xml:space="preserve">
-    <value>AlternateDNS1TextBox</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS1TextBox.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS1TextBox.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS1TextBox.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="PreferredDNSLabel.AutoSize" type="System.Boolean, mscorlib">
+          <data name="PreferredDNSLabel.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="PreferredDNSLabel.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
@@ -1053,19 +957,7 @@
   <data name="PreferredDNSLabel.TextAlign" type="System.Drawing.ContentAlignment, System.Drawing">
     <value>MiddleLeft</value>
   </data>
-  <data name="&gt;&gt;PreferredDNSLabel.Name" xml:space="preserve">
-    <value>PreferredDNSLabel</value>
-  </data>
-  <data name="&gt;&gt;PreferredDNSLabel.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;PreferredDNSLabel.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;PreferredDNSLabel.ZOrder" xml:space="preserve">
-    <value>6</value>
-  </data>
-  <data name="AlternateDNS1Label.AutoSize" type="System.Boolean, mscorlib">
+          <data name="AlternateDNS1Label.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="AlternateDNS1Label.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
@@ -1092,19 +984,7 @@
   <data name="AlternateDNS1Label.TextAlign" type="System.Drawing.ContentAlignment, System.Drawing">
     <value>MiddleLeft</value>
   </data>
-  <data name="&gt;&gt;AlternateDNS1Label.Name" xml:space="preserve">
-    <value>AlternateDNS1Label</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS1Label.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS1Label.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;AlternateDNS1Label.ZOrder" xml:space="preserve">
-    <value>7</value>
-  </data>
-  <data name="PreferredDNSTextBox.Location" type="System.Drawing.Point, System.Drawing">
+          <data name="PreferredDNSTextBox.Location" type="System.Drawing.Point, System.Drawing">
     <value>151, 72</value>
   </data>
   <data name="PreferredDNSTextBox.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">
@@ -1119,19 +999,7 @@
   <data name="PreferredDNSTextBox.Text" xml:space="preserve">
     <value>192.168.0.1</value>
   </data>
-  <data name="&gt;&gt;PreferredDNSTextBox.Name" xml:space="preserve">
-    <value>PreferredDNSTextBox</value>
-  </data>
-  <data name="&gt;&gt;PreferredDNSTextBox.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;PreferredDNSTextBox.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;PreferredDNSTextBox.ZOrder" xml:space="preserve">
-    <value>8</value>
-  </data>
-  <data name="SubnetMaskLabel.AutoSize" type="System.Boolean, mscorlib">
+          <data name="SubnetMaskLabel.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="SubnetMaskLabel.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
@@ -1158,19 +1026,7 @@
   <data name="SubnetMaskLabel.TextAlign" type="System.Drawing.ContentAlignment, System.Drawing">
     <value>MiddleLeft</value>
   </data>
-  <data name="&gt;&gt;SubnetMaskLabel.Name" xml:space="preserve">
-    <value>SubnetMaskLabel</value>
-  </data>
-  <data name="&gt;&gt;SubnetMaskLabel.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;SubnetMaskLabel.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;SubnetMaskLabel.ZOrder" xml:space="preserve">
-    <value>9</value>
-  </data>
-  <data name="GatewayLabel.AutoSize" type="System.Boolean, mscorlib">
+          <data name="GatewayLabel.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="GatewayLabel.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
@@ -1197,19 +1053,7 @@
   <data name="GatewayLabel.TextAlign" type="System.Drawing.ContentAlignment, System.Drawing">
     <value>MiddleLeft</value>
   </data>
-  <data name="&gt;&gt;GatewayLabel.Name" xml:space="preserve">
-    <value>GatewayLabel</value>
-  </data>
-  <data name="&gt;&gt;GatewayLabel.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;GatewayLabel.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;GatewayLabel.ZOrder" xml:space="preserve">
-    <value>10</value>
-  </data>
-  <data name="GatewayTextBox.Location" type="System.Drawing.Point, System.Drawing">
+          <data name="GatewayTextBox.Location" type="System.Drawing.Point, System.Drawing">
     <value>151, 48</value>
   </data>
   <data name="GatewayTextBox.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">
@@ -1224,19 +1068,7 @@
   <data name="GatewayTextBox.Text" xml:space="preserve">
     <value>192.168.0.1</value>
   </data>
-  <data name="&gt;&gt;GatewayTextBox.Name" xml:space="preserve">
-    <value>GatewayTextBox</value>
-  </data>
-  <data name="&gt;&gt;GatewayTextBox.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;GatewayTextBox.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;GatewayTextBox.ZOrder" xml:space="preserve">
-    <value>11</value>
-  </data>
-  <data name="SubnetTextBox.Location" type="System.Drawing.Point, System.Drawing">
+          <data name="SubnetTextBox.Location" type="System.Drawing.Point, System.Drawing">
     <value>151, 24</value>
   </data>
   <data name="SubnetTextBox.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">
@@ -1251,19 +1083,7 @@
   <data name="SubnetTextBox.Text" xml:space="preserve">
     <value>255.255.255.0</value>
   </data>
-  <data name="&gt;&gt;SubnetTextBox.Name" xml:space="preserve">
-    <value>SubnetTextBox</value>
-  </data>
-  <data name="&gt;&gt;SubnetTextBox.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;SubnetTextBox.Parent" xml:space="preserve">
-    <value>tableLayoutPanelStaticSettings</value>
-  </data>
-  <data name="&gt;&gt;SubnetTextBox.ZOrder" xml:space="preserve">
-    <value>12</value>
-  </data>
-  <data name="haEnabledWarningIcon.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
+          <data name="haEnabledWarningIcon.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
     <value>Left</value>
   </data>
   <data name="haEnabledWarningIcon.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
@@ -1281,19 +1101,7 @@
   <data name="haEnabledWarningIcon.TabIndex" type="System.Int32, mscorlib">
     <value>8</value>
   </data>
-  <data name="&gt;&gt;haEnabledWarningIcon.Name" xml:space="preserve">
-    <value>haEnabledWarningIcon</value>
-  </data>
-  <data name="&gt;&gt;haEnabledWarningIcon.Type" xml:space="preserve">
-    <value>System.Windows.Forms.PictureBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;haEnabledWarningIcon.Parent" xml:space="preserve">
-    <value>panelHAEnabledWarning</value>
-  </data>
-  <data name="&gt;&gt;haEnabledWarningIcon.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="InUseWarningIcon.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
+          <data name="InUseWarningIcon.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
     <value>Left</value>
   </data>
   <data name="InUseWarningIcon.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
@@ -1311,19 +1119,7 @@
   <data name="InUseWarningIcon.TabIndex" type="System.Int32, mscorlib">
     <value>7</value>
   </data>
-  <data name="&gt;&gt;InUseWarningIcon.Name" xml:space="preserve">
-    <value>InUseWarningIcon</value>
-  </data>
-  <data name="&gt;&gt;InUseWarningIcon.Type" xml:space="preserve">
-    <value>System.Windows.Forms.PictureBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;InUseWarningIcon.Parent" xml:space="preserve">
-    <value>panelInUseWarning</value>
-  </data>
-  <data name="&gt;&gt;InUseWarningIcon.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="pictureBox1.Location" type="System.Drawing.Point, System.Drawing">
+          <data name="pictureBox1.Location" type="System.Drawing.Point, System.Drawing">
     <value>3, 3</value>
   </data>
   <data name="pictureBox1.Size" type="System.Drawing.Size, System.Drawing">
@@ -1332,19 +1128,7 @@
   <data name="pictureBox1.TabIndex" type="System.Int32, mscorlib">
     <value>0</value>
   </data>
-  <data name="&gt;&gt;pictureBox1.Name" xml:space="preserve">
-    <value>pictureBox1</value>
-  </data>
-  <data name="&gt;&gt;pictureBox1.Type" xml:space="preserve">
-    <value>System.Windows.Forms.PictureBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;pictureBox1.Parent" xml:space="preserve">
-    <value>tableLayoutInfo</value>
-  </data>
-  <data name="&gt;&gt;pictureBox1.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="labelWarning.AutoSize" type="System.Boolean, mscorlib">
+          <data name="labelWarning.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="labelWarning.Location" type="System.Drawing.Point, System.Drawing">
@@ -1359,19 +1143,7 @@
   <data name="labelWarning.TabIndex" type="System.Int32, mscorlib">
     <value>1</value>
   </data>
-  <data name="&gt;&gt;labelWarning.Name" xml:space="preserve">
-    <value>labelWarning</value>
-  </data>
-  <data name="&gt;&gt;labelWarning.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;labelWarning.Parent" xml:space="preserve">
-    <value>tableLayoutInfo</value>
-  </data>
-  <data name="&gt;&gt;labelWarning.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+          <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>
   </metadata>
   <data name="$this.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">

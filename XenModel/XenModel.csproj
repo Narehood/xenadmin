@@ -4,6 +4,8 @@
 		<Title>XenModel</Title>
 		<Description>XCP-ng Center library</Description>
 		<RootNamespace>XenAdmin</RootNamespace>
+		<!-- Legacy Exception BinaryFormatter serialization retained for remoting compatibility. -->
+		<NoWarn>$(NoWarn);SYSLIB0051;CS0672</NoWarn>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="DiscUtils.Vhd" />

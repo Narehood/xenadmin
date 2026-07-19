@@ -37,7 +37,6 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
-using System.Security.Permissions;
 using System.Windows.Forms;
 
 namespace XenAdmin.Controls.TabControl
@@ -102,7 +101,6 @@ namespace XenAdmin.Controls.TabControl
 
         protected override CreateParams CreateParams
         {
-            [SecurityPermission(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.UnmanagedCode)]
             get
             {
                 var cp = base.CreateParams;
@@ -612,7 +610,6 @@ namespace XenAdmin.Controls.TabControl
         }
 
 
-        [UIPermission(SecurityAction.LinkDemand, Window = UIPermissionWindow.AllWindows)]
         protected override bool ProcessMnemonic(char charCode)
         {
             foreach (TabPage page in TabPages)
@@ -630,7 +627,6 @@ namespace XenAdmin.Controls.TabControl
             base.OnSelectedIndexChanged(e);
         }
 
-        [SecurityPermission(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.UnmanagedCode)]
         [DebuggerStepThrough]
         protected override void WndProc(ref Message m)
         {

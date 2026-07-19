@@ -305,7 +305,7 @@ namespace XenAPI
             var enc = new UTF8Encoding();
             byte[] bytes = enc.GetBytes(input);
 
-            using (var hasher = HashAlgorithm.Create(method))
+            using (var hasher = CreateHashAlgorithm(method))
             {
                 if (hasher != null)
                 {
@@ -317,14 +317,31 @@ namespace XenAPI
             return null;
         }
 
+        private static HashAlgorithm CreateHashAlgorithm(string method)
+        {
+            switch (method?.ToUpperInvariant())
+            {
+                case "MD5":
+                    return MD5.Create();
+                case "SHA1":
+                    return SHA1.Create();
+                case "SHA256":
+                    return SHA256.Create();
+                case "SHA384":
+                    return SHA384.Create();
+                case "SHA512":
+                    return SHA512.Create();
+                default:
+                    return null;
+            }
+        }
+
         private static string GenerateNonce()
         {
-            using (var rngCsProvider = new RNGCryptoServiceProvider())
-            {
-                var nonceBytes = new byte[NONCE_LENGTH];
-                rngCsProvider.GetBytes(nonceBytes);
-                return Convert.ToBase64String(nonceBytes);
-            }
+            var nonceBytes = new byte[NONCE_LENGTH];
+            using (var rng = RandomNumberGenerator.Create())
+                rng.GetBytes(nonceBytes);
+            return Convert.ToBase64String(nonceBytes);
         }
 
         public static long CopyStream(Stream inStream, Stream outStream,

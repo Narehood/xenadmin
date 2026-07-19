@@ -47,14 +47,14 @@ namespace XenCenterLib
             Sha256
         }
 
-        private static string StringOf(this HashMethod method)
+        private static HashAlgorithm CreateHashAlgorithm(HashMethod method)
         {
             switch (method)
             {
                 case HashMethod.Md5:
-                    return "MD5";
+                    return MD5.Create();
                 case HashMethod.Sha256:
-                    return "SHA256";
+                    return SHA256.Create();
                 default:
                     throw new ArgumentOutOfRangeException(nameof(method), method, null);
             }
@@ -74,8 +74,8 @@ namespace XenCenterLib
             UnicodeEncoding ue = new UnicodeEncoding();
             byte[] bytes = ue.GetBytes(input);
 
-            using (var hasher = HashAlgorithm.Create(method.StringOf()))
-                return hasher?.ComputeHash(bytes);
+            using (var hasher = CreateHashAlgorithm(method))
+                return hasher.ComputeHash(bytes);
         }
 
         public static string Protect(string data)
@@ -127,14 +127,13 @@ namespace XenCenterLib
         {
             byte[] saltBytes = GetSalt();
 
-            using (var alg = new AesManaged
-                   {
-                       Key = keyBytes,
-                       IV = saltBytes,
-                       Padding = PaddingMode.PKCS7,//default value
-                       Mode = CipherMode.CBC//default value
-                   })
+            using (var alg = Aes.Create())
             {
+                alg.Key = keyBytes;
+                alg.IV = saltBytes;
+                alg.Padding = PaddingMode.PKCS7;//default value
+                alg.Mode = CipherMode.CBC;//default value
+
                 using (var ms = new MemoryStream())
                 using (var cs = new CryptoStream(ms, alg.CreateEncryptor(), CryptoStreamMode.Write))
                 {
@@ -163,20 +162,20 @@ namespace XenCenterLib
 
             try
             {
-                using (var alg = new AesManaged
-                       {
-                           IV = saltBytes,
-                           Key = ComputeHash(key),
-                           Padding = PaddingMode.PKCS7,//default value
-                           Mode = CipherMode.CBC//default value
-                       })
+                using (var alg = Aes.Create())
+                {
+                    alg.IV = saltBytes;
+                    alg.Key = ComputeHash(key);
+                    alg.Padding = PaddingMode.PKCS7;//default value
+                    alg.Mode = CipherMode.CBC;//default value
                     return DecryptString(cipherBytes, alg);
+                }
             }
             catch (Exception e)
             {
                 log.Warn("Failed to decrypt. Trying legacy mode.", e);
 
-                using (var alg = Rijndael.Create())
+                using (var alg = Aes.Create())
                 {
                     alg.IV = saltBytes;
                     alg.Key = ComputeHash(key, HashMethod.Md5);
@@ -200,12 +199,10 @@ namespace XenCenterLib
 
         private static byte[] GetSalt()
         {
-            using (var rngCsProvider = new RNGCryptoServiceProvider())
-            {
-                var saltBytes = new byte[SALT_LENGTH];
-                rngCsProvider.GetBytes(saltBytes);
-                return saltBytes;
-            }
+            var saltBytes = new byte[SALT_LENGTH];
+            using (var rng = RandomNumberGenerator.Create())
+                rng.GetBytes(saltBytes);
+            return saltBytes;
         }
     }
 }

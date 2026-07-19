@@ -10,6 +10,8 @@
 		<Title>XCP-ng Center</Title>
 		<Description>XCP-ng Center</Description>
 		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
+		<!-- WinForms .resx still embed BinaryFormatter payloads (ImageList/ListView groups); migrate later. -->
+		<GenerateResourceWarnOnBinaryFormatterUse>false</GenerateResourceWarnOnBinaryFormatterUse>
 	</PropertyGroup>
 
 	<ItemGroup>

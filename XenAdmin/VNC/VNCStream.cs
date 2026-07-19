@@ -152,11 +152,15 @@ namespace DotNetVnc
         [System.Diagnostics.CodeAnalysis.SuppressMessage("csharpsquid",
             "S5547:Cipher algorithms should be robust",
             Justification = "Needed by the server side.")]
-        private DESCryptoServiceProvider des = new DESCryptoServiceProvider
+        private readonly DES des = CreateDes();
+
+        private static DES CreateDes()
         {
-            Padding = PaddingMode.None,
-            Mode = CipherMode.ECB
-        };
+            var algorithm = DES.Create();
+            algorithm.Padding = PaddingMode.None;
+            algorithm.Mode = CipherMode.ECB;
+            return algorithm;
+        }
 
         public VNCStream(IVNCGraphicsClient client, Stream stream, bool startPaused)
         {

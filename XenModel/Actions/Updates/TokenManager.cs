@@ -83,7 +83,9 @@ namespace XenAdmin.Actions.Updates
             var clientId = configProvider.FileServiceClientId;
             var credential = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{clientId}"));
 
+#pragma warning disable SYSLIB0014 // Token endpoint still uses HttpWebRequest; migrate with broader HttpClient work
             var httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
+#pragma warning restore SYSLIB0014
             httpWebRequest.Headers.Add("Authorization", $"Basic {credential}");
             httpWebRequest.ContentType = "application/json";
             httpWebRequest.Method = "POST";
@@ -184,7 +186,9 @@ namespace XenAdmin.Actions.Updates
             var url = configProvider.GetCustomTokenUrl() ?? InvisibleMessages.TOKEN_API_URL;
             var credential = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{clientId}"));
 
+#pragma warning disable SYSLIB0014 // Token endpoint still uses HttpWebRequest; migrate with broader HttpClient work
             var httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
+#pragma warning restore SYSLIB0014
             httpWebRequest.Headers.Add("Authorization", $"Basic {credential}");
             httpWebRequest.ContentType = "application/json";
             httpWebRequest.Method = "DELETE";
