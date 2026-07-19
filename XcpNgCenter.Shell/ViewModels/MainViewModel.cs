@@ -56,6 +56,8 @@ public partial class MainViewModel : ViewModelBase
 
     public ObservableCollection<InfraTreeNode> InfrastructureRoots { get; } = new();
 
+    public ObservableCollection<GeneralPropertyRow> GeneralProperties { get; } = new();
+
     public MainViewModel()
     {
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
@@ -79,6 +81,7 @@ public partial class MainViewModel : ViewModelBase
     {
         if (value?.Server != null)
             SelectedServer = value.Server;
+        RefreshGeneralProperties();
     }
 
     [RelayCommand]
@@ -311,6 +314,15 @@ public partial class MainViewModel : ViewModelBase
             SelectedInfraNode = FindByOpaqueRef(root, selectedRef) ?? root;
             SelectedServer = server;
         }
+
+        RefreshGeneralProperties();
+    }
+
+    private void RefreshGeneralProperties()
+    {
+        GeneralProperties.Clear();
+        foreach (var row in GeneralSummaryBuilder.Build(SelectedInfraNode))
+            GeneralProperties.Add(row);
     }
 
     private void RemoveTreeForServer(ServerNode server)

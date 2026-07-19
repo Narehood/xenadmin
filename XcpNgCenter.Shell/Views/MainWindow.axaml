@@ -210,28 +210,47 @@
                   BorderThickness="1"
                   CornerRadius="10"
                   Padding="28">
-            <StackPanel Spacing="10" VerticalAlignment="Top">
-              <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
-                         FontSize="12"
-                         LetterSpacing="1.1"
-                         Foreground="{StaticResource Brush.BrandOrange}" />
-              <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Select a pool, host, or VM'}"
-                         FontSize="28"
-                         FontWeight="SemiBold"
-                         TextWrapping="Wrap" />
-              <TextBlock Text="{Binding SelectedInfraNode.Subtitle, FallbackValue=''}"
+            <Grid RowDefinitions="Auto,Auto,*">
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
+                           FontSize="12"
+                           LetterSpacing="1.1"
+                           Foreground="{StaticResource Brush.BrandOrange}" />
+                <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Select a pool, host, or VM'}"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SelectedInfraNode.Subtitle, FallbackValue=''}"
+                           Foreground="{StaticResource Brush.TextMuted}"
+                           FontSize="15" />
+              </StackPanel>
+
+              <TextBlock Grid.Row="1"
+                         Text="GENERAL"
+                         FontSize="11"
+                         LetterSpacing="1.2"
                          Foreground="{StaticResource Brush.TextMuted}"
-                         FontSize="15" />
-              <TextBlock Text="{Binding SelectedInfraNode.Detail, FallbackValue=''}"
-                         Foreground="{StaticResource Brush.TextPrimary}"
-                         FontSize="16"
-                         Margin="0,6,0,0" />
-              <TextBlock Text="Next: General / Storage / Network tabs. Console last."
-                         TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}"
-                         Margin="0,20,0,0"
-                         MaxWidth="640" />
-            </StackPanel>
+                         Margin="0,22,0,10" />
+
+              <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding GeneralProperties}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:GeneralPropertyRow">
+                      <Grid ColumnDefinitions="160,*" Margin="0,0,0,12">
+                        <TextBlock Text="{Binding Label}"
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   FontSize="13" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding Value}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                   FontSize="13" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Grid>
           </Border>
 
           <TextBlock Grid.Row="2"

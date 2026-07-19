@@ -100,6 +100,12 @@ namespace XenCenterLib
             if (!IPAddress.TryParse(host, out var address))
                 return AddressKind.Hostname;
 
+            // .NET accepts IPv4 shorthand ("1", "10.0", "172.16"). Those are not complete
+            // addresses for security UX — keep Unknown so typing private prefixes does not
+            // flash the public-IP warning (10/8, 172.16–31/12, 192.168/16, etc.).
+            if (address.AddressFamily == AddressFamily.InterNetwork && !IsCompleteIPv4Literal(host))
+                return AddressKind.Unknown;
+
             if (IPAddress.IsLoopback(address))
                 return AddressKind.Loopback;
 
@@ -110,6 +116,36 @@ namespace XenCenterLib
                 return AddressKind.Private;
 
             return AddressKind.Public;
+        }
+
+        /// <summary>
+        /// True only for a dotted-quad IPv4 literal (a.b.c.d). Rejects shorthand forms
+        /// that <see cref="IPAddress.TryParse(string, out IPAddress)"/> still accepts.
+        /// </summary>
+        internal static bool IsCompleteIPv4Literal(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host))
+                return false;
+
+            var parts = host.Split('.');
+            if (parts.Length != 4)
+                return false;
+
+            foreach (var part in parts)
+            {
+                if (part.Length == 0 || part.Length > 3)
+                    return false;
+                for (var i = 0; i < part.Length; i++)
+                {
+                    if (!char.IsDigit(part[i]))
+                        return false;
+                }
+
+                if (!int.TryParse(part, out var octet) || octet < 0 || octet > 255)
+                    return false;
+            }
+
+            return true;
         }
 
         public static bool IsPublicIp(string hostOrAddress)

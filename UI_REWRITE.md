@@ -22,7 +22,9 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Design tokens (graphite + brand orange, Outfit type)
 - Live connect through `XenModel` (username/password, TOFU TLS pin store, disconnect)
 - Public-IP warning + acknowledgement via `HostnameAddressClassifier`
+  (complete IPv4 only — no flash while typing `1` / `10` / `192.168`)
 - Infrastructure tree: pool → hosts → VMs (live refresh on cache updates)
+- General summary for selected pool / host / VM
 
 ### How to try the preview
 
@@ -41,9 +43,8 @@ Pins are stored under `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` 
 
 ## Next slices
 
-1. General tab summary for selected pool/host/VM
-2. Storage / Network tabs
-3. Console last (VNC; RDP strategy TBD on Avalonia)
+1. Storage / Network tabs
+2. Console last (VNC; RDP strategy TBD on Avalonia)
 
 ## Non-goals for the preview
 
