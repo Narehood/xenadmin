@@ -335,6 +335,132 @@
                     </StackPanel>
                   </ScrollViewer>
                 </TabItem>
+
+                <TabItem Header="Network">
+                  <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="18">
+                      <ItemsControl ItemsSource="{Binding NetworkTotals}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:GeneralPropertyRow">
+                            <Grid ColumnDefinitions="180,*" Margin="0,0,0,10">
+                              <TextBlock Text="{Binding Label}"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         FontSize="13" />
+                              <TextBlock Grid.Column="1"
+                                         Text="{Binding Value}"
+                                         TextWrapping="Wrap"
+                                         Foreground="{StaticResource Brush.TextPrimary}"
+                                         FontSize="13" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="Networks"
+                                 FontSize="11"
+                                 LetterSpacing="1.2"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 IsVisible="{Binding HasNetworkItems}" />
+
+                      <ItemsControl ItemsSource="{Binding NetworkItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:NetworkItemRow">
+                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,0,0,12"
+                                    Margin="0,0,0,12">
+                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <TextBlock Text="{Binding Primary}"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{StaticResource Brush.TextPrimary}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Size}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           Margin="16,0,0,0" />
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding Secondary}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0" />
+                                <TextBlock Grid.Row="1"
+                                           Grid.Column="1"
+                                           Text="{Binding Meta}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="16,4,0,0"
+                                           HorizontalAlignment="Right" />
+                                <TextBlock Grid.Row="2"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Detail}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.BrandOrange}"
+                                           Margin="0,4,0,0"
+                                           Opacity="0.9" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="Management interfaces"
+                                 FontSize="11"
+                                 LetterSpacing="1.2"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 IsVisible="{Binding HasNetworkMgmtItems}" />
+
+                      <ItemsControl ItemsSource="{Binding NetworkMgmtItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:NetworkItemRow">
+                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,0,0,12"
+                                    Margin="0,0,0,12">
+                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <TextBlock Text="{Binding Primary}"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{StaticResource Brush.TextPrimary}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Size}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           Margin="16,0,0,0" />
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding Secondary}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0" />
+                                <TextBlock Grid.Row="1"
+                                           Grid.Column="1"
+                                           Text="{Binding Meta}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="16,4,0,0"
+                                           HorizontalAlignment="Right" />
+                                <TextBlock Grid.Row="2"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Detail}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.BrandOrange}"
+                                           Margin="0,4,0,0"
+                                           Opacity="0.9" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="No network objects for this selection."
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 FontSize="13"
+                                 IsVisible="{Binding !HasAnyNetworkContent}" />
+                    </StackPanel>
+                  </ScrollViewer>
+                </TabItem>
               </TabControl>
             </Grid>
           </Border>
