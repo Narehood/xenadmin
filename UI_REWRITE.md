@@ -26,8 +26,15 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 
 ### How to try the preview
 
+**Preferred (no SDK install):** download the CI artifact `drop-shell-win-x64` from the
+[Test Builds](https://github.com/Narehood/xenadmin/actions) run for this branch, unzip, and run
+`XcpNgCenter.Shell.exe`. That build is self-contained for Windows x64.
+
+**From source (requires .NET 8 SDK):**
+
 ```bash
-dotnet run --project XcpNgCenter.Shell -c Release
+dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -o artifacts/shell-win-x64
+.\artifacts\shell-win-x64\XcpNgCenter.Shell.exe
 ```
 
 Pins are stored under `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (preview TOFU; silent pin / re-pin, no cert dialog yet).
