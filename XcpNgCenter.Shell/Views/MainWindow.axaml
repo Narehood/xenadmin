@@ -6,6 +6,7 @@
         mc:Ignorable="d"
         d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="XcpNgCenter.Shell.Views.MainWindow"
+        x:Name="RootWindow"
         x:DataType="vm:MainViewModel"
         Title="XCP-ng Center (Preview)"
         Width="1280" Height="800"
@@ -465,6 +466,113 @@
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  FontSize="13"
                                  IsVisible="{Binding !HasAnyNetworkContent}" />
+                    </StackPanel>
+                  </ScrollViewer>
+                </TabItem>
+
+                <TabItem Header="Console">
+                  <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="18" Margin="0,0,4,0">
+                      <ItemsControl ItemsSource="{Binding ConsoleTotals}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:GeneralPropertyRow">
+                            <Grid ColumnDefinitions="180,*" Margin="0,0,0,10">
+                              <TextBlock Text="{Binding Label}"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         FontSize="13" />
+                              <TextBlock Grid.Column="1"
+                                         Text="{Binding Value}"
+                                         TextWrapping="Wrap"
+                                         Foreground="{StaticResource Brush.TextPrimary}"
+                                         FontSize="13" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="{Binding ConsoleStatusMessage}"
+                                 TextWrapping="Wrap"
+                                 FontSize="13"
+                                 Foreground="{StaticResource Brush.BrandOrange}" />
+
+                      <Border Background="#33161C22"
+                              BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                              BorderThickness="1"
+                              CornerRadius="8"
+                              Padding="16"
+                              MinHeight="120">
+                        <StackPanel Spacing="8" VerticalAlignment="Center">
+                          <TextBlock Text="Console preview"
+                                     FontWeight="SemiBold"
+                                     FontSize="14"
+                                     Foreground="{StaticResource Brush.TextPrimary}" />
+                          <TextBlock Text="{Binding ConsolePlaceholderMessage}"
+                                     TextWrapping="Wrap"
+                                     FontSize="13"
+                                     Foreground="{StaticResource Brush.TextMuted}" />
+                        </StackPanel>
+                      </Border>
+
+                      <TextBlock Text="Console endpoints"
+                                 FontSize="11"
+                                 LetterSpacing="1.2"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 IsVisible="{Binding HasConsoleItems}" />
+
+                      <ItemsControl ItemsSource="{Binding ConsoleItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:ConsoleItemRow">
+                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,0,8,12"
+                                    Margin="0,0,0,12">
+                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
+                                <TextBlock Text="{Binding Primary}"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           Margin="0,0,12,0"
+                                           Foreground="{StaticResource Brush.TextPrimary}" />
+                                <Button Grid.Column="1"
+                                        Classes="ghost"
+                                        Content="Copy"
+                                        Padding="10,6"
+                                        FontSize="12"
+                                        IsVisible="{Binding CanCopyLocation}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
+                                        CommandParameter="{Binding Location}"
+                                        ToolTip.Tip="Copy console location" />
+                                <TextBlock Grid.Row="1"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Secondary}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Detail}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.BrandOrange}"
+                                           Margin="0,4,0,0"
+                                           Opacity="0.9" />
+                                <TextBlock Grid.Row="3"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Location}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,6,0,0"
+                                           TextWrapping="Wrap"
+                                           IsVisible="{Binding CanCopyLocation}" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="{Binding ConsoleCopyFeedback}"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.Ok}"
+                                 IsVisible="{Binding ConsoleCopyFeedback.Length}" />
                     </StackPanel>
                   </ScrollViewer>
                 </TabItem>

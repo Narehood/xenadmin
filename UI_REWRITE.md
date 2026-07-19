@@ -40,15 +40,16 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Network tab (read-only): networks / management PIFs / VM VIFs (`NetworkSummaryBuilder`)
 - Richer General fields (UUID, uptime, OS, tools, IPs, tags, HA, IQN, …)
 - Tab ScrollViewer padding so right-aligned values clear the scrollbar
+- Console tab scaffold: RFB/VT100/RDP endpoints from XenModel, copy location; interactive VNC deferred
 - CI: self-contained `win-x64` publish uploaded as `drop-shell-win-x64`
 
 ### Key shell layout
 
 ```
 XcpNgCenter.Shell/
-  Services/          Bootstrap, TOFU, config stub, tree + General builders
+  Services/          Bootstrap, TOFU, config stub, tree + General/Storage/Network/Console builders
   ViewModels/        MainViewModel, InfraTreeNode, ServerNode, …
-  Views/MainWindow   Welcome + tree rail + General detail pane
+  Views/MainWindow   Welcome + tree rail + General/Storage/Network/Console tabs
 ```
 
 Shell references **`XenModel` + `XenCenterLib` only** (not WinForms `XenAdmin`).  
@@ -56,10 +57,11 @@ Startup wiring: `ShellBootstrap` → `InvokeHelper` + `IXenAdminConfigProvider` 
 
 ## Next (priority order)
 
-1. **Console last** — VNC first; RDP strategy TBD on Avalonia.
-2. **TOFU UX** — cert changed / first-seen dialogs (replace silent re-pin for production readiness).
-3. **Persistence** — saved server list / credentials policy (today: session-only + TOFU pins).
-4. **Linux desktop soak** — after Windows preview is solid (`net8.0` already; validate Drawing.Common paths).
+1. **Interactive VNC** — extract RFB client off WinForms/GDI (`VNCStream` + Avalonia `WriteableBitmap`); read-only first, then input. RDP strategy TBD.
+2. **Copy affordance (General + sections)** — hover/focus copy icon on the right of each property row / section (same pattern as IDE code-block copy), covering at least General values.
+3. **TOFU UX** — cert changed / first-seen dialogs (replace silent re-pin for production readiness).
+4. **Persistence** — saved server list / credentials policy (today: session-only + TOFU pins).
+5. **Linux desktop soak** — after Windows preview is solid (`net8.0` already; validate Drawing.Common paths).
 
 ## How to try the preview
 

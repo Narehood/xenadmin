@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -68,6 +70,10 @@ public partial class MainViewModel : ViewModelBase
 
     public ObservableCollection<NetworkItemRow> NetworkMgmtItems { get; } = new();
 
+    public ObservableCollection<GeneralPropertyRow> ConsoleTotals { get; } = new();
+
+    public ObservableCollection<ConsoleItemRow> ConsoleItems { get; } = new();
+
     [ObservableProperty]
     private bool _hasStorageItems;
 
@@ -80,6 +86,18 @@ public partial class MainViewModel : ViewModelBase
     private bool _hasNetworkMgmtItems;
 
     public bool HasAnyNetworkContent => HasNetworkItems || HasNetworkMgmtItems;
+
+    [ObservableProperty]
+    private bool _hasConsoleItems;
+
+    [ObservableProperty]
+    private string _consoleStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _consolePlaceholderMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _consoleCopyFeedback = string.Empty;
 
     /// <summary>
     /// Last intentional tree selection used for detail panes. Avalonia TreeView often
@@ -392,6 +410,7 @@ public partial class MainViewModel : ViewModelBase
         RefreshGeneralProperties(node);
         RefreshStorageProperties(node);
         RefreshNetworkProperties(node);
+        RefreshConsoleProperties(node);
     }
 
     private void RefreshGeneralProperties(InfraTreeNode? node)
@@ -428,6 +447,47 @@ public partial class MainViewModel : ViewModelBase
         HasNetworkItems = NetworkItems.Count > 0;
         HasNetworkMgmtItems = NetworkMgmtItems.Count > 0;
         OnPropertyChanged(nameof(HasAnyNetworkContent));
+    }
+
+    private void RefreshConsoleProperties(InfraTreeNode? node)
+    {
+        ConsoleTotals.Clear();
+        ConsoleItems.Clear();
+        ConsoleCopyFeedback = string.Empty;
+        var summary = ConsoleSummaryBuilder.Build(node);
+        foreach (var row in summary.Totals)
+            ConsoleTotals.Add(row);
+        foreach (var item in summary.Items)
+            ConsoleItems.Add(item);
+        HasConsoleItems = ConsoleItems.Count > 0;
+        ConsoleStatusMessage = summary.StatusMessage;
+        ConsolePlaceholderMessage = summary.PlaceholderMessage;
+    }
+
+    [RelayCommand]
+    private async Task CopyConsoleLocationAsync(string? location)
+    {
+        if (string.IsNullOrWhiteSpace(location))
+            return;
+
+        try
+        {
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime
+                {
+                    MainWindow: { Clipboard: { } clipboard }
+                })
+            {
+                await clipboard.SetTextAsync(location);
+                ConsoleCopyFeedback = "Console location copied.";
+                return;
+            }
+
+            ConsoleCopyFeedback = "Clipboard unavailable.";
+        }
+        catch (Exception ex)
+        {
+            ConsoleCopyFeedback = $"Copy failed: {ex.Message}";
+        }
     }
 
     private void RemoveTreeForServer(ServerNode server)
