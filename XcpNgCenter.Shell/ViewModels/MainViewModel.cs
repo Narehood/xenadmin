@@ -58,6 +58,13 @@ public partial class MainViewModel : ViewModelBase
 
     public ObservableCollection<GeneralPropertyRow> GeneralProperties { get; } = new();
 
+    public ObservableCollection<GeneralPropertyRow> StorageTotals { get; } = new();
+
+    public ObservableCollection<StorageItemRow> StorageItems { get; } = new();
+
+    [ObservableProperty]
+    private bool _hasStorageItems;
+
     public MainViewModel()
     {
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
@@ -81,7 +88,7 @@ public partial class MainViewModel : ViewModelBase
     {
         if (value?.Server != null)
             SelectedServer = value.Server;
-        RefreshGeneralProperties();
+        RefreshDetailPanes();
     }
 
     [RelayCommand]
@@ -315,7 +322,13 @@ public partial class MainViewModel : ViewModelBase
             SelectedServer = server;
         }
 
+        RefreshDetailPanes();
+    }
+
+    private void RefreshDetailPanes()
+    {
         RefreshGeneralProperties();
+        RefreshStorageProperties();
     }
 
     private void RefreshGeneralProperties()
@@ -323,6 +336,18 @@ public partial class MainViewModel : ViewModelBase
         GeneralProperties.Clear();
         foreach (var row in GeneralSummaryBuilder.Build(SelectedInfraNode))
             GeneralProperties.Add(row);
+    }
+
+    private void RefreshStorageProperties()
+    {
+        StorageTotals.Clear();
+        StorageItems.Clear();
+        var summary = StorageSummaryBuilder.Build(SelectedInfraNode);
+        foreach (var row in summary.Totals)
+            StorageTotals.Add(row);
+        foreach (var item in summary.Items)
+            StorageItems.Add(item);
+        HasStorageItems = StorageItems.Count > 0;
     }
 
     private void RemoveTreeForServer(ServerNode server)
