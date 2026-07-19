@@ -30,7 +30,7 @@
 
 using System;
 using System.Net;
-using System.ComponentModel;
+using System.Net.Http;
 using System.Threading;
 using System.IO;
 using System.Linq;
@@ -154,11 +154,9 @@ namespace XenAdmin.Actions
         /// have a look at the usage of SLEEP_TIME_BEFORE_RETRY_MS in DownloadFile() as well.
         /// </summary>
         private const int MAX_NUMBER_OF_TRIES = 5;
-
-        private const int SLEEP_TIME_TO_CHECK_DOWNLOAD_STATUS_MS = 900;
         private const int SLEEP_TIME_BEFORE_RETRY_MS = 5000;
 
-        private WebClient _client;
+        private HttpFileDownloader _downloader;
         private readonly Uri _updateUri;
         private readonly bool _skipUnzipping;
         private DownloadState _updateDownloadState;
@@ -238,20 +236,17 @@ namespace XenAdmin.Actions
         {
             outputFileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
-            _client = new WebClient();
-            _client.DownloadProgressChanged += client_DownloadProgressChanged;
-            _client.DownloadFileCompleted += client_DownloadFileCompleted;
-
+            _downloader = new HttpFileDownloader();
             NetworkChange.NetworkAvailabilityChanged += NetworkAvailabilityChanged;
 
-            //useful when the updates use test locations
+            string authorizationHeader = null;
             if (IsFileServiceUri(_updateUri))
             {
                 log.InfoFormat("Authenticating account...");
                 Description = string.Format(Messages.DOWNLOAD_AND_EXTRACT_ACTION_AUTHENTICATING_DESC,
                     BrandManager.CompanyNameLegacy);
                 var credential = TokenManager.GetDownloadCredential(XenAdminConfigManager.Provider);
-                _client.Headers.Add("Authorization", $"Basic {credential}");
+                authorizationHeader = $"Basic {credential}";
             }
 
             log.InfoFormat("Downloading update '{0}' (from '{1}') to '{2}'", UpdateName, _updateUri, outputFileName);
@@ -265,142 +260,139 @@ namespace XenAdmin.Actions
             {
                 do
                 {
+                    if (Cancelling)
+                        throw new CancelledException();
+
                     if (needToRetry)
                         Thread.Sleep(SLEEP_TIME_BEFORE_RETRY_MS);
 
                     needToRetry = false;
-
-                    _client.Proxy = XenAdminConfigManager.Provider.GetProxyFromSettings(null, false);
-
                     _updateDownloadState = DownloadState.InProgress;
-                    _client.DownloadFileAsync(_updateUri, outputFileName);
+                    _updateDownloadError = null;
 
-                    bool updateDownloadCancelling = false;
+                    var proxy = XenAdminConfigManager.Provider.GetProxyFromSettings(null, false);
 
-                    while (_updateDownloadState == DownloadState.InProgress)
+                    try
                     {
-                        if (!updateDownloadCancelling && (Cancelling || Cancelled))
+                        _downloader.Download(
+                            _updateUri,
+                            outputFileName,
+                            proxy,
+                            authorizationHeader,
+                            noCache: false,
+                            onProgress: ReportProgress);
+
+                        if (Cancelling || Cancelled)
                         {
-                            Description = Messages.DOWNLOAD_AND_EXTRACT_ACTION_DOWNLOAD_CANCELLED_DESC;
-                            _client.CancelAsync();
-                            updateDownloadCancelling = true;
+                            _updateDownloadState = DownloadState.Cancelled;
+                            throw new CancelledException();
                         }
 
-                        Thread.Sleep(SLEEP_TIME_TO_CHECK_DOWNLOAD_STATUS_MS);
+                        _updateDownloadState = DownloadState.Completed;
+                        log.Debug($"XenServer update '{UpdateName}' download completed successfully");
                     }
-
-                    if (_updateDownloadState == DownloadState.Cancelled)
-                        throw new CancelledException();
-
-                    if (_updateDownloadState == DownloadState.Error)
+                    catch (OperationCanceledException)
                     {
+                        if (_updateDownloadState == DownloadState.Error)
+                        {
+                            needToRetry = true;
+                            errorCount++;
+                            LogRetry(errorCount);
+                            continue;
+                        }
+
+                        _updateDownloadState = DownloadState.Cancelled;
+                        log.Debug($"XenServer update '{UpdateName}' download cancelled by the user");
+                        throw new CancelledException();
+                    }
+                    catch (Exception ex)
+                    {
+                        _updateDownloadError = MapDownloadError(ex);
+                        _updateDownloadState = DownloadState.Error;
                         needToRetry = true;
                         errorCount++;
-
-                        log.ErrorFormat("Failed to download '{0}' (attempt {1} of maximum {2}.",
-                            _updateUri, errorCount, MAX_NUMBER_OF_TRIES);
-
-                        if (_updateDownloadError == null)
-                            log.Error("An unknown error occurred.");
-                        else
-                            log.Error(_updateDownloadError);
+                        LogRetry(errorCount);
                     }
                 } while (errorCount < MAX_NUMBER_OF_TRIES && needToRetry);
             }
             finally
             {
                 LogDescriptionChanges = true;
-
-                _client.DownloadProgressChanged -= client_DownloadProgressChanged;
-                _client.DownloadFileCompleted -= client_DownloadFileCompleted;
-
                 NetworkChange.NetworkAvailabilityChanged -= NetworkAvailabilityChanged;
-
-                _client.Dispose();
+                _downloader.Dispose();
+                _downloader = null;
             }
 
-            //if this is still the case after having retried MAX_NUMBER_OF_TRIES number of times.
+            if (_updateDownloadState == DownloadState.Cancelled)
+                throw new CancelledException();
+
             if (_updateDownloadState == DownloadState.Error)
             {
                 log.Error($"Giving up; maximum number of retries ({MAX_NUMBER_OF_TRIES}) has been reached.");
-
                 throw _updateDownloadError ?? new Exception(Messages.ERROR_UNKNOWN);
             }
         }
 
-        private void client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        private void LogRetry(int errorCount)
         {
-            int pc = (int)(95.0 * e.BytesReceived / e.TotalBytesToReceive);
+            log.ErrorFormat("Failed to download '{0}' (attempt {1} of maximum {2}.",
+                _updateUri, errorCount, MAX_NUMBER_OF_TRIES);
+
+            if (_updateDownloadError == null)
+                log.Error("An unknown error occurred.");
+            else
+                log.Error(_updateDownloadError);
+        }
+
+        private Exception MapDownloadError(Exception error)
+        {
+            if (error is HttpRequestException httpEx && httpEx.Data["StatusCode"] is HttpStatusCode statusCode)
+            {
+                switch (statusCode)
+                {
+                    case HttpStatusCode.Unauthorized:
+                        log.Error($"Could not download {UpdateName} (401 Unauthorized). Client ID may be invalid or revoked.");
+                        return new Exception(Messages.FILESERVICE_ERROR_401);
+
+                    case HttpStatusCode.Forbidden:
+                        log.Error($"Could not download {UpdateName} (403 Forbidden). The account has insufficient permissions.");
+                        return new Exception(Messages.FILESERVICE_ERROR_403);
+
+                    case HttpStatusCode.NotFound:
+                        log.Error($"Could not download {UpdateName} (404 File not found).");
+                        return new Exception(Messages.FILESERVICE_ERROR_404);
+                }
+            }
+
+            log.Debug($"XenServer patch '{UpdateName}' download failed");
+            return error;
+        }
+
+        private void ReportProgress(long bytesReceived, long? totalBytes)
+        {
+            var total = totalBytes.GetValueOrDefault();
+            int pc = total > 0 ? (int)(95.0 * bytesReceived / total) : 0;
             var descr = string.Format(Messages.DOWNLOAD_AND_EXTRACT_ACTION_DOWNLOADING_DETAILS_DESC, UpdateName,
-                Util.DiskSizeString(e.BytesReceived, "F1"),
-                Util.DiskSizeString(e.TotalBytesToReceive));
+                Util.DiskSizeString(bytesReceived, "F1"),
+                Util.DiskSizeString(total > 0 ? total : bytesReceived));
             ByteProgressDescription = descr;
             Tick(pc, descr);
         }
 
-        private void client_DownloadFileCompleted(object sender, AsyncCompletedEventArgs e)
-        {
-            if (e.Cancelled && _updateDownloadState == DownloadState.Error)
-            {
-                log.Debug($"XenServer update '{UpdateName}' download cancelled due to network connectivity issues");
-                return;
-            }
-
-            if (e.Cancelled)
-            {
-                _updateDownloadState = DownloadState.Cancelled;
-                log.Debug($"XenServer update '{UpdateName}' download cancelled by the user");
-                return;
-            }
-
-            if (e.Error != null) //failure
-            {
-                if (e.Error is WebException wex && wex.Response is HttpWebResponse response)
-                {
-                    switch (response.StatusCode)
-                    {
-                        case HttpStatusCode.Unauthorized:
-                            log.Error($"Could not download {UpdateName} (401 Unauthorized). Client ID may be invalid or revoked.");
-                            _updateDownloadError = new Exception(Messages.FILESERVICE_ERROR_401);
-                            break;
-
-                        case HttpStatusCode.Forbidden:
-                            log.Error($"Could not download {UpdateName} (403 Forbidden). The account has insufficient permissions.");
-                            _updateDownloadError = new Exception(Messages.FILESERVICE_ERROR_403);
-                            break;
-
-                        case HttpStatusCode.NotFound:
-                            log.Error($"Could not download {UpdateName} (404 File not found).");
-                            _updateDownloadError = new Exception(Messages.FILESERVICE_ERROR_404);
-                            break;
-
-                        default:
-                            _updateDownloadError = e.Error;
-                            break;
-                    }
-                }
-                else
-                {
-                    _updateDownloadError = e.Error;
-                }
-
-                log.Debug($"XenServer patch '{UpdateName}' download failed");
-                _updateDownloadState = DownloadState.Error;
-                return;
-            }
-
-            _updateDownloadState = DownloadState.Completed;
-            log.Debug($"XenServer update '{UpdateName}' download completed successfully");
-        }
-
         private void NetworkAvailabilityChanged(object sender, NetworkAvailabilityEventArgs e)
         {
-            if (!e.IsAvailable && _client != null && _updateDownloadState == DownloadState.InProgress)
+            if (!e.IsAvailable && _downloader != null && _updateDownloadState == DownloadState.InProgress)
             {
                 _updateDownloadError = new WebException(Messages.NETWORK_CONNECTIVITY_ERROR);
                 _updateDownloadState = DownloadState.Error;
-                _client.CancelAsync();
+                _downloader.Cancel();
             }
+        }
+
+        protected override void CancelRelatedTask()
+        {
+            Description = Messages.DOWNLOAD_AND_EXTRACT_ACTION_DOWNLOAD_CANCELLED_DESC;
+            _downloader?.Cancel();
         }
 
         protected override void UpdateExtractionProgress(int fileIndex, int totalFileCount)

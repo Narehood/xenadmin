@@ -29,11 +29,9 @@
  */
 
 using System;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Cache;
 using System.Net.NetworkInformation;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -46,7 +44,6 @@ namespace XenAdmin.Actions.Updates
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        private const int SLEEP_TIME_TO_CHECK_DOWNLOAD_STATUS_MS = 900;
         private const int SLEEP_TIME_BEFORE_RETRY_MS = 5000;
 
         //If you consider increasing this for any reason (I think 5 is already more than enough),
@@ -60,7 +57,7 @@ namespace XenAdmin.Actions.Updates
         private DownloadState _fileState;
         private Exception _downloadError;
         private readonly string _authToken;
-        private WebClient _client;
+        private HttpFileDownloader _downloader;
 
         protected string OutputPathAndFileName => _outputPathAndFileName;
         public string ByteProgressDescription { get; set; }
@@ -80,12 +77,7 @@ namespace XenAdmin.Actions.Updates
             int errorCount = 0;
             bool needToRetry = false;
 
-            _client = new WebClient();
-            _client.DownloadProgressChanged += client_DownloadProgressChanged;
-            _client.DownloadFileCompleted += client_DownloadFileCompleted;
-            _client.CachePolicy = new RequestCachePolicy(RequestCacheLevel.NoCacheNoStore);
-
-            // register event handler to detect changes in network connectivity
+            _downloader = new HttpFileDownloader();
             NetworkChange.NetworkAvailabilityChanged += NetworkAvailabilityChanged;
 
             try
@@ -99,72 +91,69 @@ namespace XenAdmin.Actions.Updates
                         Thread.Sleep(SLEEP_TIME_BEFORE_RETRY_MS);
 
                     needToRetry = false;
-
-                    _client.Proxy = XenAdminConfigManager.Provider.GetProxyFromSettings(null, false);
-
-                    //start the download
                     _fileState = DownloadState.InProgress;
+                    _downloadError = null;
 
                     var uriBuilder = new UriBuilder(_address);
 
-                    if (!string.IsNullOrEmpty(_authToken))
+                    if (!string.IsNullOrEmpty(_authToken) && !uriBuilder.Uri.IsFile)
+                        uriBuilder.Query = Helpers.AddAuthTokenToQueryString(_authToken, uriBuilder.Query);
+
+                    var proxy = XenAdminConfigManager.Provider.GetProxyFromSettings(null, false);
+
+                    try
                     {
-                        var uri = uriBuilder.Uri;
-                        if (!uri.IsFile)
+                        _downloader.Download(
+                            uriBuilder.Uri,
+                            _outputPathAndFileName,
+                            proxy,
+                            authorizationHeader: null,
+                            noCache: true,
+                            onProgress: ReportProgress);
+
+                        if (Cancelling || Cancelled)
                         {
-                            uriBuilder.Query = Helpers.AddAuthTokenToQueryString(_authToken, uriBuilder.Query);
+                            _fileState = DownloadState.Cancelled;
+                            throw new CancelledException();
                         }
+
+                        _fileState = DownloadState.Completed;
+                        log.DebugFormat("'{0}' download completed successfully", _fileName);
                     }
-                    _client.DownloadFileAsync(uriBuilder.Uri, _outputPathAndFileName);
-
-                    bool updateDownloadCancelling = false;
-
-                    //wait for the file to be downloaded
-                    while (_fileState == DownloadState.InProgress)
+                    catch (OperationCanceledException)
                     {
-                        if (!updateDownloadCancelling && (Cancelling || Cancelled))
+                        if (_fileState == DownloadState.Error)
                         {
-                            Description = Messages.DOWNLOAD_AND_EXTRACT_ACTION_DOWNLOAD_CANCELLED_DESC;
-                            _client.CancelAsync();
-                            updateDownloadCancelling = true;
+                            needToRetry = true;
+                            errorCount++;
+                            LogRetry(errorCount);
+                            continue;
                         }
 
-                        Thread.Sleep(SLEEP_TIME_TO_CHECK_DOWNLOAD_STATUS_MS);
-                    }
-
-                    if (_fileState == DownloadState.Cancelled)
+                        _fileState = DownloadState.Cancelled;
+                        log.DebugFormat("'{0}' download cancelled by the user", _fileName);
                         throw new CancelledException();
-
-                    if (_fileState == DownloadState.Error)
+                    }
+                    catch (Exception ex)
                     {
+                        _downloadError = ex;
+                        _fileState = DownloadState.Error;
                         needToRetry = true;
-
-                        // this many errors so far - including this one
                         errorCount++;
-
-                        // logging only, it will retry again.
-                        log.ErrorFormat(
-                            "Error while downloading from '{0}'. Number of errors so far (including this): {1}. Trying maximum {2} times.",
-                            _address, errorCount, MAX_NUMBER_OF_TRIES);
-
-                        if (_downloadError == null)
-                            log.Error("An unknown error occurred.");
-                        else
-                            log.Error(_downloadError);
+                        LogRetry(errorCount);
                     }
                 } while (errorCount < MAX_NUMBER_OF_TRIES && needToRetry);
             }
             finally
             {
-                _client.DownloadProgressChanged -= client_DownloadProgressChanged;
-                _client.DownloadFileCompleted -= client_DownloadFileCompleted;
-
                 NetworkChange.NetworkAvailabilityChanged -= NetworkAvailabilityChanged;
-
-                _client.Dispose();
+                _downloader.Dispose();
+                _downloader = null;
             }
 
-            //if this is still the case after having retried MAX_NUMBER_OF_TRIES number of times.
+            if (_fileState == DownloadState.Cancelled)
+                throw new CancelledException();
+
             if (_fileState == DownloadState.Error)
             {
                 log.ErrorFormat("Giving up - Maximum number of retries ({0}) has been reached.", MAX_NUMBER_OF_TRIES);
@@ -172,14 +161,44 @@ namespace XenAdmin.Actions.Updates
             }
         }
 
+        private void LogRetry(int errorCount)
+        {
+            log.ErrorFormat(
+                "Error while downloading from '{0}'. Number of errors so far (including this): {1}. Trying maximum {2} times.",
+                _address, errorCount, MAX_NUMBER_OF_TRIES);
+
+            if (_downloadError == null)
+                log.Error("An unknown error occurred.");
+            else
+                log.Error(_downloadError);
+        }
+
+        private void ReportProgress(long bytesReceived, long? totalBytes)
+        {
+            var total = totalBytes.GetValueOrDefault();
+            int pc = total > 0 ? (int)(95.0 * bytesReceived / total) : 0;
+
+            var descr = string.Format(Messages.DOWNLOAD_FILE_ACTION_PROGRESS_DESCRIPTION, _fileName,
+                Util.DiskSizeString(bytesReceived, "F1"),
+                Util.DiskSizeString(total > 0 ? total : bytesReceived));
+            ByteProgressDescription = descr;
+            Tick(pc, descr);
+        }
+
         private void NetworkAvailabilityChanged(object sender, NetworkAvailabilityEventArgs e)
         {
-            if (!e.IsAvailable && _client != null && _fileState == DownloadState.InProgress)
+            if (!e.IsAvailable && _downloader != null && _fileState == DownloadState.InProgress)
             {
                 _downloadError = new WebException(Messages.NETWORK_CONNECTIVITY_ERROR);
                 _fileState = DownloadState.Error;
-                _client.CancelAsync();
+                _downloader.Cancel();
             }
+        }
+
+        protected override void CancelRelatedTask()
+        {
+            Description = Messages.DOWNLOAD_AND_EXTRACT_ACTION_DOWNLOAD_CANCELLED_DESC;
+            _downloader?.Cancel();
         }
 
         protected override void Run()
@@ -234,41 +253,6 @@ namespace XenAdmin.Actions.Updates
             {
                 //ignore
             }
-        }
-
-        private void client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
-        {
-            int pc = (int)(95.0 * e.BytesReceived / e.TotalBytesToReceive);
-            
-            var descr = string.Format(Messages.DOWNLOAD_FILE_ACTION_PROGRESS_DESCRIPTION, _fileName, 
-                                            Util.DiskSizeString(e.BytesReceived, "F1"),
-                                            Util.DiskSizeString(e.TotalBytesToReceive));
-            ByteProgressDescription = descr;
-            Tick(pc, descr);
-        }
-
-        private void client_DownloadFileCompleted(object sender, AsyncCompletedEventArgs e)
-        {
-            if (e.Cancelled && _fileState == DownloadState.Error) // cancelled due to network connectivity issue (see NetworkAvailabilityChanged)
-                return;
-
-            if (e.Cancelled)
-            {
-                _fileState = DownloadState.Cancelled;
-                log.DebugFormat("'{0}' download cancelled by the user", _fileName);
-                return;
-            }
-
-            if (e.Error != null)
-            {
-                _downloadError = e.Error;
-                log.DebugFormat("'{0}' download failed", _fileName);
-                _fileState = DownloadState.Error;
-                return;
-            }
-
-            _fileState = DownloadState.Completed;
-            log.DebugFormat("'{0}' download completed successfully", _fileName);
         }
 
         public override void RecomputeCanCancel()

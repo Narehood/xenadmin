@@ -30,12 +30,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Xml;
+using XenAdmin.Actions.Updates;
 using XenAdmin.Core;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Cache;
 
 
 namespace XenAdmin.Actions
@@ -225,16 +224,9 @@ namespace XenAdmin.Actions
                 uriBuilder.Query = Helpers.AddAuthTokenToQueryString(authToken, uriBuilder.Query);
 
                 var proxy = XenAdminConfigManager.Provider.GetProxyFromSettings(Connection, false);
-
-                using (var webClient = new WebClient())
-                {
-                    webClient.CachePolicy = new RequestCachePolicy(RequestCacheLevel.NoCacheNoStore);
-
-                    webClient.Proxy = proxy;
-                    webClient.Headers.Add("User-Agent", _userAgent);
-                    using (var stream = new MemoryStream(webClient.DownloadData(uriBuilder.Uri)))
-                        checkForUpdatesXml.Load(stream);
-                }
+                var bytes = HttpFileDownloader.DownloadBytes(uriBuilder.Uri, proxy, _userAgent, noCache: true);
+                using (var stream = new MemoryStream(bytes))
+                    checkForUpdatesXml.Load(stream);
             }
 
             return checkForUpdatesXml;
