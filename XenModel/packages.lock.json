@@ -260,6 +260,11 @@
         "resolved": "8.0.0",
         "contentHash": "WTlRjL6KWIMr/pAaq3rYqh0TJlzpouaQ/W1eelssHgtlwHAH25jXTkUphTYx9HaIIf7XA6qs/0+YhtLEQRkJ+Q=="
       },
+      "System.Diagnostics.EventLog": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "fdYxcRjQqTTacKId/2IECojlDSFvp7LP5N78+0z/xH7v/Tuw5ZAxu23Y6PTCRinqyu2ePx+Gn1098NC6jM6d+A=="
+      },
       "System.Security.AccessControl": {
         "type": "Transitive",
         "resolved": "5.0.0",
@@ -311,11 +316,11 @@
       "System.Configuration.ConfigurationManager": {
         "type": "CentralTransitive",
         "requested": "[8.0.0, )",
-        "resolved": "4.5.0",
-        "contentHash": "UIFvaFfuKhLr9u5tWMxmVoDPkFeD+Qv8gUuap4aZgVGYSYMdERck4OhLN/2gulAc0nYTEigWXSJNNWshrmxnng==",
+        "resolved": "8.0.0",
+        "contentHash": "JlYi9XVvIREURRUlGMr1F6vOFLk7YSY4p1vHo4kX3tQ0AGrjqlRWHDi66ImHhy6qwXBG3BJ6Y1QlYQ+Qz6Xgww==",
         "dependencies": {
-          "System.Security.Cryptography.ProtectedData": "4.5.0",
-          "System.Security.Permissions": "4.5.0"
+          "System.Diagnostics.EventLog": "8.0.0",
+          "System.Security.Cryptography.ProtectedData": "8.0.0"
         }
       },
       "System.Management": {
@@ -332,15 +337,6 @@
         "requested": "[8.0.0, )",
         "resolved": "8.0.0",
         "contentHash": "+TUFINV2q2ifyXauQXRwy4CiBhqvDEDZeVJU7qfxya4aRYOKzVBpN+4acx25VcPB9ywUN6C0n8drWl110PhZEg=="
-      },
-      "System.Security.Permissions": {
-        "type": "CentralTransitive",
-        "requested": "[8.0.0, )",
-        "resolved": "4.5.0",
-        "contentHash": "9gdyuARhUR7H+p5CjyUB/zPk7/Xut3wUSP8NJQB6iZr8L3XUXTMdoLeVAg9N4rqF8oIpE7MpdqHdDHQ7XgJe0g==",
-        "dependencies": {
-          "System.Security.AccessControl": "4.5.0"
-        }
       }
     }
   }

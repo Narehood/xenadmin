@@ -81,6 +81,8 @@ namespace XenAdmin.Plugins
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         private const char CREDENTIALS_SEPARATOR = '\x0294';
+        private static readonly TimeSpan CredentialOperationTimeout = TimeSpan.FromSeconds(60);
+        private const int MaxPoolNullRetries = 6;
 
         /// <summary>
         /// required - "url" attribute, the local or remote url of the HTML page to load
@@ -511,28 +513,44 @@ namespace XenAdmin.Plugins
 
             // Background look-up only — never Invoke back to the UI (avoids DoEvents waits).
             bool? promptPersistDefault = null;
-            var lookUpDone = new ManualResetEventSlim(false);
             Exception lookUpError = null;
+            BrowserState.BrowserCredentials lookedUp = null;
 
-            ThreadPool.QueueUserWorkItem(_ =>
+            using (var lookUpDone = new ManualResetEventSlim(false))
             {
-                try
+                ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    state.Credentials = TryReadPersistedCredentials(state, out promptPersistDefault);
-                }
-                catch (Exception exn)
-                {
-                    lookUpError = exn;
-                    log.Warn("Ignoring exception when trying to get secret", exn);
-                    state.Credentials = new BrowserState.BrowserCredentials { Valid = false };
-                }
-                finally
-                {
-                    lookUpDone.Set();
-                }
-            });
+                    try
+                    {
+                        lookedUp = TryReadPersistedCredentials(state, out promptPersistDefault);
+                    }
+                    catch (Exception exn)
+                    {
+                        lookUpError = exn;
+                        log.Warn("Ignoring exception when trying to get secret", exn);
+                        lookedUp = new BrowserState.BrowserCredentials { Valid = false };
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            lookUpDone.Set();
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                        }
+                    }
+                });
 
-            lookUpDone.Wait();
+                if (!lookUpDone.Wait(CredentialOperationTimeout))
+                {
+                    log.Warn("Timed out waiting for plugin credential lookup");
+                    state.Credentials = new BrowserState.BrowserCredentials { Valid = false };
+                    return;
+                }
+            }
+
+            state.Credentials = lookedUp;
 
             if (lookUpError == null && state.Credentials == null && promptPersistDefault.HasValue)
             {
@@ -575,6 +593,7 @@ namespace XenAdmin.Plugins
             promptPersistDefault = null;
 
             Session session = state.Obj.Connection.Session;
+            int poolNullRetries = 0;
 
             do
             {
@@ -582,9 +601,16 @@ namespace XenAdmin.Plugins
                 if (pool == null)
                 {
                     log.Warn("Failed to get Pool!");
+                    if (++poolNullRetries > MaxPoolNullRetries)
+                    {
+                        log.Warn("Giving up plugin credential lookup after repeated null Pool results");
+                        return new BrowserState.BrowserCredentials { Valid = false };
+                    }
                     Thread.Sleep(5000);
                     continue;
                 }
+
+                poolNullRetries = 0;
 
                 string secret_uuid = pool.GetXCPluginSecret(PluginDescriptor.Name, state.Obj);
                 if (string.IsNullOrEmpty(secret_uuid))
@@ -673,20 +699,30 @@ namespace XenAdmin.Plugins
 
             Program.AssertOnEventThread();
 
-            var clearDone = new ManualResetEventSlim(false);
-            ThreadPool.QueueUserWorkItem(_ =>
+            using (var clearDone = new ManualResetEventSlim(false))
             {
-                try
+                ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    ClearSecret(state);
-                }
-                finally
-                {
-                    state.Credentials = null;
-                    clearDone.Set();
-                }
-            });
-            clearDone.Wait();
+                    try
+                    {
+                        ClearSecret(state);
+                    }
+                    finally
+                    {
+                        state.Credentials = null;
+                        try
+                        {
+                            clearDone.Set();
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                        }
+                    }
+                });
+
+                if (!clearDone.Wait(CredentialOperationTimeout))
+                    log.Warn("Timed out waiting for plugin credential clear");
+            }
         }
 
         /// <summary>
