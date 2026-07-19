@@ -473,10 +473,12 @@ namespace XenAPI
 
                 if (UseSSL(uri))
                 {
+                    // XCP-ng hosts commonly present self-signed certs. When the app has installed
+                    // its TOFU callback (SSL.ValidateServerCertificate), that path accepts and pins
+                    // them; we only fall back to strict chain validation when no app callback exists.
                     SslStream sslStream = new SslStream(stream, false,
                         (sender, certificate, chain, sslPolicyErrors) =>
                         {
-                            // Pass the expected hostname so TOFU validation does not assume HttpWebRequest.
                             var appCallback = ServicePointManager.ServerCertificateValidationCallback;
                             if (appCallback != null)
                                 return appCallback(uri.Host, certificate, chain, sslPolicyErrors);
