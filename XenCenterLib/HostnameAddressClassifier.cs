@@ -46,8 +46,7 @@ namespace XenCenterLib
 
     /// <summary>
     /// Classifies connection targets for security UX.
-    /// A future public-IP warning dialog can call <see cref="IsPublicIp"/>
-    /// from the Add Server pre-connect path without further architecture work.
+    /// Used by the Add Server public-IP warning to detect globally routable addresses.
     /// </summary>
     public static class HostnameAddressClassifier
     {

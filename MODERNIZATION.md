@@ -29,9 +29,9 @@ Policy implemented in `XenAdmin/Network/SSL.cs`:
 - **Later connections:** require the pinned hash; changes prompt (or follow Security options).
 - **No accept-all:** low-level HTTP paths without the app TOFU callback reject untrusted chains instead of returning `true`.
 
-## Deferred product UX
+## Public IP connection warning
 
-A **public IP connection warning** (suggesting a tunnel/VPN) is planned as a follow-up. The hostname/IP classifier and Add Server pre-connect seam are in place so that work can ship as a small later PR without another architecture pass.
+When Add Server targets a literal public IP, `PublicIpWarningDialog` warns about exposing the management plane and suggests a VPN/SSH tunnel/private path. Users can proceed or cancel; “don’t show again” and Options → Security control `WarnPublicIpConnection`. Non-IP hostnames are not warned (no DNS resolve in this pass).
 
 ## Stale local scripts
 

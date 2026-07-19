@@ -19816,6 +19816,34 @@ namespace XenAdmin {
         /// <summary>
         ///   Looks up a localized string similar to Connect to an {0} host or pool to get started..
         /// </summary>
+
+        /// <summary>
+        ///   Looks up a localized string similar to You are connecting to {0}, which is a public IP address....
+        /// </summary>
+        public static string PUBLIC_IP_WARNING_MESSAGE {
+            get {
+                return ResourceManager.GetString("PUBLIC_IP_WARNING_MESSAGE", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Warn me when connecting to a public IP address.
+        /// </summary>
+        public static string PUBLIC_IP_WARNING_OPTION {
+            get {
+                return ResourceManager.GetString("PUBLIC_IP_WARNING_OPTION", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Public IP address warning.
+        /// </summary>
+        public static string PUBLIC_IP_WARNING_TITLE {
+            get {
+                return ResourceManager.GetString("PUBLIC_IP_WARNING_TITLE", resourceCulture);
+            }
+        }
+        
         public static string HOMEPAGE_BLURB {
             get {
                 return ResourceManager.GetString("HOMEPAGE_BLURB", resourceCulture);

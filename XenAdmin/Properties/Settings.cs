@@ -49,6 +49,7 @@ namespace XenAdmin.Properties
         private bool _warnUnrecognizedCertificate = false;
         private string[] _knownServers = Array.Empty<string>();
         private bool _warnChangedCertificate = true;
+        private bool _warnPublicIpConnection = true;
         private bool _allowXenCenterUpdates = true;
         private bool _seenAllowUpdatesDialog = false;
         private bool _fillAreaUnderGraphs = false;
@@ -417,6 +418,17 @@ namespace XenAdmin.Properties
             }
         }
 
+
+        public bool WarnPublicIpConnection
+        {
+            get => _warnPublicIpConnection;
+            set
+            {
+                if (value == _warnPublicIpConnection) return;
+                _warnPublicIpConnection = value;
+                OnPropertyChanged();
+            }
+        }
         public bool AllowXenCenterUpdates
         {
             get => _allowXenCenterUpdates;
