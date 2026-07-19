@@ -110,7 +110,27 @@ namespace XenAdmin.Actions.Updates
                         using (var streamReader = new StreamReader(responseStream))
                         {
                             var json = streamReader.ReadToEnd();
-                            _token = JsonConvert.DeserializeObject<FileServiceToken>(json);
+                            if (string.IsNullOrWhiteSpace(json))
+                                throw new WebException(Messages.FILESERVICE_AUTHENTICATE_ERROR);
+
+                            try
+                            {
+                                _token = JsonConvert.DeserializeObject<FileServiceToken>(json);
+                            }
+                            catch (JsonException ex)
+                            {
+                                log.Error("Could not authenticate account. Invalid token response.", ex);
+                                _token = null;
+                                throw new WebException(Messages.FILESERVICE_AUTHENTICATE_ERROR);
+                            }
+
+                            if (_token == null ||
+                                string.IsNullOrEmpty(_token.token) ||
+                                string.IsNullOrEmpty(_token.session_id))
+                            {
+                                _token = null;
+                                throw new WebException(Messages.FILESERVICE_AUTHENTICATE_ERROR);
+                            }
                         }
                     }
                 }

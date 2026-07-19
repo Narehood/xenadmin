@@ -41,9 +41,7 @@ namespace XenAdmin.TabPages
         {
             InitializeComponent();
             labelTitle.Text = BrandManager.BrandConsole;
-            labelBlurb.Text = string.Format(
-                "Connect to an {0} host or pool to get started.",
-                BrandManager.ProductBrand);
+            labelBlurb.Text = string.Format(Messages.HOMEPAGE_BLURB, BrandManager.ProductBrand);
             buttonAddServer.Text = Messages.ADD_NEW_CONNECT_TO;
         }
 

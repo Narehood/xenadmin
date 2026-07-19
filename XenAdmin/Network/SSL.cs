@@ -61,7 +61,14 @@ namespace XenAdmin.Network
             lock (CertificateValidationLock)
             {
                 bool AcceptCertificate = false;
-                HttpWebRequest webreq = (HttpWebRequest)sender;
+                string hostname = null;
+                if (sender is HttpWebRequest webreq)
+                    hostname = webreq.Address?.Host;
+                else if (sender is string host)
+                    hostname = host;
+
+                if (string.IsNullOrEmpty(hostname))
+                    return false;
 
                 // Without a UI we cannot prompt for TOFU; reject errors instead of accept-all.
                 if (Program.MainWindow == null)
@@ -69,7 +76,7 @@ namespace XenAdmin.Network
 
                 foreach (KeyValuePair<string, string> kvp in Settings.KnownServers)
                 {
-                    if (kvp.Key != webreq.Address.Host)
+                    if (kvp.Key != hostname)
                         continue;
 
                     if (kvp.Value == certificate.GetCertHashString())
@@ -86,7 +93,7 @@ namespace XenAdmin.Network
                     {
                         Program.Invoke(Program.MainWindow, () =>
                         {
-                            using (var dialog = new CertificateChangedDialog(certificate, webreq.Address.Host))
+                            using (var dialog = new CertificateChangedDialog(certificate, hostname))
                                 AcceptCertificate = dialog.ShowDialog(Program.MainWindow) == DialogResult.OK;
                         });
 
@@ -101,14 +108,14 @@ namespace XenAdmin.Network
                 if (!Properties.Settings.Default.WarnUnrecognizedCertificate && Registry.SSLCertificateTypes != SSLCertificateTypes.All)
                 {
                     // user has chosen to ignore new certificates
-                    Settings.AddCertificate(certificate.GetCertHashString(), webreq.Address.Host);
+                    Settings.AddCertificate(certificate.GetCertHashString(), hostname);
                     log.Debug("Adding new cert silently");
                     return true;
                 }
 
                 Program.Invoke(Program.MainWindow, () =>
                 {
-                    using (var dialog = new UnknownCertificateDialog(certificate, webreq.Address.Host))
+                    using (var dialog = new UnknownCertificateDialog(certificate, hostname))
                         AcceptCertificate = dialog.ShowDialog(Program.MainWindow) == DialogResult.OK;
                 });
 

@@ -277,21 +277,6 @@ namespace XenAPI
             return uri.Scheme == "https" || uri.Port == DEFAULT_HTTPS_PORT;
         }
 
-        private static bool ValidateServerCertificate(
-              object sender,
-              X509Certificate certificate,
-              X509Chain chain,
-              SslPolicyErrors sslPolicyErrors)
-        {
-            // Do not accept-all. Prefer the app-level TOFU callback when present;
-            // otherwise require a clean chain for this low-level HTTP helper path.
-            var appCallback = ServicePointManager.ServerCertificateValidationCallback;
-            if (appCallback != null)
-                return appCallback(sender, certificate, chain, sslPolicyErrors);
-
-            return sslPolicyErrors == SslPolicyErrors.None;
-        }
-
         /// <summary>
         /// Returns a secure MD5 hash of the given input string.
         /// </summary>
@@ -489,8 +474,16 @@ namespace XenAPI
                 if (UseSSL(uri))
                 {
                     SslStream sslStream = new SslStream(stream, false,
-                        new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                    sslStream.AuthenticateAsClient("", null, TlsPolicy.AllowedSslProtocols, true);
+                        (sender, certificate, chain, sslPolicyErrors) =>
+                        {
+                            // Pass the expected hostname so TOFU validation does not assume HttpWebRequest.
+                            var appCallback = ServicePointManager.ServerCertificateValidationCallback;
+                            if (appCallback != null)
+                                return appCallback(uri.Host, certificate, chain, sslPolicyErrors);
+
+                            return sslPolicyErrors == SslPolicyErrors.None;
+                        }, null);
+                    sslStream.AuthenticateAsClient(uri.Host, null, TlsPolicy.AllowedSslProtocols, true);
 
                     stream = sslStream;
                 }

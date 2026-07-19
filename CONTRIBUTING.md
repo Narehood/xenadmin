@@ -24,8 +24,8 @@ If you are unsure about something written here, ask on the XCP-ng forum https://
 	  new code. Prefer non-UI tests in `XenCenterLib.Tests` (or a future
 	  model test project) for security-sensitive helpers.
 
-3.    Make your patch(es) available by creating one or more github pull requests.
-      Each pull request should be separately reviewable and mergable. Only patches
+3.    Make your patch(es) available by creating one or more GitHub pull requests.
+      Each pull request should be separately reviewable and mergeable. Only patches
       which must be committed together should be in the same pull request.
       Target the `development` branch; it is the only supported integration line.
 
