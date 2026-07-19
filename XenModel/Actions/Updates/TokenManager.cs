@@ -32,7 +32,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Text;
-using System.Web.Script.Serialization;
+using Newtonsoft.Json;
 
 namespace XenAdmin.Actions.Updates
 {
@@ -110,7 +110,7 @@ namespace XenAdmin.Actions.Updates
                         using (var streamReader = new StreamReader(responseStream))
                         {
                             var json = streamReader.ReadToEnd();
-                            _token = new JavaScriptSerializer().Deserialize(json, typeof(FileServiceToken)) as FileServiceToken;
+                            _token = JsonConvert.DeserializeObject<FileServiceToken>(json);
                         }
                     }
                 }

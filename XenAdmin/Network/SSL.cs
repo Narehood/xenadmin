@@ -63,8 +63,9 @@ namespace XenAdmin.Network
                 bool AcceptCertificate = false;
                 HttpWebRequest webreq = (HttpWebRequest)sender;
 
-                //This allows to run tests without MainWindow
-                if (Program.MainWindow == null) return true;
+                // Without a UI we cannot prompt for TOFU; reject errors instead of accept-all.
+                if (Program.MainWindow == null)
+                    return false;
 
                 foreach (KeyValuePair<string, string> kvp in Settings.KnownServers)
                 {

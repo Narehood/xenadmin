@@ -37,7 +37,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
-using System.Web.Script.Serialization;
+using Newtonsoft.Json;
 using XenAdmin.Plugins;
 using XenAPI;
 
@@ -175,7 +175,7 @@ namespace XenAdmin.Core
             }
 
             var obj = new Dictionary<string, object> {{BrandManager.BrandConsole, metadata}};
-            return new JavaScriptSerializer().Serialize(obj);
+            return JsonConvert.SerializeObject(obj);
         }
 
         private static string GetLocalIPAddress()

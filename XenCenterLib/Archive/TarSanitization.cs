@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ICSharpCode.SharpZipLib.Tar;
+using Encoding = System.Text.Encoding;
 
 namespace XenCenterLib.Archive
 {
@@ -56,9 +57,9 @@ namespace XenCenterLib.Archive
         public static void SanitizeTarForWindows(string inputTar, string outputTar, Action cancellingDelegate)
         {
             using (var fsIn = File.OpenRead(inputTar))
-            using (var inputStream = new TarInputStream(fsIn))
+            using (var inputStream = new TarInputStream(fsIn, Encoding.UTF8))
             using (var fsOut = File.OpenWrite(outputTar))
-            using (var outputStream = new TarOutputStream(fsOut))
+            using (var outputStream = new TarOutputStream(fsOut, Encoding.UTF8))
             {
                 TarEntry entry;
                 byte[] buf = new byte[8 * 1024];

@@ -36,7 +36,7 @@ using System.Threading;
 using XenAdmin;
 using XenAdmin.Core;
 using System.Diagnostics;
-using System.Web.Script.Serialization;
+using Newtonsoft.Json;
 
 
 namespace XenAPI
@@ -1639,10 +1639,9 @@ namespace XenAPI
             {
                 var result = call_plugin(host.Connection.Session, host.opaque_ref,
                     "prepare_host_upgrade.py", "getVersion", installMethodConfig);
-                var serializer = new JavaScriptSerializer();
-                var version = (Dictionary<string, object>)serializer.DeserializeObject(result);
-                platformVersion = version.ContainsKey("platform-version") ? (string)version["platform-version"] : null;
-                productVersion = version.ContainsKey("product-version") ? (string)version["product-version"] : null;
+                var version = JsonConvert.DeserializeObject<Dictionary<string, object>>(result);
+                platformVersion = version != null && version.ContainsKey("platform-version") ? version["platform-version"]?.ToString() : null;
+                productVersion = version != null && version.ContainsKey("product-version") ? version["product-version"]?.ToString() : null;
                 return platformVersion != null || productVersion != null;
             }
             catch (Exception exception)

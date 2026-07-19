@@ -42,6 +42,11 @@ namespace XenAdmin.Core
 
         internal static bool DisablePlugins => ReadBool(DISABLE_PLUGINS, false);
 
+        /// <summary>
+        /// Opt-in: plugins are off unless EnablePlugins is set (and DisablePlugins is not).
+        /// </summary>
+        internal static bool EnablePlugins => ReadBool(ENABLE_PLUGINS, false);
+
         internal static bool ForceSystemFonts => ReadBool(FORCE_SYSTEM_FONTS, false);
 
         internal static bool DontSudo => ReadBool(DONT_SUDO, false);
@@ -265,6 +270,7 @@ namespace XenAdmin.Core
         private const string ALLOW_CREDENTIAL_SAVE = "AllowCredentialSave";
         private const string FORCE_SYSTEM_FONTS = "ForceSystemFonts";
         private const string DISABLE_PLUGINS = "DisablePlugins";
+        private const string ENABLE_PLUGINS = "EnablePlugins";
         private const string DONT_SUDO = "DontSudo";
         private static readonly string XENCENTER_LOCAL_KEYS = $"SOFTWARE\\{BrandManager.ProductBrand}\\{BrandManager.BrandConsole}";
         private const string PSExecutionPolicyKey = @"Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell";

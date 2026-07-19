@@ -39,6 +39,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.Serialization;
+using XenCenterLib;
 
 namespace XenAPI
 {
@@ -282,7 +283,13 @@ namespace XenAPI
               X509Chain chain,
               SslPolicyErrors sslPolicyErrors)
         {
-            return true;
+            // Do not accept-all. Prefer the app-level TOFU callback when present;
+            // otherwise require a clean chain for this low-level HTTP helper path.
+            var appCallback = ServicePointManager.ServerCertificateValidationCallback;
+            if (appCallback != null)
+                return appCallback(sender, certificate, chain, sslPolicyErrors);
+
+            return sslPolicyErrors == SslPolicyErrors.None;
         }
 
         /// <summary>
@@ -483,7 +490,7 @@ namespace XenAPI
                 {
                     SslStream sslStream = new SslStream(stream, false,
                         new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                    sslStream.AuthenticateAsClient("", null, SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12, true);
+                    sslStream.AuthenticateAsClient("", null, TlsPolicy.AllowedSslProtocols, true);
 
                     stream = sslStream;
                 }

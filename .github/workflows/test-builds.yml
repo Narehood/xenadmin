@@ -7,25 +7,49 @@ on:
     branches: [ development ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
-      - name: Restore Packages
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore packages
         run: msbuild XenAdmin.sln -t:restore
-      - name: Build Release solution
-        run: msbuild XenAdmin.sln -property:Configuration=Release
-      - name: Build Debug solution
-        run: msbuild XenAdmin.sln -property:Configuration=Debug
-      - name: Upload Release Artifacts
+
+      - name: Build Release
+        run: msbuild XenAdmin.sln -property:Configuration=Release -verbosity:minimal
+
+      - name: Build Debug
+        run: msbuild XenAdmin.sln -property:Configuration=Debug -verbosity:minimal
+
+      - name: Run unit tests
+        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload Release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: drop-release
           path: XenAdmin/bin/Release/net481
-      - name: Upload Debug Artifacts
+          if-no-files-found: error
+
+      - name: Upload Debug artifacts
         uses: actions/upload-artifact@v4
         with:
           name: drop-debug
           path: XenAdmin/bin/Debug/net481
+          if-no-files-found: error
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore

@@ -20,6 +20,11 @@ allow for a portable version of XCP-ng Center where the settings and logs will b
 The official graphical client for XCP-ng is [Xen Orchestra](https://xen-orchestra.com), which gets support from a team of several developers.
 XCP-ng Center is maintained by community members on their free time and hosted by the XCP-ng project.
 
+## Development branch
+All active development, CI, and releases target the **`development`** branch.
+GitHub Actions builds Release/Debug, runs unit tests, and uploads artifacts on every push and pull request to `development`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [MODERNIZATION.md](MODERNIZATION.md).
+
 XCP-ng Center
 =============
 
@@ -29,7 +34,7 @@ XCP-ng Center is a Windows-based management tool for XCP-ng and Citrix® XenServ
 which enables users to manage and monitor XCP-ng and Citrix® XenServer® hosts and resource pools,
 and to deploy, monitor, manage and migrate virtual machines.
 
-XCP-ng Center is written mostly in C#.
+XCP-ng Center is written mostly in C# (WinForms, .NET Framework 4.8.1; shared libraries also target .NET 8).
 
 ![XCP-ng Center Screenshot](branding-xcp-ng/Images/XCP-ng_Center_Screenshot.png)
 

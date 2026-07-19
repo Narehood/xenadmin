@@ -9,18 +9,25 @@ If you are unsure about something written here, ask on the XCP-ng forum https://
 
 0.    Before starting a big project, discuss it on the forum first :-)
 
-1.    Always test your changes, however small, by both targetted 
-      manual testing and by running the unit tests.
+1.    Always test your changes, however small, by both targeted
+      manual testing and by running the unit tests:
 
-2.	  When adding new functionality, include test cases for any 
-	  * important; or 
-	  * difficult to manually test; or 
+          dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release
+
+      GitHub Actions on the `development` branch also runs restore, Release/Debug
+      builds, and these unit tests on every push and pull request.
+
+2.	  When adding new functionality, include test cases for any
+	  * important; or
+	  * difficult to manually test; or
 	  * easy to break
-	  new code.
+	  new code. Prefer non-UI tests in `XenCenterLib.Tests` (or a future
+	  model test project) for security-sensitive helpers.
 
-3.    Make your patch(es) available by creating one or more github pull requests. 
-      Each pull request should be separately reviewable and mergable. Only patches 
+3.    Make your patch(es) available by creating one or more github pull requests.
+      Each pull request should be separately reviewable and mergable. Only patches
       which must be committed together should be in the same pull request.
+      Target the `development` branch; it is the only supported integration line.
 
 4.    Each patch should include a descriptive commit comment that helps
       understand why the patch is necessary and why it works. This will
@@ -35,5 +42,6 @@ If you are unsure about something written here, ask on the XCP-ng forum https://
       instead of you.
 
 ----------------------------------------------------------------------------
-	  
+
 For a list of maintainers, please see [MAINTAINERS](./MAINTAINERS.md) file.
+For modernization scope and non-goals, see [MODERNIZATION.md](./MODERNIZATION.md).

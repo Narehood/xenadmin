@@ -1,4 +1,4 @@
-﻿/* Copyright (c) Cloud Software Group, Inc. / XCP-ng
+/* Copyright (c) XCP-ng
  *
  * Redistribution and use in source and binary forms,
  * with or without modification, are permitted provided
@@ -29,29 +29,25 @@
  */
 
 using System;
-using XenAdmin.Commands;
-using XenAdmin.Controls;
-using XenAdmin.Core;
+using System.Text.RegularExpressions;
 
-namespace XenAdmin.TabPages
+namespace XenCenterLib
 {
-    public partial class HomePage : DoubleBufferedPanel
+    /// <summary>
+    /// Helpers to keep secrets out of log output.
+    /// </summary>
+    public static class LogRedaction
     {
-        public HomePage()
-        {
-            InitializeComponent();
-            labelTitle.Text = BrandManager.BrandConsole;
-            labelBlurb.Text = string.Format(
-                "Connect to an {0} host or pool to get started.",
-                BrandManager.ProductBrand);
-            buttonAddServer.Text = Messages.ADD_NEW_CONNECT_TO;
-        }
+        private static readonly Regex PasswordAssignment =
+            new Regex(@"(?i)(password|passwd|pwd|secret|token|apikey)\s*[:=]\s*([^\s,;]+)",
+                RegexOptions.Compiled);
 
-        private void buttonAddServer_Click(object sender, EventArgs e)
+        public static string RedactSecrets(string message)
         {
-            new AddHostCommand(Program.MainWindow, this).Run();
-        }
+            if (string.IsNullOrEmpty(message))
+                return message;
 
-        public string HelpID => "TabPageHome";
+            return PasswordAssignment.Replace(message, m => $"{m.Groups[1].Value}=***");
+        }
     }
 }

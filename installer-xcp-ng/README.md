@@ -1,8 +1,16 @@
 XCP-ng Installer
 ================
-The files here are to create the installer. The installer is designed with Wise for Windows Installer.
+
+The files here create the Windows installer for XCP-ng Center.
+
+**Format:** Wise for Windows Installer project (`XCP-ng Center.wsi`), plus
+banner/background bitmaps used by the MSI UI.
 
 https://www.wiseglobalsolutions.com/products/wise-for-windows-installer
 
-Since I am the developer for WfWI, I provide OSS licenses for the version used to create this MSI, if you
-want a license, feel free to reach out to me.
+Since the maintainer develops WfWI, OSS licenses for the version used to create
+this MSI are available on request.
+
+This is the supported installer story for the `development` branch. Older
+changelog mentions of NSIS/WiX refer to historical experiments and are not the
+current in-tree packaging path.
