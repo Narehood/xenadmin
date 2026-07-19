@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net481</TargetFramework>
+		<TargetFramework>net8.0-windows</TargetFramework>
 		<UseWindowsForms>true</UseWindowsForms>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<OutputType>WinExe</OutputType>
@@ -9,6 +9,7 @@
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<Title>XCP-ng Center</Title>
 		<Description>XCP-ng Center</Description>
+		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -19,9 +20,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="System.Design" />
-		<Reference Include="System.Management" />
-		<Reference Include="System.Security" />
+		<PackageReference Include="System.Management" />
+		<PackageReference Include="System.Configuration.ConfigurationManager" />
+		<PackageReference Include="System.Security.Permissions" />
+		<PackageReference Include="System.Resources.Extensions" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Reference Include="AxMSTSCLib">
 			<HintPath>RDP\AxMSTSCLib.dll</HintPath>
 		</Reference>
@@ -57,7 +62,14 @@
 	  </Compile>
 	</ItemGroup>
 
+	<PropertyGroup>
+		<_AxImpExe Condition="'$(_AxImpExe)' == '' and Exists('$(TargetFrameworkSDKToolsDirectory)aximp.exe')">$(TargetFrameworkSDKToolsDirectory)aximp.exe</_AxImpExe>
+		<_AxImpExe Condition="'$(_AxImpExe)' == '' and Exists('$(MSBuildProgramFiles32)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8.1 Tools\aximp.exe')">$(MSBuildProgramFiles32)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8.1 Tools\aximp.exe</_AxImpExe>
+		<_AxImpExe Condition="'$(_AxImpExe)' == '' and Exists('$(MSBuildProgramFiles32)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools\aximp.exe')">$(MSBuildProgramFiles32)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools\aximp.exe</_AxImpExe>
+	</PropertyGroup>
+
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(SkipRdpAxImp)' != 'true'">
-		<Exec Command="&quot;$(TargetFrameworkSDKToolsDirectory)aximp.exe&quot; $(WinDir)\System32\mstscax.dll" WorkingDirectory="$(ProjectDir)RDP" />
+		<Error Condition="'$(_AxImpExe)' == '' or !Exists('$(_AxImpExe)')" Text="aximp.exe not found. Install the .NET Framework 4.8/4.8.1 targeting pack / VS Desktop workload, or set _AxImpExe / SkipRdpAxImp=true when interop DLLs already exist." />
+		<Exec Command="&quot;$(_AxImpExe)&quot; $(WinDir)\System32\mstscax.dll" WorkingDirectory="$(ProjectDir)RDP" />
 	</Target>
 </Project>

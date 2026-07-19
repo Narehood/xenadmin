@@ -41,14 +41,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: drop-release
-          path: XenAdmin/bin/Release/net481
+          path: XenAdmin/bin/Release/net8.0-windows
           if-no-files-found: error
 
       - name: Upload Debug artifacts
         uses: actions/upload-artifact@v4
         with:
           name: drop-debug
-          path: XenAdmin/bin/Debug/net481
+          path: XenAdmin/bin/Debug/net8.0-windows
           if-no-files-found: error
 
       - name: Upload test results
