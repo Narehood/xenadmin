@@ -15,7 +15,7 @@ XCP-ng Center is modernized **only on the `development` branch**.
 | CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net8.0` |
 | XenAdmin (WinForms app) | `net481` only (RDP ActiveX / IE plugin tabs) |
 
-Update downloads use `HttpClient` via `HttpFileDownloader` (not `WebClient`). Remaining: Import Wizard URL download (`ImportSourcePage`), clear app blockers (RDP COM on `net8.0-windows`, plugin/WebBrowser policy), then retarget XenAdmin.
+Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownloader` (Import Wizard no longer uses `Application.DoEvents` for download/uncompress waits). Remaining: clear app blockers (RDP COM on `net8.0-windows`, plugin/WebBrowser `DoEvents` in `TabPageFeature`), then retarget XenAdmin.
 
 ## Non-goals
 

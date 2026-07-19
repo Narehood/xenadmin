@@ -57,7 +57,7 @@
 	  </Compile>
 	</ItemGroup>
 
-	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+	<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(SkipRdpAxImp)' != 'true'">
 		<Exec Command="&quot;$(TargetFrameworkSDKToolsDirectory)aximp.exe&quot; $(WinDir)\System32\mstscax.dll" WorkingDirectory="$(ProjectDir)RDP" />
 	</Target>
 </Project>

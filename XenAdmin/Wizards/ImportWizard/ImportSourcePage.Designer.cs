@@ -15,12 +15,9 @@
         {
             if (disposing)
             {
-                if (_webClient != null)
-                {
-                    _webClient.DownloadFileCompleted -= webclient_DownloadFileCompleted;
-                    _webClient.DownloadProgressChanged -= webclient_DownloadProgressChanged;
-                    _webClient.Dispose();
-                }
+                _downloader?.Cancel();
+                _downloader?.Dispose();
+                _downloader = null;
 
                 if (components != null)
                     components.Dispose();
