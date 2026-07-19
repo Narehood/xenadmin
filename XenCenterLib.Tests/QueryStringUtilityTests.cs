@@ -34,6 +34,15 @@ namespace XenCenterLib.Tests
         {
             var result = QueryStringUtility.ParseQueryString("a=1&a=2");
             Assert.Equal("1,2", result["a"]);
+            Assert.Equal(new[] { "1", "2" }, result.GetValues("a"));
+        }
+
+        [Fact]
+        public void ParseQueryString_KeyWithoutValue()
+        {
+            NameValueCollection result = QueryStringUtility.ParseQueryString("flag");
+            Assert.Contains("flag", result.AllKeys);
+            Assert.Null(result["flag"]);
         }
 
         [Fact]
@@ -44,12 +53,44 @@ namespace XenCenterLib.Tests
         }
 
         [Fact]
+        public void AddAuthTokenToQueryString_EmptyToken_StripsLeadingQuestionMark()
+        {
+            Assert.Equal("foo=bar", QueryStringUtility.AddAuthTokenToQueryString(null, "?foo=bar"));
+            Assert.Equal("foo=bar", QueryStringUtility.AddAuthTokenToQueryString(string.Empty, "?foo=bar"));
+            Assert.Equal(string.Empty, QueryStringUtility.AddAuthTokenToQueryString(null, "?"));
+            Assert.Equal(string.Empty, QueryStringUtility.AddAuthTokenToQueryString(null, null));
+        }
+
+        [Fact]
         public void AddAuthTokenToQueryString_MergesTokenIntoExisting()
         {
             var result = QueryStringUtility.AddAuthTokenToQueryString("client_id=xyz", "?existing=1");
-            Assert.Contains("existing=1", result);
-            Assert.Contains("client_id=xyz", result);
+            Assert.Equal("existing=1&client_id=xyz", result);
             Assert.DoesNotContain("?", result);
+        }
+
+        [Fact]
+        public void AddAuthTokenToQueryString_PreservesDuplicateKeysAsSeparatePairs()
+        {
+            var result = QueryStringUtility.AddAuthTokenToQueryString("a=2", "a=1");
+            Assert.Equal("a=1&a=2", result);
+        }
+
+        [Fact]
+        public void AddAuthTokenToQueryString_PreservesValuelessKeys()
+        {
+            var result = QueryStringUtility.AddAuthTokenToQueryString("token=1", "flag");
+            Assert.Equal("flag&token=1", result);
+
+            result = QueryStringUtility.AddAuthTokenToQueryString("flag", "a=1");
+            Assert.Equal("a=1&flag", result);
+        }
+
+        [Fact]
+        public void AddAuthTokenToQueryString_EmptyValueKeepsEquals()
+        {
+            var result = QueryStringUtility.AddAuthTokenToQueryString("b=", "a=");
+            Assert.Equal("a=&b=", result);
         }
 
         [Fact]
@@ -60,11 +101,11 @@ namespace XenCenterLib.Tests
         }
 
         [Fact]
-        public void ParseQueryString_KeyWithoutValue()
+        public void AddAuthTokenToQueryString_OutputNeverHasLeadingQuestionMark()
         {
-            NameValueCollection result = QueryStringUtility.ParseQueryString("flag");
-            Assert.Contains("flag", result.AllKeys);
-            Assert.Null(result["flag"]);
+            Assert.Equal("a=1&b=2", QueryStringUtility.AddAuthTokenToQueryString("b=2", "?a=1"));
+            Assert.StartsWith("a=", QueryStringUtility.AddAuthTokenToQueryString("a=1", "?"));
+            Assert.DoesNotContain("?", QueryStringUtility.AddAuthTokenToQueryString("a=1", "?b=2"));
         }
     }
 }

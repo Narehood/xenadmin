@@ -29,8 +29,8 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Linq;
 using System.Net;
 
 namespace XenCenterLib
@@ -85,20 +85,43 @@ namespace XenCenterLib
         /// <summary>
         /// Merges <paramref name="authToken"/> (itself a query fragment) into
         /// <paramref name="existingQueryString"/> and returns a query string without a leading '?'.
+        /// Duplicate keys emit one pair per value; null values omit '=' (valueless keys).
         /// </summary>
         public static string AddAuthTokenToQueryString(string authToken, string existingQueryString)
         {
-            if (string.IsNullOrEmpty(authToken))
-                return existingQueryString ?? string.Empty;
-
             var query = ParseQueryString(existingQueryString);
-            var tokenQuery = ParseQueryString(authToken);
-            query.Add(tokenQuery);
+            if (!string.IsNullOrEmpty(authToken))
+                query.Add(ParseQueryString(authToken));
 
-            return string.Join("&",
-                query.AllKeys
-                    .Where(key => !string.IsNullOrWhiteSpace(key))
-                    .Select(key => $"{key}={WebUtility.UrlEncode(query[key])}"));
+            return SerializeQueryString(query);
+        }
+
+        /// <summary>
+        /// Serializes a query collection without a leading '?'.
+        /// </summary>
+        private static string SerializeQueryString(NameValueCollection query)
+        {
+            var parts = new List<string>();
+            foreach (var key in query.AllKeys)
+            {
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+
+                var values = query.GetValues(key);
+                if (values == null || values.Length == 0)
+                {
+                    parts.Add(key);
+                    continue;
+                }
+
+                foreach (var value in values)
+                {
+                    // Null means a valueless key (no '='); empty string means key=
+                    parts.Add(value == null ? key : $"{key}={WebUtility.UrlEncode(value)}");
+                }
+            }
+
+            return string.Join("&", parts);
         }
     }
 }

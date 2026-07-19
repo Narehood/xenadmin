@@ -1516,9 +1516,6 @@ namespace XenAdmin.Core
         /// <returns>The modified query string.</returns>
         public static string AddAuthTokenToQueryString(string authToken, string existingQueryString)
         {
-            if (string.IsNullOrEmpty(authToken))
-                return existingQueryString;
-
             try
             {
                 return QueryStringUtility.AddAuthTokenToQueryString(authToken, existingQueryString);
