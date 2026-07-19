@@ -74,7 +74,7 @@
             <TreeView Grid.Row="1"
                       IsVisible="{Binding ShowInfrastructure}"
                       ItemsSource="{Binding InfrastructureRoots}"
-                      SelectedItem="{Binding SelectedInfraNode}">
+                      SelectedItem="{Binding SelectedInfraNode, Mode=TwoWay}">
               <TreeView.ItemTemplate>
                 <TreeDataTemplate ItemsSource="{Binding Children}"
                                   DataType="vm:InfraTreeNode">
@@ -328,7 +328,7 @@
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
 
-                      <TextBlock Text="No storage repositories for this selection."
+                      <TextBlock Text="No storage objects for this selection."
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  FontSize="13"
                                  IsVisible="{Binding !HasStorageItems}" />
