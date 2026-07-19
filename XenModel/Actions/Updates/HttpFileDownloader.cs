@@ -39,9 +39,9 @@ using System.Threading.Tasks;
 namespace XenAdmin.Actions.Updates
 {
     /// <summary>
-    /// Shared HttpClient-based file download used by update actions (replaces WebClient).
+    /// Shared HttpClient-based file download (replaces WebClient).
     /// </summary>
-    internal sealed class HttpFileDownloader : IDisposable
+    public sealed class HttpFileDownloader : IDisposable
     {
         private const int BufferSize = 81920;
 
