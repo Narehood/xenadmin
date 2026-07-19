@@ -37,6 +37,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
   - Live refresh on `CachePopulated` / `XenObjectsUpdated`
 - General summary for selected pool / host / VM (`GeneralSummaryBuilder`)
 - Storage tab (read-only): pool/host SR list + VM disks (`StorageSummaryBuilder`)
+- Network tab (read-only): networks / management PIFs / VM VIFs (`NetworkSummaryBuilder`)
 - CI: self-contained `win-x64` publish uploaded as `drop-shell-win-x64`
 
 ### Key shell layout
@@ -53,12 +54,11 @@ Startup wiring: `ShellBootstrap` → `InvokeHelper` + `IXenAdminConfigProvider` 
 
 ## Next (priority order)
 
-1. **Network tab** — networks / PIFs / VIFs summary for selected object.
-2. **Richer General** — match more WinForms General fields; multi-select / empty states.
-3. **Console last** — VNC first; RDP strategy TBD on Avalonia (do not block Storage/Network on Console).
-4. **TOFU UX** — cert changed / first-seen dialogs (replace silent re-pin for production readiness).
-5. **Persistence** — saved server list / credentials policy (today: session-only + TOFU pins).
-6. **Linux desktop soak** — after Windows preview is solid (`net8.0` already; validate Drawing.Common paths).
+1. **Richer General** — match more WinForms General fields; multi-select / empty states.
+2. **Console last** — VNC first; RDP strategy TBD on Avalonia (do not block Storage/Network on Console).
+3. **TOFU UX** — cert changed / first-seen dialogs (replace silent re-pin for production readiness).
+4. **Persistence** — saved server list / credentials policy (today: session-only + TOFU pins).
+5. **Linux desktop soak** — after Windows preview is solid (`net8.0` already; validate Drawing.Common paths).
 
 ## How to try the preview
 

@@ -62,8 +62,24 @@ public partial class MainViewModel : ViewModelBase
 
     public ObservableCollection<StorageItemRow> StorageItems { get; } = new();
 
+    public ObservableCollection<GeneralPropertyRow> NetworkTotals { get; } = new();
+
+    public ObservableCollection<NetworkItemRow> NetworkItems { get; } = new();
+
+    public ObservableCollection<NetworkItemRow> NetworkMgmtItems { get; } = new();
+
     [ObservableProperty]
     private bool _hasStorageItems;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyNetworkContent))]
+    private bool _hasNetworkItems;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyNetworkContent))]
+    private bool _hasNetworkMgmtItems;
+
+    public bool HasAnyNetworkContent => HasNetworkItems || HasNetworkMgmtItems;
 
     /// <summary>
     /// Last intentional tree selection used for detail panes. Avalonia TreeView often
@@ -375,6 +391,7 @@ public partial class MainViewModel : ViewModelBase
         var node = SelectedInfraNode ?? _pinnedInfraNode;
         RefreshGeneralProperties(node);
         RefreshStorageProperties(node);
+        RefreshNetworkProperties(node);
     }
 
     private void RefreshGeneralProperties(InfraTreeNode? node)
@@ -394,6 +411,23 @@ public partial class MainViewModel : ViewModelBase
         foreach (var item in summary.Items)
             StorageItems.Add(item);
         HasStorageItems = StorageItems.Count > 0;
+    }
+
+    private void RefreshNetworkProperties(InfraTreeNode? node)
+    {
+        NetworkTotals.Clear();
+        NetworkItems.Clear();
+        NetworkMgmtItems.Clear();
+        var summary = NetworkSummaryBuilder.Build(node);
+        foreach (var row in summary.Totals)
+            NetworkTotals.Add(row);
+        foreach (var item in summary.Networks)
+            NetworkItems.Add(item);
+        foreach (var item in summary.Management)
+            NetworkMgmtItems.Add(item);
+        HasNetworkItems = NetworkItems.Count > 0;
+        HasNetworkMgmtItems = NetworkMgmtItems.Count > 0;
+        OnPropertyChanged(nameof(HasAnyNetworkContent));
     }
 
     private void RemoveTreeForServer(ServerNode server)
