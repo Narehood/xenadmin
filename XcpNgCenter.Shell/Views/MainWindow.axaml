@@ -1,0 +1,229 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="1280" d:DesignHeight="800"
+        x:Class="XcpNgCenter.Shell.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="XCP-ng Center (Preview)"
+        Width="1280" Height="800"
+        MinWidth="960" MinHeight="640"
+        TransparencyLevelHint="None"
+        Background="{StaticResource Brush.BgDeep}">
+
+  <Window.Styles>
+    <Style Selector="Border.navItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Border.navItem:pointerover">
+      <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+  </Window.Styles>
+
+  <Grid>
+    <!-- Atmosphere: graphite with a restrained orange wash (not flat) -->
+    <Grid.Background>
+      <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#0E1216" />
+        <GradientStop Offset="0.55" Color="#12181E" />
+        <GradientStop Offset="1" Color="#1A140F" />
+      </LinearGradientBrush>
+    </Grid.Background>
+
+    <Grid ColumnDefinitions="280,*">
+      <!-- Left rail -->
+      <Border Grid.Column="0"
+              Background="#99161C22"
+              BorderBrush="{StaticResource Brush.StrokeSubtle}"
+              BorderThickness="0,0,1,0"
+              Padding="20">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <StackPanel Spacing="10" Margin="0,4,0,28">
+            <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
+                   Width="44" Height="44"
+                   HorizontalAlignment="Left" />
+            <TextBlock Text="{Binding BrandName}"
+                       FontSize="22"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource Brush.TextPrimary}" />
+            <TextBlock Text="Preview shell"
+                       FontSize="12"
+                       Foreground="{StaticResource Brush.BrandOrange}" />
+          </StackPanel>
+
+          <StackPanel Grid.Row="1" Spacing="8">
+            <TextBlock Text="INFRASTRUCTURE"
+                       FontSize="11"
+                       LetterSpacing="1.2"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       Margin="4,0,0,4" />
+            <ListBox ItemsSource="{Binding Servers}"
+                     SelectedItem="{Binding SelectedServer}"
+                     Background="Transparent"
+                     BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ServerNode">
+                  <Border Classes="navItem" Background="{StaticResource Brush.BgElevated}">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource Brush.TextPrimary}" />
+                      <TextBlock Text="{Binding Address}"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock IsVisible="{Binding ShowWelcome}"
+                       Text="No servers yet"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       Margin="4,8,0,0" />
+          </StackPanel>
+
+          <TextBlock Grid.Row="2"
+                     Text="WinForms XCP-ng Center remains the supported client."
+                     TextWrapping="Wrap"
+                     FontSize="11"
+                     Foreground="{StaticResource Brush.TextMuted}"
+                     Opacity="0.85" />
+        </Grid>
+      </Border>
+
+      <!-- Main stage -->
+      <Grid Grid.Column="1">
+        <!-- Welcome / brand-first composition when empty -->
+        <Grid IsVisible="{Binding ShowWelcome}" Margin="56,48">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <StackPanel VerticalAlignment="Center" Spacing="18" MaxWidth="560">
+            <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
+                   Width="72" Height="72"
+                   HorizontalAlignment="Left"
+                   Opacity="0.95">
+              <Image.Transitions>
+                <Transitions>
+                  <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
+                </Transitions>
+              </Image.Transitions>
+            </Image>
+
+            <TextBlock Text="{Binding BrandName}"
+                       FontSize="44"
+                       FontWeight="Bold"
+                       LineHeight="50"
+                       Foreground="{StaticResource Brush.TextPrimary}" />
+
+            <TextBlock Text="{Binding Tagline}"
+                       FontSize="17"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       MaxWidth="480" />
+
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+              <TextBox Width="280"
+                       Watermark="host.example or 10.0.0.5"
+                       Text="{Binding HostInput}" />
+              <Button Classes="cta"
+                      Content="Add server"
+                      Command="{Binding AddServerCommand}" />
+            </StackPanel>
+
+            <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
+                       Text="Public IP detected — prefer VPN, SSH tunnel, or a private path before exposing the management plane."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.BrandOrange}"
+                       MaxWidth="520" />
+
+            <TextBlock Text="{Binding StatusMessage}"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       MaxWidth="520" />
+          </StackPanel>
+
+          <Border Grid.Row="0"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Stretch"
+                  Width="280"
+                  Margin="0,-48,-56,-48"
+                  IsHitTestVisible="False">
+            <Border.Background>
+              <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#00F07318" />
+                <GradientStop Offset="0.45" Color="#33F07318" />
+                <GradientStop Offset="1" Color="#14000000" />
+              </LinearGradientBrush>
+            </Border.Background>
+          </Border>
+        </Grid>
+
+        <!-- Connected / list state -->
+        <Grid IsVisible="{Binding HasServers}" Margin="40,36" RowDefinitions="Auto,*,Auto">
+          <DockPanel Margin="0,0,0,24">
+            <StackPanel DockPanel.Dock="Left" Spacing="6">
+              <TextBlock Text="{Binding BrandName}"
+                         FontSize="28"
+                         FontWeight="Bold" />
+              <TextBlock Text="Infrastructure"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right"
+                        Orientation="Horizontal"
+                        Spacing="10"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center">
+              <TextBox Width="220"
+                       Watermark="Add another host"
+                       Text="{Binding HostInput}" />
+              <Button Classes="cta" Content="Add" Command="{Binding AddServerCommand}" />
+              <Button Classes="ghost" Content="Remove" Command="{Binding RemoveSelectedCommand}" />
+            </StackPanel>
+          </DockPanel>
+
+          <Border Grid.Row="1"
+                  Background="#66161C22"
+                  BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                  BorderThickness="1"
+                  CornerRadius="10"
+                  Padding="28">
+            <StackPanel Spacing="12" VerticalAlignment="Center">
+              <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='Select a server'}"
+                         FontSize="26"
+                         FontWeight="SemiBold" />
+              <TextBlock Text="{Binding SelectedServer.Address, FallbackValue=''}"
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         FontSize="15" />
+              <TextBlock Text="{Binding SelectedServer.Status, FallbackValue=''}"
+                         Foreground="{StaticResource Brush.BrandOrange}"
+                         Margin="0,8,0,0" />
+              <TextBlock Text="Next slice: live session connect through XenModel (TOFU TLS, pool tree, General tab)."
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         Margin="0,16,0,0"
+                         MaxWidth="640" />
+            </StackPanel>
+          </Border>
+
+          <TextBlock Grid.Row="2"
+                     Margin="0,16,0,0"
+                     Text="{Binding StatusMessage}"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+        </Grid>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

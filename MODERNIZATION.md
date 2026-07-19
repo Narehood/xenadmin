@@ -21,19 +21,21 @@ Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownl
 
 Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled by default**. Enable with registry `EnablePlugins=1`. Credential look-ups no longer use `Application.DoEvents`; IE hosting is retained until a future UI rewrite replaces this surface.
 
-### Planned later
+### UI rewrite
 
-- Full UI rewrite (current WinForms UI is Windows 7–era); not part of the present maintenance tranche, but intended.
+Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
+Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
+
+### Still later
+
 - Broader async cleanup / installer CI automation.
-- Linux client experiments are not part of this track (see non-goals).
+- Linux desktop soak for the Avalonia shell (after Windows preview is solid).
 
 ## Non-goals
 
-These tracks are **out of scope** for the current maintenance modernization unless separately funded and restarted from current `development`:
-
 | Track | Status |
 |-------|--------|
-| `origin/avalonia` | Placeholder only. Do not revive as-is. |
+| `origin/avalonia` | Historical placeholder. Superseded by `XcpNgCenter.Shell`. |
 | `master-linux*`, `linux-dev-cocoon` | Abandoned 2019 Mono experiments. Discard. |
 | Re-sync from archived Citrix `xenserver/xenadmin` | Historical only. |
 
