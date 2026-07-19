@@ -26,10 +26,15 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
+**Shipped so far (PR #7 / `cursor/ui-overhaul-d7bd`):** live XenModel connect + preview TOFU, infrastructure tree (pool → host → VM), General summary, public-IP warning (complete IPv4 only), CI artifact `drop-shell-win-x64`.
+
+**Next:** Storage tab → Network tab → Console (VNC last). Details and handoff notes live in `UI_REWRITE.md`.
+
 ### Still later
 
 - Broader async cleanup / installer CI automation.
-- Linux desktop soak for the Avalonia shell (after Windows preview is solid).
+- Linux desktop soak for the Avalonia shell (after Windows Storage/Network/Console slices are solid).
+- Production-ready TOFU dialogs in the shell (today: silent pin/re-pin).
 
 ## Non-goals
 
