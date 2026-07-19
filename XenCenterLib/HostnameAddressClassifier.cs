@@ -146,7 +146,15 @@ namespace XenCenterLib
             }
 
             if (address.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+#if NET6_0_OR_GREATER
                 return address.IsIPv6UniqueLocal;
+#else
+                // Unique Local Addresses are fc00::/7 (not on .NET Framework IPAddress).
+                var bytes = address.GetAddressBytes();
+                return bytes.Length == 16 && (bytes[0] & 0xfe) == 0xfc;
+#endif
+            }
 
             return false;
         }

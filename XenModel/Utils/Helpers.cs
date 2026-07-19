@@ -31,14 +31,12 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Web;
 using System.Xml;
 using XenAdmin.Network;
 using XenAPI;
@@ -1518,36 +1516,18 @@ namespace XenAdmin.Core
         /// <returns>The modified query string.</returns>
         public static string AddAuthTokenToQueryString(string authToken, string existingQueryString)
         {
-            var queryString = existingQueryString;
             if (string.IsNullOrEmpty(authToken))
-            {
-                return queryString;
-            }
+                return existingQueryString;
 
             try
             {
-                var query = new NameValueCollection();
-                if (!string.IsNullOrEmpty(existingQueryString))
-                {
-                    query.Add(HttpUtility.ParseQueryString(existingQueryString));
-                }
-
-                var tokenQueryString = HttpUtility.ParseQueryString(authToken);
-
-                query.Add(tokenQueryString);
-
-                queryString = string.Join("&",
-                    query.AllKeys
-                        .Where(key => !string.IsNullOrWhiteSpace(key))
-                        .Select(key => $"{key}={HttpUtility.UrlEncode(query[key])}")
-                );
+                return QueryStringUtility.AddAuthTokenToQueryString(authToken, existingQueryString);
             }
             catch (Exception ex)
             {
                 log.Error(ex);
+                return existingQueryString;
             }
-
-            return queryString;
         }
 
         public static bool TryLoadHostEua(Host host, string targetUri, out string eua)

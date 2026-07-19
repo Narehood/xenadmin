@@ -8,6 +8,15 @@ XCP-ng Center is modernized **only on the `development` branch**.
 - GitHub Actions (`.github/workflows/test-builds.yml`) restores packages, builds Release and Debug, runs unit tests, and uploads artifacts.
 - Package versions are managed centrally in `Directory.Packages.props`.
 
+## Runtime targeting
+
+| Project | TFMs |
+|---------|------|
+| CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net8.0` |
+| XenAdmin (WinForms app) | `net481` only (RDP ActiveX / IE plugin tabs) |
+
+Next: clear remaining app blockers (RDP COM validation on `net8.0-windows`, plugin/WebBrowser policy), then retarget XenAdmin.
+
 ## Non-goals
 
 These tracks are **out of scope** unless separately funded and restarted from current `development`:

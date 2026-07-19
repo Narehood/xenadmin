@@ -34,7 +34,7 @@ XCP-ng Center is a Windows-based management tool for XCP-ng and Citrix® XenServ
 which enables users to manage and monitor XCP-ng and Citrix® XenServer® hosts and resource pools,
 and to deploy, monitor, manage and migrate virtual machines.
 
-XCP-ng Center is written mostly in C# (WinForms, .NET Framework 4.8.1; shared libraries also target .NET 8).
+XCP-ng Center is written mostly in C# (WinForms app on .NET Framework 4.8.1; shared libraries multi-target .NET Framework 4.8.1 and .NET 8).
 
 ![XCP-ng Center Screenshot](branding-xcp-ng/Images/XCP-ng_Center_Screenshot.png)
 
