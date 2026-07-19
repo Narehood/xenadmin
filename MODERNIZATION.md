@@ -13,19 +13,28 @@ XCP-ng Center is modernized **only on the `development` branch**.
 | Project | TFMs |
 |---------|------|
 | CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net8.0` |
-| XenAdmin (WinForms app) | `net481` only (RDP ActiveX / IE plugin tabs) |
+| XenAdmin (WinForms app) | `net8.0-windows` |
 
-Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownloader` (Import Wizard no longer uses `Application.DoEvents` for download/uncompress waits). Remaining: clear app blockers (RDP COM on `net8.0-windows`, plugin/WebBrowser `DoEvents` in `TabPageFeature`), then retarget XenAdmin.
+Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownloader`.
+
+### Plugins (opt-in, IE WebBrowser)
+
+Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled by default**. Enable with registry `EnablePlugins=1`. Credential look-ups no longer use `Application.DoEvents`; IE hosting is retained until a future UI rewrite replaces this surface.
+
+### Planned later
+
+- Full UI rewrite (current WinForms UI is Windows 7–era); not part of the present maintenance tranche, but intended.
+- Broader async cleanup / installer CI automation.
+- Linux client experiments are not part of this track (see non-goals).
 
 ## Non-goals
 
-These tracks are **out of scope** unless separately funded and restarted from current `development`:
+These tracks are **out of scope** for the current maintenance modernization unless separately funded and restarted from current `development`:
 
 | Track | Status |
 |-------|--------|
-| `origin/avalonia` | Placeholder only (README note). Do not revive. |
+| `origin/avalonia` | Placeholder only. Do not revive as-is. |
 | `master-linux*`, `linux-dev-cocoon` | Abandoned 2019 Mono experiments. Discard. |
-| Full UI rewrite (Avalonia / Qt / Electron / MAUI) | Not part of maintenance modernization. |
 | Re-sync from archived Citrix `xenserver/xenadmin` | Historical only. |
 
 ## TLS / certificates (XCP-ng self-signed)
