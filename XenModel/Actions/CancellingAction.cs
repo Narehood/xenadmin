@@ -427,7 +427,7 @@ namespace XenAdmin.Actions
                     newSession = NewSession();
                     session = newSession;
                 }
-                catch (DisconnectionException e)
+                catch (DisconnectionException)
                 {
                     if (!Connection.ExpectDisruption)
                     {

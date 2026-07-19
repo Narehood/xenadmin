@@ -184,7 +184,7 @@ namespace XenCenterLib
                         return false;
 
                     if (algorithmName.ToUpperInvariant() == HashMethod.Sha256.StringOf())
-                        return rsa.VerifyData(hashAlgorithm.Hash, HashAlgorithmName.SHA256, digest, RSASignaturePadding.Pkcs1);
+                        return rsa.VerifyData(hashAlgorithm.Hash, digest, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
                     return rsa.VerifyHash(hashAlgorithm.Hash, digest, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
                 }

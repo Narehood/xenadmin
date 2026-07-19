@@ -638,17 +638,9 @@ namespace XenOvf
         }
         private static CryptoStream CryptoStreamWrapper(Stream inputStream, string password, bool encrypt, string version)
         {
-            try
-            {
-                Type cryptoclassType = GetAlgorithmClass(ENCRYPTION_ALGORITHM);
-                ICryptoTransform trans = CryptoSetup(cryptoclassType, password, encrypt, version);
-                return CryptoStream1(trans, inputStream, encrypt);
-
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
+            Type cryptoclassType = GetAlgorithmClass(ENCRYPTION_ALGORITHM);
+            ICryptoTransform trans = CryptoSetup(cryptoclassType, password, encrypt, version);
+            return CryptoStream1(trans, inputStream, encrypt);
         }
         private static ICryptoTransform CryptoSetup(Type cryptoclassType, string password, bool encrypt, string version)
         {
