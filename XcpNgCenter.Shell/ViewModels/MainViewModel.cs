@@ -65,6 +65,15 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _hasStorageItems;
 
+    /// <summary>
+    /// Last intentional tree selection used for detail panes. Avalonia TreeView often
+    /// clears SelectedItem when focus moves (tabs) or when the tree is rebuilt on cache updates.
+    /// </summary>
+    private InfraTreeNode? _pinnedInfraNode;
+
+    private bool _suppressSelectionClear;
+    private bool _restoreSelectionQueued;
+
     public MainViewModel()
     {
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
@@ -86,7 +95,21 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnSelectedInfraNodeChanged(InfraTreeNode? value)
     {
-        if (value?.Server != null)
+        if (value == null)
+        {
+            if (_suppressSelectionClear || _pinnedInfraNode == null || !HasServers)
+            {
+                if (_pinnedInfraNode == null)
+                    RefreshDetailPanes();
+                return;
+            }
+
+            QueueRestorePinnedSelection();
+            return;
+        }
+
+        _pinnedInfraNode = value;
+        if (value.Server != null)
             SelectedServer = value.Server;
         RefreshDetailPanes();
     }
@@ -165,7 +188,6 @@ public partial class MainViewModel : ViewModelBase
         server.Status = "Disconnected";
         server.Summary = string.Empty;
         RemoveTreeForServer(server);
-        SelectedInfraNode = null;
         StatusMessage = "Disconnected.";
         IsBusy = false;
     }
@@ -186,7 +208,17 @@ public partial class MainViewModel : ViewModelBase
         RemoveTreeForServer(server);
         Servers.Remove(server);
         SelectedServer = Servers.Count > 0 ? Servers[0] : null;
-        SelectedInfraNode = InfrastructureRoots.FirstOrDefault();
+        if (InfrastructureRoots.Count == 0)
+        {
+            _pinnedInfraNode = null;
+            SelectedInfraNode = null;
+            RefreshDetailPanes();
+        }
+        else
+        {
+            SelectInfraNode(InfrastructureRoots[0]);
+        }
+
         StatusMessage = Servers.Count == 0 ? string.Empty : "Server removed.";
     }
 
@@ -302,24 +334,37 @@ public partial class MainViewModel : ViewModelBase
         if (!server.IsConnected || !ReferenceEquals(server.Connection, conn))
             return;
 
-        var selectedRef = SelectedInfraNode?.OpaqueRef;
+        var selectedRef = _pinnedInfraNode?.Server == server
+            ? _pinnedInfraNode.OpaqueRef
+            : SelectedInfraNode?.Server == server
+                ? SelectedInfraNode.OpaqueRef
+                : null;
+
         var root = InfrastructureTreeBuilder.Build(server, conn);
 
-        var existing = InfrastructureRoots.FirstOrDefault(r => r.Server == server);
-        if (existing != null)
+        _suppressSelectionClear = true;
+        try
         {
-            var index = InfrastructureRoots.IndexOf(existing);
-            InfrastructureRoots[index] = root;
-        }
-        else
-        {
-            InfrastructureRoots.Add(root);
-        }
+            var existing = InfrastructureRoots.FirstOrDefault(r => r.Server == server);
+            if (existing != null)
+            {
+                var index = InfrastructureRoots.IndexOf(existing);
+                InfrastructureRoots[index] = root;
+            }
+            else
+            {
+                InfrastructureRoots.Add(root);
+            }
 
-        if (selectRoot || SelectedInfraNode?.Server == server)
+            if (selectRoot || _pinnedInfraNode?.Server == server || SelectedInfraNode?.Server == server)
+            {
+                var next = FindByOpaqueRef(root, selectedRef) ?? root;
+                SelectInfraNode(next);
+            }
+        }
+        finally
         {
-            SelectedInfraNode = FindByOpaqueRef(root, selectedRef) ?? root;
-            SelectedServer = server;
+            _suppressSelectionClear = false;
         }
 
         RefreshDetailPanes();
@@ -327,22 +372,23 @@ public partial class MainViewModel : ViewModelBase
 
     private void RefreshDetailPanes()
     {
-        RefreshGeneralProperties();
-        RefreshStorageProperties();
+        var node = SelectedInfraNode ?? _pinnedInfraNode;
+        RefreshGeneralProperties(node);
+        RefreshStorageProperties(node);
     }
 
-    private void RefreshGeneralProperties()
+    private void RefreshGeneralProperties(InfraTreeNode? node)
     {
         GeneralProperties.Clear();
-        foreach (var row in GeneralSummaryBuilder.Build(SelectedInfraNode))
+        foreach (var row in GeneralSummaryBuilder.Build(node))
             GeneralProperties.Add(row);
     }
 
-    private void RefreshStorageProperties()
+    private void RefreshStorageProperties(InfraTreeNode? node)
     {
         StorageTotals.Clear();
         StorageItems.Clear();
-        var summary = StorageSummaryBuilder.Build(SelectedInfraNode);
+        var summary = StorageSummaryBuilder.Build(node);
         foreach (var row in summary.Totals)
             StorageTotals.Add(row);
         foreach (var item in summary.Items)
@@ -352,14 +398,73 @@ public partial class MainViewModel : ViewModelBase
 
     private void RemoveTreeForServer(ServerNode server)
     {
-        for (var i = InfrastructureRoots.Count - 1; i >= 0; i--)
+        _suppressSelectionClear = true;
+        try
         {
-            if (InfrastructureRoots[i].Server == server)
-                InfrastructureRoots.RemoveAt(i);
+            for (var i = InfrastructureRoots.Count - 1; i >= 0; i--)
+            {
+                if (InfrastructureRoots[i].Server == server)
+                    InfrastructureRoots.RemoveAt(i);
+            }
+        }
+        finally
+        {
+            _suppressSelectionClear = false;
         }
 
-        if (SelectedInfraNode?.Server == server)
-            SelectedInfraNode = InfrastructureRoots.FirstOrDefault();
+        if (_pinnedInfraNode?.Server == server || SelectedInfraNode?.Server == server)
+            ClearSelectionIfPinnedTo(server);
+    }
+
+    private void ClearSelectionIfPinnedTo(ServerNode server)
+    {
+        if (_pinnedInfraNode?.Server != server && SelectedInfraNode?.Server != server)
+            return;
+
+        var fallback = InfrastructureRoots.FirstOrDefault();
+        if (fallback != null)
+        {
+            SelectInfraNode(fallback);
+            return;
+        }
+
+        _pinnedInfraNode = null;
+        SelectedInfraNode = null;
+        RefreshDetailPanes();
+    }
+
+    private void SelectInfraNode(InfraTreeNode node)
+    {
+        _pinnedInfraNode = node;
+        SelectedServer = node.Server;
+        if (!ReferenceEquals(SelectedInfraNode, node))
+            SelectedInfraNode = node;
+        else
+            RefreshDetailPanes();
+    }
+
+    private void QueueRestorePinnedSelection()
+    {
+        if (_restoreSelectionQueued || _pinnedInfraNode == null)
+            return;
+
+        _restoreSelectionQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _restoreSelectionQueued = false;
+            if (SelectedInfraNode != null || _pinnedInfraNode == null || !HasServers)
+                return;
+
+            var pinned = _pinnedInfraNode;
+            var live = pinned.Server != null
+                ? InfrastructureRoots.FirstOrDefault(r => r.Server == pinned.Server)
+                : null;
+            var restored = live != null
+                ? FindByOpaqueRef(live, pinned.OpaqueRef) ?? live
+                : pinned;
+
+            SelectInfraNode(restored);
+        });
     }
 
     private static InfraTreeNode? FindByOpaqueRef(InfraTreeNode node, string? opaqueRef)
