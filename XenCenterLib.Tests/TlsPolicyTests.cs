@@ -23,10 +23,10 @@ namespace XenCenterLib.Tests
         public void SslProtocols_IsTls12OrNewerOnly()
         {
             var protocol = TlsPolicy.AllowedSslProtocols;
-#pragma warning disable CS0618
+#pragma warning disable CS0618, SYSLIB0039
             Assert.Equal(0, (int)(protocol & SslProtocols.Tls));
             Assert.Equal(0, (int)(protocol & SslProtocols.Tls11));
-#pragma warning restore CS0618
+#pragma warning restore CS0618, SYSLIB0039
             Assert.NotEqual(0, (int)(protocol & SslProtocols.Tls12));
         }
     }

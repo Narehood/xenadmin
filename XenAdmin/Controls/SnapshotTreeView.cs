@@ -33,7 +33,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Security.Permissions;
 using System.Windows.Forms;
 using XenCenterLib;
 
@@ -340,7 +339,6 @@ namespace XenAdmin.Controls
         #region Drawing
 
         private bool m_empty = false;
-        [SecurityPermission(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.UnmanagedCode)]
         protected override void WndProc(ref Message m)
         {
             const int WM_HSCROLL = 0x0114;

@@ -48,7 +48,7 @@ namespace XenAdmin.Commands
         /// </summary>
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public Command Command
+        public new Command Command
         {
             get
             {

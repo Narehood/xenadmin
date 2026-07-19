@@ -945,7 +945,9 @@ namespace XenAdmin.Plugins
             {
                 // We post to the json url so that xapi returns the information in a way that is easy to consume by the JS
                 string[] jsCallbackAndData = context as string[];
+#pragma warning disable SYSLIB0014 // Plugin host still uses HttpWebRequest; HttpClient migration is separate
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(string.Format("{0}/json", SessionUrl));
+#pragma warning restore SYSLIB0014
                 request.Method = "POST";
                 request.ContentType = "xml";
                 request.ContentLength = Encoding.UTF8.GetBytes(jsCallbackAndData[1]).Length;

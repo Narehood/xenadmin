@@ -68,7 +68,7 @@ namespace CommandLib
         [System.Diagnostics.CodeAnalysis.SuppressMessage("csharpsquid",
             "S2070:SHA-1 and Message-Digest hash algorithms should not be used in secure contexts",
             Justification = "Used only for checksum verification for backwards compatibility.")]
-        private readonly SHA1 _sha1 = new SHA1CryptoServiceProvider();
+        private readonly SHA1 _sha1 = SHA1.Create();
 
         private readonly XXHash64 _xxHash = new XXHash64();
 

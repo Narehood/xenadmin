@@ -1,5 +1,7 @@
 <Project>
 	<PropertyGroup>
+		<!-- Multi-target libraries use net8.0 (not net8.0-windows) for Avalonia; Windows-only APIs are runtime-gated. -->
+		<NoWarn Condition="'$(TargetFramework)' == 'net8.0'">$(NoWarn);CA1416</NoWarn>
 		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
 		<AssemblyTitle>$(Title)</AssemblyTitle>
 		<AssemblyDescription>$(Description)</AssemblyDescription>

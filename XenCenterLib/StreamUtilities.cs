@@ -57,6 +57,25 @@ namespace XenCenterLib
             }
         }
 
+        private static HashAlgorithm CreateHashAlgorithm(string algorithmName)
+        {
+            switch (algorithmName?.ToUpperInvariant())
+            {
+                case "SHA1":
+                    return SHA1.Create();
+                case "SHA256":
+                    return SHA256.Create();
+                case "SHA384":
+                    return SHA384.Create();
+                case "SHA512":
+                    return SHA512.Create();
+                case "MD5":
+                    return MD5.Create();
+                default:
+                    return null;
+            }
+        }
+
         /// <summary>
         /// Perform a copy of the contents of one stream class to another in a buffered fashion
         /// 
@@ -88,7 +107,7 @@ namespace XenCenterLib
         {
             hashAlgorithm = HashMethod.Sha256.StringOf();
 
-            using (var hasher = HashAlgorithm.Create(hashAlgorithm))
+            using (var hasher = CreateHashAlgorithm(hashAlgorithm))
                 return hasher?.ComputeHash(stream);
         }
 
@@ -104,16 +123,19 @@ namespace XenCenterLib
             }
 
             byte[] hash;
-            using (var hasher = HashAlgorithm.Create(hashAlgorithm))
+            using (var hasher = CreateHashAlgorithm(hashAlgorithm))
                 hash = hasher?.ComputeHash(stream);
 
-            if (hash == null || !(certificate.PrivateKey is RSACryptoServiceProvider csp))
-                return null;
+            using (var rsa = certificate.GetRSAPrivateKey())
+            {
+                if (hash == null || rsa == null)
+                    return null;
 
-            if (hashAlgorithm == HashMethod.Sha256.StringOf())
-                return csp.SignData(hash, CryptoConfig.MapNameToOID(hashAlgorithm));
+                if (hashAlgorithm == HashMethod.Sha256.StringOf())
+                    return rsa.SignData(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-            return csp.SignHash(hash, CryptoConfig.MapNameToOID(hashAlgorithm));
+                return rsa.SignHash(hash, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+            }
         }
 
         public static bool VerifyAgainstDigest(Stream stream, long limit, string algorithmName, byte[] digest, X509Certificate2 certificate = null)
@@ -122,7 +144,7 @@ namespace XenCenterLib
             long offset = 0;
             byte[] buffer = new byte[2 * 1024 * 1024];
 
-            using (var hashAlgorithm = HashAlgorithm.Create(algorithmName))
+            using (var hashAlgorithm = CreateHashAlgorithm(algorithmName))
             {
                 // Validate the algorithm.
                 if (hashAlgorithm == null)
@@ -156,13 +178,16 @@ namespace XenCenterLib
                 if (certificate == null)
                     return digest.SequenceEqual(hashAlgorithm.Hash);
 
-                if (!(certificate.PublicKey.Key is RSACryptoServiceProvider csp))
-                    return false;
+                using (var rsa = certificate.GetRSAPublicKey())
+                {
+                    if (rsa == null)
+                        return false;
 
-                if (algorithmName == HashMethod.Sha256.StringOf())
-                    return csp.VerifyData(hashAlgorithm.Hash, CryptoConfig.MapNameToOID(algorithmName), digest);
+                    if (algorithmName.ToUpperInvariant() == HashMethod.Sha256.StringOf())
+                        return rsa.VerifyData(hashAlgorithm.Hash, HashAlgorithmName.SHA256, digest, RSASignaturePadding.Pkcs1);
 
-                return csp.VerifyHash(hashAlgorithm.Hash, CryptoConfig.MapNameToOID(algorithmName), digest);
+                    return rsa.VerifyHash(hashAlgorithm.Hash, digest, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+                }
             }
         }
     }

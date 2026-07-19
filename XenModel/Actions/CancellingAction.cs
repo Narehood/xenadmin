@@ -432,7 +432,7 @@ namespace XenAdmin.Actions
                     if (!Connection.ExpectDisruption)
                     {
                         //this was not expected, throw the d/c exception
-                        throw e;
+                        throw;
                     }
                     // We are expecting disruption on this connection. We need to wait for the hearbeat to recover.
                     // Though after 60 retries we will give up in the previous try catch block

@@ -34,6 +34,7 @@ using XenAPI;
 using XenAdmin.Diagnostics.Problems;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using XenAdmin.Diagnostics.Hotfixing;
 using XenAdmin.Diagnostics.Problems.HostProblem;
@@ -103,7 +104,8 @@ namespace XenAdmin.Diagnostics.Checks
             {
                 byte[] bytes = Convert.FromBase64String(certificate);
                 var x509Cert = new X509Certificate2(bytes);
-                return x509Cert.PublicKey.Key.KeySize < 2048;
+                using (var rsa = x509Cert.GetRSAPublicKey())
+                    return rsa != null && rsa.KeySize < 2048;
             }
             catch
             {

@@ -160,7 +160,7 @@ namespace XenOvf
         /// Decrypt a file to a temporary file.
         /// Action can be cancel via: CancelEncryption = true
         /// </summary>
-        /// <param name="classname">encryption class to use must implement: ICryptoTransform ie: System.Security.Cryptography.RijndaelManaged</param>
+        /// <param name="classname">encryption class to use must implement: ICryptoTransform ie: System.Security.Cryptography.Aes</param>
         /// <param name="filename">Encrypted file name</param>
         /// <param name="password">Password to perform decryption</param>
         /// <param name="tempfile">file to write to.</param>
@@ -413,19 +413,19 @@ namespace XenOvf
                     return typeof(RSACryptoServiceProvider);
                 case "tripledes_cbc":
                 case "kw_tripledes":
-                    return typeof(TripleDESCryptoServiceProvider);
+                    return typeof(TripleDES);
                 case "sha1":
-                    return typeof(SHA1CryptoServiceProvider);
+                    return typeof(SHA1);
                 case "sha256":
-                    return typeof(SHA256CryptoServiceProvider);
+                    return typeof(SHA256);
                 case "sha384":
-                    return typeof(SHA384CryptoServiceProvider);
+                    return typeof(SHA384);
                 case "sha512":
-                    return typeof(SHA512CryptoServiceProvider);
+                    return typeof(SHA512);
                 case "des":
-                    return typeof(DESCryptoServiceProvider);
+                    return typeof(DES);
                 case "rc2":
-                    return typeof(RC2CryptoServiceProvider);
+                    return typeof(RC2);
                 case "kw_aes128":
                 case "kw_aes256":
                 case "kw_aes192":
@@ -433,8 +433,23 @@ namespace XenOvf
                 case "aes256_cbc":
                 case "aes192_cbc":
                 default:
-                    return typeof(RijndaelManaged);
+                    return typeof(Aes);
             }
+        }
+
+        private static SymmetricAlgorithm CreateSymmetricAlgorithm(Type cryptoclassType)
+        {
+            if (typeof(TripleDES).IsAssignableFrom(cryptoclassType))
+                return TripleDES.Create();
+            if (typeof(DES).IsAssignableFrom(cryptoclassType))
+                return DES.Create();
+            if (typeof(RC2).IsAssignableFrom(cryptoclassType))
+                return RC2.Create();
+            if (typeof(Aes).IsAssignableFrom(cryptoclassType))
+                return Aes.Create();
+
+            // Default matches former RijndaelManaged / AES algorithms
+            return Aes.Create();
         }
 
         private static void CryptoFileWrapper(EnvelopeType env, string ovffilename, string password, bool encrypt)
@@ -632,7 +647,7 @@ namespace XenOvf
             }
             catch (Exception ex)
             {
-                throw ex;
+                throw;
             }
         }
         private static ICryptoTransform CryptoSetup(Type cryptoclassType, string password, bool encrypt, string version)
@@ -642,7 +657,7 @@ namespace XenOvf
             SymmetricAlgorithm cryptObject = null;
             try
             {
-                cryptObject = (SymmetricAlgorithm)Activator.CreateInstance(cryptoclassType);
+                cryptObject = CreateSymmetricAlgorithm(cryptoclassType);
                 if (!string.IsNullOrEmpty(version) && CheckSecurityVersion(version, SECURITY_VERSION) >= 0)
                 {
                     cryptObject.Padding = PaddingMode.PKCS7;
@@ -872,9 +887,12 @@ namespace XenOvf
             // Perform a hash operation using the phrase.  This will 
             // generate a unique 32 character value to be used as the key.
             byte[] bytePhrase = Encoding.ASCII.GetBytes(SecretPhrase);
-            SHA384Managed sha384 = new SHA384Managed();
-            sha384.ComputeHash(bytePhrase);
-            byte[] result = sha384.Hash;
+            byte[] result;
+            using (var sha384 = SHA384.Create())
+            {
+                sha384.ComputeHash(bytePhrase);
+                result = sha384.Hash;
+            }
 
             for (int loop = 0; loop < key.Length; loop++)
                 key[loop] = result[loop];

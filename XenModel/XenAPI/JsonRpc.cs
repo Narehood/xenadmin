@@ -199,7 +199,9 @@ namespace XenAPI
             var id = Interlocked.Increment(ref _globalId);
 
             JsonRequest request = JsonRequest.Create(JsonRpcVersion, id, callName, parameters);
+#pragma warning disable SYSLIB0014 // JSON-RPC client still uses HttpWebRequest; HttpClient migration is separate
             var webRequest = (HttpWebRequest)WebRequest.Create(JsonRpcUrl);
+#pragma warning restore SYSLIB0014
             webRequest.Method = "POST";
             webRequest.ContentType = "application/json";
             webRequest.Accept = "application/json";
