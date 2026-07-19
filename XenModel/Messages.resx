@@ -6946,6 +6946,19 @@ Click Configure HA to alter the settings displayed below.</value>
   <data name="HOME_SERVER_MENU_ITEM" xml:space="preserve">
     <value>&amp;Home Server</value>
   </data>
+  <data name="PUBLIC_IP_WARNING_MESSAGE" xml:space="preserve">
+    <value>You are connecting to {0}, which is a public IP address.
+
+Exposing the {1} management interface on the public internet is risky. Prefer a VPN, SSH tunnel, or other private path to reach the host.
+
+Continue only if you understand the risk.</value>
+  </data>
+  <data name="PUBLIC_IP_WARNING_TITLE" xml:space="preserve">
+    <value>Public IP address warning</value>
+  </data>
+  <data name="PUBLIC_IP_WARNING_OPTION" xml:space="preserve">
+    <value>Warn me when connecting to a public IP address</value>
+  </data>
   <data name="HOMEPAGE_BLURB" xml:space="preserve">
     <value>Connect to an {0} host or pool to get started.</value>
   </data>

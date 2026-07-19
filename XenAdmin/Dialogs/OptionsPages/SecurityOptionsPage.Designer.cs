@@ -35,6 +35,7 @@ namespace XenAdmin.Dialogs.OptionsPages
             this.SSLLabel = new System.Windows.Forms.Label();
             this.labelReminder = new System.Windows.Forms.Label();
             this.checkBoxReminder = new System.Windows.Forms.CheckBox();
+            this.checkBoxWarnPublicIp = new System.Windows.Forms.CheckBox();
             this.SecurityTableLayoutPanel.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -46,6 +47,7 @@ namespace XenAdmin.Dialogs.OptionsPages
             this.SecurityTableLayoutPanel.Controls.Add(this.CertificateChangedCheckBox, 0, 2);
             this.SecurityTableLayoutPanel.Controls.Add(this.labelReminder, 0, 3);
             this.SecurityTableLayoutPanel.Controls.Add(this.checkBoxReminder, 0, 4);
+            this.SecurityTableLayoutPanel.Controls.Add(this.checkBoxWarnPublicIp, 0, 5);
             this.SecurityTableLayoutPanel.Name = "SecurityTableLayoutPanel";
             // 
             // CertificateChangedCheckBox
@@ -76,6 +78,12 @@ namespace XenAdmin.Dialogs.OptionsPages
             this.checkBoxReminder.Name = "checkBoxReminder";
             this.checkBoxReminder.UseVisualStyleBackColor = true;
             // 
+            // checkBoxWarnPublicIp
+            // 
+            this.checkBoxWarnPublicIp.AutoSize = true;
+            this.checkBoxWarnPublicIp.Name = "checkBoxWarnPublicIp";
+            this.checkBoxWarnPublicIp.UseVisualStyleBackColor = true;
+            // 
             // SecurityOptionsPage
             // 
             resources.ApplyResources(this, "$this");
@@ -97,5 +105,6 @@ namespace XenAdmin.Dialogs.OptionsPages
         private System.Windows.Forms.CheckBox CertificateFoundCheckBox;
         private System.Windows.Forms.Label labelReminder;
         private System.Windows.Forms.CheckBox checkBoxReminder;
+        private System.Windows.Forms.CheckBox checkBoxWarnPublicIp;
     }
 }

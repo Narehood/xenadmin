@@ -57,6 +57,9 @@ namespace XenAdmin.Dialogs.OptionsPages
             CertificateChangedCheckBox.Enabled = Registry.SSLCertificateTypes == SSLCertificateTypes.None;
 
             checkBoxReminder.Checked = Properties.Settings.Default.RemindChangePassword;
+
+            checkBoxWarnPublicIp.Text = Messages.PUBLIC_IP_WARNING_OPTION;
+            checkBoxWarnPublicIp.Checked = Properties.Settings.Default.WarnPublicIpConnection;
         }
 
         public bool IsValidToSave(out Control control, out string invalidReason)
@@ -83,6 +86,9 @@ namespace XenAdmin.Dialogs.OptionsPages
 
             if (Properties.Settings.Default.RemindChangePassword != checkBoxReminder.Checked)
                 Properties.Settings.Default.RemindChangePassword = checkBoxReminder.Checked;
+
+            if (Properties.Settings.Default.WarnPublicIpConnection != checkBoxWarnPublicIp.Checked)
+                Properties.Settings.Default.WarnPublicIpConnection = checkBoxWarnPublicIp.Checked;
         }
 
         #endregion
