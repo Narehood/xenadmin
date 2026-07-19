@@ -28,7 +28,7 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
 **Shipped so far (on `development`):** live XenModel connect + preview TOFU, infrastructure tree (pool → host → VM), General + Storage + Network tabs, public-IP warning (complete IPv4 only), CI artifact `drop-shell-win-x64`.
 
-**Next:** richer General → Console (VNC last). Details and handoff notes live in `UI_REWRITE.md`.
+**Next:** Console (VNC last) → TOFU UX → persistence. Details and handoff notes live in `UI_REWRITE.md`.
 
 ### Still later
 
