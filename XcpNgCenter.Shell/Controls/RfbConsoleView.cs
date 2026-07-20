@@ -9,7 +9,8 @@ using XcpNgCenter.Shell.Services;
 namespace XcpNgCenter.Shell.Controls;
 
 /// <summary>
-/// Fits an RFB framebuffer into the available space (Uniform) and forwards pointer/keyboard input.
+/// Fits an RFB framebuffer into the available space (Uniform), forwards pointer/keyboard,
+/// and applies the remote cursor when the pointer is over the desktop.
 /// </summary>
 public sealed class RfbConsoleView : Control
 {
@@ -20,8 +21,10 @@ public sealed class RfbConsoleView : Control
         AvaloniaProperty.Register<RfbConsoleView, HostedConsoleSession?>(nameof(Session));
 
     private int _buttonMask;
-    private readonly HashSet<Key> _pressed = new();
+    private readonly Dictionary<Key, int> _pressed = new();
     private HostedConsoleSession? _subscribedSession;
+    private Cursor? _remoteCursor;
+    private bool _pointerOverDesktop;
 
     static RfbConsoleView()
     {
@@ -54,6 +57,7 @@ public sealed class RfbConsoleView : Control
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         SubscribeSession(null);
+        ClearRemoteCursor();
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -62,13 +66,60 @@ public sealed class RfbConsoleView : Control
         if (ReferenceEquals(_subscribedSession, session))
             return;
         if (_subscribedSession != null)
+        {
             _subscribedSession.StateChanged -= OnSessionStateChanged;
+            _subscribedSession.CursorChanged -= OnRemoteCursorChanged;
+        }
+
         _subscribedSession = session;
+        ClearRemoteCursor();
+
         if (_subscribedSession != null)
+        {
             _subscribedSession.StateChanged += OnSessionStateChanged;
+            _subscribedSession.CursorChanged += OnRemoteCursorChanged;
+            RebuildRemoteCursor();
+        }
     }
 
     private void OnSessionStateChanged() => InvalidateVisual();
+
+    private void OnRemoteCursorChanged() => RebuildRemoteCursor();
+
+    private void RebuildRemoteCursor()
+    {
+        ClearRemoteCursor();
+        var session = Session;
+        var bmp = session?.CursorBitmap;
+        if (bmp == null || session == null)
+        {
+            UpdatePointerCursor();
+            return;
+        }
+
+        try
+        {
+            _remoteCursor = new Cursor(bmp, session.CursorHotspot);
+        }
+        catch
+        {
+            _remoteCursor = null;
+        }
+
+        UpdatePointerCursor();
+    }
+
+    private void ClearRemoteCursor()
+    {
+        _remoteCursor = null;
+    }
+
+    private void UpdatePointerCursor()
+    {
+        Cursor = _pointerOverDesktop
+            ? _remoteCursor ?? new Cursor(StandardCursorType.None)
+            : Cursor.Default;
+    }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
@@ -111,11 +162,27 @@ public sealed class RfbConsoleView : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        var pos = e.GetPosition(this);
+        var over = TryMapToFramebuffer(pos, out _, out _);
+        if (over != _pointerOverDesktop)
+        {
+            _pointerOverDesktop = over;
+            UpdatePointerCursor();
+        }
+
         if (Session?.IsConnected == true)
         {
-            SendPointer(e.GetPosition(this));
+            SendPointer(pos);
             e.Handled = true;
         }
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        _pointerOverDesktop = false;
+        UpdatePointerCursor();
+        _buttonMask = 0;
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
@@ -124,7 +191,6 @@ public sealed class RfbConsoleView : Control
         if (!TryMapToFramebuffer(e.GetPosition(this), out var x, out var y))
             return;
 
-        // Avalonia delta is typically ±1 per notch; RFB wants signed step count.
         var steps = (int)Math.Round(-e.Delta.Y);
         if (steps == 0)
             steps = e.Delta.Y < 0 ? 1 : -1;
@@ -149,13 +215,8 @@ public sealed class RfbConsoleView : Control
     protected override void OnLostFocus(RoutedEventArgs e)
     {
         base.OnLostFocus(e);
-        // Release any held keys/buttons so the guest does not stick.
-        foreach (var key in _pressed.ToArray())
-        {
-            var sym = RfbKeySym.FromKey(key, KeyModifiers.None);
-            if (sym > 0)
-                Session?.SendKey(false, sym);
-        }
+        foreach (var sym in _pressed.Values)
+            Session?.SendKey(false, sym);
         _pressed.Clear();
         if (_buttonMask != 0)
         {
@@ -169,14 +230,23 @@ public sealed class RfbConsoleView : Control
         if (Session?.IsConnected != true)
             return false;
 
-        var sym = RfbKeySym.FromKey(e.Key, e.KeyModifiers);
-        if (sym <= 0)
-            return false;
-
+        int sym;
         if (down)
-            _pressed.Add(e.Key);
+        {
+            sym = RfbKeySym.FromKeyEvent(e);
+            if (sym <= 0)
+                return false;
+            _pressed[e.Key] = sym;
+        }
         else
-            _pressed.Remove(e.Key);
+        {
+            if (!_pressed.Remove(e.Key, out sym))
+            {
+                sym = RfbKeySym.FromKeyEvent(e);
+                if (sym <= 0)
+                    return false;
+            }
+        }
 
         Session.SendKey(down, sym);
         return true;
@@ -196,7 +266,6 @@ public sealed class RfbConsoleView : Control
         }
         else
         {
-            // On release, clear buttons that are no longer down.
             if (!props.IsLeftButtonPressed)
                 _buttonMask &= ~1;
             if (!props.IsMiddleButtonPressed)

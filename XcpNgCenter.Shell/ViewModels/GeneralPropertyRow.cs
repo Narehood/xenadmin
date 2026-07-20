@@ -6,8 +6,12 @@ public sealed class GeneralPropertyRow
     {
         Label = label;
         Value = value;
+        CanCopy = !string.IsNullOrWhiteSpace(value)
+                  && value != "—"
+                  && !string.Equals(value, "n/a", StringComparison.OrdinalIgnoreCase);
     }
 
     public string Label { get; }
     public string Value { get; }
+    public bool CanCopy { get; }
 }

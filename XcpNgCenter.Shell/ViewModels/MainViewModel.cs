@@ -110,6 +110,9 @@ public partial class MainViewModel : ViewModelBase
     private string _consoleCopyFeedback = string.Empty;
 
     [ObservableProperty]
+    private string _propertyCopyFeedback = string.Empty;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasConsoleFrame))]
     private WriteableBitmap? _consoleBitmap;
 
@@ -492,6 +495,7 @@ public partial class MainViewModel : ViewModelBase
     private void RefreshGeneralProperties(InfraTreeNode? node)
     {
         GeneralProperties.Clear();
+        PropertyCopyFeedback = string.Empty;
         foreach (var row in GeneralSummaryBuilder.Build(node))
             GeneralProperties.Add(row);
     }
@@ -587,7 +591,23 @@ public partial class MainViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(location))
             return;
+        ConsoleCopyFeedback = await TryCopyTextAsync(location)
+            ? "Console location copied."
+            : "Clipboard unavailable.";
+    }
 
+    [RelayCommand]
+    private async Task CopyPropertyValueAsync(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+        PropertyCopyFeedback = await TryCopyTextAsync(value)
+            ? "Copied."
+            : "Clipboard unavailable.";
+    }
+
+    private static async Task<bool> TryCopyTextAsync(string text)
+    {
         try
         {
             if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime
@@ -595,17 +615,16 @@ public partial class MainViewModel : ViewModelBase
                     MainWindow: { Clipboard: { } clipboard }
                 })
             {
-                await clipboard.SetTextAsync(location);
-                ConsoleCopyFeedback = "Console location copied.";
-                return;
+                await clipboard.SetTextAsync(text);
+                return true;
             }
-
-            ConsoleCopyFeedback = "Clipboard unavailable.";
         }
-        catch (Exception ex)
+        catch
         {
-            ConsoleCopyFeedback = $"Copy failed: {ex.Message}";
+            // Clipboard failures are surfaced via feedback text.
         }
+
+        return false;
     }
 
     private void RemoveTreeForServer(ServerNode server)

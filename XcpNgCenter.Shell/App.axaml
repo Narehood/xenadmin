@@ -77,5 +77,26 @@
       <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
       <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
     </Style>
+    <Style Selector="Button.copy">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style Selector="Border.prop-row:pointerover Button.copy">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="IsHitTestVisible" Value="True" />
+    </Style>
+    <Style Selector="Border.prop-row:focus-within Button.copy">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="IsHitTestVisible" Value="True" />
+    </Style>
+    <Style Selector="Button.copy:pointerover /template/ ContentPresenter">
+      <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
   </Application.Styles>
 </Application>
