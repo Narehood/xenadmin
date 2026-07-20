@@ -48,11 +48,12 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
 XCP-ng ships with **self-signed** management certificates by default. The client must not require a public CA, and must not blindly accept every cert.
 
-Policy implemented in `XenAdmin/Network/SSL.cs`:
+Policy implemented in `XenAdmin/Network/SSL.cs` (WinForms) and `XcpNgCenter.Shell` TOFU services (Avalonia):
 
-- **Trust on first use (TOFU):** first connection to a host pins the certificate hash (optionally after a warning).
-- **Later connections:** require the pinned hash; changes prompt (or follow Security options).
+- **Trust on first use (TOFU):** first connection to a host pins the certificate hash after acceptance.
+- **Later connections:** require the pinned hash; changes prompt before re-pinning.
 - **No accept-all:** low-level HTTP paths without the app TOFU callback reject untrusted chains instead of returning `true`.
+- **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json`.
 
 ## Public IP connection warning
 
