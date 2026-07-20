@@ -281,22 +281,45 @@
 
                 <TabItem Header="General">
                   <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding GeneralProperties}" Margin="0,0,4,0">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                          <Grid ColumnDefinitions="160,*" Margin="0,0,0,12">
-                            <TextBlock Text="{Binding Label}"
-                                       Foreground="{StaticResource Brush.TextMuted}"
-                                       FontSize="13" />
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding Value}"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource Brush.TextPrimary}"
-                                       FontSize="13" />
-                          </Grid>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel Spacing="4" Margin="0,0,4,0">
+                      <ItemsControl ItemsSource="{Binding GeneralProperties}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:GeneralPropertyRow">
+                            <Border Classes="prop-row"
+                                    Padding="0,2,0,10"
+                                    Background="Transparent">
+                              <Grid ColumnDefinitions="160,*,Auto">
+                                <TextBlock Text="{Binding Label}"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           FontSize="13"
+                                           VerticalAlignment="Top"
+                                           Margin="0,2,0,0" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Value}"
+                                           TextWrapping="Wrap"
+                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           FontSize="13"
+                                           VerticalAlignment="Top"
+                                           Margin="0,2,8,0" />
+                                <Button Grid.Column="2"
+                                        Classes="copy"
+                                        Content="Copy"
+                                        VerticalAlignment="Top"
+                                        IsVisible="{Binding CanCopy}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyPropertyValueCommand}"
+                                        CommandParameter="{Binding Value}"
+                                        ToolTip.Tip="Copy value" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <TextBlock Text="{Binding PropertyCopyFeedback}"
+                                 FontSize="12"
+                                 Margin="0,4,0,0"
+                                 Foreground="{StaticResource Brush.Ok}"
+                                 IsVisible="{Binding PropertyCopyFeedback.Length}" />
+                    </StackPanel>
                   </ScrollViewer>
                 </TabItem>
 
@@ -566,7 +589,6 @@
                         <controls:RfbConsoleView IsVisible="{Binding HasConsoleFrame}"
                                                  Frame="{Binding ConsoleBitmap}"
                                                  Session="{Binding ConsoleSession}"
-                                                 Cursor="Hand"
                                                  ToolTip.Tip="Click to focus — keyboard and mouse are sent to the guest" />
                       </Grid>
                     </Border>

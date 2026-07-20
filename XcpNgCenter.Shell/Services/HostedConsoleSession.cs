@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using XenAdmin.Network;
@@ -24,6 +25,10 @@ public sealed class HostedConsoleSession : IDisposable
 
     public WriteableBitmap? Bitmap => _framebuffer?.Bitmap;
 
+    public WriteableBitmap? CursorBitmap => _framebuffer?.CursorBitmap;
+
+    public PixelPoint CursorHotspot => _framebuffer?.CursorHotspot ?? default;
+
     public int DesktopWidth => _framebuffer?.DesktopWidth ?? 0;
 
     public int DesktopHeight => _framebuffer?.DesktopHeight ?? 0;
@@ -35,6 +40,7 @@ public sealed class HostedConsoleSession : IDisposable
     public bool HasFrame => Bitmap != null;
 
     public event Action? StateChanged;
+    public event Action? CursorChanged;
 
     public void Start(LiveRfbTarget target)
     {
@@ -53,7 +59,8 @@ public sealed class HostedConsoleSession : IDisposable
             generation = ++_generation;
             framebuffer = new AvaloniaRfbFramebuffer(target.VmName, target.Uuid);
             framebuffer.FramePresented += OnFramePresented;
-            framebuffer.DesktopResized += (_, _) => OnFramePresented();
+            framebuffer.DesktopResized += OnDesktopResized;
+            framebuffer.CursorChanged += OnCursorChanged;
             _framebuffer = framebuffer;
             IsConnected = false;
             StatusMessage = "Connecting to RFB console…";
@@ -129,6 +136,16 @@ public sealed class HostedConsoleSession : IDisposable
         if (_disposed)
             return;
         RaiseStateChanged();
+    }
+
+    private void OnCursorChanged()
+    {
+        if (_disposed)
+            return;
+        if (Dispatcher.UIThread.CheckAccess())
+            CursorChanged?.Invoke();
+        else
+            Dispatcher.UIThread.Post(() => CursorChanged?.Invoke());
     }
 
     private void SetStatus(string message, bool connected)
@@ -207,11 +224,19 @@ public sealed class HostedConsoleSession : IDisposable
         try { cts?.Cancel(); } catch { /* ignore */ }
         try { client?.Close(); } catch { /* ignore */ }
         try { stream?.Dispose(); } catch { /* ignore */ }
-        try { framebuffer?.Dispose(); } catch { /* ignore */ }
+        if (framebuffer != null)
+        {
+            framebuffer.FramePresented -= OnFramePresented;
+            framebuffer.DesktopResized -= OnDesktopResized;
+            framebuffer.CursorChanged -= OnCursorChanged;
+            try { framebuffer.Dispose(); } catch { /* ignore */ }
+        }
         try { cts?.Dispose(); } catch { /* ignore */ }
 
         RaiseStateChanged();
     }
+
+    private void OnDesktopResized(int _, int __) => OnFramePresented();
 
     public void Dispose()
     {

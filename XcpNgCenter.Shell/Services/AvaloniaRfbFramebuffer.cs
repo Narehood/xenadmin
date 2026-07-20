@@ -18,7 +18,17 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
     private int _height;
     private bool _disposed;
     private bool _uiUpdateQueued;
+    private bool _cursorUpdateQueued;
     private WriteableBitmap? _bitmap;
+    private WriteableBitmap? _cursorBitmap;
+    private int _cursorHotspotX;
+    private int _cursorHotspotY;
+    private byte[]? _pendingCursorBgra;
+    private int _pendingCursorStride;
+    private int _pendingCursorWidth;
+    private int _pendingCursorHeight;
+    private int _pendingCursorHotX;
+    private int _pendingCursorHotY;
 
     public AvaloniaRfbFramebuffer(string vmName, string uuid)
     {
@@ -56,8 +66,27 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
         }
     }
 
+    public WriteableBitmap? CursorBitmap
+    {
+        get
+        {
+            lock (_gate)
+                return _cursorBitmap;
+        }
+    }
+
+    public PixelPoint CursorHotspot
+    {
+        get
+        {
+            lock (_gate)
+                return new PixelPoint(_cursorHotspotX, _cursorHotspotY);
+        }
+    }
+
     public event Action? FramePresented;
     public event Action<int, int>? DesktopResized;
+    public event Action? CursorChanged;
 
     public void Bell()
     {
@@ -66,12 +95,98 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
 
     public void CutText(string text)
     {
-        // Read-only: ignore server clipboard.
+        // Guest clipboard sync is deferred.
     }
 
     public void SetCursor(byte[] bgra, int offset, int stride, int hotspotX, int hotspotY, int width, int height)
     {
-        // Read-only: remote cursor not rendered yet.
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+
+            if (width <= 0 || height <= 0 || bgra.Length == 0)
+            {
+                _pendingCursorBgra = null;
+                _pendingCursorWidth = 0;
+                _pendingCursorHeight = 0;
+            }
+            else
+            {
+                var copy = new byte[height * width * 4];
+                for (var row = 0; row < height; row++)
+                {
+                    Buffer.BlockCopy(
+                        bgra,
+                        offset + row * stride,
+                        copy,
+                        row * width * 4,
+                        width * 4);
+                }
+
+                _pendingCursorBgra = copy;
+                _pendingCursorStride = width * 4;
+                _pendingCursorWidth = width;
+                _pendingCursorHeight = height;
+                _pendingCursorHotX = Math.Clamp(hotspotX, 0, Math.Max(0, width - 1));
+                _pendingCursorHotY = Math.Clamp(hotspotY, 0, Math.Max(0, height - 1));
+            }
+
+            if (_cursorUpdateQueued)
+                return;
+            _cursorUpdateQueued = true;
+        }
+
+        Dispatcher.UIThread.Post(ApplyPendingCursor);
+    }
+
+    private void ApplyPendingCursor()
+    {
+        WriteableBitmap? old = null;
+        lock (_gate)
+        {
+            _cursorUpdateQueued = false;
+            if (_disposed)
+                return;
+
+            old = _cursorBitmap;
+            _cursorBitmap = null;
+
+            if (_pendingCursorBgra != null && _pendingCursorWidth > 0 && _pendingCursorHeight > 0)
+            {
+                var bmp = new WriteableBitmap(
+                    new PixelSize(_pendingCursorWidth, _pendingCursorHeight),
+                    new Vector(96, 96),
+                    PixelFormat.Bgra8888,
+                    AlphaFormat.Premul);
+
+                using (var fb = bmp.Lock())
+                {
+                    var srcStride = _pendingCursorStride;
+                    var dstStride = fb.RowBytes;
+                    for (var row = 0; row < _pendingCursorHeight; row++)
+                    {
+                        System.Runtime.InteropServices.Marshal.Copy(
+                            _pendingCursorBgra,
+                            row * srcStride,
+                            IntPtr.Add(fb.Address, row * dstStride),
+                            Math.Min(srcStride, dstStride));
+                    }
+                }
+
+                _cursorBitmap = bmp;
+                _cursorHotspotX = _pendingCursorHotX;
+                _cursorHotspotY = _pendingCursorHotY;
+            }
+            else
+            {
+                _cursorHotspotX = 0;
+                _cursorHotspotY = 0;
+            }
+        }
+
+        try { old?.Dispose(); } catch { /* ignore */ }
+        CursorChanged?.Invoke();
     }
 
     public void DesktopSize(int width, int height)
@@ -272,14 +387,22 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
 
     public void Dispose()
     {
+        WriteableBitmap? frame;
+        WriteableBitmap? cursor;
         lock (_gate)
         {
             if (_disposed)
                 return;
             _disposed = true;
-            _bitmap?.Dispose();
+            frame = _bitmap;
+            cursor = _cursorBitmap;
             _bitmap = null;
+            _cursorBitmap = null;
+            _pendingCursorBgra = null;
             _pixels = Array.Empty<byte>();
         }
+
+        try { frame?.Dispose(); } catch { /* ignore */ }
+        try { cursor?.Dispose(); } catch { /* ignore */ }
     }
 }
