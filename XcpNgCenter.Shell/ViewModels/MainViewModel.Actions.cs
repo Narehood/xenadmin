@@ -140,6 +140,10 @@ public partial class MainViewModel
     private void DisposeActionHistoryUi()
     {
         ConnectionsManager.History.CollectionChanged -= OnHistoryCollectionChanged;
+        foreach (var row in _logRows.Values)
+            row.Dispose();
+        _logRows.Clear();
+        ActionLogRows.Clear();
         CloseConsolePopOut();
         ShellBootstrap.ActionHistory?.Dispose();
     }
@@ -161,6 +165,8 @@ public partial class MainViewModel
                         RemoveLogRow(a);
                     break;
                 case CollectionChangeAction.Refresh:
+                    foreach (var existing in _logRows.Values)
+                        existing.Dispose();
                     ActionLogRows.Clear();
                     _logRows.Clear();
                     foreach (var action in ConnectionsManager.History.AsEnumerable().Reverse())
@@ -191,16 +197,55 @@ public partial class MainViewModel
     {
         if (!_logRows.Remove(action, out var row))
             return;
+        row.Dispose();
         ActionLogRows.Remove(row);
     }
 
     private void RefreshSelectedVm()
     {
         var node = SelectedInfraNode ?? _pinnedInfraNode;
-        SelectedVm = ResolveVm(node);
+        var vm = ResolveVm(node);
+        // Cache updates mutate the same VM instance in place — always re-notify Can*.
+        SelectedVm = vm;
+        NotifyVmPowerCanExecuteChanged();
         OnPropertyChanged(nameof(ShowPoolStorageActions));
         OnPropertyChanged(nameof(ShowEmbeddedConsole));
         OnPropertyChanged(nameof(ShowConsoleReattach));
+    }
+
+    private void NotifyVmPowerCanExecuteChanged()
+    {
+        OnPropertyChanged(nameof(CanStartVm));
+        OnPropertyChanged(nameof(CanShutdownVm));
+        OnPropertyChanged(nameof(CanRebootVm));
+        OnPropertyChanged(nameof(CanSuspendVm));
+        OnPropertyChanged(nameof(CanResumeVm));
+        OnPropertyChanged(nameof(CanForceShutdownVm));
+        OnPropertyChanged(nameof(CanForceRebootVm));
+        OnPropertyChanged(nameof(CanEditVm));
+        OnPropertyChanged(nameof(CanCloneVm));
+        OnPropertyChanged(nameof(CanCopyVm));
+        OnPropertyChanged(nameof(CanMigrateVm));
+        OnPropertyChanged(nameof(CanCrossPoolMigrateVm));
+        OnPropertyChanged(nameof(CanMoveVm));
+        OnPropertyChanged(nameof(CanDeleteVm));
+        OnPropertyChanged(nameof(CanAttachIso));
+        OnPropertyChanged(nameof(ShowVmActionBar));
+        StartVmCommand.NotifyCanExecuteChanged();
+        ShutdownVmCommand.NotifyCanExecuteChanged();
+        ForceShutdownVmCommand.NotifyCanExecuteChanged();
+        RebootVmCommand.NotifyCanExecuteChanged();
+        ForceRebootVmCommand.NotifyCanExecuteChanged();
+        SuspendVmCommand.NotifyCanExecuteChanged();
+        ResumeVmCommand.NotifyCanExecuteChanged();
+        EditVmCommand.NotifyCanExecuteChanged();
+        CloneVmCommand.NotifyCanExecuteChanged();
+        CopyVmCommand.NotifyCanExecuteChanged();
+        MigrateVmCommand.NotifyCanExecuteChanged();
+        CrossPoolMigrateVmCommand.NotifyCanExecuteChanged();
+        MoveVmCommand.NotifyCanExecuteChanged();
+        DeleteVmCommand.NotifyCanExecuteChanged();
+        AttachIsoCommand.NotifyCanExecuteChanged();
     }
 
     private static VM? ResolveVm(InfraTreeNode? node)
@@ -237,14 +282,6 @@ public partial class MainViewModel
         });
     }
 
-    private static void NoHaWarning(VM _, bool __)
-    {
-    }
-
-    private static void NoStartDiagnosis(VMStartAbstractAction _, Failure __)
-    {
-    }
-
     [RelayCommand]
     private void CancelAction(ActionLogRow? row)
     {
@@ -273,7 +310,7 @@ public partial class MainViewModel
     {
         if (SelectedVm == null)
             return;
-        RunAction(new VMStartAction(SelectedVm, NoHaWarning, NoStartDiagnosis));
+        RunAction(new VMStartAction(SelectedVm, ShellVmHaPrompt.WarningDialogHAInvalidConfig, ShellVmHaPrompt.StartDiagnosisForm));
     }
 
     [RelayCommand(CanExecute = nameof(CanShutdownVm))]
@@ -321,7 +358,7 @@ public partial class MainViewModel
     {
         if (SelectedVm == null)
             return;
-        RunAction(new VMResumeAction(SelectedVm, NoHaWarning, NoStartDiagnosis));
+        RunAction(new VMResumeAction(SelectedVm, ShellVmHaPrompt.WarningDialogHAInvalidConfig, ShellVmHaPrompt.StartDiagnosisForm));
     }
 
     [RelayCommand]
@@ -541,8 +578,15 @@ public partial class MainViewModel
             return;
         }
 
-        foreach (var sr in srs)
-            RunAction(new SrRefreshAction(sr));
+        // Cap concurrency so large pools do not stampede the XenAPI task queue.
+        var actions = srs.Select(sr => (AsyncAction)new SrRefreshAction(sr)).ToList();
+        RunAction(new ParallelAction(
+            "Refresh storage",
+            "Refreshing storage…",
+            "Storage refreshed.",
+            actions,
+            conn,
+            maxNumberOfParallelActions: 4));
     }
 
     [RelayCommand]

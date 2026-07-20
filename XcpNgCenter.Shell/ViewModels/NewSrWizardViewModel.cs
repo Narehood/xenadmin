@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using XenAdmin;
 using XenAdmin.Actions;
 using XenAdmin.Core;
 using XenAdmin.Network;
@@ -45,6 +46,23 @@ public sealed class IscsiLunOption
     public override string ToString() => Label;
 }
 
+public sealed class FibreChannelLunOption
+{
+    public FibreChannelLunOption(FibreChannelDevice device)
+    {
+        Device = device;
+        var id = string.IsNullOrEmpty(device.SCSIid) ? device.Path : device.SCSIid;
+        var size = device.Size > 0 ? Util.DiskSizeString(device.Size) : "?";
+        var details = $"{device.adapter}:{device.channel}:{device.id}:{device.lun}";
+        var vendor = string.IsNullOrWhiteSpace(device.Vendor) ? "" : $"{device.Vendor} · ";
+        Label = $"{vendor}{device.Serial} · {id} · {size} · {details}";
+    }
+
+    public FibreChannelDevice Device { get; }
+    public string Label { get; }
+    public override string ToString() => Label;
+}
+
 public partial class NewSrWizardViewModel : ViewModelBase
 {
     private readonly IXenConnection _connection;
@@ -62,6 +80,8 @@ public partial class NewSrWizardViewModel : ViewModelBase
         Types.Add(new SrTypeOption("nfs", "NFS VHD"));
         Types.Add(new SrTypeOption("smb", "SMB storage"));
         Types.Add(new SrTypeOption("iscsi", "iSCSI (LVM)"));
+        Types.Add(new SrTypeOption("hba", "Hardware HBA (Fibre Channel)"));
+        Types.Add(new SrTypeOption("fcoe", "Software FCoE"));
         SelectedType = Types[0];
         UpdateTypeFlags();
     }
@@ -69,6 +89,7 @@ public partial class NewSrWizardViewModel : ViewModelBase
     public ObservableCollection<SrTypeOption> Types { get; } = new();
     public ObservableCollection<IscsiIqnOption> IscsiIqns { get; } = new();
     public ObservableCollection<IscsiLunOption> IscsiLuns { get; } = new();
+    public ObservableCollection<FibreChannelLunOption> FibreChannelLuns { get; } = new();
 
     [ObservableProperty] private SrTypeOption? _selectedType;
     [ObservableProperty] private bool _showIsoNfs;
@@ -76,6 +97,7 @@ public partial class NewSrWizardViewModel : ViewModelBase
     [ObservableProperty] private bool _showNfs;
     [ObservableProperty] private bool _showSmb;
     [ObservableProperty] private bool _showIscsi;
+    [ObservableProperty] private bool _showFibreChannel;
     [ObservableProperty] private string _nameLabel = string.Empty;
     [ObservableProperty] private string _description = string.Empty;
     [ObservableProperty] private string _nfsPath = string.Empty;
@@ -100,17 +122,22 @@ public partial class NewSrWizardViewModel : ViewModelBase
     [ObservableProperty] private IscsiLunOption? _selectedIscsiLun;
     [ObservableProperty] private string _iscsiScsiId = string.Empty;
     [ObservableProperty] private bool _useGfs2;
+    [ObservableProperty] private FibreChannelLunOption? _selectedFibreChannelLun;
     [ObservableProperty] private string _statusMessage = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ProbeIqnsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ProbeLunsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ProbeFibreChannelCommand))]
     private bool _isProbing;
 
     public bool CanProbeIqns => ShowIscsi && !_probing && !string.IsNullOrWhiteSpace(IscsiHost);
     public bool CanProbeLuns => ShowIscsi && !_probing && SelectedIscsiIqn != null;
+    public bool CanProbeFibreChannel => ShowFibreChannel && !_probing;
     public bool HasIscsiIqns => IscsiIqns.Count > 0;
     public bool HasIscsiLuns => IscsiLuns.Count > 0;
+    public bool HasFibreChannelLuns => FibreChannelLuns.Count > 0;
+    public bool IsFcoeType => SelectedType?.Id == "fcoe";
 
     partial void OnSelectedTypeChanged(SrTypeOption? value) => UpdateTypeFlags();
 
@@ -138,6 +165,7 @@ public partial class NewSrWizardViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(CanProbeIqns));
         OnPropertyChanged(nameof(CanProbeLuns));
+        OnPropertyChanged(nameof(CanProbeFibreChannel));
     }
 
     private void UpdateTypeFlags()
@@ -148,8 +176,22 @@ public partial class NewSrWizardViewModel : ViewModelBase
         ShowNfs = id == "nfs";
         ShowSmb = id == "smb";
         ShowIscsi = id == "iscsi";
+        ShowFibreChannel = id is "hba" or "fcoe";
+        if (!ShowFibreChannel)
+        {
+            FibreChannelLuns.Clear();
+            SelectedFibreChannelLun = null;
+            OnPropertyChanged(nameof(HasFibreChannelLuns));
+        }
+
+        // GFS2 over FCoE is not supported (matches WinForms LVMoHBA).
+        if (id == "fcoe")
+            UseGfs2 = false;
+
         OnPropertyChanged(nameof(CanProbeIqns));
         OnPropertyChanged(nameof(CanProbeLuns));
+        OnPropertyChanged(nameof(CanProbeFibreChannel));
+        OnPropertyChanged(nameof(IsFcoeType));
     }
 
     [RelayCommand(CanExecute = nameof(CanProbeIqns))]
@@ -281,6 +323,50 @@ public partial class NewSrWizardViewModel : ViewModelBase
         action.RunAsync();
         ProbeIqnsCommand.NotifyCanExecuteChanged();
         ProbeLunsCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanProbeFibreChannel))]
+    private void ProbeFibreChannel()
+    {
+        var srType = SelectedType?.Id == "fcoe" ? SR.SRTypes.lvmofcoe : SR.SRTypes.lvmohba;
+        // GFS2 HBA probe uses provider=hba in FibreChannelProbeAction; for FCoE keep LVM type.
+        if (UseGfs2 && SelectedType?.Id == "hba")
+            srType = SR.SRTypes.gfs2;
+
+        SetProbing(true, SelectedType?.Id == "fcoe"
+            ? "Scanning FCoE LUNs…"
+            : "Scanning Fibre Channel LUNs…");
+        FibreChannelLuns.Clear();
+        SelectedFibreChannelLun = null;
+        OnPropertyChanged(nameof(HasFibreChannelLuns));
+
+        var action = new FibreChannelProbeAction(_host, srType);
+        action.Completed += a =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                SetProbing(false, string.Empty);
+                if (!a.Succeeded)
+                {
+                    StatusMessage = a.Exception?.Message ?? "HBA / FCoE scan failed.";
+                    return;
+                }
+
+                var devices = ((FibreChannelProbeAction)a).FibreChannelDevices ?? new List<FibreChannelDevice>();
+                foreach (var device in devices.OrderBy(d => d.Serial, StringComparer.OrdinalIgnoreCase))
+                    FibreChannelLuns.Add(new FibreChannelLunOption(device));
+
+                SelectedFibreChannelLun = FibreChannelLuns.FirstOrDefault();
+                OnPropertyChanged(nameof(HasFibreChannelLuns));
+                StatusMessage = FibreChannelLuns.Count == 0
+                    ? Messages.FIBRECHANNEL_NO_RESULTS
+                    : $"Found {FibreChannelLuns.Count} LUN(s). Select one and create the SR.";
+                ProbeFibreChannelCommand.NotifyCanExecuteChanged();
+            });
+        };
+
+        action.RunAsync();
+        ProbeFibreChannelCommand.NotifyCanExecuteChanged();
     }
 
     private void SetProbing(bool probing, string message)
@@ -438,6 +524,57 @@ public partial class NewSrWizardViewModel : ViewModelBase
                 {
                     dconf["chapuser"] = IscsiChapUser.Trim();
                     dconf["chappassword"] = IscsiChapPassword ?? string.Empty;
+                }
+
+                break;
+            }
+
+            case "hba":
+            case "fcoe":
+            {
+                if (SelectedFibreChannelLun == null)
+                {
+                    StatusMessage = "Scan for LUNs and select one.";
+                    return;
+                }
+
+                var device = SelectedFibreChannelLun.Device;
+                if (string.IsNullOrWhiteSpace(device.SCSIid))
+                {
+                    StatusMessage = "Selected LUN has no SCSI ID.";
+                    return;
+                }
+
+                contentType = "user";
+                var isFcoe = SelectedType.Id == "fcoe";
+                if (UseGfs2)
+                {
+                    type = SR.SRTypes.gfs2;
+                    dconf = new Dictionary<string, string>
+                    {
+                        ["provider"] = isFcoe ? "fcoe" : "hba",
+                        ["SCSIid"] = device.SCSIid
+                    };
+                    if (isFcoe && !string.IsNullOrEmpty(device.Path))
+                        dconf["path"] = device.Path;
+                }
+                else if (isFcoe)
+                {
+                    type = SR.SRTypes.lvmofcoe;
+                    dconf = new Dictionary<string, string>
+                    {
+                        ["SCSIid"] = device.SCSIid
+                    };
+                    if (!string.IsNullOrEmpty(device.Path))
+                        dconf["path"] = device.Path;
+                }
+                else
+                {
+                    type = SR.SRTypes.lvmohba;
+                    dconf = new Dictionary<string, string>
+                    {
+                        ["SCSIid"] = device.SCSIid
+                    };
                 }
 
                 break;

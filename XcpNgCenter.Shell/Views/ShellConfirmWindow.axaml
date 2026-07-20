@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:XcpNgCenter.Shell.Services"
+        x:Class="XcpNgCenter.Shell.Views.ShellConfirmWindow"
+        x:DataType="svc:ShellConfirmRequest"
+        Title="{Binding Title}"
+        Width="480"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgPanel}">
+  <Border Padding="28" Background="{StaticResource Brush.BgPanel}">
+    <StackPanel Spacing="16">
+      <TextBlock Text="{Binding Title}"
+                 FontSize="20"
+                 FontWeight="SemiBold"
+                 Foreground="{StaticResource Brush.TextPrimary}"
+                 TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Message}"
+                 TextWrapping="Wrap"
+                 FontSize="14"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <StackPanel Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Spacing="10"
+                  Margin="0,8,0,0">
+        <Button Classes="ghost"
+                Content="{Binding CancelLabel}"
+                MinWidth="100"
+                IsCancel="True"
+                IsVisible="{Binding ShowCancel}"
+                Click="OnCancelClick" />
+        <Button Classes="cta"
+                Content="{Binding AcceptLabel}"
+                MinWidth="120"
+                IsDefault="True"
+                Click="OnAcceptClick" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

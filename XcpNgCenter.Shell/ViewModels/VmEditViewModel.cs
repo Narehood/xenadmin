@@ -55,40 +55,63 @@ public partial class VmEditViewModel : ViewModelBase
 
         var bytes = mib * 1024L * 1024L;
         var name = NameLabel.Trim();
+        var actions = new List<AsyncAction>();
 
         if (!string.Equals(name, _vm.name_label, StringComparison.Ordinal))
         {
-            ShellActionRunner.Run(new DelegatedAsyncAction(
+            actions.Add(new DelegatedAsyncAction(
                 _vm.Connection,
                 $"Rename {_vm.name_label}",
                 "Renaming…",
                 "Renamed.",
                 session => VM.set_name_label(session, _vm.opaque_ref, name),
+                true,
                 "VM.set_name_label"));
         }
 
-        if (vcpus != _vm.VCPUs_at_startup || vcpus != _vm.VCPUs_max)
+        // Only compare against the field the dialog edits (startup count), not VCPUs_max.
+        if (vcpus != _vm.VCPUs_at_startup)
         {
             var max = Math.Max(vcpus, _vm.VCPUs_max);
-            ShellActionRunner.Run(new ChangeVCPUSettingsAction(_vm, max, vcpus));
+            actions.Add(new ChangeVCPUSettingsAction(_vm, max, vcpus));
         }
 
-        if (bytes != _vm.memory_dynamic_max || bytes != _vm.memory_static_max)
+        // Only compare against dynamic_max (what we seed from); preserve static_max ceiling.
+        if (bytes != _vm.memory_dynamic_max)
         {
+            var staticMax = Math.Max(_vm.memory_static_max, bytes);
             var staticMin = Math.Min(_vm.memory_static_min, bytes);
             var dynamicMin = Math.Min(_vm.memory_dynamic_min, bytes);
-            ShellActionRunner.Run(new ChangeMemorySettingsAction(
+            actions.Add(new ChangeMemorySettingsAction(
                 _vm,
                 $"Set memory on {name}",
                 staticMin,
                 dynamicMin,
                 bytes,
-                bytes,
+                staticMax,
                 (_, _) => { },
                 (_, _) => { },
-                suppressHistory: false));
+                suppressHistory: true));
         }
 
+        if (actions.Count == 0)
+        {
+            StatusMessage = "No changes to apply.";
+            _close();
+            return;
+        }
+
+        AsyncAction toRun = actions.Count == 1
+            ? actions[0]
+            : new MultipleAction(
+                _vm.Connection,
+                $"Update {name}",
+                "Updating…",
+                $"Updated {name}.",
+                actions,
+                stopOnFirstException: true);
+
+        ShellActionRunner.Run(toRun);
         StatusMessage = "Changes queued — see Logs.";
         _close();
     }

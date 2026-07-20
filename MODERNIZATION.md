@@ -26,16 +26,16 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**Shipped so far (on `development` / open PRs):** Avalonia `XcpNgCenter.Shell` with connect/TOFU/tree/General/Storage/Network/Console, Phase 1 actions, **Phase 2:** Snapshots, full VM Properties, Clone/Copy/Migrate/Cross-pool/Move/Delete, richer New SR (iSCSI probe + GFS2 + SMB/CIFS) — PR `#20` (`cursor/shell-phase1-parity-abb3`).
+**Shipped so far (on `development` / open PRs):** Avalonia `XcpNgCenter.Shell` with connect/TOFU/tree/General/Storage/Network/Console, Phase 1–2 actions (Snapshots, full VM Properties, Clone/Copy/Migrate/Cross-pool with per-disk/VIF maps/Move/Delete), New SR (iSCSI + GFS2 + SMB/CIFS + HBA/FCoE) — PR `#20` (`cursor/shell-phase1-parity-abb3`).
 
-**Next:** merge `#20` after soak → richer per-disk/VIF cross-pool mapping → HBA/FCoE SR → Linux soak. RDP stays WinForms-only. Details in `UI_REWRITE.md`.
+**Next:** merge `#20` after soak → Linux desktop soak → alerts/graphs/HA/AD/DR. RDP stays WinForms-only. Details in `UI_REWRITE.md`.
 
 ### Still later
 
 - Broader async cleanup / installer CI automation.
 - Linux desktop soak for the Avalonia shell.
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
-- Per-disk/VIF cross-pool mapping, HBA/FCoE SR, HA/AD/DR, alerts, graphs.
+- HA/AD/DR wizards, alerts, graphs.
 - Memory/quiesced snapshot types (disk-only shipped first).
 
 ## Non-goals

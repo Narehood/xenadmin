@@ -1,16 +1,19 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using XenAdmin.Actions;
 
 namespace XcpNgCenter.Shell.ViewModels;
 
-public partial class ActionLogRow : ObservableObject
+public partial class ActionLogRow : ObservableObject, IDisposable
 {
+    private bool _disposed;
+
     public ActionLogRow(ActionBase action)
     {
         Action = action;
         RefreshFromAction();
-        action.Changed += _ => RefreshFromAction();
-        action.Completed += _ => RefreshFromAction();
+        action.Changed += OnActionChanged;
+        action.Completed += OnActionCompleted;
     }
 
     public ActionBase Action { get; }
@@ -42,6 +45,24 @@ public partial class ActionLogRow : ObservableObject
     [ObservableProperty]
     private string _startedText = string.Empty;
 
+    private void OnActionChanged(ActionBase _)
+    {
+        if (Action is AsyncAction async)
+            async.RecomputeCanCancel();
+        PostRefresh();
+    }
+
+    private void OnActionCompleted(ActionBase _) => PostRefresh();
+
+    private void PostRefresh()
+    {
+        // AsyncAction raises Changed/Completed from ThreadPool workers.
+        if (Dispatcher.UIThread.CheckAccess())
+            RefreshFromAction();
+        else
+            Dispatcher.UIThread.Post(RefreshFromAction);
+    }
+
     public void RefreshFromAction()
     {
         Title = Action.Title ?? string.Empty;
@@ -69,5 +90,14 @@ public partial class ActionLogRow : ObservableObject
         {
             Status = "Running";
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        Action.Changed -= OnActionChanged;
+        Action.Completed -= OnActionCompleted;
     }
 }

@@ -111,6 +111,33 @@
                        FontSize="11" TextWrapping="Wrap"
                        Foreground="{StaticResource Brush.TextMuted}" />
           </StackPanel>
+
+          <StackPanel Spacing="8" IsVisible="{Binding ShowFibreChannel}">
+            <TextBlock Text="Hardware HBA / Software FCoE"
+                       FontSize="12" Foreground="{StaticResource Brush.TextMuted}" />
+            <WrapPanel>
+              <Button Classes="ghost" Content="Scan LUNs" Margin="0,0,8,6"
+                      Command="{Binding ProbeFibreChannelCommand}"
+                      IsEnabled="{Binding !IsProbing}" />
+            </WrapPanel>
+            <CheckBox Content="Create as GFS2 (clustered) instead of LVM"
+                      IsChecked="{Binding UseGfs2}"
+                      IsVisible="{Binding !IsFcoeType}" />
+            <TextBlock Text="LUN" FontSize="12" Foreground="{StaticResource Brush.TextMuted}"
+                       IsVisible="{Binding HasFibreChannelLuns}" />
+            <ComboBox ItemsSource="{Binding FibreChannelLuns}"
+                      SelectedItem="{Binding SelectedFibreChannelLun}"
+                      IsVisible="{Binding HasFibreChannelLuns}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:FibreChannelLunOption">
+                  <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="Requires visible Fibre Channel or FCoE LUNs on the selected host. Destructive if the LUN already has an SR."
+                       FontSize="11" TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
         </StackPanel>
       </ScrollViewer>
 

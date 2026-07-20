@@ -282,41 +282,63 @@ public partial class NewVmWizardViewModel : ViewModelBase
     private static List<DiskDescription> BuildDisks(VM template, SR sr, string vmName, long preferredSize)
     {
         var disks = new List<DiskDescription>();
-        var provision = template.ProvisionXml();
-        if (provision?.ChildNodes is { Count: > 0 })
+        try
         {
-            foreach (XmlNode diskNode in provision.ChildNodes)
+            var provision = template.ProvisionXml();
+            if (provision?.ChildNodes is { Count: > 0 })
             {
-                var attrs = diskNode.Attributes;
-                if (attrs == null)
-                    continue;
-                var device = new VBD
+                var isPrimary = true;
+                foreach (XmlNode diskNode in provision.ChildNodes)
                 {
-                    userdevice = attrs["device"]?.Value ?? "0",
-                    bootable = attrs["bootable"]?.Value == "true",
-                    mode = vbd_mode.RW
-                };
-                var size = preferredSize;
-                if (attrs["size"]?.Value is { } sizeText
-                    && long.TryParse(sizeText, out var parsed) && parsed > 0)
-                    size = parsed;
-                var type = vdi_type.user;
-                if (attrs["type"]?.Value is { } typeText)
-                    Enum.TryParse(typeText, out type);
+                    var attrs = diskNode.Attributes;
+                    if (attrs == null)
+                        continue;
+                    var device = new VBD
+                    {
+                        userdevice = attrs["device"]?.Value ?? "0",
+                        bootable = attrs["bootable"]?.Value == "true",
+                        mode = vbd_mode.RW
+                    };
 
-                var disk = new VDI
-                {
-                    name_label = $"{vmName} {device.userdevice}",
-                    name_description = "Created by XCP-ng Center Shell",
-                    virtual_size = size,
-                    type = type,
-                    read_only = false,
-                    SR = new XenRef<SR>(sr.opaque_ref)
-                };
-                disks.Add(new DiskDescription(disk, device));
+                    // Honor Storage-step size for the primary (first) disk; keep template sizes for extras.
+                    long size;
+                    if (isPrimary && preferredSize > 0)
+                    {
+                        size = preferredSize;
+                    }
+                    else if (attrs["size"]?.Value is { } sizeText
+                             && long.TryParse(sizeText, out var parsed) && parsed > 0)
+                    {
+                        size = parsed;
+                    }
+                    else
+                    {
+                        size = preferredSize > 0 ? preferredSize : Util.BINARY_GIGA;
+                    }
+
+                    isPrimary = false;
+                    var type = vdi_type.user;
+                    if (attrs["type"]?.Value is { } typeText)
+                        Enum.TryParse(typeText, out type);
+
+                    var disk = new VDI
+                    {
+                        name_label = $"{vmName} {device.userdevice}",
+                        name_description = "Created by XCP-ng Center Shell",
+                        virtual_size = size,
+                        type = type,
+                        read_only = false,
+                        SR = new XenRef<SR>(sr.opaque_ref)
+                    };
+                    disks.Add(new DiskDescription(disk, device));
+                }
+
+                return disks;
             }
-
-            return disks;
+        }
+        catch
+        {
+            disks.Clear();
         }
 
         foreach (var vbd in template.Connection.ResolveAll(template.VBDs).Where(v => v.type == vbd_type.Disk))
@@ -350,7 +372,7 @@ public partial class NewVmWizardViewModel : ViewModelBase
             {
                 name_label = $"{vmName} 0",
                 name_description = "Created by XCP-ng Center Shell",
-                virtual_size = preferredSize,
+                virtual_size = preferredSize > 0 ? preferredSize : Util.BINARY_GIGA,
                 type = vdi_type.user,
                 read_only = false,
                 SR = new XenRef<SR>(sr.opaque_ref)
