@@ -1,10 +1,12 @@
-using System.Text;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using XenAdmin;
 using XenAdmin.Actions;
 using XenAdmin.Actions.VMActions;
 using XenAdmin.Core;
-using XenAdmin.Network;
 using XenAPI;
+using XcpNgCenter.Shell.Views;
 
 namespace XcpNgCenter.Shell.Services;
 
@@ -121,17 +123,16 @@ public static class ShellVmHaPrompt
             return;
         }
 
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Format(Messages.ERROR_DIALOG_START_VM_TEXT, Helpers.GetName(vm)));
-        sb.AppendLine();
-
-        foreach (Host host in connection.Cache.Hosts)
+        var rows = new List<HostBootReasonRow>();
+        foreach (Host host in connection.Cache.Hosts.OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
         {
             string reason;
+            var canBoot = false;
             try
             {
                 VM.assert_can_boot_here(session, vm.opaque_ref, host.opaque_ref);
-                reason = "OK";
+                reason = isStart ? "Host can start this VM." : "Host can resume this VM.";
+                canBoot = true;
             }
             catch (Failure failure)
             {
@@ -142,9 +143,30 @@ public static class ShellVmHaPrompt
                 reason = e.Message;
             }
 
-            sb.AppendLine($"{Helpers.GetName(host)}: {reason}");
+            rows.Add(new HostBootReasonRow(Helpers.GetName(host), reason, canBoot));
         }
 
-        ShellConfirmPrompt.Alert(Messages.ERROR_DIALOG_START_VM_TITLE, sb.ToString());
+        var summary = string.Format(Messages.ERROR_DIALOG_START_VM_TEXT, Helpers.GetName(vm));
+        ShowStartFailureTable(Messages.ERROR_DIALOG_START_VM_TITLE, summary, rows);
+    }
+
+    private static void ShowStartFailureTable(string title, string summary, IReadOnlyList<HostBootReasonRow> rows)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+            return;
+
+        Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
+                {
+                    MainWindow: { } owner
+                })
+            {
+                return;
+            }
+
+            var window = new VmStartFailureWindow(title, summary, rows);
+            await window.ShowDialog(owner);
+        }).GetAwaiter().GetResult();
     }
 }

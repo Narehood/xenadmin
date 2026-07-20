@@ -26,17 +26,16 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**Shipped so far (on `development` / open PRs):** Avalonia `XcpNgCenter.Shell` with connect/TOFU/tree/General/Storage/Network/Console, Phase 1–2 actions (Snapshots, full VM Properties, Clone/Copy/Migrate/Cross-pool with per-disk/VIF maps/Move/Delete), New SR (iSCSI + GFS2 + SMB/CIFS + HBA/FCoE) — PR `#20` (`cursor/shell-phase1-parity-abb3`).
+**Shipped on `development` (Phase 1–2 via PR `#20`):** Avalonia `XcpNgCenter.Shell` with connect/TOFU/tree/General/Storage/Network/Console, Phase 1–2 actions (Snapshots disk-only, full VM Properties, Clone/Copy/Migrate/Cross-pool with per-disk/VIF maps/Move/Delete), New SR (iSCSI + GFS2 + SMB/CIFS + HBA/FCoE).
 
-**Next:** merge `#20` after soak → Linux desktop soak → alerts/graphs/HA/AD/DR. RDP stays WinForms-only. Details in `UI_REWRITE.md`.
+**Next:** Linux desktop soak of `drop-shell-linux-x64` → harden migrate edge cases from soak → optional multi-LUN HBA / richer start-failure UI → later alerts/graphs/HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 
 - Broader async cleanup / installer CI automation.
-- Linux desktop soak for the Avalonia shell.
+- Memory/quiesced snapshot types (disk-only shipped first; `System.Drawing.Common` is Windows-only on .NET 8).
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
 - HA/AD/DR wizards, alerts, graphs.
-- Memory/quiesced snapshot types (disk-only shipped first).
 
 ## Non-goals
 
@@ -55,7 +54,7 @@ Policy implemented in `XenAdmin/Network/SSL.cs` (WinForms) and `XcpNgCenter.Shel
 - **Trust on first use (TOFU):** first connection to a host pins the certificate hash after acceptance.
 - **Later connections:** require the pinned hash; changes prompt before re-pinning.
 - **No accept-all:** low-level HTTP paths without the app TOFU callback reject untrusted chains instead of returning `true`.
-- **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json`.
+- **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (Windows) or `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux).
 
 ## Public IP connection warning
 

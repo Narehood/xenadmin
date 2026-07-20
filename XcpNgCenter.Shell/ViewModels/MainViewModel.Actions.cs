@@ -123,11 +123,18 @@ public partial class MainViewModel
 
     public bool CanMoveVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted } vm
-        && vm.CanBeMoved();
+        && (vm.CanBeMoved() || CanUseMigrateSend(vm));
 
     public bool CanDeleteVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted, allowed_operations: { } ops }
         && ops.Contains(vm_operations.destroy);
+
+    /// <summary>
+    /// Matches WinForms <c>CrossPoolMigrateCommand.CanRun</c> (migrate_send + non–LUN-per-VDI SRs).
+    /// </summary>
+    private static bool CanUseMigrateSend(VM vm) =>
+        vm.allowed_operations?.Contains(vm_operations.migrate_send) == true
+        && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI());
 
     public bool CanAttachIso => SelectedVm != null;
 
@@ -511,11 +518,19 @@ public partial class MainViewModel
             return;
 
         var owner = GetMainWindow();
-        var dialog = new VmMoveWindow(SelectedVm, msg =>
-        {
-            ActionStatusMessage = msg;
-            StatusMessage = msg;
-        });
+        // WinForms MoveVMCommand: prefer migrate_send wizard when available; else VDI copy Move.
+        Window dialog = CanUseMigrateSend(SelectedVm)
+            ? new VmCrossPoolMigrateWindow(SelectedVm, msg =>
+            {
+                ActionStatusMessage = msg;
+                StatusMessage = msg;
+            })
+            : new VmMoveWindow(SelectedVm, msg =>
+            {
+                ActionStatusMessage = msg;
+                StatusMessage = msg;
+            });
+
         if (owner != null)
             await dialog.ShowDialog(owner);
         else

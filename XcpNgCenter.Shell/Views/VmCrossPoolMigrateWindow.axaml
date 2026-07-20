@@ -49,8 +49,8 @@
             <Grid ColumnDefinitions="*,Auto">
               <ComboBox ItemsSource="{Binding StorageRepositories}" SelectedItem="{Binding ApplyAllStorage}" Margin="0,0,8,0">
                 <ComboBox.ItemTemplate>
-                  <DataTemplate x:DataType="xena:SR">
-                    <TextBlock Text="{Binding name_label}" />
+                  <DataTemplate x:DataType="vm:MigrateSrOption">
+                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
                   </DataTemplate>
                 </ComboBox.ItemTemplate>
               </ComboBox>
@@ -70,8 +70,8 @@
                               ItemsSource="{Binding StorageOptions}"
                               SelectedItem="{Binding SelectedStorage}">
                       <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="xena:SR">
-                          <TextBlock Text="{Binding name_label}" />
+                        <DataTemplate x:DataType="vm:MigrateSrOption">
+                          <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
                         </DataTemplate>
                       </ComboBox.ItemTemplate>
                     </ComboBox>

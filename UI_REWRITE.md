@@ -9,10 +9,11 @@ rewrite reaches feature parity for your environment.
 | Item | State |
 |------|--------|
 | Integration branch | `development` |
-| Active PR | `#20` — `cursor/shell-phase1-parity-abb3` → `development` |
+| Merged | `#20` — Phase 1–2 parity |
+| Follow-up | Linux soak + migrate harden (this track) |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
 
-**Phase status:** Phase 1 + Phase 2 action/Properties/SR + richer cross-pool maps + HBA/FCoE on PR `#20`. Soak-test that build, then merge to `development`.
+**Phase status:** Phase 1 + Phase 2 on `development`. Linux desktop soak next; migrate edge cases hardened as soak finds them.
 
 ## Branch basis
 
@@ -24,10 +25,10 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 | Project | Role |
 |---------|------|
 | `XenAdmin` | Current supported WinForms client (`net8.0-windows`) |
-| `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`, Windows-first; Linux later) |
+| `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`, Windows + Linux publish) |
 | `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`, buffer callbacks) |
 
-## Done in this track (through PR #20)
+## Done in this track (through PR #20 + follow-ups)
 
 - Brand-first welcome (form column + banner no longer overlap)
 - Live connect + TOFU, tree, General/Storage/Network/Console (RFB fit/input/cursor/pop-out/CAD)
@@ -36,10 +37,11 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - **Full VM Properties** — General/tags, CPU/memory, boot, HA/startup, home server, GPU, USB
 - **Clone / Copy / Migrate / Cross-pool / Move / Delete**
   - Intra-pool live migrate: `VMMigrateAction`
-  - Cross-pool / storage migrate or copy: `VMCrossPoolMigrateAction` with **per-disk SR** and **per-VIF network** maps (+ apply-to-all)
-  - Halted move-to-SR: `VMMoveAction`
+  - Storage / cross-pool: `VMCrossPoolMigrateAction` with **per-disk SR** and **per-VIF network** maps (+ apply-to-all); empty VIF map for intra-pool
+  - Halted Move: prefers `migrate_send` (Cross-pool dialog) when available; else `VMMoveAction` (copy + destroy)
+  - SR pickers label shared vs host-local, filter by target-host visibility, skip current location / non-migratable SRs
 - **New SR wizard** — NFS ISO, SMB/CIFS ISO, NFS VHD, SMB, iSCSI (+ optional GFS2), **HBA (`lvmohba`)** / **FCoE (`lvmofcoe`)** with LUN probe (+ GFS2 on HBA)
-- HA start/resume prompts (invalid config + NTOL / no-hosts diagnosis) via Avalonia dialogs
+- HA start/resume prompts; richer **start-failure host table** (per-host assert_can_boot_here)
 - Layout polish: wrap actions, scrollable detail, console Height=520, Properties scroll padding
 
 ### Key shell layout
@@ -47,7 +49,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 ```
 XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
-  Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner, HA prompts
+  Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner, HA prompts, ShellStoragePicker
   ViewModels/        MainViewModel (+ Actions), wizards/dialogs, ActionLogRow
   Views/             MainWindow + Properties/Clone/Copy/Migrate/CrossPool/Move/Delete/NewVm/NewSr/…
 ```
@@ -56,12 +58,14 @@ Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinFor
 
 ## Next (priority order for following agents)
 
-1. **Merge PR #20** after soak feedback is clean and CI is green.
-2. **Linux desktop soak** — run `drop-shell-linux-x64`.
-3. Alerts, performance graphs, HA/AD/DR wizards (later). RDP + plugins stay WinForms-only.
-4. Optional: multi-LUN HBA create in one pass; richer start-failure host table UI.
+1. **Linux desktop soak** — run `drop-shell-linux-x64` (Drawing.Common is Windows-only; disk snapshots OK; TOFU/RFB/multi-server).
+2. Harden further migrate edge cases if soak finds more.
+3. Optional: multi-LUN HBA create in one pass.
+4. Alerts, performance graphs, HA/AD/DR wizards (later). RDP + plugins stay WinForms-only.
 
 **RDP strategy (decided):** keep RDP on WinForms/`XenAdmin` only.
+
+**Linux notes:** Password vault is Windows DPAPI-only (hosts/usernames still save). Pins/saved servers use `~/.config/XCP-ng/XCP-ng Center Shell/`. Do not enable memory/quiesced snapshots until screenshot path is Drawing-free.
 
 ## How to try the preview
 

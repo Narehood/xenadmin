@@ -28,12 +28,14 @@ public partial class VmMigrateViewModel : ViewModelBase
     private readonly VM _vm;
     private readonly Action _close;
     private readonly Action<string>? _status;
+    private readonly IReadOnlyList<VDI> _movableDisks;
 
     public VmMigrateViewModel(VM vm, Action close, Action<string>? status = null)
     {
         _vm = vm;
         _close = close;
         _status = status;
+        _movableDisks = ShellStoragePicker.GetMovableDisks(vm);
 
         NeedsStorageMigrate = vm.SRs().Any(sr => sr != null && !sr.shared);
         CanPoolMigrate = vm.allowed_operations?.Contains(vm_operations.pool_migrate) == true
@@ -61,14 +63,14 @@ public partial class VmMigrateViewModel : ViewModelBase
         if (NeedsStorageMigrate)
         {
             Hint = resident == null
-                ? "This VM uses local storage. Choose a destination host and an SR visible to that host."
-                : $"Currently on {resident.Name()} with local disks. Choose a host and a destination SR (shared, or local on the target).";
+                ? "This VM uses local storage. Choose a destination host and an SR visible to that host (shared or that host’s local disks)."
+                : $"Currently on {resident.Name()} with local disks. Choose another host and a destination SR (shared, or local on the target).";
         }
         else
         {
             Hint = resident == null
                 ? "Select a destination host. Optionally pick an SR to move disks during migrate."
-                : $"Currently on {resident.Name()}. Select another host; optionally choose a destination SR.";
+                : $"Currently on {resident.Name()}. Select another host; optionally choose a destination SR for storage migrate.";
         }
     }
 
@@ -99,47 +101,24 @@ public partial class VmMigrateViewModel : ViewModelBase
         SelectedStorage = null;
 
         var target = SelectedHost;
+        if (target == null || !CanStorageMigrate)
+            return;
+
         var srs = _vm.Connection.Cache.SRs
-            .Where(sr => sr != null
-                         && !sr.IsToolsSR()
-                         && sr.SupportsVdiCreate()
-                         && sr.PBDs.Count > 0
-                         && !sr.IsBroken()
-                         && (sr.shared || NeedsStorageMigrate || CanStorageMigrate))
-            .Where(sr => target == null || SrVisibleToHost(sr, target))
+            .Where(sr => ShellStoragePicker.IsUsableDestination(sr, _movableDisks, requireStorageMigration: true))
+            .Where(sr => ShellStoragePicker.SrVisibleToHost(sr, target))
             .OrderByDescending(sr => sr.shared)
             .ThenBy(sr => Helpers.GetName(sr), StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         foreach (var sr in srs)
-            StorageRepositories.Add(new MigrateSrOption(sr, FormatSrLabel(sr)));
+            StorageRepositories.Add(new MigrateSrOption(sr, ShellStoragePicker.FormatSrLabel(sr)));
 
         if (RequireStorage || NeedsStorageMigrate || !CanPoolMigrate)
         {
             SelectedStorage = StorageRepositories.FirstOrDefault(o => o.Sr.shared)
                               ?? StorageRepositories.FirstOrDefault();
         }
-    }
-
-    private static bool SrVisibleToHost(SR sr, Host host)
-    {
-        if (sr.shared)
-            return sr.CanBeSeenFrom(host) || host.Connection.ResolveAll(sr.PBDs).Any(p => p.currently_attached);
-
-        var storageHost = sr.GetStorageHost();
-        return storageHost != null && storageHost.opaque_ref == host.opaque_ref;
-    }
-
-    private static string FormatSrLabel(SR sr)
-    {
-        var name = Helpers.GetName(sr);
-        if (sr.shared)
-            return $"{name} · shared";
-
-        var host = sr.GetStorageHost();
-        return host != null
-            ? $"{name} · {host.Name()}"
-            : $"{name} · local";
     }
 
     [RelayCommand]
@@ -166,7 +145,21 @@ public partial class VmMigrateViewModel : ViewModelBase
 
             if (SelectedStorage == null)
             {
-                StatusMessage = "Select a destination SR for the disks.";
+                StatusMessage = NeedsStorageMigrate
+                    ? "Local disks require a destination SR on the target host (or shared storage)."
+                    : "Select a destination SR for the disks.";
+                return;
+            }
+
+            if (!ShellStoragePicker.SrVisibleToHost(SelectedStorage.Sr, SelectedHost))
+            {
+                StatusMessage = "That SR is not visible from the selected host.";
+                return;
+            }
+
+            if (ShellStoragePicker.IsCurrentLocation(SelectedStorage.Sr, _movableDisks))
+            {
+                StatusMessage = "Choose a different SR — disks are already on that storage.";
                 return;
             }
 
@@ -193,15 +186,8 @@ public partial class VmMigrateViewModel : ViewModelBase
             TargetName = host.Name()
         };
 
-        foreach (var vbd in _vm.Connection.ResolveAll(_vm.VBDs))
-        {
-            if (vbd.type == vbd_type.CD)
-                continue;
-            var vdi = _vm.Connection.Resolve(vbd.VDI);
-            if (vdi == null || vdi.IsToolsIso())
-                continue;
+        foreach (var vdi in _movableDisks)
             mapping.Storage[vdi.opaque_ref] = sr;
-        }
 
         if (mapping.Storage.Count == 0)
         {
