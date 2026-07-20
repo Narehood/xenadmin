@@ -499,18 +499,47 @@
                               BorderBrush="{StaticResource Brush.StrokeSubtle}"
                               BorderThickness="1"
                               CornerRadius="8"
-                              Padding="16"
-                              MinHeight="120">
-                        <StackPanel Spacing="8" VerticalAlignment="Center">
-                          <TextBlock Text="Console preview"
-                                     FontWeight="SemiBold"
-                                     FontSize="14"
-                                     Foreground="{StaticResource Brush.TextPrimary}" />
-                          <TextBlock Text="{Binding ConsolePlaceholderMessage}"
-                                     TextWrapping="Wrap"
-                                     FontSize="13"
-                                     Foreground="{StaticResource Brush.TextMuted}" />
-                        </StackPanel>
+                              Padding="12"
+                              MinHeight="160">
+                        <Grid MinHeight="200">
+                          <StackPanel Spacing="8"
+                                      VerticalAlignment="Center"
+                                      IsVisible="{Binding !HasConsoleFrame}">
+                            <TextBlock Text="Console preview"
+                                       FontWeight="SemiBold"
+                                       FontSize="14"
+                                       Foreground="{StaticResource Brush.TextPrimary}" />
+                            <TextBlock Text="{Binding ConsolePlaceholderMessage}"
+                                       TextWrapping="Wrap"
+                                       FontSize="13"
+                                       Foreground="{StaticResource Brush.TextMuted}" />
+                            <TextBlock Text="{Binding ConsoleViewerStatus}"
+                                       TextWrapping="Wrap"
+                                       FontSize="12"
+                                       Foreground="{StaticResource Brush.BrandOrange}"
+                                       IsVisible="{Binding ConsoleViewerStatus.Length}" />
+                          </StackPanel>
+
+                          <DockPanel IsVisible="{Binding HasConsoleFrame}">
+                            <TextBlock DockPanel.Dock="Top"
+                                       Text="{Binding ConsoleViewerStatus}"
+                                       TextWrapping="Wrap"
+                                       FontSize="12"
+                                       Margin="0,0,0,8"
+                                       Foreground="{StaticResource Brush.BrandOrange}" />
+                            <Border Background="#FF0B0F12"
+                                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    ClipToBounds="True">
+                              <Image Source="{Binding ConsoleBitmap}"
+                                     Stretch="Uniform"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     MinHeight="180" />
+                            </Border>
+                          </DockPanel>
+                        </Grid>
                       </Border>
 
                       <TextBlock Text="Console endpoints"

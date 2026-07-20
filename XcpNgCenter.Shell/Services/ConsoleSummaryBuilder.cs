@@ -7,8 +7,7 @@ using XcpNgCenter.Shell.ViewModels;
 namespace XcpNgCenter.Shell.Services;
 
 /// <summary>
-/// Read-only console summary for the Avalonia shell.
-/// Interactive RFB/VNC embedding is a follow-up (WinForms VNC stack is GDI-tied).
+/// Console summary + live RFB target resolution for the Avalonia shell.
 /// </summary>
 public static class ConsoleSummaryBuilder
 {
@@ -16,7 +15,8 @@ public static class ConsoleSummaryBuilder
         IReadOnlyList<GeneralPropertyRow> Totals,
         IReadOnlyList<ConsoleItemRow> Items,
         string StatusMessage,
-        string PlaceholderMessage);
+        string PlaceholderMessage,
+        LiveRfbTarget? LiveTarget);
 
     public static ConsoleSummary Build(InfraTreeNode? node)
     {
@@ -36,7 +36,8 @@ public static class ConsoleSummaryBuilder
         Array.Empty<GeneralPropertyRow>(),
         Array.Empty<ConsoleItemRow>(),
         status,
-        "Interactive VNC is not in the Avalonia preview yet. Use WinForms XCP-ng Center for live console access.");
+        "Select a running VM or host to open a read-only RFB console preview.",
+        null);
 
     private static ConsoleSummary BuildPool(IXenConnection conn)
     {
@@ -60,8 +61,9 @@ public static class ConsoleSummaryBuilder
         return new ConsoleSummary(
             totals,
             Array.Empty<ConsoleItemRow>(),
-            "Select a host or VM to inspect console endpoints.",
-            "Interactive VNC is not in the Avalonia preview yet. Select a running VM for RFB location details, or use WinForms XCP-ng Center for live console access.");
+            "Select a host or VM to open a console preview.",
+            "Select a running VM (or host control domain) to start the read-only RFB viewer.",
+            null);
     }
 
     private static ConsoleSummary BuildHost(IXenConnection conn, Host? host)
@@ -111,36 +113,51 @@ public static class ConsoleSummaryBuilder
             new("RFB", rfb != null ? "Available" : "Not available")
         };
 
-        var status = BuildStatus(vm, rfb);
-        var placeholder = vm.power_state == vm_power_state.Running && rfb != null
-            ? "RFB endpoint is available. Interactive VNC rendering lands in a later Avalonia slice — use WinForms XCP-ng Center for live console today."
-            : "Interactive VNC is not in the Avalonia preview yet. Use WinForms XCP-ng Center for live console access.";
+        LiveRfbTarget? live = null;
+        if (vm.power_state == vm_power_state.Running && rfb != null && !string.IsNullOrWhiteSpace(rfb.location))
+        {
+            live = new LiveRfbTarget(
+                conn,
+                rfb,
+                objectLabel,
+                objectLabel,
+                string.IsNullOrWhiteSpace(vm.uuid) ? rfb.uuid ?? objectLabel : vm.uuid);
+        }
 
-        return new ConsoleSummary(totals, items, status, placeholder);
+        var status = BuildStatus(vm, rfb, live != null);
+        var placeholder = live != null
+            ? "Connecting read-only RFB preview…"
+            : vm.power_state == vm_power_state.Running
+                ? "No RFB console is available for this object."
+                : "Start the VM to open a read-only RFB console preview.";
+
+        return new ConsoleSummary(totals, items, status, placeholder, live);
     }
 
     private static List<XenAPI.Console> ResolveConsoles(IXenConnection conn, VM vm)
         => conn.ResolveAll(vm.consoles).Where(c => c != null).Cast<XenAPI.Console>().ToList();
 
-    private static string BuildStatus(VM vm, XenAPI.Console? rfb)
+    private static string BuildStatus(VM vm, XenAPI.Console? rfb, bool canLive)
     {
         if (vm.power_state != vm_power_state.Running)
             return $"VM is {FormatPowerState(vm.power_state).ToLowerInvariant()} — start it to use the console.";
         if (rfb == null)
             return "No RFB (VNC) console is registered for this VM.";
-        return "RFB console location ready (copy below). Live viewer coming next.";
+        if (canLive)
+            return "RFB console available — read-only preview below.";
+        return "RFB console location ready (copy below).";
     }
 
     private static string StatusForConsole(VM vm, XenAPI.Console console)
     {
         if (console.protocol == console_protocol.rfb && vm.power_state == vm_power_state.Running)
-            return "Ready when interactive VNC lands";
+            return "Ready for read-only preview";
         if (console.protocol == console_protocol.rfb)
             return "RFB present — VM not running";
         if (console.protocol == console_protocol.vt100)
             return "Serial / VT100";
         if (console.protocol == console_protocol.rdp)
-            return "RDP (WinForms path)";
+            return "RDP (deferred)";
         return console.protocol.ToString();
     }
 

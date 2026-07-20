@@ -239,6 +239,12 @@
       "commandlib": {
         "type": "Project"
       },
+      "xcpngcenter.rfb": {
+        "type": "Project",
+        "dependencies": {
+          "log4net": "[3.3.2, )"
+        }
+      },
       "xencenterlib": {
         "type": "Project",
         "dependencies": {
@@ -251,7 +257,7 @@
       "xenmodel": {
         "type": "Project",
         "dependencies": {
-          "CommandLib": "[0.0.0.26200, )",
+          "CommandLib": "[0.0.0.26201, )",
           "DiscUtils.Iso9660": "[0.16.13, )",
           "DiscUtils.Vhd": "[0.16.13, )",
           "DiscUtils.Vhdx": "[0.16.13, )",
@@ -259,8 +265,8 @@
           "DiscUtils.Wim": "[0.16.13, )",
           "Newtonsoft.Json": "[13.0.4, )",
           "System.Drawing.Common": "[8.0.0, )",
-          "XenCenterLib": "[0.0.0.26200, )",
-          "XenOvfApi": "[0.0.0.26200, )",
+          "XenCenterLib": "[0.0.0.26201, )",
+          "XenOvfApi": "[0.0.0.26201, )",
           "lzfse-net": "[1.0.15, )",
           "lzo.net": "[0.0.6, )"
         }
@@ -269,7 +275,7 @@
         "type": "Project",
         "dependencies": {
           "System.Management": "[8.0.0, )",
-          "XenCenterLib": "[0.0.0.26200, )"
+          "XenCenterLib": "[0.0.0.26201, )"
         }
       },
       "DiscUtils.Iso9660": {

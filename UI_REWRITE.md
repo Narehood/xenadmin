@@ -24,6 +24,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 |---------|------|
 | `XenAdmin` | Current supported WinForms client (`net8.0-windows`) |
 | `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`, Windows-first; Linux later) |
+| `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`, buffer callbacks) |
 
 ## Done in this track
 
@@ -40,24 +41,27 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Network tab (read-only): networks / management PIFs / VM VIFs (`NetworkSummaryBuilder`)
 - Richer General fields (UUID, uptime, OS, tools, IPs, tags, HA, IQN, …)
 - Tab ScrollViewer padding so right-aligned values clear the scrollbar
-- Console tab scaffold: RFB/VT100/RDP endpoints from XenModel, copy location; interactive VNC deferred
+- Console tab scaffold: RFB/VT100/RDP endpoints from XenModel, copy location
+- Read-only hosted RFB viewer (`XcpNgCenter.Rfb` + Avalonia `WriteableBitmap`); keyboard/mouse input deferred
 - CI: self-contained `win-x64` publish uploaded as `drop-shell-win-x64`
 
 ### Key shell layout
 
 ```
+XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
-  Services/          Bootstrap, TOFU, config stub, tree + General/Storage/Network/Console builders
+  Services/          Bootstrap, TOFU, tree builders, HostedConsoleSession, AvaloniaRfbFramebuffer
   ViewModels/        MainViewModel, InfraTreeNode, ServerNode, …
   Views/MainWindow   Welcome + tree rail + General/Storage/Network/Console tabs
 ```
 
-Shell references **`XenModel` + `XenCenterLib` only** (not WinForms `XenAdmin`).  
-Startup wiring: `ShellBootstrap` → `InvokeHelper` + `IXenAdminConfigProvider` + cert callback.
+Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).  
+Startup wiring: `ShellBootstrap` → `InvokeHelper` + `IXenAdminConfigProvider` + cert callback.  
+Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `WriteableBitmap`.
 
 ## Next (priority order)
 
-1. **Interactive VNC** — extract RFB client off WinForms/GDI (`VNCStream` + Avalonia `WriteableBitmap`); read-only first, then input. RDP strategy TBD.
+1. **VNC input** — pointer + keyboard on the Avalonia viewer (read-only RFB is in); then remote cursor. RDP strategy TBD.
 2. **Copy affordance (General + sections)** — hover/focus copy icon on the right of each property row / section (same pattern as IDE code-block copy), covering at least General values.
 3. **TOFU UX** — cert changed / first-seen dialogs (replace silent re-pin for production readiness).
 4. **Persistence** — saved server list / credentials policy (today: session-only + TOFU pins).

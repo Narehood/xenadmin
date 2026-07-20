@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,6 +15,8 @@ namespace XcpNgCenter.Shell.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
+    private readonly HostedConsoleSession _consoleSession = new();
+
     public string BrandName => "XCP-ng Center";
 
     public string Tagline => "Manage pools, hosts, and VMs with a calmer console.";
@@ -99,6 +102,18 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private string _consoleCopyFeedback = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasConsoleFrame))]
+    private WriteableBitmap? _consoleBitmap;
+
+    [ObservableProperty]
+    private string _consoleViewerStatus = string.Empty;
+
+    [ObservableProperty]
+    private bool _isConsoleConnecting;
+
+    public bool HasConsoleFrame => ConsoleBitmap != null;
+
     /// <summary>
     /// Last intentional tree selection used for detail panes. Avalonia TreeView often
     /// clears SelectedItem when focus moves (tabs) or when the tree is rebuilt on cache updates.
@@ -107,10 +122,12 @@ public partial class MainViewModel : ViewModelBase
 
     private bool _suppressSelectionClear;
     private bool _restoreSelectionQueued;
+    private string? _activeConsoleKey;
 
     public MainViewModel()
     {
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
+        _consoleSession.StateChanged += OnConsoleSessionStateChanged;
     }
 
     partial void OnHostInputChanged(string value)
@@ -204,6 +221,8 @@ public partial class MainViewModel : ViewModelBase
         var server = SelectedInfraNode?.Server ?? SelectedServer;
         if (server?.Connection is null)
             return;
+
+        StopConsoleIfBoundTo(server);
 
         var conn = server.Connection;
         try
@@ -462,6 +481,48 @@ public partial class MainViewModel : ViewModelBase
         HasConsoleItems = ConsoleItems.Count > 0;
         ConsoleStatusMessage = summary.StatusMessage;
         ConsolePlaceholderMessage = summary.PlaceholderMessage;
+        SyncLiveConsole(summary.LiveTarget);
+    }
+
+    private void SyncLiveConsole(LiveRfbTarget? target)
+    {
+        if (target is not { } live)
+        {
+            if (_activeConsoleKey != null)
+            {
+                _activeConsoleKey = null;
+                _consoleSession.Stop();
+                ConsoleBitmap = null;
+                ConsoleViewerStatus = string.Empty;
+                IsConsoleConnecting = false;
+            }
+            return;
+        }
+
+        var key = $"{live.Connection.Hostname}|{live.Console.opaque_ref}|{live.Console.location}";
+        if (key == _activeConsoleKey)
+            return;
+
+        _activeConsoleKey = key;
+        ConsoleBitmap = null;
+        IsConsoleConnecting = true;
+        ConsoleViewerStatus = "Connecting to RFB console…";
+        _consoleSession.Start(live);
+    }
+
+    private void OnConsoleSessionStateChanged()
+    {
+        var bitmap = _consoleSession.Bitmap;
+        if (!ReferenceEquals(ConsoleBitmap, bitmap))
+            ConsoleBitmap = bitmap;
+        else
+            OnPropertyChanged(nameof(ConsoleBitmap));
+
+        ConsoleViewerStatus = _consoleSession.StatusMessage;
+        IsConsoleConnecting = !_consoleSession.IsConnected
+                              && !string.IsNullOrEmpty(_consoleSession.StatusMessage)
+                              && _consoleSession.StatusMessage.Contains("Connecting", StringComparison.OrdinalIgnoreCase);
+        OnPropertyChanged(nameof(HasConsoleFrame));
     }
 
     [RelayCommand]
@@ -492,6 +553,8 @@ public partial class MainViewModel : ViewModelBase
 
     private void RemoveTreeForServer(ServerNode server)
     {
+        StopConsoleIfBoundTo(server);
+
         _suppressSelectionClear = true;
         try
         {
@@ -508,6 +571,24 @@ public partial class MainViewModel : ViewModelBase
 
         if (_pinnedInfraNode?.Server == server || SelectedInfraNode?.Server == server)
             ClearSelectionIfPinnedTo(server);
+    }
+
+    private void StopConsoleIfBoundTo(ServerNode server)
+    {
+        var affectsSelection = _pinnedInfraNode?.Server == server || SelectedInfraNode?.Server == server;
+        var host = server.Connection?.Hostname ?? server.Address;
+        var affectsKey = _activeConsoleKey != null
+                         && !string.IsNullOrEmpty(host)
+                         && _activeConsoleKey.StartsWith(host + "|", StringComparison.OrdinalIgnoreCase);
+
+        if (!affectsSelection && !affectsKey)
+            return;
+
+        _activeConsoleKey = null;
+        _consoleSession.Stop();
+        ConsoleBitmap = null;
+        ConsoleViewerStatus = string.Empty;
+        IsConsoleConnecting = false;
     }
 
     private void ClearSelectionIfPinnedTo(ServerNode server)
