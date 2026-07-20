@@ -314,27 +314,12 @@
           </Border>
         </Grid>
 
-        <Grid IsVisible="{Binding ShowInfrastructure}" Margin="40,36" RowDefinitions="Auto,*,Auto">
-          <StackPanel Spacing="6" Margin="0,0,0,24">
-            <TextBlock Text="{Binding BrandName}"
-                       FontSize="28"
-                       FontWeight="Bold" />
-            <TextBlock Text="Infrastructure"
-                       Foreground="{StaticResource Brush.TextMuted}" />
-          </StackPanel>
-
-          <Border Grid.Row="1"
-                  Background="#66161C22"
-                  BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                  BorderThickness="1"
-                  CornerRadius="10"
-                  Padding="0"
-                  ClipToBounds="True">
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                          VerticalScrollBarVisibility="Auto"
-                          Padding="28">
-              <StackPanel Spacing="12">
-              <StackPanel Spacing="8">
+        <Grid IsVisible="{Binding ShowInfrastructure}" Margin="28,24,28,16" RowDefinitions="*,Auto">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto"
+                        Padding="4,0,8,0">
+            <StackPanel Spacing="12">
+              <StackPanel Spacing="6">
                 <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
                            FontSize="12"
                            LetterSpacing="1.1"
@@ -961,13 +946,13 @@
                   </Grid>
                 </TabItem>
               </TabControl>
-              </StackPanel>
-            </ScrollViewer>
-          </Border>
+            </StackPanel>
+          </ScrollViewer>
 
-          <TextBlock Grid.Row="2"
-                     Margin="0,16,0,0"
+          <TextBlock Grid.Row="1"
+                     Margin="0,12,0,0"
                      Text="{Binding StatusMessage}"
+                     TextWrapping="Wrap"
                      Foreground="{StaticResource Brush.TextMuted}" />
         </Grid>
       </Grid>
