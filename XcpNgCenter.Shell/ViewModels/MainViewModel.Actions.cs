@@ -41,6 +41,8 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanForceRebootVm))]
     [NotifyPropertyChangedFor(nameof(CanEditVm))]
     [NotifyPropertyChangedFor(nameof(CanCloneVm))]
+    [NotifyPropertyChangedFor(nameof(CanCopyVm))]
+    [NotifyPropertyChangedFor(nameof(CanMigrateVm))]
     [NotifyPropertyChangedFor(nameof(CanDeleteVm))]
     [NotifyPropertyChangedFor(nameof(CanAttachIso))]
     [NotifyPropertyChangedFor(nameof(ShowPoolStorageActions))]
@@ -53,6 +55,8 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(ResumeVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(EditVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloneVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CopyVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MigrateVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(AttachIsoCommand))]
     private VM? _selectedVm;
@@ -86,6 +90,15 @@ public partial class MainViewModel
     public bool CanCloneVm =>
         SelectedVm is { is_a_template: false, Locked: false, allowed_operations: { } ops }
         && ops.Contains(vm_operations.clone);
+
+    public bool CanCopyVm =>
+        SelectedVm is { is_a_template: false, Locked: false, power_state: not vm_power_state.Suspended, allowed_operations: { } ops }
+        && (ops.Contains(vm_operations.copy) || ops.Contains(vm_operations.clone));
+
+    public bool CanMigrateVm =>
+        SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Running, allowed_operations: { } ops }
+        && ops.Contains(vm_operations.pool_migrate)
+        && SelectedVm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()) > 1;
 
     public bool CanDeleteVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted, allowed_operations: { } ops }
@@ -336,6 +349,42 @@ public partial class MainViewModel
 
         var owner = GetMainWindow();
         var dialog = new VmCloneWindow(SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCopyVm))]
+    private async Task CopyVmAsync()
+    {
+        if (SelectedVm == null)
+            return;
+
+        var owner = GetMainWindow();
+        var dialog = new VmCopyWindow(SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMigrateVm))]
+    private async Task MigrateVmAsync()
+    {
+        if (SelectedVm == null)
+            return;
+
+        var owner = GetMainWindow();
+        var dialog = new VmMigrateWindow(SelectedVm, msg =>
         {
             ActionStatusMessage = msg;
             StatusMessage = msg;

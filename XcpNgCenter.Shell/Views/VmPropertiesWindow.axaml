@@ -4,7 +4,8 @@
         x:Class="XcpNgCenter.Shell.Views.VmPropertiesWindow"
         x:DataType="vm:VmPropertiesViewModel"
         Title="VM Properties"
-        Width="780" Height="560"
+        Width="820" Height="620"
+        MinWidth="640" MinHeight="480"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource Brush.BgDeep}">
   <Border Margin="16" Padding="16"
@@ -12,12 +13,13 @@
           BorderBrush="{StaticResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
-    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="180,*">
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="168,*">
       <StackPanel Grid.ColumnSpan="2" Spacing="4" Margin="0,0,0,12">
         <TextBlock Text="VM Properties" FontSize="22" FontWeight="SemiBold" />
         <TextBlock Text="{Binding NameLabel}"
                    Foreground="{StaticResource Brush.BrandOrange}"
-                   FontSize="14" />
+                   FontSize="14"
+                   TextTrimming="CharacterEllipsis" />
         <TextBlock Text="{Binding StatusMessage}"
                    TextWrapping="Wrap"
                    Foreground="{StaticResource Brush.TextMuted}"
@@ -29,7 +31,8 @@
                SelectedItem="{Binding SelectedSectionItem}"
                Background="Transparent"
                BorderThickness="0"
-               Margin="0,0,12,0">
+               Margin="0,0,12,0"
+               VerticalAlignment="Stretch">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:VmPropertiesSectionItem">
             <TextBlock Text="{Binding Title}" Margin="8,6" />
@@ -39,10 +42,14 @@
 
       <ScrollViewer Grid.Row="1" Grid.Column="1"
                     HorizontalScrollBarVisibility="Disabled"
-                    VerticalScrollBarVisibility="Auto">
-        <Panel>
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="0,0,4,0"
+                    AllowAutoHide="False">
+        <!-- StackPanel (not Panel): only the visible section contributes height,
+             with bottom margin so the last controls clear the OK/Cancel bar. -->
+        <StackPanel Spacing="0" Margin="0,0,8,48">
           <!-- General -->
-          <StackPanel Spacing="10" IsVisible="{Binding ShowGeneral}">
+          <StackPanel Spacing="10" IsVisible="{Binding ShowGeneral}" Margin="0,0,0,8">
             <TextBlock Text="Name, description, and tags" FontWeight="SemiBold" FontSize="16" />
             <TextBox Watermark="Name" Text="{Binding NameLabel}" />
             <TextBox Watermark="Description"
@@ -58,7 +65,7 @@
           </StackPanel>
 
           <!-- CPU & Memory -->
-          <StackPanel Spacing="10" IsVisible="{Binding ShowCpuMemory}">
+          <StackPanel Spacing="10" IsVisible="{Binding ShowCpuMemory}" Margin="0,0,0,8">
             <TextBlock Text="CPU and memory" FontWeight="SemiBold" FontSize="16" />
             <TextBox Watermark="vCPUs" Text="{Binding VcpusText}" />
             <TextBox Watermark="Memory (MiB)" Text="{Binding MemoryMibText}" />
@@ -69,7 +76,7 @@
           </StackPanel>
 
           <!-- Boot -->
-          <StackPanel Spacing="10" IsVisible="{Binding ShowBoot}">
+          <StackPanel Spacing="10" IsVisible="{Binding ShowBoot}" Margin="0,0,0,8">
             <TextBlock Text="Boot options" FontWeight="SemiBold" FontSize="16" />
             <CheckBox Content="Auto-start this VM when the host boots"
                       IsChecked="{Binding AutoPowerOn}" />
@@ -79,7 +86,8 @@
                          Foreground="{StaticResource Brush.TextMuted}" />
               <ListBox ItemsSource="{Binding BootDevices}"
                        SelectedItem="{Binding SelectedBootDevice}"
-                       MaxHeight="160">
+                       MaxHeight="140"
+                       MinHeight="72">
                 <ListBox.ItemTemplate>
                   <DataTemplate x:DataType="vm:BootDeviceItem">
                     <TextBlock Margin="4" Text="{Binding Display}" />
@@ -105,7 +113,7 @@
           </StackPanel>
 
           <!-- Startup / HA -->
-          <StackPanel Spacing="10" IsVisible="{Binding ShowStartupHa}">
+          <StackPanel Spacing="10" IsVisible="{Binding ShowStartupHa}" Margin="0,0,0,8">
             <TextBlock Text="Startup options" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="{Binding HaStatusText}"
                        TextWrapping="Wrap"
@@ -125,7 +133,7 @@
           </StackPanel>
 
           <!-- Home server -->
-          <StackPanel Spacing="10" IsVisible="{Binding ShowHomeServer}">
+          <StackPanel Spacing="10" IsVisible="{Binding ShowHomeServer}" Margin="0,0,0,8">
             <TextBlock Text="Home server" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Preferred host for this VM when starting in a pool."
                        TextWrapping="Wrap"
@@ -141,7 +149,7 @@
           </StackPanel>
 
           <!-- GPU -->
-          <StackPanel Spacing="10" IsVisible="{Binding ShowGpu}">
+          <StackPanel Spacing="10" IsVisible="{Binding ShowGpu}" Margin="0,0,0,8">
             <TextBlock Text="GPU" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="{Binding GpuHint}"
                        TextWrapping="Wrap"
@@ -149,7 +157,8 @@
             <TextBlock Text="Assigned" Foreground="{StaticResource Brush.TextMuted}" />
             <ListBox ItemsSource="{Binding AssignedGpus}"
                      SelectedItem="{Binding SelectedAssignedGpu}"
-                     MaxHeight="140">
+                     MaxHeight="120"
+                     MinHeight="48">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:GpuAssignmentItem">
                   <TextBlock Text="{Binding Label}" Margin="4" />
@@ -175,7 +184,7 @@
           </StackPanel>
 
           <!-- USB -->
-          <StackPanel Spacing="10" IsVisible="{Binding ShowUsb}">
+          <StackPanel Spacing="10" IsVisible="{Binding ShowUsb}" Margin="0,0,0,8">
             <TextBlock Text="USB" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="{Binding UsbHint}"
                        TextWrapping="Wrap"
@@ -183,7 +192,8 @@
             <TextBlock Text="Attached" Foreground="{StaticResource Brush.TextMuted}" />
             <ListBox ItemsSource="{Binding AttachedUsbs}"
                      SelectedItem="{Binding SelectedAttachedUsb}"
-                     MaxHeight="120">
+                     MaxHeight="100"
+                     MinHeight="48">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:UsbAttachedItem">
                   <TextBlock Text="{Binding Label}" Margin="4" />
@@ -196,7 +206,8 @@
             <TextBlock Text="Available" Foreground="{StaticResource Brush.TextMuted}" Margin="0,8,0,0" />
             <ListBox ItemsSource="{Binding AvailableUsbs}"
                      SelectedItem="{Binding SelectedAvailableUsb}"
-                     MaxHeight="120">
+                     MaxHeight="100"
+                     MinHeight="48">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:UsbAvailableItem">
                   <TextBlock Text="{Binding Label}" Margin="4" />
@@ -207,14 +218,14 @@
                     Command="{Binding AttachUsbCommand}"
                     IsEnabled="{Binding CanEditUsb}" />
           </StackPanel>
-        </Panel>
+        </StackPanel>
       </ScrollViewer>
 
       <StackPanel Grid.Row="2" Grid.ColumnSpan="2"
                   Orientation="Horizontal"
                   Spacing="10"
                   HorizontalAlignment="Right"
-                  Margin="0,16,0,0">
+                  Margin="0,12,0,0">
         <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
         <Button Classes="cta" Content="OK" IsDefault="True" Command="{Binding ApplyCommand}" />
       </StackPanel>

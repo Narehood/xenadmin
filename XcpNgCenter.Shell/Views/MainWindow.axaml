@@ -119,120 +119,137 @@
       </Border>
 
       <Grid Grid.Column="1">
-        <Grid IsVisible="{Binding ShowWelcome}" Margin="56,48">
-          <StackPanel VerticalAlignment="Center" Spacing="16" MaxWidth="560">
-            <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
-                   Width="72" Height="72"
-                   HorizontalAlignment="Left"
-                   Opacity="0.95">
-              <Image.Transitions>
-                <Transitions>
-                  <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
-                </Transitions>
-              </Image.Transitions>
-            </Image>
+        <Grid IsVisible="{Binding ShowWelcome}" Margin="48,40,0,40">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="300" />
+            <ColumnDefinition Width="220" />
+          </Grid.ColumnDefinitions>
+          <ScrollViewer Grid.Column="0"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto"
+                        Padding="8,8,20,8">
+            <StackPanel VerticalAlignment="Center"
+                        Spacing="16"
+                        MaxWidth="380"
+                        HorizontalAlignment="Left"
+                        Margin="8,0,0,0">
+              <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
+                     Width="72" Height="72"
+                     HorizontalAlignment="Left"
+                     Opacity="0.95">
+                <Image.Transitions>
+                  <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
+                  </Transitions>
+                </Image.Transitions>
+              </Image>
 
-            <TextBlock Text="{Binding BrandName}"
-                       FontSize="44"
-                       FontWeight="Bold"
-                       LineHeight="50"
-                       Foreground="{StaticResource Brush.TextPrimary}" />
+              <TextBlock Text="{Binding BrandName}"
+                         FontSize="40"
+                         FontWeight="Bold"
+                         LineHeight="46"
+                         Foreground="{StaticResource Brush.TextPrimary}"
+                         TextWrapping="Wrap" />
 
-            <TextBlock Text="{Binding Tagline}"
-                       FontSize="17"
-                       TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}"
-                       MaxWidth="480" />
+              <TextBlock Text="{Binding Tagline}"
+                         FontSize="16"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
 
-            <StackPanel Spacing="10" Margin="0,8,0,0" MaxWidth="420">
-              <TextBox Watermark="host.example or 10.0.0.5"
-                       Text="{Binding HostInput}" />
-              <TextBox Watermark="Username"
-                       Text="{Binding Username}" />
-              <TextBox Watermark="Password"
-                       Text="{Binding Password}"
-                       PasswordChar="•" />
-              <CheckBox IsChecked="{Binding RememberPassword}"
-                        IsEnabled="{Binding CanPersistPasswords}"
-                        Content="{Binding RememberPasswordLabel}" />
-              <Button Classes="cta"
-                      Content="Connect"
-                      HorizontalAlignment="Left"
-                      Command="{Binding ConnectCommand}"
-                      IsEnabled="{Binding !IsBusy}" />
+              <StackPanel Spacing="10" Margin="0,8,0,0" Width="360" MaxWidth="360" HorizontalAlignment="Left">
+                <TextBox Watermark="host.example or 10.0.0.5"
+                         Text="{Binding HostInput}" />
+                <TextBox Watermark="Username"
+                         Text="{Binding Username}" />
+                <TextBox Watermark="Password"
+                         Text="{Binding Password}"
+                         PasswordChar="•" />
+                <CheckBox IsChecked="{Binding RememberPassword}"
+                          IsEnabled="{Binding CanPersistPasswords}"
+                          Content="{Binding RememberPasswordLabel}" />
+                <Button Classes="cta"
+                        Content="Connect"
+                        HorizontalAlignment="Left"
+                        Command="{Binding ConnectCommand}"
+                        IsEnabled="{Binding !IsBusy}" />
 
-              <StackPanel Spacing="6" Margin="0,8,0,0" IsVisible="{Binding HasSavedServers}">
-                <TextBlock Text="Saved servers"
-                           FontSize="11"
-                           LetterSpacing="1.1"
-                           Foreground="{StaticResource Brush.TextMuted}" />
-                <ItemsControl ItemsSource="{Binding SavedServers}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="svc:SavedServerEntry">
-                      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                        <Button Classes="ghost"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                Padding="10,8"
-                                Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).UseSavedServerCommand}"
-                                CommandParameter="{Binding}">
-                          <StackPanel Spacing="2">
-                            <TextBlock Text="{Binding Address}"
-                                       FontSize="13"
-                                       Foreground="{StaticResource Brush.TextPrimary}" />
-                            <TextBlock Text="{Binding Subtitle}"
-                                       FontSize="11"
-                                       Foreground="{StaticResource Brush.TextMuted}" />
-                          </StackPanel>
-                        </Button>
-                        <Button Grid.Column="1"
-                                Classes="ghost"
-                                Content="Forget password"
-                                FontSize="11"
-                                Padding="8,4"
-                                VerticalAlignment="Center"
-                                IsVisible="{Binding HasSavedPassword}"
-                                Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).ForgetSavedPasswordCommand}"
-                                CommandParameter="{Binding}" />
-                      </Grid>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <TextBlock Text="{Binding PasswordVaultHint}"
-                           FontSize="11"
-                           TextWrapping="Wrap"
-                           Foreground="{StaticResource Brush.TextMuted}"
-                           Opacity="0.9" />
+                <StackPanel Spacing="6" Margin="0,8,0,0" IsVisible="{Binding HasSavedServers}">
+                  <TextBlock Text="Saved servers"
+                             FontSize="11"
+                             LetterSpacing="1.1"
+                             Foreground="{StaticResource Brush.TextMuted}" />
+                  <ItemsControl ItemsSource="{Binding SavedServers}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="svc:SavedServerEntry">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                          <Button Classes="ghost"
+                                  HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Left"
+                                  Padding="10,8"
+                                  Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).UseSavedServerCommand}"
+                                  CommandParameter="{Binding}">
+                            <StackPanel Spacing="2">
+                              <TextBlock Text="{Binding Address}"
+                                         FontSize="13"
+                                         Foreground="{StaticResource Brush.TextPrimary}"
+                                         TextTrimming="CharacterEllipsis" />
+                              <TextBlock Text="{Binding Subtitle}"
+                                         FontSize="11"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                          </Button>
+                          <Button Grid.Column="1"
+                                  Classes="ghost"
+                                  Content="Forget"
+                                  FontSize="11"
+                                  Padding="8,4"
+                                  VerticalAlignment="Center"
+                                  IsVisible="{Binding HasSavedPassword}"
+                                  Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).ForgetSavedPasswordCommand}"
+                                  CommandParameter="{Binding}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Text="{Binding PasswordVaultHint}"
+                             FontSize="11"
+                             TextWrapping="Wrap"
+                             Foreground="{StaticResource Brush.TextMuted}"
+                             Opacity="0.9" />
+                </StackPanel>
+
+                <Button Classes="ghost"
+                        HorizontalAlignment="Left"
+                        Content="{Binding ClearPinsLabel}"
+                        Command="{Binding ClearTrustedCertificatesCommand}"
+                        IsVisible="{Binding HasTrustedCertificates}"
+                        Margin="0,4,0,0" />
               </StackPanel>
 
-              <Button Classes="ghost"
-                      HorizontalAlignment="Left"
-                      Content="{Binding ClearPinsLabel}"
-                      Command="{Binding ClearTrustedCertificatesCommand}"
-                      IsVisible="{Binding HasTrustedCertificates}"
-                      Margin="0,4,0,0" />
+              <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
+                         Text="Public IP detected — prefer VPN, SSH tunnel, or a private path before exposing the management plane."
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.BrandOrange}"
+                         MaxWidth="360" />
+              <CheckBox IsVisible="{Binding ShowPublicIpWarning}"
+                        IsChecked="{Binding AcknowledgePublicIp}"
+                        Content="I understand the risk — connect anyway"
+                        MaxWidth="360" />
+
+              <TextBlock Text="{Binding StatusMessage}"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         MaxWidth="360" />
             </StackPanel>
+          </ScrollViewer>
 
-            <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
-                       Text="Public IP detected — prefer VPN, SSH tunnel, or a private path before exposing the management plane."
-                       TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.BrandOrange}"
-                       MaxWidth="520" />
-            <CheckBox IsVisible="{Binding ShowPublicIpWarning}"
-                      IsChecked="{Binding AcknowledgePublicIp}"
-                      Content="I understand the risk — connect anyway" />
-
-            <TextBlock Text="{Binding StatusMessage}"
-                       TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}"
-                       MaxWidth="520" />
-          </StackPanel>
-
-          <Border HorizontalAlignment="Right"
+          <Border Grid.Column="1"
+                  HorizontalAlignment="Stretch"
                   VerticalAlignment="Stretch"
-                  Width="280"
-                  Margin="0,-48,-56,-48"
-                  IsHitTestVisible="False">
+                  Margin="0,-40,0,-40"
+                  IsHitTestVisible="False"
+                  ClipToBounds="True">
             <Border.Background>
               <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
                 <GradientStop Offset="0" Color="#00F07318" />
@@ -314,6 +331,8 @@
                 <Button Classes="ghost" Content="Force reboot" Margin="0,0,8,6" Command="{Binding ForceRebootVmCommand}" />
                 <Button Classes="ghost" Content="Properties…" Margin="0,0,8,6" Command="{Binding EditVmCommand}" />
                 <Button Classes="ghost" Content="Clone…" Margin="0,0,8,6" Command="{Binding CloneVmCommand}" />
+                <Button Classes="ghost" Content="Copy…" Margin="0,0,8,6" Command="{Binding CopyVmCommand}" />
+                <Button Classes="ghost" Content="Migrate…" Margin="0,0,8,6" Command="{Binding MigrateVmCommand}" />
                 <Button Classes="ghost" Content="Delete…" Margin="0,0,8,6" Command="{Binding DeleteVmCommand}" />
                 <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6" Command="{Binding AttachIsoCommand}" />
                 <Button Classes="ghost" Content="Eject ISO" Margin="0,0,8,6" Command="{Binding EjectIsoCommand}" />

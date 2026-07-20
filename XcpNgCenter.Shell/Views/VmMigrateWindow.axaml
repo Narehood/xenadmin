@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:xena="clr-namespace:XenAPI;assembly=XenModel"
+        x:Class="XcpNgCenter.Shell.Views.VmMigrateWindow"
+        x:DataType="vm:VmMigrateViewModel"
+        Title="Migrate VM"
+        Width="440" Height="360"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="20" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <StackPanel Spacing="12">
+      <TextBlock Text="Migrate VM" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding Hint}"
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <TextBlock Text="{Binding StatusMessage}"
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}"
+                 IsVisible="{Binding StatusMessage.Length}" />
+      <ComboBox ItemsSource="{Binding Hosts}"
+                SelectedItem="{Binding SelectedHost}"
+                PlaceholderText="Destination host">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="xena:Host">
+            <TextBlock Text="{Binding name_label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="Uses live pool migrate (VM.pool_migrate). Cross-pool migrate is not yet available in the shell."
+                 FontSize="11"
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,8,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Migrate" IsDefault="True" Command="{Binding MigrateCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>
