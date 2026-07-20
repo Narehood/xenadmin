@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:xena="clr-namespace:XenAPI;assembly=XenModel"
+        x:Class="XcpNgCenter.Shell.Views.VmCopyWindow"
+        x:DataType="vm:VmCopyViewModel"
+        Title="Copy VM"
+        Width="480" Height="420"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="20" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <StackPanel Spacing="12">
+      <TextBlock Text="Copy VM" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="Fast clone stays on the same storage; full copy creates new disks on a selected SR."
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <TextBlock Text="{Binding StatusMessage}"
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}"
+                 IsVisible="{Binding StatusMessage.Length}" />
+      <TextBox Watermark="Name" Text="{Binding CopyName}" />
+      <TextBox Watermark="Description"
+               Text="{Binding CopyDescription}"
+               AcceptsReturn="True"
+               Height="64"
+               TextWrapping="Wrap" />
+      <CheckBox Content="Fast clone (same storage)"
+                IsChecked="{Binding UseFastClone}"
+                IsEnabled="{Binding CanFastClone}" />
+      <StackPanel Spacing="6" IsVisible="{Binding ShowSrPicker}">
+        <TextBlock Text="Destination SR" Foreground="{StaticResource Brush.TextMuted}" />
+        <ComboBox ItemsSource="{Binding StorageRepositories}"
+                  SelectedItem="{Binding SelectedStorage}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="xena:SR">
+              <TextBlock Text="{Binding name_label}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,8,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Copy" IsDefault="True" Command="{Binding CopyCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

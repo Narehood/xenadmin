@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:controls="using:XcpNgCenter.Shell.Controls"
+        x:Class="XcpNgCenter.Shell.Views.ConsolePopOutWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Console"
+        Width="1024" Height="768"
+        MinWidth="640" MinHeight="480"
+        Background="{StaticResource Brush.BgDeep}">
+  <Grid RowDefinitions="Auto,*" Margin="16">
+    <DockPanel Margin="0,0,0,12">
+      <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Console'}"
+                 FontSize="16"
+                 FontWeight="SemiBold"
+                 VerticalAlignment="Center" />
+      <StackPanel DockPanel.Dock="Right"
+                  Orientation="Horizontal"
+                  Spacing="8"
+                  HorizontalAlignment="Right">
+        <Button Classes="ghost" Content="Ctrl+Alt+Del" Command="{Binding SendCtrlAltDelCommand}" />
+        <Button Classes="ghost" Content="Reattach" Command="{Binding ReattachConsoleCommand}" />
+      </StackPanel>
+    </DockPanel>
+    <Border Grid.Row="1"
+            Background="#0B0F12"
+            BorderBrush="{StaticResource Brush.StrokeSubtle}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="8"
+            ClipToBounds="True">
+      <controls:RfbConsoleView Frame="{Binding ConsoleBitmap}"
+                               Session="{Binding ConsoleSession}"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"
+                               ClipToBounds="True"
+                               Margin="2"
+                               ToolTip.Tip="Keyboard and mouse are sent to the guest" />
+    </Border>
+  </Grid>
+</Window>

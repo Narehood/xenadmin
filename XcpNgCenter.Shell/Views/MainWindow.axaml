@@ -54,17 +54,35 @@
               BorderThickness="0,0,1,0"
               Padding="20">
         <Grid RowDefinitions="Auto,*,Auto">
-          <StackPanel Spacing="10" Margin="0,4,0,24">
-            <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
-                   Width="44" Height="44"
-                   HorizontalAlignment="Left" />
-            <TextBlock Text="{Binding BrandName}"
-                       FontSize="22"
-                       FontWeight="Bold"
-                       Foreground="{StaticResource Brush.TextPrimary}" />
-            <TextBlock Text="Preview shell"
-                       FontSize="12"
-                       Foreground="{StaticResource Brush.BrandOrange}" />
+          <StackPanel Spacing="8" Margin="0,4,0,16">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
+                     Width="40" Height="40"
+                     VerticalAlignment="Center" />
+              <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="{Binding BrandName}"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource Brush.TextPrimary}"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="Preview shell"
+                           FontSize="12"
+                           Foreground="{StaticResource Brush.BrandOrange}" />
+              </StackPanel>
+            </StackPanel>
+
+            <WrapPanel Orientation="Horizontal" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
+              <Button Classes="ghost" Content="New VM" Margin="0,0,8,6"
+                      Command="{Binding NewVmCommand}" />
+              <Button Classes="ghost" Content="New SR" Margin="0,0,8,6"
+                      Command="{Binding NewSrCommand}"
+                      IsVisible="{Binding ShowPoolStorageActions}" />
+              <Button Classes="ghost" Content="Add server" Margin="0,0,8,6"
+                      Command="{Binding AddServerCommand}" />
+              <Button Classes="ghost" Content="Disconnect" Margin="0,0,8,6"
+                      Command="{Binding DisconnectSelectedCommand}"
+                      IsEnabled="{Binding CanDisconnectSelected}" />
+            </WrapPanel>
           </StackPanel>
 
           <Grid Grid.Row="1" RowDefinitions="Auto,*">
@@ -77,7 +95,48 @@
             <TreeView Grid.Row="1"
                       IsVisible="{Binding ShowInfrastructure}"
                       ItemsSource="{Binding InfrastructureRoots}"
-                      SelectedItem="{Binding SelectedInfraNode, Mode=TwoWay}">
+                      SelectedItem="{Binding SelectedInfraNode, Mode=TwoWay}"
+                      PointerPressed="OnInfraTreePointerPressed">
+              <TreeView.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="New VM…"
+                            Command="{Binding NewVmCommand}"
+                            IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="New SR…"
+                            Command="{Binding NewSrCommand}"
+                            IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="Refresh storage"
+                            Command="{Binding RefreshStorageCommand}"
+                            IsVisible="{Binding ShowPoolContextActions}" />
+                  <Separator IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="Disconnect"
+                            Command="{Binding DisconnectSelectedCommand}"
+                            IsVisible="{Binding CanDisconnectSelected}" />
+                  <MenuItem Header="Remove"
+                            Command="{Binding RemoveSelectedCommand}"
+                            IsVisible="{Binding CanDisconnectSelected}" />
+
+                  <Separator IsVisible="{Binding ShowVmContextActions}" />
+                  <MenuItem Header="Start" Command="{Binding StartVmCommand}" IsVisible="{Binding CanStartVm}" />
+                  <MenuItem Header="Shutdown" Command="{Binding ShutdownVmCommand}" IsVisible="{Binding CanShutdownVm}" />
+                  <MenuItem Header="Reboot" Command="{Binding RebootVmCommand}" IsVisible="{Binding CanRebootVm}" />
+                  <MenuItem Header="Suspend" Command="{Binding SuspendVmCommand}" IsVisible="{Binding CanSuspendVm}" />
+                  <MenuItem Header="Resume" Command="{Binding ResumeVmCommand}" IsVisible="{Binding CanResumeVm}" />
+                  <MenuItem Header="Force shutdown" Command="{Binding ForceShutdownVmCommand}" IsVisible="{Binding CanForceShutdownVm}" />
+                  <MenuItem Header="Force reboot" Command="{Binding ForceRebootVmCommand}" IsVisible="{Binding CanForceRebootVm}" />
+                  <Separator IsVisible="{Binding ShowVmContextActions}" />
+                  <MenuItem Header="Properties…" Command="{Binding EditVmCommand}" IsVisible="{Binding CanEditVm}" />
+                  <MenuItem Header="Clone…" Command="{Binding CloneVmCommand}" IsVisible="{Binding CanCloneVm}" />
+                  <MenuItem Header="Copy…" Command="{Binding CopyVmCommand}" IsVisible="{Binding CanCopyVm}" />
+                  <MenuItem Header="Migrate…" Command="{Binding MigrateVmCommand}" IsVisible="{Binding CanMigrateVm}" />
+                  <MenuItem Header="Cross-pool…" Command="{Binding CrossPoolMigrateVmCommand}" IsVisible="{Binding CanCrossPoolMigrateVm}" />
+                  <MenuItem Header="Move…" Command="{Binding MoveVmCommand}" IsVisible="{Binding CanMoveVm}" />
+                  <MenuItem Header="Delete…" Command="{Binding DeleteVmCommand}" IsVisible="{Binding CanDeleteVm}" />
+                  <Separator IsVisible="{Binding ShowVmContextActions}" />
+                  <MenuItem Header="Attach ISO…" Command="{Binding AttachIsoCommand}" IsVisible="{Binding CanAttachIso}" />
+                  <MenuItem Header="Eject ISO" Command="{Binding EjectIsoCommand}" IsVisible="{Binding CanAttachIso}" />
+                </ContextMenu>
+              </TreeView.ContextMenu>
               <TreeView.ItemTemplate>
                 <TreeDataTemplate ItemsSource="{Binding Children}"
                                   DataType="vm:InfraTreeNode">
@@ -114,120 +173,137 @@
       </Border>
 
       <Grid Grid.Column="1">
-        <Grid IsVisible="{Binding ShowWelcome}" Margin="56,48">
-          <StackPanel VerticalAlignment="Center" Spacing="16" MaxWidth="560">
-            <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
-                   Width="72" Height="72"
-                   HorizontalAlignment="Left"
-                   Opacity="0.95">
-              <Image.Transitions>
-                <Transitions>
-                  <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
-                </Transitions>
-              </Image.Transitions>
-            </Image>
+        <Grid IsVisible="{Binding ShowWelcome}" Margin="48,40,0,40">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="300" />
+            <ColumnDefinition Width="220" />
+          </Grid.ColumnDefinitions>
+          <ScrollViewer Grid.Column="0"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto"
+                        Padding="8,8,20,8">
+            <StackPanel VerticalAlignment="Center"
+                        Spacing="16"
+                        MaxWidth="380"
+                        HorizontalAlignment="Left"
+                        Margin="8,0,0,0">
+              <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
+                     Width="72" Height="72"
+                     HorizontalAlignment="Left"
+                     Opacity="0.95">
+                <Image.Transitions>
+                  <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
+                  </Transitions>
+                </Image.Transitions>
+              </Image>
 
-            <TextBlock Text="{Binding BrandName}"
-                       FontSize="44"
-                       FontWeight="Bold"
-                       LineHeight="50"
-                       Foreground="{StaticResource Brush.TextPrimary}" />
+              <TextBlock Text="{Binding BrandName}"
+                         FontSize="40"
+                         FontWeight="Bold"
+                         LineHeight="46"
+                         Foreground="{StaticResource Brush.TextPrimary}"
+                         TextWrapping="Wrap" />
 
-            <TextBlock Text="{Binding Tagline}"
-                       FontSize="17"
-                       TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}"
-                       MaxWidth="480" />
+              <TextBlock Text="{Binding Tagline}"
+                         FontSize="16"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
 
-            <StackPanel Spacing="10" Margin="0,8,0,0" MaxWidth="420">
-              <TextBox Watermark="host.example or 10.0.0.5"
-                       Text="{Binding HostInput}" />
-              <TextBox Watermark="Username"
-                       Text="{Binding Username}" />
-              <TextBox Watermark="Password"
-                       Text="{Binding Password}"
-                       PasswordChar="•" />
-              <CheckBox IsChecked="{Binding RememberPassword}"
-                        IsEnabled="{Binding CanPersistPasswords}"
-                        Content="{Binding RememberPasswordLabel}" />
-              <Button Classes="cta"
-                      Content="Connect"
-                      HorizontalAlignment="Left"
-                      Command="{Binding ConnectCommand}"
-                      IsEnabled="{Binding !IsBusy}" />
+              <StackPanel Spacing="10" Margin="0,8,0,0" Width="360" MaxWidth="360" HorizontalAlignment="Left">
+                <TextBox Watermark="host.example or 10.0.0.5"
+                         Text="{Binding HostInput}" />
+                <TextBox Watermark="Username"
+                         Text="{Binding Username}" />
+                <TextBox Watermark="Password"
+                         Text="{Binding Password}"
+                         PasswordChar="•" />
+                <CheckBox IsChecked="{Binding RememberPassword}"
+                          IsEnabled="{Binding CanPersistPasswords}"
+                          Content="{Binding RememberPasswordLabel}" />
+                <Button Classes="cta"
+                        Content="Connect"
+                        HorizontalAlignment="Left"
+                        Command="{Binding ConnectCommand}"
+                        IsEnabled="{Binding !IsBusy}" />
 
-              <StackPanel Spacing="6" Margin="0,8,0,0" IsVisible="{Binding HasSavedServers}">
-                <TextBlock Text="Saved servers"
-                           FontSize="11"
-                           LetterSpacing="1.1"
-                           Foreground="{StaticResource Brush.TextMuted}" />
-                <ItemsControl ItemsSource="{Binding SavedServers}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="svc:SavedServerEntry">
-                      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                        <Button Classes="ghost"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                Padding="10,8"
-                                Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).UseSavedServerCommand}"
-                                CommandParameter="{Binding}">
-                          <StackPanel Spacing="2">
-                            <TextBlock Text="{Binding Address}"
-                                       FontSize="13"
-                                       Foreground="{StaticResource Brush.TextPrimary}" />
-                            <TextBlock Text="{Binding Subtitle}"
-                                       FontSize="11"
-                                       Foreground="{StaticResource Brush.TextMuted}" />
-                          </StackPanel>
-                        </Button>
-                        <Button Grid.Column="1"
-                                Classes="ghost"
-                                Content="Forget password"
-                                FontSize="11"
-                                Padding="8,4"
-                                VerticalAlignment="Center"
-                                IsVisible="{Binding HasSavedPassword}"
-                                Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).ForgetSavedPasswordCommand}"
-                                CommandParameter="{Binding}" />
-                      </Grid>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <TextBlock Text="{Binding PasswordVaultHint}"
-                           FontSize="11"
-                           TextWrapping="Wrap"
-                           Foreground="{StaticResource Brush.TextMuted}"
-                           Opacity="0.9" />
+                <StackPanel Spacing="6" Margin="0,8,0,0" IsVisible="{Binding HasSavedServers}">
+                  <TextBlock Text="Saved servers"
+                             FontSize="11"
+                             LetterSpacing="1.1"
+                             Foreground="{StaticResource Brush.TextMuted}" />
+                  <ItemsControl ItemsSource="{Binding SavedServers}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="svc:SavedServerEntry">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                          <Button Classes="ghost"
+                                  HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Left"
+                                  Padding="10,8"
+                                  Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).UseSavedServerCommand}"
+                                  CommandParameter="{Binding}">
+                            <StackPanel Spacing="2">
+                              <TextBlock Text="{Binding Address}"
+                                         FontSize="13"
+                                         Foreground="{StaticResource Brush.TextPrimary}"
+                                         TextTrimming="CharacterEllipsis" />
+                              <TextBlock Text="{Binding Subtitle}"
+                                         FontSize="11"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                          </Button>
+                          <Button Grid.Column="1"
+                                  Classes="ghost"
+                                  Content="Forget"
+                                  FontSize="11"
+                                  Padding="8,4"
+                                  VerticalAlignment="Center"
+                                  IsVisible="{Binding HasSavedPassword}"
+                                  Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).ForgetSavedPasswordCommand}"
+                                  CommandParameter="{Binding}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Text="{Binding PasswordVaultHint}"
+                             FontSize="11"
+                             TextWrapping="Wrap"
+                             Foreground="{StaticResource Brush.TextMuted}"
+                             Opacity="0.9" />
+                </StackPanel>
+
+                <Button Classes="ghost"
+                        HorizontalAlignment="Left"
+                        Content="{Binding ClearPinsLabel}"
+                        Command="{Binding ClearTrustedCertificatesCommand}"
+                        IsVisible="{Binding HasTrustedCertificates}"
+                        Margin="0,4,0,0" />
               </StackPanel>
 
-              <Button Classes="ghost"
-                      HorizontalAlignment="Left"
-                      Content="{Binding ClearPinsLabel}"
-                      Command="{Binding ClearTrustedCertificatesCommand}"
-                      IsVisible="{Binding HasTrustedCertificates}"
-                      Margin="0,4,0,0" />
+              <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
+                         Text="Public IP detected — prefer VPN, SSH tunnel, or a private path before exposing the management plane."
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.BrandOrange}"
+                         MaxWidth="360" />
+              <CheckBox IsVisible="{Binding ShowPublicIpWarning}"
+                        IsChecked="{Binding AcknowledgePublicIp}"
+                        Content="I understand the risk — connect anyway"
+                        MaxWidth="360" />
+
+              <TextBlock Text="{Binding StatusMessage}"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         MaxWidth="360" />
             </StackPanel>
+          </ScrollViewer>
 
-            <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
-                       Text="Public IP detected — prefer VPN, SSH tunnel, or a private path before exposing the management plane."
-                       TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.BrandOrange}"
-                       MaxWidth="520" />
-            <CheckBox IsVisible="{Binding ShowPublicIpWarning}"
-                      IsChecked="{Binding AcknowledgePublicIp}"
-                      Content="I understand the risk — connect anyway" />
-
-            <TextBlock Text="{Binding StatusMessage}"
-                       TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}"
-                       MaxWidth="520" />
-          </StackPanel>
-
-          <Border HorizontalAlignment="Right"
+          <Border Grid.Column="1"
+                  HorizontalAlignment="Stretch"
                   VerticalAlignment="Stretch"
-                  Width="280"
-                  Margin="0,-48,-56,-48"
-                  IsHitTestVisible="False">
+                  Margin="0,-40,0,-40"
+                  IsHitTestVisible="False"
+                  ClipToBounds="True">
             <Border.Background>
               <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
                 <GradientStop Offset="0" Color="#00F07318" />
@@ -238,37 +314,12 @@
           </Border>
         </Grid>
 
-        <Grid IsVisible="{Binding ShowInfrastructure}" Margin="40,36" RowDefinitions="Auto,*,Auto">
-          <DockPanel Margin="0,0,0,24">
-            <StackPanel DockPanel.Dock="Left" Spacing="6">
-              <TextBlock Text="{Binding BrandName}"
-                         FontSize="28"
-                         FontWeight="Bold" />
-              <TextBlock Text="Infrastructure"
-                         Foreground="{StaticResource Brush.TextMuted}" />
-            </StackPanel>
-            <StackPanel DockPanel.Dock="Right"
-                        Orientation="Horizontal"
-                        Spacing="10"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center">
-              <Button Classes="ghost"
-                      Content="Disconnect"
-                      Command="{Binding DisconnectSelectedCommand}" />
-              <Button Classes="ghost"
-                      Content="Remove"
-                      Command="{Binding RemoveSelectedCommand}" />
-            </StackPanel>
-          </DockPanel>
-
-          <Border Grid.Row="1"
-                  Background="#66161C22"
-                  BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                  BorderThickness="1"
-                  CornerRadius="10"
-                  Padding="28">
-            <Grid RowDefinitions="Auto,*">
-              <StackPanel Spacing="8" Margin="0,0,0,8">
+        <Grid IsVisible="{Binding ShowInfrastructure}" Margin="28,24,28,16" RowDefinitions="*,Auto">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto"
+                        Padding="12,0,12,0">
+            <StackPanel Spacing="12">
+              <StackPanel Spacing="6">
                 <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
                            FontSize="12"
                            LetterSpacing="1.1"
@@ -280,9 +331,39 @@
                 <TextBlock Text="{Binding SelectedInfraNode.Subtitle, FallbackValue=''}"
                            Foreground="{StaticResource Brush.TextMuted}"
                            FontSize="15" />
+                <TextBlock Text="{Binding ActionStatusMessage}"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource Brush.TextMuted}"
+                           IsVisible="{Binding ActionStatusMessage.Length}" />
+                <TextBlock Text="Right-click a pool, host, or VM in the tree for actions."
+                           FontSize="12"
+                           Foreground="{StaticResource Brush.TextMuted}"
+                           Opacity="0.85"
+                           IsVisible="{Binding !ShowVmActionBar}" />
               </StackPanel>
 
-              <TabControl Grid.Row="1" Margin="0,12,0,0">
+              <WrapPanel Orientation="Horizontal"
+                         IsVisible="{Binding ShowVmActionBar}">
+                <Button Classes="ghost" Content="Start" Margin="0,0,8,6" Command="{Binding StartVmCommand}" />
+                <Button Classes="ghost" Content="Shutdown" Margin="0,0,8,6" Command="{Binding ShutdownVmCommand}" />
+                <Button Classes="ghost" Content="Reboot" Margin="0,0,8,6" Command="{Binding RebootVmCommand}" />
+                <Button Classes="ghost" Content="Suspend" Margin="0,0,8,6" Command="{Binding SuspendVmCommand}" />
+                <Button Classes="ghost" Content="Resume" Margin="0,0,8,6" Command="{Binding ResumeVmCommand}" />
+                <Button Classes="ghost" Content="Force shutdown" Margin="0,0,8,6" Command="{Binding ForceShutdownVmCommand}" />
+                <Button Classes="ghost" Content="Force reboot" Margin="0,0,8,6" Command="{Binding ForceRebootVmCommand}" />
+                <Button Classes="ghost" Content="Properties…" Margin="0,0,8,6" Command="{Binding EditVmCommand}" />
+                <Button Classes="ghost" Content="Clone…" Margin="0,0,8,6" Command="{Binding CloneVmCommand}" />
+                <Button Classes="ghost" Content="Copy…" Margin="0,0,8,6" Command="{Binding CopyVmCommand}" />
+                <Button Classes="ghost" Content="Migrate…" Margin="0,0,8,6" Command="{Binding MigrateVmCommand}" />
+                <Button Classes="ghost" Content="Cross-pool…" Margin="0,0,8,6" Command="{Binding CrossPoolMigrateVmCommand}" />
+                <Button Classes="ghost" Content="Move…" Margin="0,0,8,6" Command="{Binding MoveVmCommand}" />
+                <Button Classes="ghost" Content="Delete…" Margin="0,0,8,6" Command="{Binding DeleteVmCommand}" />
+                <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6" Command="{Binding AttachIsoCommand}" />
+                <Button Classes="ghost" Content="Eject ISO" Margin="0,0,8,6" Command="{Binding EjectIsoCommand}" />
+              </WrapPanel>
+
+              <TabControl Margin="0,4,0,0">
                 <TabControl.Styles>
                   <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="13" />
@@ -582,7 +663,7 @@
                 </TabItem>
 
                 <TabItem Header="Console">
-                  <Grid Margin="0,18,0,0" RowDefinitions="Auto,*,Auto">
+                  <StackPanel Margin="0,18,0,8" Spacing="12">
                     <StackPanel Spacing="8" Margin="0,0,4,0">
                       <ItemsControl ItemsSource="{Binding ConsoleTotals}">
                         <ItemsControl.ItemTemplate>
@@ -615,17 +696,31 @@
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.BrandOrange}"
                                  IsVisible="{Binding ConsoleInputHint.Length}" />
+                      <WrapPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                 IsVisible="{Binding HasConsoleFrame}">
+                        <Button Classes="ghost" Content="Pop out" Margin="0,0,8,6"
+                                Command="{Binding PopOutConsoleCommand}"
+                                IsVisible="{Binding !IsConsolePoppedOut}" />
+                        <Button Classes="ghost" Content="Reattach" Margin="0,0,8,6"
+                                Command="{Binding ReattachConsoleCommand}"
+                                IsVisible="{Binding ShowConsoleReattach}" />
+                        <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,6"
+                                Command="{Binding SendCtrlAltDelCommand}" />
+                        <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6"
+                                Command="{Binding AttachIsoCommand}"
+                                IsVisible="{Binding CanAttachIso}" />
+                      </WrapPanel>
                     </StackPanel>
 
-                    <Border Grid.Row="1"
-                            Margin="0,12,4,0"
-                            Background="#33161C22"
+                    <Border Background="#33161C22"
                             BorderBrush="{StaticResource Brush.StrokeSubtle}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="8"
-                            MinHeight="220">
-                      <Grid>
+                            Height="520"
+                            MinHeight="520"
+                            ClipToBounds="True">
+                      <Grid ClipToBounds="True">
                         <StackPanel Spacing="8"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
@@ -643,75 +738,242 @@
                                      Foreground="{StaticResource Brush.TextMuted}" />
                         </StackPanel>
 
-                        <controls:RfbConsoleView IsVisible="{Binding HasConsoleFrame}"
+                        <StackPanel Spacing="8"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    MaxWidth="420"
+                                    IsVisible="{Binding ShowConsoleReattach}">
+                          <TextBlock Text="Console is in a separate window"
+                                     FontWeight="SemiBold"
+                                     FontSize="14"
+                                     HorizontalAlignment="Center" />
+                          <Button Classes="cta" Content="Reattach here" HorizontalAlignment="Center"
+                                  Command="{Binding ReattachConsoleCommand}" />
+                        </StackPanel>
+
+                        <controls:RfbConsoleView IsVisible="{Binding ShowEmbeddedConsole}"
+                                                 HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Stretch"
+                                                 ClipToBounds="True"
                                                  Frame="{Binding ConsoleBitmap}"
                                                  Session="{Binding ConsoleSession}"
-                                                 ToolTip.Tip="Click to focus — keyboard and mouse are sent to the guest"
+                                                 ToolTip.Tip="Click the console to capture keyboard, mouse, and scroll — until then the page keeps scrolling"
                                                  FocusCaptureChanged="OnConsoleFocusCaptureChanged" />
                       </Grid>
                     </Border>
 
-                    <ScrollViewer Grid.Row="2"
-                                  Margin="0,12,0,0"
-                                  MaxHeight="140"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  IsVisible="{Binding HasConsoleItems}">
-                      <StackPanel Spacing="10" Margin="0,0,4,0">
-                        <TextBlock Text="Console endpoints"
-                                   FontSize="11"
-                                   LetterSpacing="1.2"
-                                   Foreground="{StaticResource Brush.TextMuted}" />
-                        <ItemsControl ItemsSource="{Binding ConsoleItems}">
+                    <StackPanel Spacing="10" Margin="0,0,4,0"
+                                IsVisible="{Binding HasConsoleItems}">
+                      <TextBlock Text="Console endpoints"
+                                 FontSize="11"
+                                 LetterSpacing="1.2"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <ItemsControl ItemsSource="{Binding ConsoleItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:ConsoleItemRow">
+                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,0,8,8"
+                                    Margin="0,0,0,4">
+                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                <TextBlock Text="{Binding Primary}"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           Margin="0,0,12,0"
+                                           Foreground="{StaticResource Brush.TextPrimary}" />
+                                <Button Grid.Column="1"
+                                        Classes="ghost"
+                                        Content="Copy"
+                                        Padding="10,4"
+                                        FontSize="12"
+                                        IsVisible="{Binding CanCopyLocation}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
+                                        CommandParameter="{Binding Location}"
+                                        ToolTip.Tip="Copy console location" />
+                                <TextBlock Grid.Row="1"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Location}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding CanCopyLocation}" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <TextBlock Text="{Binding ConsoleCopyFeedback}"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.Ok}"
+                                 IsVisible="{Binding ConsoleCopyFeedback.Length}" />
+                    </StackPanel>
+                  </StackPanel>
+                </TabItem>
+
+                <TabItem Header="Snapshots">
+                  <Panel Margin="0,18,0,8">
+                    <StackPanel Spacing="14" IsVisible="{Binding CanManageSnapshots}">
+                      <TextBlock Text="Create a disk snapshot of the selected VM. Memory checkpoints and quiesced snapshots come later."
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <TextBox Watermark="Snapshot name" Text="{Binding NewSnapshotName}" />
+                      <TextBox Watermark="Description (optional)" Text="{Binding NewSnapshotDescription}" />
+                      <Button Classes="cta"
+                              Content="Take snapshot"
+                              HorizontalAlignment="Left"
+                              Command="{Binding TakeSnapshotCommand}" />
+                      <TextBlock Text="{Binding SnapshotStatusMessage}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 IsVisible="{Binding SnapshotStatusMessage.Length}" />
+
+                      <TextBlock Text="Existing snapshots"
+                                 FontSize="11"
+                                 LetterSpacing="1.2"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Margin="0,8,0,0" />
+                      <TextBlock Text="No snapshots yet."
+                                 IsVisible="{Binding !HasSnapshotItems}"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <ItemsControl ItemsSource="{Binding SnapshotItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:SnapshotItemRow">
+                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,0,0,12"
+                                    Margin="0,0,0,10">
+                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <TextBlock Text="{Binding Name}"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           TextWrapping="Wrap" />
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            Spacing="6"
+                                            HorizontalAlignment="Right">
+                                  <Button Classes="ghost"
+                                          Content="Revert"
+                                          FontSize="12"
+                                          Padding="10,4"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RevertSnapshotCommand}"
+                                          CommandParameter="{Binding}" />
+                                  <Button Classes="ghost"
+                                          Content="Delete"
+                                          FontSize="12"
+                                          Padding="10,4"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).DeleteSnapshotCommand}"
+                                          CommandParameter="{Binding}" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding Description}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2"
+                                           Text="{Binding Created}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                    <TextBlock Text="Select a VM to manage snapshots."
+                               IsVisible="{Binding !CanManageSnapshots}"
+                               Foreground="{StaticResource Brush.TextMuted}" />
+                  </Panel>
+                </TabItem>
+
+                <TabItem Header="Logs">
+                  <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
+                    <DockPanel Margin="0,0,4,8">
+                      <TextBlock Text="Tasks and actions"
+                                 FontSize="14"
+                                 FontWeight="SemiBold"
+                                 VerticalAlignment="Center" />
+                      <Button DockPanel.Dock="Right"
+                              Classes="ghost"
+                              Content="Dismiss completed"
+                              Command="{Binding DismissCompletedActionsCommand}"
+                              HorizontalAlignment="Right" />
+                    </DockPanel>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                      <StackPanel Spacing="8" Margin="0,0,4,0">
+                        <TextBlock Text="No actions yet. Power, create, and storage operations appear here."
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   IsVisible="{Binding !HasActionLogRows}" />
+                        <ItemsControl ItemsSource="{Binding ActionLogRows}">
                           <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:ConsoleItemRow">
+                            <DataTemplate x:DataType="vm:ActionLogRow">
                               <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
                                       BorderThickness="0,0,0,1"
-                                      Padding="0,0,8,8"
-                                      Margin="0,0,0,4">
-                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                                  <TextBlock Text="{Binding Primary}"
+                                      Padding="0,0,0,10"
+                                      Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                  <TextBlock Text="{Binding Title}"
                                              FontWeight="SemiBold"
                                              FontSize="13"
-                                             Margin="0,0,12,0"
-                                             Foreground="{StaticResource Brush.TextPrimary}" />
-                                  <Button Grid.Column="1"
-                                          Classes="ghost"
-                                          Content="Copy"
-                                          Padding="10,4"
-                                          FontSize="12"
-                                          IsVisible="{Binding CanCopyLocation}"
-                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
-                                          CommandParameter="{Binding Location}"
-                                          ToolTip.Tip="Copy console location" />
+                                             TextWrapping="Wrap" />
+                                  <TextBlock Grid.Column="1"
+                                             Text="{Binding Status}"
+                                             FontSize="12"
+                                             Foreground="{StaticResource Brush.BrandOrange}"
+                                             Margin="12,0,0,0" />
                                   <TextBlock Grid.Row="1"
-                                             Grid.ColumnSpan="2"
-                                             Text="{Binding Location}"
+                                             Text="{Binding Description}"
+                                             FontSize="12"
+                                             TextWrapping="Wrap"
+                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             Margin="0,4,0,0" />
+                                  <TextBlock Grid.Row="2"
+                                             Text="{Binding StartedText}"
                                              FontSize="11"
                                              Foreground="{StaticResource Brush.TextMuted}"
-                                             Margin="0,4,0,0"
-                                             TextWrapping="Wrap"
-                                             TextTrimming="CharacterEllipsis"
-                                             IsVisible="{Binding CanCopyLocation}" />
+                                             Margin="0,4,0,0" />
+                                  <StackPanel Grid.Row="2"
+                                              Grid.Column="1"
+                                              Orientation="Horizontal"
+                                              Spacing="6"
+                                              HorizontalAlignment="Right">
+                                    <Button Classes="ghost"
+                                            Content="Cancel"
+                                            FontSize="11"
+                                            Padding="8,2"
+                                            IsVisible="{Binding CanCancel}"
+                                            Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CancelActionCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Classes="ghost"
+                                            Content="Dismiss"
+                                            FontSize="11"
+                                            Padding="8,2"
+                                            IsVisible="{Binding IsCompleted}"
+                                            Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).DismissActionCommand}"
+                                            CommandParameter="{Binding}" />
+                                  </StackPanel>
                                 </Grid>
                               </Border>
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Text="{Binding ConsoleCopyFeedback}"
-                                   FontSize="12"
-                                   Foreground="{StaticResource Brush.Ok}"
-                                   IsVisible="{Binding ConsoleCopyFeedback.Length}" />
                       </StackPanel>
                     </ScrollViewer>
                   </Grid>
                 </TabItem>
               </TabControl>
-            </Grid>
-          </Border>
+            </StackPanel>
+          </ScrollViewer>
 
-          <TextBlock Grid.Row="2"
-                     Margin="0,16,0,0"
+          <TextBlock Grid.Row="1"
+                     Margin="0,12,0,0"
                      Text="{Binding StatusMessage}"
+                     TextWrapping="Wrap"
                      Foreground="{StaticResource Brush.TextMuted}" />
         </Grid>
       </Grid>

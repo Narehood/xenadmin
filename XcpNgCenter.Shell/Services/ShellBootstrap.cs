@@ -12,6 +12,8 @@ public static class ShellBootstrap
 
     public static TofuCertificateValidator CertificateValidator { get; private set; } = null!;
 
+    public static ShellActionHistory ActionHistory { get; private set; } = null!;
+
     public static void Initialize()
     {
         InvokeHelper.Initialize(new AvaloniaSynchronizeInvoke(Dispatcher.UIThread));
@@ -22,5 +24,8 @@ public static class ShellBootstrap
         ServicePointManager.ServerCertificateValidationCallback = CertificateValidator.Validate;
         ServicePointManager.SecurityProtocol = TlsPolicy.AllowedSecurityProtocols;
         Session.UserAgent = "XCP-ng Center Shell/preview (.NET 8 Avalonia)";
+
+        ActionHistory = new ShellActionHistory();
+        ActionHistory.Initialize();
     }
 }

@@ -105,6 +105,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<ConsoleItemRow> ConsoleItems { get; } = new();
 
+    public ObservableCollection<SnapshotItemRow> SnapshotItems { get; } = new();
+
     [ObservableProperty]
     private bool _hasStorageItems;
 
@@ -120,6 +122,21 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private bool _hasConsoleItems;
+
+    [ObservableProperty]
+    private bool _hasSnapshotItems;
+
+    [ObservableProperty]
+    private bool _canManageSnapshots;
+
+    [ObservableProperty]
+    private string _newSnapshotName = string.Empty;
+
+    [ObservableProperty]
+    private string _newSnapshotDescription = string.Empty;
+
+    [ObservableProperty]
+    private string _snapshotStatusMessage = string.Empty;
 
     [ObservableProperty]
     private string _consoleStatusMessage = string.Empty;
@@ -166,6 +183,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _consoleSession.StateChanged += OnConsoleSessionStateChanged;
         LoadSavedServers();
         RefreshTrustUi();
+        InitializeActionHistoryUi();
     }
 
     public void Dispose()
@@ -174,6 +192,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         _disposed = true;
 
+        DisposeActionHistoryUi();
         _consoleSession.StateChanged -= OnConsoleSessionStateChanged;
         try
         {
@@ -261,39 +280,43 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void Connect()
     {
-        var raw = HostInput.Trim();
+        var error = TryBeginConnect(HostInput, Username, Password, RememberPassword);
+        if (error != null)
+            StatusMessage = error;
+    }
+
+    /// <summary>
+    /// Starts a live connect. Returns an error message, or null when the connect was queued.
+    /// </summary>
+    public string? TryBeginConnect(string hostInput, string usernameInput, string password, bool rememberPassword)
+    {
+        var raw = hostInput.Trim();
         if (string.IsNullOrEmpty(raw))
-        {
-            StatusMessage = "Enter a hostname or IP address.";
-            return;
-        }
+            return "Enter a hostname or IP address.";
 
         if (!HostnameAddressClassifier.TryParseHostPort(raw, out var host, out var port))
-        {
-            StatusMessage = "That does not look like a valid host.";
-            return;
-        }
+            return "That does not look like a valid host.";
 
-        if (string.IsNullOrWhiteSpace(Username))
-        {
-            StatusMessage = "Enter a username.";
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(usernameInput))
+            return "Enter a username.";
 
-        if (ShowPublicIpWarning && !AcknowledgePublicIp)
-        {
-            StatusMessage = "Acknowledge the public-IP warning before connecting.";
-            return;
-        }
+        var isPublic = HostnameAddressClassifier.IsPublicIp(host);
+        if (isPublic && ShowWelcome && ShowPublicIpWarning && !AcknowledgePublicIp)
+            return "Acknowledge the public-IP warning before connecting.";
 
+        // Avoid duplicate live connections to the same address.
         var display = port > 0 ? $"{host}:{port}" : host;
-        var username = Username.Trim();
+        if (Servers.Any(s => s.IsConnected
+                             && string.Equals(s.Address, display, StringComparison.OrdinalIgnoreCase)))
+            return $"Already connected to {display}.";
+
+        var username = usernameInput.Trim();
         var node = new ServerNode
         {
             Name = host,
             Address = display,
             Status = "Connecting…",
-            IsPublicIp = HostnameAddressClassifier.IsPublicIp(host),
+            IsPublicIp = isPublic,
             IsConnecting = true,
             Username = username
         };
@@ -303,12 +326,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         HostInput = string.Empty;
         ShowPublicIpWarning = false;
         AcknowledgePublicIp = false;
-        StatusMessage = "Connecting…";
+        StatusMessage = $"Connecting to {display}…";
         IsBusy = true;
 
-        RememberServer(display, username, RememberPassword && CanPersistPasswords ? Password : null);
-        BeginLiveConnect(node, host, port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT, username, Password);
+        RememberServer(display, username, rememberPassword && CanPersistPasswords ? password : null);
+        BeginLiveConnect(node, host, port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT, username, password);
         Password = string.Empty;
+        return null;
     }
 
     [RelayCommand]
@@ -371,7 +395,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = "Trusted certificates cleared. Next connect will prompt again.";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanDisconnectSelected))]
     private void DisconnectSelected()
     {
         var server = SelectedInfraNode?.Server ?? SelectedServer;
@@ -630,10 +654,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void RefreshDetailPanes()
     {
         var node = SelectedInfraNode ?? _pinnedInfraNode;
+        RefreshSelectedVm();
         RefreshGeneralProperties(node);
         RefreshStorageProperties(node);
         RefreshNetworkProperties(node);
         RefreshConsoleProperties(node);
+        RefreshSnapshotProperties();
     }
 
     private void RefreshGeneralProperties(InfraTreeNode? node)
@@ -689,6 +715,24 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         SyncLiveConsole(summary.LiveTarget);
     }
 
+    private void RefreshSnapshotProperties()
+    {
+        SnapshotItems.Clear();
+        SnapshotStatusMessage = string.Empty;
+        CanManageSnapshots = SelectedVm is { is_a_template: false, is_a_snapshot: false, is_control_domain: false };
+        if (!CanManageSnapshots)
+        {
+            HasSnapshotItems = false;
+            return;
+        }
+
+        foreach (var row in SnapshotSummaryBuilder.Build(SelectedVm))
+            SnapshotItems.Add(row);
+        HasSnapshotItems = SnapshotItems.Count > 0;
+        if (!HasSnapshotItems)
+            SnapshotStatusMessage = "No snapshots yet.";
+    }
+
     private void SyncLiveConsole(LiveRfbTarget? target)
     {
         if (target is not { } live)
@@ -696,6 +740,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (_activeConsoleKey != null)
             {
                 _activeConsoleKey = null;
+                CloseConsolePopOut();
                 _consoleSession.Stop();
                 ConsoleBitmap = null;
                 ConsoleViewerStatus = string.Empty;
@@ -709,6 +754,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (key == _activeConsoleKey)
             return;
 
+        CloseConsolePopOut();
         _activeConsoleKey = key;
         ConsoleBitmap = null;
         IsConsoleConnecting = true;
@@ -730,6 +776,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                               && !string.IsNullOrEmpty(_consoleSession.StatusMessage)
                               && _consoleSession.StatusMessage.Contains("Connecting", StringComparison.OrdinalIgnoreCase);
         OnPropertyChanged(nameof(HasConsoleFrame));
+        OnPropertyChanged(nameof(ShowEmbeddedConsole));
         if (!HasConsoleFrame)
             ConsoleInputHint = string.Empty;
         else if (string.IsNullOrEmpty(ConsoleInputHint))

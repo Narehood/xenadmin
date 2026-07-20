@@ -132,10 +132,23 @@ public sealed class RfbConsoleView : Control
             : Cursor.Default;
     }
 
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        // Tab content often measures with infinite height; never expand to the
+        // native framebuffer size or the viewer will blow out sibling rows.
+        var width = double.IsInfinity(availableSize.Width) || double.IsNaN(availableSize.Width)
+            ? 640
+            : Math.Max(0, availableSize.Width);
+        var height = double.IsInfinity(availableSize.Height) || double.IsNaN(availableSize.Height)
+            ? 360
+            : Math.Max(0, availableSize.Height);
+        return new Size(width, height);
+    }
+
     protected override Size ArrangeOverride(Size finalSize)
     {
         InvalidateVisual();
-        return base.ArrangeOverride(finalSize);
+        return finalSize;
     }
 
     public override void Render(DrawingContext context)
@@ -163,6 +176,8 @@ public sealed class RfbConsoleView : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        if (!IsFocused)
+            return;
         UpdateButtons(e, pressed: false);
         SendPointer(e.GetPosition(this));
         if (_buttonMask == 0)
@@ -173,6 +188,9 @@ public sealed class RfbConsoleView : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        if (!IsFocused)
+            return;
+
         var pos = e.GetPosition(this);
         var over = TryMapToFramebuffer(pos, out _, out _);
         if (over != _pointerOverDesktop)
@@ -193,12 +211,18 @@ public sealed class RfbConsoleView : Control
         base.OnPointerExited(e);
         _pointerOverDesktop = false;
         UpdatePointerCursor();
+        if (!IsFocused)
+            return;
         _buttonMask = 0;
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
+        // Let page ScrollViewer keep scrolling until the console is clicked/focused.
+        if (!IsFocused)
+            return;
+
         if (!TryMapToFramebuffer(e.GetPosition(this), out var x, out var y))
             return;
 
@@ -212,6 +236,8 @@ public sealed class RfbConsoleView : Control
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        if (!IsFocused)
+            return;
         if (SendKey(e, down: true))
             e.Handled = true;
     }
@@ -219,6 +245,8 @@ public sealed class RfbConsoleView : Control
     protected override void OnKeyUp(KeyEventArgs e)
     {
         base.OnKeyUp(e);
+        if (!IsFocused)
+            return;
         if (SendKey(e, down: false))
             e.Handled = true;
     }
@@ -334,10 +362,15 @@ public sealed class RfbConsoleView : Control
 
         desk = new PixelSize(dw, dh);
         var scale = Math.Min(Bounds.Width / dw, Bounds.Height / dh);
-        var w = dw * scale;
-        var h = dh * scale;
-        var x = (Bounds.Width - w) / 2;
-        var y = (Bounds.Height - h) / 2;
+        var w = Math.Floor(dw * scale);
+        var h = Math.Floor(dh * scale);
+        // Keep the fitted rect fully inside bounds so ClipToBounds does not shave the first column/row.
+        var x = Math.Max(0, Math.Floor((Bounds.Width - w) / 2));
+        var y = Math.Max(0, Math.Floor((Bounds.Height - h) / 2));
+        if (x + w > Bounds.Width)
+            w = Math.Max(0, Math.Floor(Bounds.Width - x));
+        if (y + h > Bounds.Height)
+            h = Math.Max(0, Math.Floor(Bounds.Height - y));
         dest = new Rect(x, y, w, h);
         return true;
     }

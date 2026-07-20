@@ -1,0 +1,133 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:xena="clr-namespace:XenAPI;assembly=XenModel"
+        x:Class="XcpNgCenter.Shell.Views.VmCrossPoolMigrateWindow"
+        x:DataType="vm:VmCrossPoolMigrateViewModel"
+        Title="Cross-pool migrate"
+        Width="640" Height="640"
+        MinWidth="520" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="16"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <Grid RowDefinitions="*,Auto">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="12" Margin="0,0,8,16">
+          <TextBlock Text="Cross-pool migrate" FontSize="20" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Hint}"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="{Binding StatusMessage}"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}"
+                     IsVisible="{Binding StatusMessage.Length}" />
+
+          <TextBlock Text="Destination host" Foreground="{StaticResource Brush.TextMuted}" />
+          <ComboBox ItemsSource="{Binding Hosts}" SelectedItem="{Binding SelectedHost}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:CrossPoolHostOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <TextBlock Text="Transfer network" Foreground="{StaticResource Brush.TextMuted}" />
+          <ComboBox ItemsSource="{Binding TransferNetworks}" SelectedItem="{Binding SelectedTransferNetwork}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="xena:Network">
+                <TextBlock Text="{Binding name_label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <StackPanel Spacing="8" IsVisible="{Binding HasDiskMaps}">
+            <TextBlock Text="Disk → destination SR" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,Auto">
+              <ComboBox ItemsSource="{Binding StorageRepositories}" SelectedItem="{Binding ApplyAllStorage}" Margin="0,0,8,0">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="xena:SR">
+                    <TextBlock Text="{Binding name_label}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button Grid.Column="1" Classes="ghost" Content="Apply to all"
+                      Command="{Binding ApplyStorageToAllCommand}" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding DiskMaps}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CrossPoolDiskMapRow">
+                  <Grid ColumnDefinitions="*,*" Margin="0,0,0,6">
+                    <TextBlock Text="{Binding Label}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               Foreground="{StaticResource Brush.TextMuted}" />
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding StorageOptions}"
+                              SelectedItem="{Binding SelectedStorage}">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="xena:SR">
+                          <TextBlock Text="{Binding name_label}" />
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <StackPanel Spacing="8" IsVisible="{Binding HasVifMaps}">
+            <TextBlock Text="VIF → destination network" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,Auto">
+              <ComboBox ItemsSource="{Binding GuestNetworks}" SelectedItem="{Binding ApplyAllNetwork}" Margin="0,0,8,0">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="xena:Network">
+                    <TextBlock Text="{Binding name_label}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button Grid.Column="1" Classes="ghost" Content="Apply to all"
+                      Command="{Binding ApplyNetworkToAllCommand}" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding VifMaps}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CrossPoolVifMapRow">
+                  <Grid ColumnDefinitions="*,*" Margin="0,0,0,6">
+                    <TextBlock Text="{Binding Label}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               Foreground="{StaticResource Brush.TextMuted}" />
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding NetworkOptions}"
+                              SelectedItem="{Binding SelectedNetwork}">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="xena:Network">
+                          <TextBlock Text="{Binding name_label}" />
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <CheckBox Content="Copy instead of migrate (leave source VM)"
+                    IsChecked="{Binding CopyInsteadOfMigrate}" />
+        </StackPanel>
+      </ScrollViewer>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10"
+                  HorizontalAlignment="Right" Margin="0,12,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Start" IsDefault="True" Command="{Binding StartCommand}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
