@@ -43,6 +43,7 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanCloneVm))]
     [NotifyPropertyChangedFor(nameof(CanCopyVm))]
     [NotifyPropertyChangedFor(nameof(CanMigrateVm))]
+    [NotifyPropertyChangedFor(nameof(CanCrossPoolMigrateVm))]
     [NotifyPropertyChangedFor(nameof(CanMoveVm))]
     [NotifyPropertyChangedFor(nameof(CanDeleteVm))]
     [NotifyPropertyChangedFor(nameof(CanAttachIso))]
@@ -58,6 +59,7 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(CloneVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CopyVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(MigrateVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CrossPoolMigrateVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(MoveVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(AttachIsoCommand))]
@@ -101,6 +103,17 @@ public partial class MainViewModel
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Running, allowed_operations: { } ops }
         && ops.Contains(vm_operations.pool_migrate)
         && SelectedVm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()) > 1;
+
+    public bool CanCrossPoolMigrateVm =>
+        SelectedVm is { is_a_template: false, Locked: false, allowed_operations: { } ops } vm
+        && ops.Contains(vm_operations.migrate_send)
+        && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI())
+        && ConnectionsManager.XenConnectionsCopy.Count(c => c is { IsConnected: true }) >= 1
+        && ConnectionsManager.XenConnectionsCopy
+            .Where(c => c is { IsConnected: true })
+            .SelectMany(c => c.Cache.Hosts)
+            .Count(h => h.enabled && h.IsLive()
+                        && (vm.resident_on == null || h.opaque_ref != vm.resident_on.opaque_ref)) > 0;
 
     public bool CanMoveVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted } vm
@@ -391,6 +404,24 @@ public partial class MainViewModel
 
         var owner = GetMainWindow();
         var dialog = new VmMigrateWindow(SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCrossPoolMigrateVm))]
+    private async Task CrossPoolMigrateVmAsync()
+    {
+        if (SelectedVm == null)
+            return;
+
+        var owner = GetMainWindow();
+        var dialog = new VmCrossPoolMigrateWindow(SelectedVm, msg =>
         {
             ActionStatusMessage = msg;
             StatusMessage = msg;

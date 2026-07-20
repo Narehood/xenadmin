@@ -26,16 +26,16 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**Shipped so far (on `development` / open PRs):** live XenModel connect + TOFU trust dialogs, infrastructure tree, General/Storage/Network/Console (RFB with input/cursor/keysyms), Copy affordances, DPAPI password vault for saved servers, public-IP warning, shutdown cleanup, forget-password / clear-pins controls, CI artifacts `drop-shell-win-x64` and `drop-shell-linux-x64`, **Phase 1 parity** (Logs/Tasks, VM power + New VM, ISO attach, New SR, console pop-out), layout polish, **Phase 2:** Snapshots + full VM Properties + Clone/Copy/Migrate/Move/Delete + richer SR wizard (iSCSI probe, SMB/CIFS) (PR `#20`).
+**Shipped so far (on `development` / open PRs):** Avalonia `XcpNgCenter.Shell` with connect/TOFU/tree/General/Storage/Network/Console, Phase 1 actions, **Phase 2:** Snapshots, full VM Properties, Clone/Copy/Migrate/Cross-pool/Move/Delete, richer New SR (iSCSI probe + GFS2 + SMB/CIFS) — PR `#20` (`cursor/shell-phase1-parity-abb3`).
 
-**Windows Avalonia preview track:** complete. **Parity track:** PR `#20` (`cursor/shell-phase1-parity-abb3`). **Next:** merge after soak → cross-pool migrate → HBA/GFS2 SR types → Linux soak. RDP stays WinForms-only. Details in `UI_REWRITE.md`.
+**Next:** merge `#20` after soak → richer per-disk/VIF cross-pool mapping → HBA/FCoE SR → Linux soak. RDP stays WinForms-only. Details in `UI_REWRITE.md`.
 
 ### Still later
 
 - Broader async cleanup / installer CI automation.
-- Linux desktop soak for the Avalonia shell (artifact published; runtime soak pending).
+- Linux desktop soak for the Avalonia shell.
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
-- Phase 2+ remaining: cross-pool migrate, HBA/FCoE/GFS2 SR types, HA/AD/DR, alerts, graphs.
+- Per-disk/VIF cross-pool mapping, HBA/FCoE SR, HA/AD/DR, alerts, graphs.
 - Memory/quiesced snapshot types (disk-only shipped first).
 
 ## Non-goals

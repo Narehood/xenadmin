@@ -99,6 +99,7 @@ public partial class NewSrWizardViewModel : ViewModelBase
 
     [ObservableProperty] private IscsiLunOption? _selectedIscsiLun;
     [ObservableProperty] private string _iscsiScsiId = string.Empty;
+    [ObservableProperty] private bool _useGfs2;
     [ObservableProperty] private string _statusMessage = string.Empty;
 
     [ObservableProperty]
@@ -172,12 +173,19 @@ public partial class NewSrWizardViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasIscsiIqns));
         OnPropertyChanged(nameof(HasIscsiLuns));
 
-        var action = new ISCSIPopulateIQNsAction(
-            _connection,
-            IscsiHost.Trim(),
-            port,
-            IscsiChapUser?.Trim() ?? string.Empty,
-            IscsiChapPassword ?? string.Empty);
+        ISCSIPopulateIQNsAction action = UseGfs2
+            ? new Gfs2PopulateIQNsAction(
+                _connection,
+                IscsiHost.Trim(),
+                port,
+                IscsiChapUser?.Trim() ?? string.Empty,
+                IscsiChapPassword ?? string.Empty)
+            : new ISCSIPopulateIQNsAction(
+                _connection,
+                IscsiHost.Trim(),
+                port,
+                IscsiChapUser?.Trim() ?? string.Empty,
+                IscsiChapPassword ?? string.Empty);
 
         action.Completed += a =>
         {
@@ -229,13 +237,21 @@ public partial class NewSrWizardViewModel : ViewModelBase
         IscsiScsiId = string.Empty;
         OnPropertyChanged(nameof(HasIscsiLuns));
 
-        var action = new ISCSIPopulateLunsAction(
-            _connection,
-            host,
-            port,
-            iqn,
-            IscsiChapUser?.Trim() ?? string.Empty,
-            IscsiChapPassword ?? string.Empty);
+        ISCSIPopulateLunsAction action = UseGfs2
+            ? new Gfs2PopulateLunsAction(
+                _connection,
+                host,
+                port,
+                iqn,
+                IscsiChapUser?.Trim() ?? string.Empty,
+                IscsiChapPassword ?? string.Empty)
+            : new ISCSIPopulateLunsAction(
+                _connection,
+                host,
+                port,
+                iqn,
+                IscsiChapUser?.Trim() ?? string.Empty,
+                IscsiChapPassword ?? string.Empty);
 
         action.Completed += a =>
         {
@@ -409,15 +425,15 @@ public partial class NewSrWizardViewModel : ViewModelBase
                 else if (!ushort.TryParse(IscsiPort.Trim(), out port))
                     port = 3260;
 
-                type = SR.SRTypes.lvmoiscsi;
+                type = UseGfs2 ? SR.SRTypes.gfs2 : SR.SRTypes.lvmoiscsi;
                 contentType = "user";
-                dconf = new Dictionary<string, string>
-                {
-                    ["target"] = targetHost!,
-                    ["port"] = port.ToString(),
-                    ["targetIQN"] = iqn,
-                    ["SCSIid"] = scsiId
-                };
+                dconf = new Dictionary<string, string>();
+                if (UseGfs2)
+                    dconf["provider"] = "iscsi";
+                dconf["target"] = targetHost!;
+                dconf["port"] = port.ToString();
+                dconf["targetIQN"] = iqn;
+                dconf["SCSIid"] = scsiId;
                 if (!string.IsNullOrWhiteSpace(IscsiChapUser))
                 {
                     dconf["chapuser"] = IscsiChapUser.Trim();

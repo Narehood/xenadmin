@@ -78,6 +78,9 @@
                       IsEnabled="{Binding !IsProbing}" />
             </WrapPanel>
 
+            <CheckBox Content="Create as GFS2 (clustered) instead of LVM-over-iSCSI"
+                      IsChecked="{Binding UseGfs2}" />
+
             <TextBlock Text="Target IQN" FontSize="12" Foreground="{StaticResource Brush.TextMuted}"
                        IsVisible="{Binding HasIscsiIqns}" />
             <ComboBox ItemsSource="{Binding IscsiIqns}"

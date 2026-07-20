@@ -9,11 +9,10 @@ rewrite reaches feature parity for your environment.
 | Item | State |
 |------|--------|
 | Integration branch | `development` |
-| Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** from Test Builds on `development` |
+| Active PR | `#20` — `cursor/shell-phase1-parity-abb3` → `development` |
+| Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
 
-**Last soak-tested locally:** live connect to a private pool, infrastructure tree (pool → hosts → VMs), General summary pane, public-IP warning behavior, RFB console input.
-
-**Windows preview scope:** complete. **Phase 1 parity (in progress / shipping):** Logs/Tasks, VM power + New VM + basic edit, ISO attach, New SR (ISO/iSCSI/NFS), console pop-out.
+**Phase status:** Phase 1 + Phase 2 action/Properties/SR slice is implemented on PR `#20`. Soak-test that build, then merge to `development`.
 
 ## Branch basis
 
@@ -28,39 +27,19 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 | `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`, Windows-first; Linux later) |
 | `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`, buffer callbacks) |
 
-## Done in this track
+## Done in this track (through PR #20)
 
-- Brand-first welcome composition (XCP-ng mark, product name, Connect CTA)
-- Design tokens (graphite + brand orange, Outfit type — not Inter / purple AI defaults)
-- Live connect through `XenModel` (`XenConnection`): username/password, disconnect
-- TOFU TLS pin store with Avalonia trust dialogs (first-seen + changed; AppData JSON)
-- Public-IP warning + acknowledgement via `HostnameAddressClassifier`
-  - Complete IPv4 dotted-quad only — incomplete typing (`1`, `10`, `192.168`) does not warn
-- Infrastructure tree: pool → hosts → VMs (`InfrastructureTreeBuilder`, Avalonia `TreeView`)
-  - Live refresh on `CachePopulated` / `XenObjectsUpdated`
-- General summary for selected pool / host / VM (`GeneralSummaryBuilder`)
-- Storage tab (read-only): pool/host SR list + VM disks (`StorageSummaryBuilder`)
-- Network tab (read-only): networks / management PIFs / VM VIFs (`NetworkSummaryBuilder`)
-- Richer General fields (UUID, uptime, OS, tools, IPs, tags, HA, IQN, …)
-- Tab ScrollViewer padding so right-aligned values clear the scrollbar
-- Console tab: hosted RFB viewer (fit-to-pane), pointer/keyboard, remote cursor, richer keysyms
-- Hover/focus **Copy** on General / Storage / Network property rows
-- Saved servers with optional Windows DPAPI password vault (forget-password; vault disabled on non-Windows)
-- Clear trusted-certificate pins from the welcome surface
-- Shutdown disconnects live sessions and disposes the hosted RFB console
-- Console input-capture hint when the RFB viewer is focused
-- CI: self-contained `win-x64` and `linux-x64` publish artifacts
-- **Phase 1 parity:** `ShellActionRunner` + Logs/Tasks tab (`ConnectionsManager.History`)
-- VM action bar: start / shutdown / reboot / suspend / resume / force variants (wraps on narrow widths)
-- Avalonia New VM wizard (`CreateVMAction`)
-- **Full VM Properties** (General name/description/tags, CPU/memory, boot, HA/startup, home server, GPU, USB)
-- **Clone / Copy / Migrate / Move / Delete VM** — `VMCloneAction`, `VMCopyAction`, live `VMMigrateAction` (pool), `VMMoveAction` (halted→SR), `VMDestroyAction`
-- ISO attach/eject (`ChangeVMISOAction` / `CreateCdDriveAction`)
-- New SR wizard: NFS ISO, **SMB/CIFS ISO**, NFS VHD, **SMB storage**, iSCSI with **IQN/LUN probe** (`SrCreateAction`)
-- Console pop-out window with reattach + Ctrl+Alt+Del
-- Scrollable infrastructure detail card; Console viewer fixed **520px** tall (scroll the card on small windows)
-- **Snapshots tab (Phase 2 start):** list, take disk snapshot, revert, delete
-- **Move VM** (halted → SR via `VMMoveAction`)
+- Brand-first welcome (form column + banner no longer overlap)
+- Live connect + TOFU, tree, General/Storage/Network/Console (RFB fit/input/cursor/pop-out/CAD)
+- Logs/Tasks via `ConnectionsManager.History` + `ShellActionRunner`
+- New VM wizard; ISO attach/eject; Snapshots (disk-only)
+- **Full VM Properties** — General/tags, CPU/memory, boot, HA/startup, home server, GPU, USB
+- **Clone / Copy / Migrate / Cross-pool / Move / Delete**
+  - Intra-pool live migrate: `VMMigrateAction`
+  - Cross-pool / storage migrate or copy: simplified `VMCrossPoolMigrateAction` dialog (single SR + network map)
+  - Halted move-to-SR: `VMMoveAction`
+- **New SR wizard** — NFS ISO, SMB/CIFS ISO, NFS VHD, SMB storage, iSCSI (+ optional **GFS2**) with IQN/LUN probe + CHAP
+- Layout polish: wrap actions, scrollable detail, console Height=520, Properties scroll padding
 
 ### Key shell layout
 
@@ -69,47 +48,36 @@ XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
   Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner
   ViewModels/        MainViewModel (+ Actions), wizards/dialogs, ActionLogRow
-  Views/             MainWindow, Properties/Clone/Copy/Migrate/Move/Delete/NewVm/NewSr/Iso/ConsolePopOut
+  Views/             MainWindow + Properties/Clone/Copy/Migrate/CrossPool/Move/Delete/NewVm/NewSr/…
 ```
 
-Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).  
-Startup wiring: `ShellBootstrap` → `InvokeHelper` + `IXenAdminConfigProvider` + cert callback.  
-Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `WriteableBitmap`.
+Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).
 
-## Next (priority order)
+## Next (priority order for following agents)
 
-1. **Merge PR #20** (`cursor/shell-phase1-parity-abb3`) when soak testing looks good.
-2. **Cross-pool migrate** (`VMCrossPoolMigrateAction`).
-3. **More SR types** (HBA/FCoE/GFS2) as needed.
+1. **Merge PR #20** after soak feedback is clean.
+2. **Richer cross-pool UI** — per-disk / per-VIF mapping (current dialog maps all disks→one SR, all VIFs→one network).
+3. **HBA / FCoE SR** front-ends (`lvmohba` / `lvmofcoe`) if hardware available to test.
 4. **Linux desktop soak** — run `drop-shell-linux-x64`.
-5. Alerts, performance graphs, HA/AD/DR (later). RDP + plugins stay WinForms-only.
+5. Alerts, performance graphs, HA/AD/DR wizards (later). RDP + plugins stay WinForms-only.
 
-**RDP strategy (decided for preview):** keep RDP on WinForms/`XenAdmin` only. The Avalonia shell focuses on hosted RFB/VNC; an ActiveX-free RDP path is deferred.
+**RDP strategy (decided):** keep RDP on WinForms/`XenAdmin` only.
 
 ## How to try the preview
 
-**Preferred (no SDK install):** download the CI artifact `drop-shell-win-x64` (Windows) or `drop-shell-linux-x64` (Linux) from the
-[Test Builds](https://github.com/Narehood/xenadmin/actions/workflows/test-builds.yml?query=branch%3Adevelopment)
-run on `development`, unzip, and run `XcpNgCenter.Shell` / `XcpNgCenter.Shell.exe`.
+**Preferred:** CI artifact `drop-shell-win-x64` / `drop-shell-linux-x64` from Test Builds on the PR branch or `development`.
 
-**From source (requires .NET 8 SDK):**
+**From source:**
 
 ```bash
 dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -o artifacts/shell-win-x64
-.\artifacts\shell-win-x64\XcpNgCenter.Shell.exe
-```
-
-```bash
 dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -o artifacts/shell-linux-x64
-./artifacts/shell-linux-x64/XcpNgCenter.Shell
 ```
 
-Pins: `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (Windows) / `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux XDG)  
-Saved servers: same folder, `saved-servers.json`
+Pins / saved servers: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` (Windows) or `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux).
 
-## Non-goals for the preview
+## Non-goals
 
-- Feature parity with every WinForms wizard
+- Feature parity with every WinForms wizard in one go
 - Reviving `origin/avalonia` as-is
-- Dropping WinForms before soak testing the net8 client
-- Blocking the rewrite on Linux until Windows Storage/Network/Console slices land
+- Dropping WinForms before soak testing
