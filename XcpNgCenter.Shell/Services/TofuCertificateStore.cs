@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace XcpNgCenter.Shell.Services;
 
 /// <summary>
-/// Persists hostname → certificate hash pins for preview TOFU (separate from WinForms KnownServers).
+/// Persists hostname → certificate hash pins for shell TOFU (separate from WinForms KnownServers).
 /// </summary>
 public sealed class TofuCertificateStore
 {

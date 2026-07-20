@@ -5,8 +5,8 @@ using System.Security.Cryptography.X509Certificates;
 namespace XcpNgCenter.Shell.Services;
 
 /// <summary>
-/// Trust-on-first-use validator for self-signed XCP-ng hosts (preview).
-/// First sight pins the cert hash; matching pins accept; changed pins are re-pinned for soak testing.
+/// Trust-on-first-use validator for self-signed XCP-ng hosts.
+/// First sight and certificate changes prompt via Avalonia dialogs (no silent re-pin).
 /// </summary>
 public sealed class TofuCertificateValidator
 {
@@ -42,24 +42,51 @@ public sealed class TofuCertificateValidator
             return false;
         }
 
-        var hash = certificate.GetCertHashString();
+        var hash = certificate.GetCertHashString() ?? string.Empty;
+        string? pinned;
         lock (_gate)
-        {
-            if (_store.TryGet(hostname, out var pinned))
-            {
-                if (string.Equals(pinned, hash, StringComparison.OrdinalIgnoreCase))
-                    return true;
+            _store.TryGet(hostname, out pinned);
 
-                // Preview: re-pin changed certs so host reinstalls stay testable without a dialog yet.
-                _store.Set(hostname, hash);
-                LastMessage = $"Certificate for {hostname} changed; pin updated (preview TOFU).";
+        if (!string.IsNullOrEmpty(pinned))
+        {
+            if (string.Equals(pinned, hash, StringComparison.OrdinalIgnoreCase))
                 return true;
+
+            var changedRequest = TofuTrustPrompt.BuildRequest(
+                CertificateTrustKind.Changed,
+                hostname,
+                certificate,
+                previousFingerprint: pinned);
+
+            var acceptChanged = TofuTrustPrompt.Prompt(changedRequest);
+            if (!acceptChanged)
+            {
+                LastMessage = $"Certificate change for {hostname} was rejected.";
+                return false;
             }
 
-            _store.Set(hostname, hash);
-            LastMessage = $"Pinned certificate for {hostname} (TOFU).";
+            lock (_gate)
+                _store.Set(hostname, hash);
+            LastMessage = $"Updated pinned certificate for {hostname}.";
             return true;
         }
+
+        var firstSeenRequest = TofuTrustPrompt.BuildRequest(
+            CertificateTrustKind.FirstSeen,
+            hostname,
+            certificate);
+
+        var acceptFirst = TofuTrustPrompt.Prompt(firstSeenRequest);
+        if (!acceptFirst)
+        {
+            LastMessage = $"Certificate for {hostname} was not trusted.";
+            return false;
+        }
+
+        lock (_gate)
+            _store.Set(hostname, hash);
+        LastMessage = $"Pinned certificate for {hostname}.";
+        return true;
     }
 
     private static string? ResolveHostname(object sender)

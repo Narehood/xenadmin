@@ -26,15 +26,16 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**Shipped so far (on `development`):** live XenModel connect + preview TOFU, infrastructure tree (pool → host → VM), General + Storage + Network + Console tabs (hosted RFB viewer with input, remote cursor, richer keysyms), General Copy affordance, saved server list (host + username), public-IP warning (complete IPv4 only), CI artifact `drop-shell-win-x64`.
+**Shipped so far (on `development`):** live XenModel connect + TOFU trust dialogs, infrastructure tree, General/Storage/Network/Console (RFB with input/cursor/keysyms), Copy affordances, DPAPI password vault for saved servers, public-IP warning, CI artifact `drop-shell-win-x64`.
 
-**Next:** TOFU UX dialogs → optional credential vault → extend Copy affordance. Details in `UI_REWRITE.md`.
+**Next:** RDP strategy decision → Linux desktop soak → broader WinForms parity. Details in `UI_REWRITE.md`.
 
 ### Still later
 
 - Broader async cleanup / installer CI automation.
-- Linux desktop soak for the Avalonia shell (after Windows Storage/Network/Console slices are solid).
-- Production-ready TOFU dialogs in the shell (today: silent pin/re-pin).
+- Linux desktop soak for the Avalonia shell.
+- RDP in the Avalonia shell (strategy TBD; WinForms remains available).
+- Broader WinForms wizard/action parity in the shell.
 
 ## Non-goals
 
@@ -48,11 +49,12 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
 XCP-ng ships with **self-signed** management certificates by default. The client must not require a public CA, and must not blindly accept every cert.
 
-Policy implemented in `XenAdmin/Network/SSL.cs`:
+Policy implemented in `XenAdmin/Network/SSL.cs` (WinForms) and `XcpNgCenter.Shell` TOFU services (Avalonia):
 
-- **Trust on first use (TOFU):** first connection to a host pins the certificate hash (optionally after a warning).
-- **Later connections:** require the pinned hash; changes prompt (or follow Security options).
+- **Trust on first use (TOFU):** first connection to a host pins the certificate hash after acceptance.
+- **Later connections:** require the pinned hash; changes prompt before re-pinning.
 - **No accept-all:** low-level HTTP paths without the app TOFU callback reject untrusted chains instead of returning `true`.
+- **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json`.
 
 ## Public IP connection warning
 

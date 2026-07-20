@@ -117,6 +117,8 @@ namespace XenAdmin
         [STAThread]
         public static void Main(string[] args)
         {
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+
             if(args.Length > 0 && args[0].Equals("/datapath", StringComparison.InvariantCultureIgnoreCase))
             {
                 if (args.Length < 2)

@@ -147,6 +147,8 @@
               <TextBox Watermark="Password"
                        Text="{Binding Password}"
                        PasswordChar="•" />
+              <CheckBox IsChecked="{Binding RememberPassword}"
+                        Content="Remember password for this server (Windows DPAPI)" />
               <Button Classes="cta"
                       Content="Connect"
                       HorizontalAlignment="Left"
@@ -172,7 +174,7 @@
                           <TextBlock Text="{Binding Address}"
                                      FontSize="13"
                                      Foreground="{StaticResource Brush.TextPrimary}" />
-                          <TextBlock Text="{Binding Username}"
+                          <TextBlock Text="{Binding Subtitle}"
                                      FontSize="11"
                                      Foreground="{StaticResource Brush.TextMuted}" />
                         </StackPanel>
@@ -180,7 +182,7 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Text="Passwords are not stored — enter the password to reconnect."
+                <TextBlock Text="Passwords are encrypted with Windows DPAPI for the current user when remembered."
                            FontSize="11"
                            TextWrapping="Wrap"
                            Foreground="{StaticResource Brush.TextMuted}"
@@ -329,16 +331,32 @@
                       <ItemsControl ItemsSource="{Binding StorageTotals}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                            <Grid ColumnDefinitions="160,*" Margin="0,0,0,10">
-                              <TextBlock Text="{Binding Label}"
-                                         Foreground="{StaticResource Brush.TextMuted}"
-                                         FontSize="13" />
-                              <TextBlock Grid.Column="1"
-                                         Text="{Binding Value}"
-                                         TextWrapping="Wrap"
-                                         Foreground="{StaticResource Brush.TextPrimary}"
-                                         FontSize="13" />
-                            </Grid>
+                            <Border Classes="prop-row"
+                                    Padding="0,2,0,10"
+                                    Background="Transparent">
+                              <Grid ColumnDefinitions="160,*,Auto">
+                                <TextBlock Text="{Binding Label}"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           FontSize="13"
+                                           VerticalAlignment="Top"
+                                           Margin="0,2,0,0" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Value}"
+                                           TextWrapping="Wrap"
+                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           FontSize="13"
+                                           VerticalAlignment="Top"
+                                           Margin="0,2,8,0" />
+                                <Button Grid.Column="2"
+                                        Classes="copy"
+                                        Content="Copy"
+                                        VerticalAlignment="Top"
+                                        IsVisible="{Binding CanCopy}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyPropertyValueCommand}"
+                                        CommandParameter="{Binding Value}"
+                                        ToolTip.Tip="Copy value" />
+                              </Grid>
+                            </Border>
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
@@ -407,16 +425,32 @@
                       <ItemsControl ItemsSource="{Binding NetworkTotals}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                            <Grid ColumnDefinitions="180,*" Margin="0,0,0,10">
-                              <TextBlock Text="{Binding Label}"
-                                         Foreground="{StaticResource Brush.TextMuted}"
-                                         FontSize="13" />
-                              <TextBlock Grid.Column="1"
-                                         Text="{Binding Value}"
-                                         TextWrapping="Wrap"
-                                         Foreground="{StaticResource Brush.TextPrimary}"
-                                         FontSize="13" />
-                            </Grid>
+                            <Border Classes="prop-row"
+                                    Padding="0,2,0,10"
+                                    Background="Transparent">
+                              <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{Binding Label}"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           FontSize="13"
+                                           VerticalAlignment="Top"
+                                           Margin="0,2,0,0" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Value}"
+                                           TextWrapping="Wrap"
+                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           FontSize="13"
+                                           VerticalAlignment="Top"
+                                           Margin="0,2,8,0" />
+                                <Button Grid.Column="2"
+                                        Classes="copy"
+                                        Content="Copy"
+                                        VerticalAlignment="Top"
+                                        IsVisible="{Binding CanCopy}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyPropertyValueCommand}"
+                                        CommandParameter="{Binding Value}"
+                                        ToolTip.Tip="Copy value" />
+                              </Grid>
+                            </Border>
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
