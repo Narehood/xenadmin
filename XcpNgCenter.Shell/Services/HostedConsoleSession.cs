@@ -8,7 +8,7 @@ using XcpNgCenter.Rfb;
 namespace XcpNgCenter.Shell.Services;
 
 /// <summary>
-/// Hosted RFB console session for the Avalonia shell (read-only first slice).
+/// Hosted RFB console session for the Avalonia shell.
 /// Ports the connect path from WinForms <c>XSVNCScreen.ConnectHostedConsole</c>.
 /// </summary>
 public sealed class HostedConsoleSession : IDisposable
@@ -23,6 +23,10 @@ public sealed class HostedConsoleSession : IDisposable
     private bool _disposed;
 
     public WriteableBitmap? Bitmap => _framebuffer?.Bitmap;
+
+    public int DesktopWidth => _framebuffer?.DesktopWidth ?? 0;
+
+    public int DesktopHeight => _framebuffer?.DesktopHeight ?? 0;
 
     public string StatusMessage { get; private set; } = string.Empty;
 
@@ -87,7 +91,7 @@ public sealed class HostedConsoleSession : IDisposable
             };
             client.ConnectionSuccess += (_, _) =>
             {
-                SetStatus("Live console (read-only preview).", connected: true);
+                SetStatus("Live console — click to focus for keyboard/mouse.", connected: true);
             };
 
             lock (_gate)
@@ -146,6 +150,35 @@ public sealed class HostedConsoleSession : IDisposable
             StateChanged?.Invoke();
         else
             Dispatcher.UIThread.Post(() => StateChanged?.Invoke());
+    }
+
+    public void SendPointer(int buttonMask, int x, int y)
+    {
+        RfbClient? client;
+        lock (_gate)
+            client = IsConnected ? _client : null;
+        try { client?.PointerEvent(buttonMask, x, y); }
+        catch { /* connection may have dropped */ }
+    }
+
+    public void SendPointerWheel(int x, int y, int steps)
+    {
+        RfbClient? client;
+        lock (_gate)
+            client = IsConnected ? _client : null;
+        try { client?.PointerWheelEvent(x, y, steps); }
+        catch { /* connection may have dropped */ }
+    }
+
+    public void SendKey(bool down, int keysym)
+    {
+        if (keysym <= 0)
+            return;
+        RfbClient? client;
+        lock (_gate)
+            client = IsConnected ? _client : null;
+        try { client?.keyCodeEvent(down, keysym); }
+        catch { /* connection may have dropped */ }
     }
 
     public void Stop()

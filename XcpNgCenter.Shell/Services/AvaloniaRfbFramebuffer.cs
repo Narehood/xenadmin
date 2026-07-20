@@ -38,6 +38,24 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
         }
     }
 
+    public int DesktopWidth
+    {
+        get
+        {
+            lock (_gate)
+                return _width;
+        }
+    }
+
+    public int DesktopHeight
+    {
+        get
+        {
+            lock (_gate)
+                return _height;
+        }
+    }
+
     public event Action? FramePresented;
     public event Action<int, int>? DesktopResized;
 

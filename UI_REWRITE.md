@@ -42,7 +42,8 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Richer General fields (UUID, uptime, OS, tools, IPs, tags, HA, IQN, …)
 - Tab ScrollViewer padding so right-aligned values clear the scrollbar
 - Console tab scaffold: RFB/VT100/RDP endpoints from XenModel, copy location
-- Read-only hosted RFB viewer (`XcpNgCenter.Rfb` + Avalonia `WriteableBitmap`); keyboard/mouse input deferred
+- Hosted RFB viewer (`XcpNgCenter.Rfb` + Avalonia fit-to-pane render) with pointer/keyboard input
+- Saved server list (address + username; passwords not stored)
 - CI: self-contained `win-x64` publish uploaded as `drop-shell-win-x64`
 
 ### Key shell layout
@@ -61,10 +62,10 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **VNC input** — pointer + keyboard on the Avalonia viewer (read-only RFB is in); then remote cursor. RDP strategy TBD.
+1. **Remote cursor + richer key map** — render server cursor; broaden keysym coverage / layout edge cases. RDP strategy TBD.
 2. **Copy affordance (General + sections)** — hover/focus copy icon on the right of each property row / section (same pattern as IDE code-block copy), covering at least General values.
 3. **TOFU UX** — cert changed / first-seen dialogs (replace silent re-pin for production readiness).
-4. **Persistence** — saved server list / credentials policy (today: session-only + TOFU pins).
+4. **Credentials policy** — optional secure password vault (today: saved host + username only; TOFU pins separate).
 5. **Linux desktop soak** — after Windows preview is solid (`net8.0` already; validate Drawing.Common paths).
 
 ## How to try the preview

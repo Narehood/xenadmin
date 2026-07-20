@@ -16,10 +16,13 @@ namespace XcpNgCenter.Shell.ViewModels;
 public partial class MainViewModel : ViewModelBase
 {
     private readonly HostedConsoleSession _consoleSession = new();
+    private readonly SavedServerStore _savedServerStore = new();
 
     public string BrandName => "XCP-ng Center";
 
     public string Tagline => "Manage pools, hosts, and VMs with a calmer console.";
+
+    public HostedConsoleSession ConsoleSession => _consoleSession;
 
     [ObservableProperty]
     private string _hostInput = string.Empty;
@@ -58,6 +61,10 @@ public partial class MainViewModel : ViewModelBase
     public bool ShowInfrastructure => HasServers;
 
     public ObservableCollection<ServerNode> Servers { get; } = new();
+
+    public ObservableCollection<SavedServerEntry> SavedServers { get; } = new();
+
+    public bool HasSavedServers => SavedServers.Count > 0;
 
     public ObservableCollection<InfraTreeNode> InfrastructureRoots { get; } = new();
 
@@ -127,7 +134,9 @@ public partial class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
+        SavedServers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSavedServers));
         _consoleSession.StateChanged += OnConsoleSessionStateChanged;
+        LoadSavedServers();
     }
 
     partial void OnHostInputChanged(string value)
@@ -194,13 +203,15 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var display = port > 0 ? $"{host}:{port}" : host;
+        var username = Username.Trim();
         var node = new ServerNode
         {
             Name = host,
             Address = display,
             Status = "Connecting…",
             IsPublicIp = HostnameAddressClassifier.IsPublicIp(host),
-            IsConnecting = true
+            IsConnecting = true,
+            Username = username
         };
 
         Servers.Add(node);
@@ -211,8 +222,21 @@ public partial class MainViewModel : ViewModelBase
         StatusMessage = "Connecting…";
         IsBusy = true;
 
-        BeginLiveConnect(node, host, port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT, Username.Trim(), Password);
+        RememberServer(display, username);
+        BeginLiveConnect(node, host, port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT, username, Password);
         Password = string.Empty;
+    }
+
+    [RelayCommand]
+    private void UseSavedServer(SavedServerEntry? entry)
+    {
+        if (entry is null || string.IsNullOrWhiteSpace(entry.Address))
+            return;
+
+        HostInput = entry.Address;
+        if (!string.IsNullOrWhiteSpace(entry.Username))
+            Username = entry.Username;
+        StatusMessage = "Saved server loaded — enter password and Connect.";
     }
 
     [RelayCommand]
@@ -260,6 +284,7 @@ public partial class MainViewModel : ViewModelBase
 
         RemoveTreeForServer(server);
         Servers.Remove(server);
+        ForgetServer(server.Address);
         SelectedServer = Servers.Count > 0 ? Servers[0] : null;
         if (InfrastructureRoots.Count == 0)
         {
@@ -274,6 +299,38 @@ public partial class MainViewModel : ViewModelBase
 
         StatusMessage = Servers.Count == 0 ? string.Empty : "Server removed.";
     }
+
+    private void LoadSavedServers()
+    {
+        SavedServers.Clear();
+        foreach (var entry in _savedServerStore.Load())
+            SavedServers.Add(entry);
+    }
+
+    private void RememberServer(string address, string username)
+    {
+        var existing = SavedServers.FirstOrDefault(s =>
+            string.Equals(s.Address, address, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+            SavedServers.Remove(existing);
+        SavedServers.Insert(0, new SavedServerEntry(address, username));
+        PersistSavedServers();
+    }
+
+    private void ForgetServer(string? address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+            return;
+        for (var i = SavedServers.Count - 1; i >= 0; i--)
+        {
+            if (string.Equals(SavedServers[i].Address, address, StringComparison.OrdinalIgnoreCase))
+                SavedServers.RemoveAt(i);
+        }
+        PersistSavedServers();
+    }
+
+    private void PersistSavedServers()
+        => _savedServerStore.Save(SavedServers);
 
     private void BeginLiveConnect(ServerNode node, string host, int port, string username, string password)
     {

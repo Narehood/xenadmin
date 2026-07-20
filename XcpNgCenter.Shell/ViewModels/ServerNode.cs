@@ -26,5 +26,8 @@ public partial class ServerNode : ObservableObject
     [ObservableProperty]
     private bool _isConnecting;
 
+    /// <summary>Last username used for this server (persisted; password is not).</summary>
+    public string Username { get; set; } = "root";
+
     public IXenConnection? Connection { get; set; }
 }

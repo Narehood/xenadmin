@@ -36,7 +36,7 @@ public static class ConsoleSummaryBuilder
         Array.Empty<GeneralPropertyRow>(),
         Array.Empty<ConsoleItemRow>(),
         status,
-        "Select a running VM or host to open a read-only RFB console preview.",
+        "Select a running VM or host to open the RFB console preview.",
         null);
 
     private static ConsoleSummary BuildPool(IXenConnection conn)
@@ -62,7 +62,7 @@ public static class ConsoleSummaryBuilder
             totals,
             Array.Empty<ConsoleItemRow>(),
             "Select a host or VM to open a console preview.",
-            "Select a running VM (or host control domain) to start the read-only RFB viewer.",
+            "Select a running VM (or host control domain) to start the RFB viewer.",
             null);
     }
 
@@ -126,10 +126,10 @@ public static class ConsoleSummaryBuilder
 
         var status = BuildStatus(vm, rfb, live != null);
         var placeholder = live != null
-            ? "Connecting read-only RFB preview…"
+            ? "Connecting RFB preview…"
             : vm.power_state == vm_power_state.Running
                 ? "No RFB console is available for this object."
-                : "Start the VM to open a read-only RFB console preview.";
+                : "Start the VM to open the RFB console preview.";
 
         return new ConsoleSummary(totals, items, status, placeholder, live);
     }
@@ -144,14 +144,14 @@ public static class ConsoleSummaryBuilder
         if (rfb == null)
             return "No RFB (VNC) console is registered for this VM.";
         if (canLive)
-            return "RFB console available — read-only preview below.";
+            return "RFB console available — live preview below (click to focus for input).";
         return "RFB console location ready (copy below).";
     }
 
     private static string StatusForConsole(VM vm, XenAPI.Console console)
     {
         if (console.protocol == console_protocol.rfb && vm.power_state == vm_power_state.Running)
-            return "Ready for read-only preview";
+            return "Ready for live preview";
         if (console.protocol == console_protocol.rfb)
             return "RFB present — VM not running";
         if (console.protocol == console_protocol.vt100)
