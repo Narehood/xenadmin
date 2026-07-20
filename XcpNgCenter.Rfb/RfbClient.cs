@@ -767,7 +767,7 @@ namespace XcpNgCenter.Rfb
             }
             else
             {
-                throw new Exception("unexpected bits per pixel");
+                throw new RfbException("unexpected bits per pixel");
             }
 
             if (dataToRender == null)

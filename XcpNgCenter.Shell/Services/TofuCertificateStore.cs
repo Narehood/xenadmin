@@ -37,6 +37,40 @@ public sealed class TofuCertificateStore
         }
     }
 
+    public int Count
+    {
+        get
+        {
+            lock (_gate)
+                return _pins.Count;
+        }
+    }
+
+    public bool Remove(string hostname)
+    {
+        if (string.IsNullOrWhiteSpace(hostname))
+            return false;
+
+        lock (_gate)
+        {
+            if (!_pins.Remove(hostname.Trim()))
+                return false;
+            Save();
+            return true;
+        }
+    }
+
+    public void Clear()
+    {
+        lock (_gate)
+        {
+            if (_pins.Count == 0)
+                return;
+            _pins.Clear();
+            Save();
+        }
+    }
+
     private void Load()
     {
         try

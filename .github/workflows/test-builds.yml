@@ -47,6 +47,16 @@ jobs:
           -o artifacts/shell-win-x64
           --nologo
 
+      - name: Publish Avalonia UI preview shell (self-contained linux-x64)
+        run: >
+          dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
+          -c Release
+          -r linux-x64
+          --self-contained true
+          -p:PublishSingleFile=false
+          -o artifacts/shell-linux-x64
+          --nologo
+
       - name: Run unit tests
         run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release --logger "trx;LogFileName=test-results.trx"
 
@@ -64,11 +74,18 @@ jobs:
           path: XenAdmin/bin/Debug/net8.0-windows
           if-no-files-found: error
 
-      - name: Upload Avalonia UI preview shell
+      - name: Upload Avalonia UI preview shell (Windows)
         uses: actions/upload-artifact@v7
         with:
           name: drop-shell-win-x64
           path: artifacts/shell-win-x64
+          if-no-files-found: error
+
+      - name: Upload Avalonia UI preview shell (Linux)
+        uses: actions/upload-artifact@v7
+        with:
+          name: drop-shell-linux-x64
+          path: artifacts/shell-linux-x64
           if-no-files-found: error
 
       - name: Upload test results

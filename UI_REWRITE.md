@@ -9,9 +9,11 @@ rewrite reaches feature parity for your environment.
 | Item | State |
 |------|--------|
 | Integration branch | `development` |
-| Test build | CI artifact **`drop-shell-win-x64`** from Test Builds on `development` (self-contained; no .NET SDK required) |
+| Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** from Test Builds on `development` |
 
 **Last soak-tested locally:** live connect to a private pool, infrastructure tree (pool → hosts → VMs), General summary pane, public-IP warning behavior, RFB console input.
+
+**Windows preview scope:** complete. Remaining work is Linux desktop soak and broader WinForms parity (not required for the preview tabs).
 
 ## Branch basis
 
@@ -43,8 +45,11 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Tab ScrollViewer padding so right-aligned values clear the scrollbar
 - Console tab: hosted RFB viewer (fit-to-pane), pointer/keyboard, remote cursor, richer keysyms
 - Hover/focus **Copy** on General / Storage / Network property rows
-- Saved servers with optional Windows DPAPI password vault
-- CI: self-contained `win-x64` publish uploaded as `drop-shell-win-x64`
+- Saved servers with optional Windows DPAPI password vault (forget-password; vault disabled on non-Windows)
+- Clear trusted-certificate pins from the welcome surface
+- Shutdown disconnects live sessions and disposes the hosted RFB console
+- Console input-capture hint when the RFB viewer is focused
+- CI: self-contained `win-x64` and `linux-x64` publish artifacts
 
 ### Key shell layout
 
@@ -62,16 +67,16 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **Linux desktop soak** — validate Avalonia shell + Drawing.Common paths after Windows preview is solid.
+1. **Linux desktop soak** — run `drop-shell-linux-x64` on a desktop session; validate Drawing.Common + TOFU + RFB after Windows preview is solid.
 2. **Broader WinForms parity** — wizards/actions beyond the preview tabs (out of scope for soak).
 
 **RDP strategy (decided for preview):** keep RDP on WinForms/`XenAdmin` only. The Avalonia shell focuses on hosted RFB/VNC; an ActiveX-free RDP path is deferred.
 
 ## How to try the preview
 
-**Preferred (no SDK install):** download the CI artifact `drop-shell-win-x64` from the
+**Preferred (no SDK install):** download the CI artifact `drop-shell-win-x64` (Windows) or `drop-shell-linux-x64` (Linux) from the
 [Test Builds](https://github.com/Narehood/xenadmin/actions/workflows/test-builds.yml?query=branch%3Adevelopment)
-run on `development`, unzip, and run `XcpNgCenter.Shell.exe`.
+run on `development`, unzip, and run `XcpNgCenter.Shell` / `XcpNgCenter.Shell.exe`.
 
 **From source (requires .NET 8 SDK):**
 
@@ -80,8 +85,13 @@ dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -o 
 .\artifacts\shell-win-x64\XcpNgCenter.Shell.exe
 ```
 
-Pins: `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json`  
-Saved servers: `%APPDATA%\XCP-ng\XCP-ng Center Shell\saved-servers.json`
+```bash
+dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -o artifacts/shell-linux-x64
+./artifacts/shell-linux-x64/XcpNgCenter.Shell
+```
+
+Pins: `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (Windows) / `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux XDG)  
+Saved servers: same folder, `saved-servers.json`
 
 ## Non-goals for the preview
 
