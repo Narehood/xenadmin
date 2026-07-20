@@ -34,6 +34,9 @@ public partial class MainViewModel : ViewModelBase
     private string _password = string.Empty;
 
     [ObservableProperty]
+    private bool _rememberPassword = true;
+
+    [ObservableProperty]
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
@@ -225,7 +228,7 @@ public partial class MainViewModel : ViewModelBase
         StatusMessage = "Connecting…";
         IsBusy = true;
 
-        RememberServer(display, username);
+        RememberServer(display, username, RememberPassword ? Password : null);
         BeginLiveConnect(node, host, port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT, username, Password);
         Password = string.Empty;
     }
@@ -239,7 +242,19 @@ public partial class MainViewModel : ViewModelBase
         HostInput = entry.Address;
         if (!string.IsNullOrWhiteSpace(entry.Username))
             Username = entry.Username;
-        StatusMessage = "Saved server loaded — enter password and Connect.";
+
+        var restored = SavedServerStore.UnprotectPassword(entry.EncryptedPassword);
+        if (!string.IsNullOrEmpty(restored))
+        {
+            Password = restored;
+            RememberPassword = true;
+            StatusMessage = "Saved server loaded with stored password — Connect when ready.";
+        }
+        else
+        {
+            Password = string.Empty;
+            StatusMessage = "Saved server loaded — enter password and Connect.";
+        }
     }
 
     [RelayCommand]
@@ -310,13 +325,21 @@ public partial class MainViewModel : ViewModelBase
             SavedServers.Add(entry);
     }
 
-    private void RememberServer(string address, string username)
+    private void RememberServer(string address, string username, string? password)
     {
         var existing = SavedServers.FirstOrDefault(s =>
             string.Equals(s.Address, address, StringComparison.OrdinalIgnoreCase));
+        var previousSecret = existing?.EncryptedPassword;
         if (existing != null)
             SavedServers.Remove(existing);
-        SavedServers.Insert(0, new SavedServerEntry(address, username));
+
+        string? encrypted = null;
+        if (!string.IsNullOrEmpty(password))
+            encrypted = SavedServerStore.ProtectPassword(password);
+        else if (RememberPassword)
+            encrypted = previousSecret;
+
+        SavedServers.Insert(0, new SavedServerEntry(address, username, encrypted));
         PersistSavedServers();
     }
 

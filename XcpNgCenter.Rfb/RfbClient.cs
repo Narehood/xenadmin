@@ -722,6 +722,9 @@ namespace XcpNgCenter.Rfb
             else if (bitsPerPixel == 8)
             {
                 stride = width * 4;
+                var needed8 = Math.Max(stride * height, width * height * 4);
+                if (data_8bpp == null || data_8bpp.Length < needed8)
+                    data_8bpp = new byte[needed8];
                 dataToRender = data_8bpp;
 
                 System.Diagnostics.Debug.Assert(length == width * height);
@@ -767,6 +770,8 @@ namespace XcpNgCenter.Rfb
                 throw new Exception("unexpected bits per pixel");
             }
 
+            if (dataToRender == null)
+                throw new RfbException("Decoded framebuffer buffer was null");
             BitmapToClient(width, height, x, y, start, stride, cursor, dataToRender);
         }
 
@@ -1458,7 +1463,7 @@ namespace XcpNgCenter.Rfb
                 stream.Close();
                 lock (pauseMonitor)
                     Monitor.PulseAll(pauseMonitor);
-                thread.Interrupt();
+                thread?.Interrupt();
             }
             catch
             {

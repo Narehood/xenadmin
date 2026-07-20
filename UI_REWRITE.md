@@ -8,10 +8,10 @@ rewrite reaches feature parity for your environment.
 
 | Item | State |
 |------|--------|
-| Integration branch | `development` (PRs [#6](https://github.com/Narehood/xenadmin/pull/6) and [#7](https://github.com/Narehood/xenadmin/pull/7) merged) |
+| Integration branch | `development` |
 | Test build | CI artifact **`drop-shell-win-x64`** from Test Builds on `development` (self-contained; no .NET SDK required) |
 
-**Last soak-tested locally:** live connect to a private pool, infrastructure tree (pool → hosts → VMs), General summary pane, public-IP warning behavior.
+**Last soak-tested locally:** live connect to a private pool, infrastructure tree (pool → hosts → VMs), General summary pane, public-IP warning behavior, RFB console input.
 
 ## Branch basis
 
@@ -31,7 +31,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Brand-first welcome composition (XCP-ng mark, product name, Connect CTA)
 - Design tokens (graphite + brand orange, Outfit type — not Inter / purple AI defaults)
 - Live connect through `XenModel` (`XenConnection`): username/password, disconnect
-- Preview TOFU TLS pin store (`Services/TofuCertificate*`, AppData JSON; silent pin/re-pin, no cert dialog yet)
+- TOFU TLS pin store with Avalonia trust dialogs (first-seen + changed; AppData JSON)
 - Public-IP warning + acknowledgement via `HostnameAddressClassifier`
   - Complete IPv4 dotted-quad only — incomplete typing (`1`, `10`, `192.168`) does not warn
 - Infrastructure tree: pool → hosts → VMs (`InfrastructureTreeBuilder`, Avalonia `TreeView`)
@@ -41,12 +41,9 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Network tab (read-only): networks / management PIFs / VM VIFs (`NetworkSummaryBuilder`)
 - Richer General fields (UUID, uptime, OS, tools, IPs, tags, HA, IQN, …)
 - Tab ScrollViewer padding so right-aligned values clear the scrollbar
-- Console tab scaffold: RFB/VT100/RDP endpoints from XenModel, copy location
-- Hosted RFB viewer (`XcpNgCenter.Rfb` + Avalonia fit-to-pane render) with pointer/keyboard input
-- Remote cursor rendering + layout-aware keysyms (`KeySymbol` + special-key table)
-- General tab hover/focus **Copy** affordance on property values
-- TOFU trust dialogs for first-seen and changed certificates (no silent re-pin)
-- Saved server list (address + username; passwords not stored)
+- Console tab: hosted RFB viewer (fit-to-pane), pointer/keyboard, remote cursor, richer keysyms
+- Hover/focus **Copy** on General / Storage / Network property rows
+- Saved servers with optional Windows DPAPI password vault
 - CI: self-contained `win-x64` publish uploaded as `drop-shell-win-x64`
 
 ### Key shell layout
@@ -54,7 +51,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 ```
 XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
-  Services/          Bootstrap, TOFU, tree builders, HostedConsoleSession, AvaloniaRfbFramebuffer
+  Services/          Bootstrap, TOFU dialogs, vault, tree builders, HostedConsoleSession
   ViewModels/        MainViewModel, InfraTreeNode, ServerNode, …
   Views/MainWindow   Welcome + tree rail + General/Storage/Network/Console tabs
 ```
@@ -65,10 +62,9 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **Credentials policy** — optional secure password vault (today: saved host + username only; TOFU pins separate).
-2. **Copy affordance on Storage/Network sections** — extend General-style hover Copy to other property lists.
-3. **RDP strategy** — decide ActiveX-free path or keep RDP WinForms-only.
-4. **Linux desktop soak** — after Windows preview is solid (`net8.0` already; validate Drawing.Common paths).
+1. **RDP strategy** — decide ActiveX-free path or keep RDP WinForms-only for now.
+2. **Linux desktop soak** — validate Avalonia shell + Drawing.Common paths after Windows preview is solid.
+3. **Broader WinForms parity** — wizards/actions beyond the preview tabs (out of scope for soak).
 
 ## How to try the preview
 
@@ -83,7 +79,8 @@ dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -o 
 .\artifacts\shell-win-x64\XcpNgCenter.Shell.exe
 ```
 
-Pins: `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json`
+Pins: `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json`  
+Saved servers: `%APPDATA%\XCP-ng\XCP-ng Center Shell\saved-servers.json`
 
 ## Non-goals for the preview
 
