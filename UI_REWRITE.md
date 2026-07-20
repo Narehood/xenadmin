@@ -45,6 +45,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Hosted RFB viewer (`XcpNgCenter.Rfb` + Avalonia fit-to-pane render) with pointer/keyboard input
 - Remote cursor rendering + layout-aware keysyms (`KeySymbol` + special-key table)
 - General tab hover/focus **Copy** affordance on property values
+- TOFU trust dialogs for first-seen and changed certificates (no silent re-pin)
 - Saved server list (address + username; passwords not stored)
 - CI: self-contained `win-x64` publish uploaded as `drop-shell-win-x64`
 
@@ -64,11 +65,10 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **TOFU UX** — cert changed / first-seen dialogs (replace silent re-pin for production readiness).
-2. **Credentials policy** — optional secure password vault (today: saved host + username only; TOFU pins separate).
-3. **Copy affordance on Storage/Network sections** — extend General-style hover Copy to other property lists.
-4. **RDP strategy** — decide ActiveX-free path or keep RDP WinForms-only.
-5. **Linux desktop soak** — after Windows preview is solid (`net8.0` already; validate Drawing.Common paths).
+1. **Credentials policy** — optional secure password vault (today: saved host + username only; TOFU pins separate).
+2. **Copy affordance on Storage/Network sections** — extend General-style hover Copy to other property lists.
+3. **RDP strategy** — decide ActiveX-free path or keep RDP WinForms-only.
+4. **Linux desktop soak** — after Windows preview is solid (`net8.0` already; validate Drawing.Common paths).
 
 ## How to try the preview
 
