@@ -253,6 +253,13 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center">
               <Button Classes="ghost"
+                      Content="New VM"
+                      Command="{Binding NewVmCommand}" />
+              <Button Classes="ghost"
+                      Content="New SR"
+                      Command="{Binding NewSrCommand}"
+                      IsVisible="{Binding ShowPoolStorageActions}" />
+              <Button Classes="ghost"
                       Content="Disconnect"
                       Command="{Binding DisconnectSelectedCommand}" />
               <Button Classes="ghost"
@@ -267,7 +274,7 @@
                   BorderThickness="1"
                   CornerRadius="10"
                   Padding="28">
-            <Grid RowDefinitions="Auto,*">
+            <Grid RowDefinitions="Auto,Auto,*">
               <StackPanel Spacing="8" Margin="0,0,0,8">
                 <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
                            FontSize="12"
@@ -280,9 +287,39 @@
                 <TextBlock Text="{Binding SelectedInfraNode.Subtitle, FallbackValue=''}"
                            Foreground="{StaticResource Brush.TextMuted}"
                            FontSize="15" />
+                <TextBlock Text="{Binding ActionStatusMessage}"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource Brush.TextMuted}"
+                           IsVisible="{Binding ActionStatusMessage.Length}" />
               </StackPanel>
 
-              <TabControl Grid.Row="1" Margin="0,12,0,0">
+              <StackPanel Grid.Row="1"
+                          Orientation="Horizontal"
+                          Spacing="8"
+                          Margin="0,4,0,8"
+                          IsVisible="{Binding ShowVmActionBar}">
+                <Button Classes="ghost" Content="Start" Command="{Binding StartVmCommand}" />
+                <Button Classes="ghost" Content="Shutdown" Command="{Binding ShutdownVmCommand}" />
+                <Button Classes="ghost" Content="Reboot" Command="{Binding RebootVmCommand}" />
+                <Button Classes="ghost" Content="Suspend" Command="{Binding SuspendVmCommand}" />
+                <Button Classes="ghost" Content="Resume" Command="{Binding ResumeVmCommand}" />
+                <Button Classes="ghost" Content="Force shutdown" Command="{Binding ForceShutdownVmCommand}" />
+                <Button Classes="ghost" Content="Force reboot" Command="{Binding ForceRebootVmCommand}" />
+                <Button Classes="ghost" Content="Edit…" Command="{Binding EditVmCommand}" />
+                <Button Classes="ghost" Content="Attach ISO…" Command="{Binding AttachIsoCommand}" />
+                <Button Classes="ghost" Content="Eject ISO" Command="{Binding EjectIsoCommand}" />
+              </StackPanel>
+
+              <StackPanel Grid.Row="1"
+                          Orientation="Horizontal"
+                          Spacing="8"
+                          Margin="0,4,0,8"
+                          IsVisible="{Binding ShowPoolStorageActions}">
+                <Button Classes="ghost" Content="Refresh storage" Command="{Binding RefreshStorageCommand}" />
+              </StackPanel>
+
+              <TabControl Grid.Row="2" Margin="0,12,0,0">
                 <TabControl.Styles>
                   <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="13" />
@@ -615,6 +652,16 @@
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.BrandOrange}"
                                  IsVisible="{Binding ConsoleInputHint.Length}" />
+                      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0"
+                                  IsVisible="{Binding HasConsoleFrame}">
+                        <Button Classes="ghost" Content="Pop out" Command="{Binding PopOutConsoleCommand}"
+                                IsVisible="{Binding !IsConsolePoppedOut}" />
+                        <Button Classes="ghost" Content="Reattach" Command="{Binding ReattachConsoleCommand}"
+                                IsVisible="{Binding ShowConsoleReattach}" />
+                        <Button Classes="ghost" Content="Ctrl+Alt+Del" Command="{Binding SendCtrlAltDelCommand}" />
+                        <Button Classes="ghost" Content="Attach ISO…" Command="{Binding AttachIsoCommand}"
+                                IsVisible="{Binding CanAttachIso}" />
+                      </StackPanel>
                     </StackPanel>
 
                     <Border Grid.Row="1"
@@ -643,7 +690,20 @@
                                      Foreground="{StaticResource Brush.TextMuted}" />
                         </StackPanel>
 
-                        <controls:RfbConsoleView IsVisible="{Binding HasConsoleFrame}"
+                        <StackPanel Spacing="8"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    MaxWidth="420"
+                                    IsVisible="{Binding ShowConsoleReattach}">
+                          <TextBlock Text="Console is in a separate window"
+                                     FontWeight="SemiBold"
+                                     FontSize="14"
+                                     HorizontalAlignment="Center" />
+                          <Button Classes="cta" Content="Reattach here" HorizontalAlignment="Center"
+                                  Command="{Binding ReattachConsoleCommand}" />
+                        </StackPanel>
+
+                        <controls:RfbConsoleView IsVisible="{Binding ShowEmbeddedConsole}"
                                                  Frame="{Binding ConsoleBitmap}"
                                                  Session="{Binding ConsoleSession}"
                                                  ToolTip.Tip="Click to focus — keyboard and mouse are sent to the guest"
@@ -701,6 +761,82 @@
                                    FontSize="12"
                                    Foreground="{StaticResource Brush.Ok}"
                                    IsVisible="{Binding ConsoleCopyFeedback.Length}" />
+                      </StackPanel>
+                    </ScrollViewer>
+                  </Grid>
+                </TabItem>
+
+                <TabItem Header="Logs">
+                  <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
+                    <DockPanel Margin="0,0,4,8">
+                      <TextBlock Text="Tasks and actions"
+                                 FontSize="14"
+                                 FontWeight="SemiBold"
+                                 VerticalAlignment="Center" />
+                      <Button DockPanel.Dock="Right"
+                              Classes="ghost"
+                              Content="Dismiss completed"
+                              Command="{Binding DismissCompletedActionsCommand}"
+                              HorizontalAlignment="Right" />
+                    </DockPanel>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                      <StackPanel Spacing="8" Margin="0,0,4,0">
+                        <TextBlock Text="No actions yet. Power, create, and storage operations appear here."
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   IsVisible="{Binding !HasActionLogRows}" />
+                        <ItemsControl ItemsSource="{Binding ActionLogRows}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ActionLogRow">
+                              <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                      BorderThickness="0,0,0,1"
+                                      Padding="0,0,0,10"
+                                      Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                  <TextBlock Text="{Binding Title}"
+                                             FontWeight="SemiBold"
+                                             FontSize="13"
+                                             TextWrapping="Wrap" />
+                                  <TextBlock Grid.Column="1"
+                                             Text="{Binding Status}"
+                                             FontSize="12"
+                                             Foreground="{StaticResource Brush.BrandOrange}"
+                                             Margin="12,0,0,0" />
+                                  <TextBlock Grid.Row="1"
+                                             Text="{Binding Description}"
+                                             FontSize="12"
+                                             TextWrapping="Wrap"
+                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             Margin="0,4,0,0" />
+                                  <TextBlock Grid.Row="2"
+                                             Text="{Binding StartedText}"
+                                             FontSize="11"
+                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             Margin="0,4,0,0" />
+                                  <StackPanel Grid.Row="2"
+                                              Grid.Column="1"
+                                              Orientation="Horizontal"
+                                              Spacing="6"
+                                              HorizontalAlignment="Right">
+                                    <Button Classes="ghost"
+                                            Content="Cancel"
+                                            FontSize="11"
+                                            Padding="8,2"
+                                            IsVisible="{Binding CanCancel}"
+                                            Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CancelActionCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Classes="ghost"
+                                            Content="Dismiss"
+                                            FontSize="11"
+                                            Padding="8,2"
+                                            IsVisible="{Binding IsCompleted}"
+                                            Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).DismissActionCommand}"
+                                            CommandParameter="{Binding}" />
+                                  </StackPanel>
+                                </Grid>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                       </StackPanel>
                     </ScrollViewer>
                   </Grid>

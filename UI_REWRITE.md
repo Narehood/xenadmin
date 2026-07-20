@@ -13,7 +13,7 @@ rewrite reaches feature parity for your environment.
 
 **Last soak-tested locally:** live connect to a private pool, infrastructure tree (pool → hosts → VMs), General summary pane, public-IP warning behavior, RFB console input.
 
-**Windows preview scope:** complete. Remaining work is Linux desktop soak and broader WinForms parity (not required for the preview tabs).
+**Windows preview scope:** complete. **Phase 1 parity (in progress / shipping):** Logs/Tasks, VM power + New VM + basic edit, ISO attach, New SR (ISO/iSCSI/NFS), console pop-out.
 
 ## Branch basis
 
@@ -50,15 +50,21 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Shutdown disconnects live sessions and disposes the hosted RFB console
 - Console input-capture hint when the RFB viewer is focused
 - CI: self-contained `win-x64` and `linux-x64` publish artifacts
+- **Phase 1 parity:** `ShellActionRunner` + Logs/Tasks tab (`ConnectionsManager.History`)
+- VM action bar: start / shutdown / reboot / suspend / resume / force variants
+- Avalonia New VM wizard (`CreateVMAction`) and basic Edit (rename / CPU / memory)
+- ISO attach/eject (`ChangeVMISOAction` / `CreateCdDriveAction`)
+- New SR wizard: NFS ISO, NFS VHD, iSCSI (`SrCreateAction`) + SR refresh
+- Console pop-out window with reattach + Ctrl+Alt+Del
 
 ### Key shell layout
 
 ```
 XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
-  Services/          Bootstrap, TOFU dialogs, vault, tree builders, HostedConsoleSession
-  ViewModels/        MainViewModel, InfraTreeNode, ServerNode, …
-  Views/MainWindow   Welcome + tree rail + General/Storage/Network/Console tabs
+  Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner
+  ViewModels/        MainViewModel (+ Actions), wizards/dialogs, ActionLogRow
+  Views/             MainWindow, NewVm/NewSr/Iso/Edit/ConsolePopOut windows
 ```
 
 Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).  
@@ -67,8 +73,8 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **Linux desktop soak** — run `drop-shell-linux-x64` on a desktop session; validate Drawing.Common + TOFU + RFB after Windows preview is solid.
-2. **Broader WinForms parity** — wizards/actions beyond the preview tabs (out of scope for soak).
+1. **Linux desktop soak** — run `drop-shell-linux-x64` on a desktop session; validate Drawing.Common + TOFU + RFB.
+2. **Phase 2+ WinForms parity** — snapshots, migrate/clone/delete, full Properties, more SR types, HA/AD/DR, alerts, performance graphs. RDP + plugins stay WinForms-only for now.
 
 **RDP strategy (decided for preview):** keep RDP on WinForms/`XenAdmin` only. The Avalonia shell focuses on hosted RFB/VNC; an ActiveX-free RDP path is deferred.
 

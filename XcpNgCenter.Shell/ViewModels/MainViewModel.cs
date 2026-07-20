@@ -166,6 +166,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _consoleSession.StateChanged += OnConsoleSessionStateChanged;
         LoadSavedServers();
         RefreshTrustUi();
+        InitializeActionHistoryUi();
     }
 
     public void Dispose()
@@ -174,6 +175,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         _disposed = true;
 
+        DisposeActionHistoryUi();
         _consoleSession.StateChanged -= OnConsoleSessionStateChanged;
         try
         {
@@ -630,6 +632,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void RefreshDetailPanes()
     {
         var node = SelectedInfraNode ?? _pinnedInfraNode;
+        RefreshSelectedVm();
         RefreshGeneralProperties(node);
         RefreshStorageProperties(node);
         RefreshNetworkProperties(node);
@@ -696,6 +699,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (_activeConsoleKey != null)
             {
                 _activeConsoleKey = null;
+                CloseConsolePopOut();
                 _consoleSession.Stop();
                 ConsoleBitmap = null;
                 ConsoleViewerStatus = string.Empty;
@@ -709,6 +713,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (key == _activeConsoleKey)
             return;
 
+        CloseConsolePopOut();
         _activeConsoleKey = key;
         ConsoleBitmap = null;
         IsConsoleConnecting = true;
@@ -730,6 +735,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                               && !string.IsNullOrEmpty(_consoleSession.StatusMessage)
                               && _consoleSession.StatusMessage.Contains("Connecting", StringComparison.OrdinalIgnoreCase);
         OnPropertyChanged(nameof(HasConsoleFrame));
+        OnPropertyChanged(nameof(ShowEmbeddedConsole));
         if (!HasConsoleFrame)
             ConsoleInputHint = string.Empty;
         else if (string.IsNullOrEmpty(ConsoleInputHint))

@@ -1,0 +1,97 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:XcpNgCenter.Shell.Views"
+        xmlns:xena="clr-namespace:XenAPI;assembly=XenModel"
+        x:Class="XcpNgCenter.Shell.Views.NewVmWizardWindow"
+        x:DataType="views:NewVmWizardViewModel"
+        Title="New VM"
+        Width="640" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+      <StackPanel Spacing="4">
+        <TextBlock Text="New VM" FontSize="22" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding StepTitle}" Foreground="{StaticResource Brush.BrandOrange}" />
+        <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   IsVisible="{Binding StatusMessage.Length}" />
+      </StackPanel>
+
+      <Panel Grid.Row="1" Margin="0,16,0,16">
+        <StackPanel IsVisible="{Binding ShowTemplateStep}" Spacing="8">
+          <TextBlock Text="Select a template" Foreground="{StaticResource Brush.TextMuted}" />
+          <ListBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" MaxHeight="320">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="xena:VM">
+                <TextBlock Text="{Binding name_label}" Margin="4" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding ShowNameStep}" Spacing="10">
+          <TextBox Watermark="VM name" Text="{Binding VmName}" />
+          <TextBox Watermark="Description" Text="{Binding VmDescription}" AcceptsReturn="True" Height="80" TextWrapping="Wrap" />
+          <ComboBox ItemsSource="{Binding Hosts}" SelectedItem="{Binding SelectedHost}" PlaceholderText="Home server (optional)">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="xena:Host">
+                <TextBlock Text="{Binding name_label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding ShowComputeStep}" Spacing="10">
+          <TextBox Watermark="vCPUs" Text="{Binding VcpusText}" />
+          <TextBox Watermark="Memory (MiB)" Text="{Binding MemoryMibText}" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding ShowStorageStep}" Spacing="10">
+          <ComboBox ItemsSource="{Binding StorageRepositories}" SelectedItem="{Binding SelectedStorage}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="xena:SR">
+                <TextBlock Text="{Binding name_label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBox Watermark="Disk size (GiB)" Text="{Binding DiskGibText}" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding ShowNetworkStep}" Spacing="10">
+          <ComboBox ItemsSource="{Binding Networks}" SelectedItem="{Binding SelectedNetwork}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="xena:Network">
+                <TextBlock Text="{Binding name_label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <CheckBox Content="Start VM after create" IsChecked="{Binding StartAfter}" />
+        </StackPanel>
+
+        <TextBlock IsVisible="{Binding ShowConfirmStep}"
+                   Text="{Binding SummaryText}"
+                   TextWrapping="Wrap"
+                   FontSize="14"
+                   LineHeight="22" />
+      </Panel>
+
+      <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="ghost" Content="Back" Command="{Binding BackCommand}" IsVisible="{Binding CanGoBack}" />
+        <Button Classes="cta"
+                Content="Create"
+                Command="{Binding NextCommand}"
+                IsVisible="{Binding IsLastStep}" />
+        <Button Classes="cta"
+                Content="Next"
+                Command="{Binding NextCommand}"
+                IsVisible="{Binding !IsLastStep}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>

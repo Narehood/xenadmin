@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:XcpNgCenter.Shell.Views"
+        x:Class="XcpNgCenter.Shell.Views.NewSrWizardWindow"
+        x:DataType="views:NewSrWizardViewModel"
+        Title="New Storage Repository"
+        Width="560" Height="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <StackPanel Spacing="12">
+      <TextBlock Text="New storage" FontSize="22" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}"
+                 IsVisible="{Binding StatusMessage.Length}" />
+
+      <ComboBox ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="views:SrTypeOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBox Watermark="Name" Text="{Binding NameLabel}" />
+      <TextBox Watermark="Description" Text="{Binding Description}" />
+
+      <StackPanel Spacing="8" IsVisible="{Binding ShowIsoNfs}">
+        <TextBlock Text="NFS ISO path (server:/share/path)" FontSize="12" Foreground="{StaticResource Brush.TextMuted}" />
+        <TextBox Watermark="filer.example:/iso" Text="{Binding NfsPath}" />
+      </StackPanel>
+
+      <StackPanel Spacing="8" IsVisible="{Binding ShowNfs}">
+        <TextBlock Text="NFS VHD path (server:/share/path)" FontSize="12" Foreground="{StaticResource Brush.TextMuted}" />
+        <TextBox Watermark="filer.example:/export" Text="{Binding NfsPath}" />
+      </StackPanel>
+
+      <StackPanel Spacing="8" IsVisible="{Binding ShowIscsi}">
+        <TextBlock Text="iSCSI target" FontSize="12" Foreground="{StaticResource Brush.TextMuted}" />
+        <TextBox Watermark="Host / IP" Text="{Binding IscsiHost}" />
+        <TextBox Watermark="Port" Text="{Binding IscsiPort}" />
+        <TextBox Watermark="Target IQN" Text="{Binding IscsiIqn}" />
+        <TextBox Watermark="SCSI ID" Text="{Binding IscsiScsiId}" />
+        <TextBlock Text="IQN/LUN discovery UI is simplified — use values from your storage or legacy Center probe."
+                   FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,12,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Create" IsDefault="True" Command="{Binding CreateCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

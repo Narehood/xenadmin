@@ -17,8 +17,6 @@
         "contentHash": "Vv/20vgHS7VglVOVh8J3Iz/MA+VYKVRp9f7r2qiKBMuzviTOmocG70yq0Q8T5OTmCONkEAIJwETD1zhEfLkAXQ=="
       }
     },
-    ".NETFramework,Version=v4.8.1/linux-x64": {},
-    "net8.0": {},
-    "net8.0/linux-x64": {}
+    "net8.0": {}
   }
 }
