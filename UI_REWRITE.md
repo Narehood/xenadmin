@@ -52,7 +52,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - CI: self-contained `win-x64` and `linux-x64` publish artifacts
 - **Phase 1 parity:** `ShellActionRunner` + Logs/Tasks tab (`ConnectionsManager.History`)
 - VM action bar: start / shutdown / reboot / suspend / resume / force variants
-- Avalonia New VM wizard (`CreateVMAction`) and basic Edit (rename / CPU / memory)
+- Avalonia New VM wizard (`CreateVMAction`) and basic Edit (rename / CPU / memory — full Properties later)
 - ISO attach/eject (`ChangeVMISOAction` / `CreateCdDriveAction`)
 - New SR wizard: NFS ISO, NFS VHD, iSCSI (`SrCreateAction`) + SR refresh
 - Console pop-out window with reattach + Ctrl+Alt+Del

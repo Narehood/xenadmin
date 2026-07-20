@@ -54,17 +54,22 @@
               BorderThickness="0,0,1,0"
               Padding="20">
         <Grid RowDefinitions="Auto,*,Auto">
-          <StackPanel Spacing="10" Margin="0,4,0,24">
-            <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
-                   Width="44" Height="44"
-                   HorizontalAlignment="Left" />
-            <TextBlock Text="{Binding BrandName}"
-                       FontSize="22"
-                       FontWeight="Bold"
-                       Foreground="{StaticResource Brush.TextPrimary}" />
-            <TextBlock Text="Preview shell"
-                       FontSize="12"
-                       Foreground="{StaticResource Brush.BrandOrange}" />
+          <StackPanel Spacing="8" Margin="0,4,0,20">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
+                     Width="40" Height="40"
+                     VerticalAlignment="Center" />
+              <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="{Binding BrandName}"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource Brush.TextPrimary}"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="Preview shell"
+                           FontSize="12"
+                           Foreground="{StaticResource Brush.BrandOrange}" />
+              </StackPanel>
+            </StackPanel>
           </StackPanel>
 
           <Grid Grid.Row="1" RowDefinitions="Auto,*">
@@ -294,30 +299,28 @@
                            IsVisible="{Binding ActionStatusMessage.Length}" />
               </StackPanel>
 
-              <StackPanel Grid.Row="1"
-                          Orientation="Horizontal"
-                          Spacing="8"
-                          Margin="0,4,0,8"
-                          IsVisible="{Binding ShowVmActionBar}">
-                <Button Classes="ghost" Content="Start" Command="{Binding StartVmCommand}" />
-                <Button Classes="ghost" Content="Shutdown" Command="{Binding ShutdownVmCommand}" />
-                <Button Classes="ghost" Content="Reboot" Command="{Binding RebootVmCommand}" />
-                <Button Classes="ghost" Content="Suspend" Command="{Binding SuspendVmCommand}" />
-                <Button Classes="ghost" Content="Resume" Command="{Binding ResumeVmCommand}" />
-                <Button Classes="ghost" Content="Force shutdown" Command="{Binding ForceShutdownVmCommand}" />
-                <Button Classes="ghost" Content="Force reboot" Command="{Binding ForceRebootVmCommand}" />
-                <Button Classes="ghost" Content="Edit…" Command="{Binding EditVmCommand}" />
-                <Button Classes="ghost" Content="Attach ISO…" Command="{Binding AttachIsoCommand}" />
-                <Button Classes="ghost" Content="Eject ISO" Command="{Binding EjectIsoCommand}" />
-              </StackPanel>
+              <WrapPanel Grid.Row="1"
+                         Orientation="Horizontal"
+                         Margin="0,4,0,8"
+                         IsVisible="{Binding ShowVmActionBar}">
+                <Button Classes="ghost" Content="Start" Margin="0,0,8,6" Command="{Binding StartVmCommand}" />
+                <Button Classes="ghost" Content="Shutdown" Margin="0,0,8,6" Command="{Binding ShutdownVmCommand}" />
+                <Button Classes="ghost" Content="Reboot" Margin="0,0,8,6" Command="{Binding RebootVmCommand}" />
+                <Button Classes="ghost" Content="Suspend" Margin="0,0,8,6" Command="{Binding SuspendVmCommand}" />
+                <Button Classes="ghost" Content="Resume" Margin="0,0,8,6" Command="{Binding ResumeVmCommand}" />
+                <Button Classes="ghost" Content="Force shutdown" Margin="0,0,8,6" Command="{Binding ForceShutdownVmCommand}" />
+                <Button Classes="ghost" Content="Force reboot" Margin="0,0,8,6" Command="{Binding ForceRebootVmCommand}" />
+                <Button Classes="ghost" Content="Edit…" Margin="0,0,8,6" Command="{Binding EditVmCommand}" />
+                <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6" Command="{Binding AttachIsoCommand}" />
+                <Button Classes="ghost" Content="Eject ISO" Margin="0,0,8,6" Command="{Binding EjectIsoCommand}" />
+              </WrapPanel>
 
-              <StackPanel Grid.Row="1"
-                          Orientation="Horizontal"
-                          Spacing="8"
-                          Margin="0,4,0,8"
-                          IsVisible="{Binding ShowPoolStorageActions}">
-                <Button Classes="ghost" Content="Refresh storage" Command="{Binding RefreshStorageCommand}" />
-              </StackPanel>
+              <WrapPanel Grid.Row="1"
+                         Orientation="Horizontal"
+                         Margin="0,4,0,8"
+                         IsVisible="{Binding ShowPoolStorageActions}">
+                <Button Classes="ghost" Content="Refresh storage" Margin="0,0,8,6" Command="{Binding RefreshStorageCommand}" />
+              </WrapPanel>
 
               <TabControl Grid.Row="2" Margin="0,12,0,0">
                 <TabControl.Styles>
@@ -652,16 +655,20 @@
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.BrandOrange}"
                                  IsVisible="{Binding ConsoleInputHint.Length}" />
-                      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0"
-                                  IsVisible="{Binding HasConsoleFrame}">
-                        <Button Classes="ghost" Content="Pop out" Command="{Binding PopOutConsoleCommand}"
+                      <WrapPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                 IsVisible="{Binding HasConsoleFrame}">
+                        <Button Classes="ghost" Content="Pop out" Margin="0,0,8,6"
+                                Command="{Binding PopOutConsoleCommand}"
                                 IsVisible="{Binding !IsConsolePoppedOut}" />
-                        <Button Classes="ghost" Content="Reattach" Command="{Binding ReattachConsoleCommand}"
+                        <Button Classes="ghost" Content="Reattach" Margin="0,0,8,6"
+                                Command="{Binding ReattachConsoleCommand}"
                                 IsVisible="{Binding ShowConsoleReattach}" />
-                        <Button Classes="ghost" Content="Ctrl+Alt+Del" Command="{Binding SendCtrlAltDelCommand}" />
-                        <Button Classes="ghost" Content="Attach ISO…" Command="{Binding AttachIsoCommand}"
+                        <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,6"
+                                Command="{Binding SendCtrlAltDelCommand}" />
+                        <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6"
+                                Command="{Binding AttachIsoCommand}"
                                 IsVisible="{Binding CanAttachIso}" />
-                      </StackPanel>
+                      </WrapPanel>
                     </StackPanel>
 
                     <Border Grid.Row="1"
@@ -671,8 +678,9 @@
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="8"
-                            MinHeight="220">
-                      <Grid>
+                            MinHeight="180"
+                            ClipToBounds="True">
+                      <Grid ClipToBounds="True">
                         <StackPanel Spacing="8"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
@@ -704,6 +712,9 @@
                         </StackPanel>
 
                         <controls:RfbConsoleView IsVisible="{Binding ShowEmbeddedConsole}"
+                                                 HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Stretch"
+                                                 ClipToBounds="True"
                                                  Frame="{Binding ConsoleBitmap}"
                                                  Session="{Binding ConsoleSession}"
                                                  ToolTip.Tip="Click to focus — keyboard and mouse are sent to the guest"

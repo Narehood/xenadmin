@@ -132,10 +132,23 @@ public sealed class RfbConsoleView : Control
             : Cursor.Default;
     }
 
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        // Tab content often measures with infinite height; never expand to the
+        // native framebuffer size or the viewer will blow out sibling rows.
+        var width = double.IsInfinity(availableSize.Width) || double.IsNaN(availableSize.Width)
+            ? 640
+            : Math.Max(0, availableSize.Width);
+        var height = double.IsInfinity(availableSize.Height) || double.IsNaN(availableSize.Height)
+            ? 360
+            : Math.Max(0, availableSize.Height);
+        return new Size(width, height);
+    }
+
     protected override Size ArrangeOverride(Size finalSize)
     {
         InvalidateVisual();
-        return base.ArrangeOverride(finalSize);
+        return finalSize;
     }
 
     public override void Render(DrawingContext context)

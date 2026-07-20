@@ -27,9 +27,13 @@
             BorderBrush="{StaticResource Brush.StrokeSubtle}"
             BorderThickness="1"
             CornerRadius="8"
-            Padding="4">
+            Padding="4"
+            ClipToBounds="True">
       <controls:RfbConsoleView Frame="{Binding ConsoleBitmap}"
                                Session="{Binding ConsoleSession}"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"
+                               ClipToBounds="True"
                                ToolTip.Tip="Keyboard and mouse are sent to the guest" />
     </Border>
   </Grid>
