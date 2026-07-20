@@ -148,7 +148,8 @@
                        Text="{Binding Password}"
                        PasswordChar="•" />
               <CheckBox IsChecked="{Binding RememberPassword}"
-                        Content="Remember password for this server (Windows DPAPI)" />
+                        IsEnabled="{Binding CanPersistPasswords}"
+                        Content="{Binding RememberPasswordLabel}" />
               <Button Classes="cta"
                       Content="Connect"
                       HorizontalAlignment="Left"
@@ -163,31 +164,48 @@
                 <ItemsControl ItemsSource="{Binding SavedServers}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="svc:SavedServerEntry">
-                      <Button Classes="ghost"
-                              HorizontalAlignment="Stretch"
-                              HorizontalContentAlignment="Left"
-                              Padding="10,8"
-                              Margin="0,0,0,4"
-                              Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).UseSavedServerCommand}"
-                              CommandParameter="{Binding}">
-                        <StackPanel Spacing="2">
-                          <TextBlock Text="{Binding Address}"
-                                     FontSize="13"
-                                     Foreground="{StaticResource Brush.TextPrimary}" />
-                          <TextBlock Text="{Binding Subtitle}"
-                                     FontSize="11"
-                                     Foreground="{StaticResource Brush.TextMuted}" />
-                        </StackPanel>
-                      </Button>
+                      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                        <Button Classes="ghost"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Padding="10,8"
+                                Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).UseSavedServerCommand}"
+                                CommandParameter="{Binding}">
+                          <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Address}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource Brush.TextPrimary}" />
+                            <TextBlock Text="{Binding Subtitle}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource Brush.TextMuted}" />
+                          </StackPanel>
+                        </Button>
+                        <Button Grid.Column="1"
+                                Classes="ghost"
+                                Content="Forget password"
+                                FontSize="11"
+                                Padding="8,4"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding HasSavedPassword}"
+                                Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).ForgetSavedPasswordCommand}"
+                                CommandParameter="{Binding}" />
+                      </Grid>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Text="Passwords are encrypted with Windows DPAPI for the current user when remembered."
+                <TextBlock Text="{Binding PasswordVaultHint}"
                            FontSize="11"
                            TextWrapping="Wrap"
                            Foreground="{StaticResource Brush.TextMuted}"
                            Opacity="0.9" />
               </StackPanel>
+
+              <Button Classes="ghost"
+                      HorizontalAlignment="Left"
+                      Content="{Binding ClearPinsLabel}"
+                      Command="{Binding ClearTrustedCertificatesCommand}"
+                      IsVisible="{Binding HasTrustedCertificates}"
+                      Margin="0,4,0,0" />
             </StackPanel>
 
             <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
@@ -592,6 +610,11 @@
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  IsVisible="{Binding ConsoleViewerStatus.Length}" />
+                      <TextBlock Text="{Binding ConsoleInputHint}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.BrandOrange}"
+                                 IsVisible="{Binding ConsoleInputHint.Length}" />
                     </StackPanel>
 
                     <Border Grid.Row="1"
@@ -623,7 +646,8 @@
                         <controls:RfbConsoleView IsVisible="{Binding HasConsoleFrame}"
                                                  Frame="{Binding ConsoleBitmap}"
                                                  Session="{Binding ConsoleSession}"
-                                                 ToolTip.Tip="Click to focus — keyboard and mouse are sent to the guest" />
+                                                 ToolTip.Tip="Click to focus — keyboard and mouse are sent to the guest"
+                                                 FocusCaptureChanged="OnConsoleFocusCaptureChanged" />
                       </Grid>
                     </Border>
 

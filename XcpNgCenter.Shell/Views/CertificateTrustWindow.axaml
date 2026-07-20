@@ -105,10 +105,12 @@
         <Button Classes="ghost"
                 Content="Cancel"
                 MinWidth="100"
+                IsCancel="True"
                 Click="OnCancelClick" />
         <Button Classes="cta"
                 Content="{Binding AcceptLabel}"
                 MinWidth="160"
+                IsDefault="True"
                 Click="OnAcceptClick" />
       </StackPanel>
     </StackPanel>

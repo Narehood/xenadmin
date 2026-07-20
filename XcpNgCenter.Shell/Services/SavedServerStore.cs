@@ -21,9 +21,14 @@ public sealed record SavedServerEntry(
 
 /// <summary>
 /// Persists shell server list (address + username + optional DPAPI-protected password).
+/// Password protection uses Windows DPAPI via <see cref="EncryptionUtils"/>; other
+/// platforms cannot persist secrets and <see cref="CanPersistPasswords"/> is false.
 /// </summary>
 public sealed class SavedServerStore
 {
+    /// <summary>True when the OS can protect passwords for the current user (Windows DPAPI).</summary>
+    public static bool CanPersistPasswords => OperatingSystem.IsWindows();
+
     private readonly string _path;
 
     public SavedServerStore(string? path = null)
@@ -88,12 +93,12 @@ public sealed class SavedServerStore
 
     public static string? ProtectPassword(string? password)
     {
-        if (string.IsNullOrEmpty(password))
+        if (string.IsNullOrEmpty(password) || !CanPersistPasswords)
             return null;
 
         try
         {
-            // Windows DPAPI via XenCenterLib; no-op/fail closed on unsupported platforms.
+            // Windows DPAPI via XenCenterLib; fail closed on unsupported platforms.
             return EncryptionUtils.Protect(password);
         }
         catch

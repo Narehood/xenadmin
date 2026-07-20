@@ -8,6 +8,8 @@ namespace XcpNgCenter.Shell.Services;
 
 public static class ShellBootstrap
 {
+    public static TofuCertificateStore CertificateStore { get; private set; } = null!;
+
     public static TofuCertificateValidator CertificateValidator { get; private set; } = null!;
 
     public static void Initialize()
@@ -15,7 +17,8 @@ public static class ShellBootstrap
         InvokeHelper.Initialize(new AvaloniaSynchronizeInvoke(Dispatcher.UIThread));
         XenAdminConfigManager.Provider = new ShellConfigProvider();
 
-        CertificateValidator = new TofuCertificateValidator(new TofuCertificateStore());
+        CertificateStore = new TofuCertificateStore();
+        CertificateValidator = new TofuCertificateValidator(CertificateStore);
         ServicePointManager.ServerCertificateValidationCallback = CertificateValidator.Validate;
         ServicePointManager.SecurityProtocol = TlsPolicy.AllowedSecurityProtocols;
         Session.UserAgent = "XCP-ng Center Shell/preview (.NET 8 Avalonia)";

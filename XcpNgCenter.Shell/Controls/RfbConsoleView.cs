@@ -20,6 +20,11 @@ public sealed class RfbConsoleView : Control
     public static readonly StyledProperty<HostedConsoleSession?> SessionProperty =
         AvaloniaProperty.Register<RfbConsoleView, HostedConsoleSession?>(nameof(Session));
 
+    public static readonly RoutedEvent<RoutedEventArgs> FocusCaptureChangedEvent =
+        RoutedEvent.Register<RfbConsoleView, RoutedEventArgs>(
+            nameof(FocusCaptureChanged),
+            RoutingStrategies.Bubble);
+
     private int _buttonMask;
     private readonly Dictionary<Key, int> _pressed = new();
     private HostedConsoleSession? _subscribedSession;
@@ -31,6 +36,12 @@ public sealed class RfbConsoleView : Control
         AffectsRender<RfbConsoleView>(FrameProperty, SessionProperty);
         FocusableProperty.OverrideDefaultValue<RfbConsoleView>(true);
         ClipToBoundsProperty.OverrideDefaultValue<RfbConsoleView>(true);
+    }
+
+    public event EventHandler<RoutedEventArgs> FocusCaptureChanged
+    {
+        add => AddHandler(FocusCaptureChangedEvent, value);
+        remove => RemoveHandler(FocusCaptureChangedEvent, value);
     }
 
     public WriteableBitmap? Frame
@@ -212,6 +223,12 @@ public sealed class RfbConsoleView : Control
             e.Handled = true;
     }
 
+    protected override void OnGotFocus(GotFocusEventArgs e)
+    {
+        base.OnGotFocus(e);
+        RaiseEvent(new RoutedEventArgs(FocusCaptureChangedEvent, this));
+    }
+
     protected override void OnLostFocus(RoutedEventArgs e)
     {
         base.OnLostFocus(e);
@@ -223,6 +240,8 @@ public sealed class RfbConsoleView : Control
             _buttonMask = 0;
             Session?.SendPointer(0, 0, 0);
         }
+
+        RaiseEvent(new RoutedEventArgs(FocusCaptureChangedEvent, this));
     }
 
     private bool SendKey(KeyEventArgs e, bool down)

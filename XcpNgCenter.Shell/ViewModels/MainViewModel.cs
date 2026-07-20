@@ -13,16 +13,28 @@ using XcpNgCenter.Shell.Services;
 
 namespace XcpNgCenter.Shell.ViewModels;
 
-public partial class MainViewModel : ViewModelBase
+public partial class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly HostedConsoleSession _consoleSession = new();
     private readonly SavedServerStore _savedServerStore = new();
+    private bool _disposed;
 
     public string BrandName => "XCP-ng Center";
 
     public string Tagline => "Manage pools, hosts, and VMs with a calmer console.";
 
     public HostedConsoleSession ConsoleSession => _consoleSession;
+
+    /// <summary>Windows DPAPI can store passwords; other platforms leave the checkbox disabled.</summary>
+    public bool CanPersistPasswords => SavedServerStore.CanPersistPasswords;
+
+    public string RememberPasswordLabel => CanPersistPasswords
+        ? "Remember password for this server (Windows DPAPI)"
+        : "Remember password (unavailable on this platform)";
+
+    public string PasswordVaultHint => CanPersistPasswords
+        ? "Passwords are encrypted with Windows DPAPI for the current user when remembered."
+        : "Password vault requires Windows DPAPI — hosts and usernames still save on this platform.";
 
     [ObservableProperty]
     private string _hostInput = string.Empty;
@@ -34,7 +46,7 @@ public partial class MainViewModel : ViewModelBase
     private string _password = string.Empty;
 
     [ObservableProperty]
-    private bool _rememberPassword = true;
+    private bool _rememberPassword;
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
@@ -68,6 +80,12 @@ public partial class MainViewModel : ViewModelBase
     public ObservableCollection<SavedServerEntry> SavedServers { get; } = new();
 
     public bool HasSavedServers => SavedServers.Count > 0;
+
+    public bool HasTrustedCertificates => ShellBootstrap.CertificateStore.Count > 0;
+
+    public string ClearPinsLabel => HasTrustedCertificates
+        ? $"Clear trusted certificates ({ShellBootstrap.CertificateStore.Count})"
+        : "Clear trusted certificates";
 
     public ObservableCollection<InfraTreeNode> InfrastructureRoots { get; } = new();
 
@@ -123,6 +141,9 @@ public partial class MainViewModel : ViewModelBase
     private string _consoleViewerStatus = string.Empty;
 
     [ObservableProperty]
+    private string _consoleInputHint = string.Empty;
+
+    [ObservableProperty]
     private bool _isConsoleConnecting;
 
     public bool HasConsoleFrame => ConsoleBitmap != null;
@@ -139,10 +160,67 @@ public partial class MainViewModel : ViewModelBase
 
     public MainViewModel()
     {
+        RememberPassword = CanPersistPasswords;
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
         SavedServers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSavedServers));
         _consoleSession.StateChanged += OnConsoleSessionStateChanged;
         LoadSavedServers();
+        RefreshTrustUi();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+
+        _consoleSession.StateChanged -= OnConsoleSessionStateChanged;
+        try
+        {
+            _consoleSession.Dispose();
+        }
+        catch
+        {
+            // Best-effort shutdown.
+        }
+
+        foreach (var server in Servers.ToList())
+        {
+            if (server.Connection is null)
+                continue;
+            try
+            {
+                server.Connection.EndConnect();
+            }
+            catch
+            {
+                // Best-effort disconnect on exit.
+            }
+
+            try
+            {
+                ConnectionsManager.ClearCacheAndRemoveConnection(server.Connection);
+            }
+            catch
+            {
+                // Ignore cleanup failures during shutdown.
+            }
+
+            server.Connection = null;
+        }
+    }
+
+    public void SetConsoleInputFocused(bool focused)
+    {
+        if (!HasConsoleFrame)
+        {
+            ConsoleInputHint = string.Empty;
+            return;
+        }
+
+        ConsoleInputHint = focused
+            ? "Keyboard and mouse captured by guest — click elsewhere to release."
+            : "Click the console to send keyboard and mouse to the guest.";
     }
 
     partial void OnHostInputChanged(string value)
@@ -228,7 +306,7 @@ public partial class MainViewModel : ViewModelBase
         StatusMessage = "Connecting…";
         IsBusy = true;
 
-        RememberServer(display, username, RememberPassword ? Password : null);
+        RememberServer(display, username, RememberPassword && CanPersistPasswords ? Password : null);
         BeginLiveConnect(node, host, port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT, username, Password);
         Password = string.Empty;
     }
@@ -255,6 +333,42 @@ public partial class MainViewModel : ViewModelBase
             Password = string.Empty;
             StatusMessage = "Saved server loaded — enter password and Connect.";
         }
+    }
+
+    [RelayCommand]
+    private void ForgetSavedPassword(SavedServerEntry? entry)
+    {
+        if (entry is null || !entry.HasSavedPassword)
+            return;
+
+        var address = entry.Address;
+        var username = entry.Username;
+        for (var i = SavedServers.Count - 1; i >= 0; i--)
+        {
+            if (string.Equals(SavedServers[i].Address, address, StringComparison.OrdinalIgnoreCase))
+                SavedServers.RemoveAt(i);
+        }
+
+        SavedServers.Insert(0, new SavedServerEntry(address, username, EncryptedPassword: null));
+        PersistSavedServers();
+        if (string.Equals(HostInput, address, StringComparison.OrdinalIgnoreCase))
+            Password = string.Empty;
+        StatusMessage = "Saved password forgotten.";
+    }
+
+    [RelayCommand]
+    private void ClearTrustedCertificates()
+    {
+        if (ShellBootstrap.CertificateStore.Count == 0)
+        {
+            StatusMessage = "No trusted certificates to clear.";
+            RefreshTrustUi();
+            return;
+        }
+
+        ShellBootstrap.CertificateStore.Clear();
+        RefreshTrustUi();
+        StatusMessage = "Trusted certificates cleared. Next connect will prompt again.";
     }
 
     [RelayCommand]
@@ -358,6 +472,12 @@ public partial class MainViewModel : ViewModelBase
     private void PersistSavedServers()
         => _savedServerStore.Save(SavedServers);
 
+    private void RefreshTrustUi()
+    {
+        OnPropertyChanged(nameof(HasTrustedCertificates));
+        OnPropertyChanged(nameof(ClearPinsLabel));
+    }
+
     private void BeginLiveConnect(ServerNode node, string host, int port, string username, string password)
     {
         var conn = new XenConnection
@@ -418,6 +538,7 @@ public partial class MainViewModel : ViewModelBase
             node.Status = "Connected — loading inventory…";
             if (!string.IsNullOrEmpty(ShellBootstrap.CertificateValidator.LastMessage))
                 StatusMessage = ShellBootstrap.CertificateValidator.LastMessage;
+            RefreshTrustUi();
             return;
         }
 
@@ -578,6 +699,7 @@ public partial class MainViewModel : ViewModelBase
                 _consoleSession.Stop();
                 ConsoleBitmap = null;
                 ConsoleViewerStatus = string.Empty;
+                ConsoleInputHint = string.Empty;
                 IsConsoleConnecting = false;
             }
             return;
@@ -591,6 +713,7 @@ public partial class MainViewModel : ViewModelBase
         ConsoleBitmap = null;
         IsConsoleConnecting = true;
         ConsoleViewerStatus = "Connecting to RFB console…";
+        ConsoleInputHint = string.Empty;
         _consoleSession.Start(live);
     }
 
@@ -607,6 +730,10 @@ public partial class MainViewModel : ViewModelBase
                               && !string.IsNullOrEmpty(_consoleSession.StatusMessage)
                               && _consoleSession.StatusMessage.Contains("Connecting", StringComparison.OrdinalIgnoreCase);
         OnPropertyChanged(nameof(HasConsoleFrame));
+        if (!HasConsoleFrame)
+            ConsoleInputHint = string.Empty;
+        else if (string.IsNullOrEmpty(ConsoleInputHint))
+            ConsoleInputHint = "Click the console to send keyboard and mouse to the guest.";
     }
 
     [RelayCommand]
@@ -687,6 +814,7 @@ public partial class MainViewModel : ViewModelBase
         _consoleSession.Stop();
         ConsoleBitmap = null;
         ConsoleViewerStatus = string.Empty;
+        ConsoleInputHint = string.Empty;
         IsConsoleConnecting = false;
     }
 
