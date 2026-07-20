@@ -5,7 +5,7 @@
         x:Class="XcpNgCenter.Shell.Views.VmMigrateWindow"
         x:DataType="vm:VmMigrateViewModel"
         Title="Migrate VM"
-        Width="480" Height="440"
+        Width="500" Height="460"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource Brush.BgDeep}">
   <Border Margin="16" Padding="20"
@@ -43,12 +43,12 @@
                       SelectedItem="{Binding SelectedStorage}"
                       PlaceholderText="Destination SR">
               <ComboBox.ItemTemplate>
-                <DataTemplate x:DataType="xena:SR">
-                  <TextBlock Text="{Binding name_label}" />
+                <DataTemplate x:DataType="vm:MigrateSrOption">
+                  <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
                 </DataTemplate>
               </ComboBox.ItemTemplate>
             </ComboBox>
-            <TextBlock Text="Optional when disks are already on shared storage — leave empty for live pool migrate. Required for local-storage VMs."
+            <TextBlock Text="Labels show shared vs host-local. Optional when disks are already on shared storage — leave empty for live pool migrate."
                        FontSize="11"
                        TextWrapping="Wrap"
                        Foreground="{StaticResource Brush.TextMuted}" />

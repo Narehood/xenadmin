@@ -10,6 +10,19 @@ using XcpNgCenter.Shell.Services;
 
 namespace XcpNgCenter.Shell.ViewModels;
 
+public sealed class MigrateSrOption
+{
+    public MigrateSrOption(SR sr, string label)
+    {
+        Sr = sr;
+        Label = label;
+    }
+
+    public SR Sr { get; }
+    public string Label { get; }
+    public override string ToString() => Label;
+}
+
 public partial class VmMigrateViewModel : ViewModelBase
 {
     private readonly VM _vm;
@@ -40,26 +53,7 @@ public partial class VmMigrateViewModel : ViewModelBase
         }
 
         SelectedHost = Hosts.FirstOrDefault();
-
-        foreach (var sr in vm.Connection.Cache.SRs
-                     .Where(sr => sr != null
-                                  && !sr.IsToolsSR()
-                                  && sr.SupportsVdiCreate()
-                                  && sr.PBDs.Count > 0
-                                  && !sr.IsBroken()
-                                  && (sr.shared || NeedsStorageMigrate))
-                     .OrderByDescending(sr => sr.shared)
-                     .ThenBy(sr => Helpers.GetName(sr), StringComparer.OrdinalIgnoreCase))
-        {
-            StorageRepositories.Add(sr);
-        }
-
-        // Prefer a shared SR when storage migrate is required; otherwise leave unset for live pool migrate.
-        if (NeedsStorageMigrate || !CanPoolMigrate)
-        {
-            SelectedStorage = StorageRepositories.FirstOrDefault(sr => sr.shared)
-                              ?? StorageRepositories.FirstOrDefault();
-        }
+        RefreshStorageOptions();
 
         ShowStoragePicker = NeedsStorageMigrate || CanStorageMigrate;
         RequireStorage = NeedsStorageMigrate || !CanPoolMigrate;
@@ -67,8 +61,8 @@ public partial class VmMigrateViewModel : ViewModelBase
         if (NeedsStorageMigrate)
         {
             Hint = resident == null
-                ? "This VM uses local storage. Choose a destination host and a shared (or target-local) SR."
-                : $"Currently on {resident.Name()} with local disks. Choose a host and destination SR.";
+                ? "This VM uses local storage. Choose a destination host and an SR visible to that host."
+                : $"Currently on {resident.Name()} with local disks. Choose a host and a destination SR (shared, or local on the target).";
         }
         else
         {
@@ -79,7 +73,7 @@ public partial class VmMigrateViewModel : ViewModelBase
     }
 
     public ObservableCollection<Host> Hosts { get; } = new();
-    public ObservableCollection<SR> StorageRepositories { get; } = new();
+    public ObservableCollection<MigrateSrOption> StorageRepositories { get; } = new();
 
     public string Hint { get; }
     public bool NeedsStorageMigrate { get; }
@@ -92,10 +86,61 @@ public partial class VmMigrateViewModel : ViewModelBase
     private Host? _selectedHost;
 
     [ObservableProperty]
-    private SR? _selectedStorage;
+    private MigrateSrOption? _selectedStorage;
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
+
+    partial void OnSelectedHostChanged(Host? value) => RefreshStorageOptions();
+
+    private void RefreshStorageOptions()
+    {
+        StorageRepositories.Clear();
+        SelectedStorage = null;
+
+        var target = SelectedHost;
+        var srs = _vm.Connection.Cache.SRs
+            .Where(sr => sr != null
+                         && !sr.IsToolsSR()
+                         && sr.SupportsVdiCreate()
+                         && sr.PBDs.Count > 0
+                         && !sr.IsBroken()
+                         && (sr.shared || NeedsStorageMigrate || CanStorageMigrate))
+            .Where(sr => target == null || SrVisibleToHost(sr, target))
+            .OrderByDescending(sr => sr.shared)
+            .ThenBy(sr => Helpers.GetName(sr), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var sr in srs)
+            StorageRepositories.Add(new MigrateSrOption(sr, FormatSrLabel(sr)));
+
+        if (RequireStorage || NeedsStorageMigrate || !CanPoolMigrate)
+        {
+            SelectedStorage = StorageRepositories.FirstOrDefault(o => o.Sr.shared)
+                              ?? StorageRepositories.FirstOrDefault();
+        }
+    }
+
+    private static bool SrVisibleToHost(SR sr, Host host)
+    {
+        if (sr.shared)
+            return sr.CanBeSeenFrom(host) || host.Connection.ResolveAll(sr.PBDs).Any(p => p.currently_attached);
+
+        var storageHost = sr.GetStorageHost();
+        return storageHost != null && storageHost.opaque_ref == host.opaque_ref;
+    }
+
+    private static string FormatSrLabel(SR sr)
+    {
+        var name = Helpers.GetName(sr);
+        if (sr.shared)
+            return $"{name} · shared";
+
+        var host = sr.GetStorageHost();
+        return host != null
+            ? $"{name} · {host.Name()}"
+            : $"{name} · local";
+    }
 
     [RelayCommand]
     private void Migrate()
@@ -125,7 +170,7 @@ public partial class VmMigrateViewModel : ViewModelBase
                 return;
             }
 
-            StartStorageMigrate(SelectedHost, SelectedStorage);
+            StartStorageMigrate(SelectedHost, SelectedStorage.Sr);
             return;
         }
 
@@ -164,16 +209,20 @@ public partial class VmMigrateViewModel : ViewModelBase
             return;
         }
 
-        foreach (var vif in _vm.Connection.ResolveAll(_vm.VIFs))
+        // Intra-pool migrate_send forbids a VIF map — leave VIFs empty when same connection.
+        var intraPool = ReferenceEquals(_vm.Connection, host.Connection);
+        if (!intraPool)
         {
-            if (string.IsNullOrEmpty(vif.MAC))
-                continue;
-            var network = _vm.Connection.Resolve(vif.network);
-            if (network != null)
-                mapping.VIFs[vif.MAC] = network;
+            foreach (var vif in _vm.Connection.ResolveAll(_vm.VIFs))
+            {
+                if (string.IsNullOrEmpty(vif.MAC))
+                    continue;
+                var network = _vm.Connection.Resolve(vif.network);
+                if (network != null)
+                    mapping.VIFs[vif.MAC] = network;
+            }
         }
 
-        // Same-pool storage migrate: use management network on the target host's connection.
         var transfer = host.Connection.Cache.Networks.FirstOrDefault(n =>
         {
             var pifs = host.Connection.ResolveAll(n.PIFs);

@@ -317,7 +317,7 @@
         <Grid IsVisible="{Binding ShowInfrastructure}" Margin="28,24,28,16" RowDefinitions="*,Auto">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                         VerticalScrollBarVisibility="Auto"
-                        Padding="4,0,8,0">
+                        Padding="12,0,12,0">
             <StackPanel Spacing="12">
               <StackPanel Spacing="6">
                 <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
@@ -339,8 +339,29 @@
                 <TextBlock Text="Right-click a pool, host, or VM in the tree for actions."
                            FontSize="12"
                            Foreground="{StaticResource Brush.TextMuted}"
-                           Opacity="0.85" />
+                           Opacity="0.85"
+                           IsVisible="{Binding !ShowVmActionBar}" />
               </StackPanel>
+
+              <WrapPanel Orientation="Horizontal"
+                         IsVisible="{Binding ShowVmActionBar}">
+                <Button Classes="ghost" Content="Start" Margin="0,0,8,6" Command="{Binding StartVmCommand}" />
+                <Button Classes="ghost" Content="Shutdown" Margin="0,0,8,6" Command="{Binding ShutdownVmCommand}" />
+                <Button Classes="ghost" Content="Reboot" Margin="0,0,8,6" Command="{Binding RebootVmCommand}" />
+                <Button Classes="ghost" Content="Suspend" Margin="0,0,8,6" Command="{Binding SuspendVmCommand}" />
+                <Button Classes="ghost" Content="Resume" Margin="0,0,8,6" Command="{Binding ResumeVmCommand}" />
+                <Button Classes="ghost" Content="Force shutdown" Margin="0,0,8,6" Command="{Binding ForceShutdownVmCommand}" />
+                <Button Classes="ghost" Content="Force reboot" Margin="0,0,8,6" Command="{Binding ForceRebootVmCommand}" />
+                <Button Classes="ghost" Content="Properties…" Margin="0,0,8,6" Command="{Binding EditVmCommand}" />
+                <Button Classes="ghost" Content="Clone…" Margin="0,0,8,6" Command="{Binding CloneVmCommand}" />
+                <Button Classes="ghost" Content="Copy…" Margin="0,0,8,6" Command="{Binding CopyVmCommand}" />
+                <Button Classes="ghost" Content="Migrate…" Margin="0,0,8,6" Command="{Binding MigrateVmCommand}" />
+                <Button Classes="ghost" Content="Cross-pool…" Margin="0,0,8,6" Command="{Binding CrossPoolMigrateVmCommand}" />
+                <Button Classes="ghost" Content="Move…" Margin="0,0,8,6" Command="{Binding MoveVmCommand}" />
+                <Button Classes="ghost" Content="Delete…" Margin="0,0,8,6" Command="{Binding DeleteVmCommand}" />
+                <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6" Command="{Binding AttachIsoCommand}" />
+                <Button Classes="ghost" Content="Eject ISO" Margin="0,0,8,6" Command="{Binding EjectIsoCommand}" />
+              </WrapPanel>
 
               <TabControl Margin="0,4,0,0">
                 <TabControl.Styles>

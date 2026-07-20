@@ -362,10 +362,15 @@ public sealed class RfbConsoleView : Control
 
         desk = new PixelSize(dw, dh);
         var scale = Math.Min(Bounds.Width / dw, Bounds.Height / dh);
-        var w = dw * scale;
-        var h = dh * scale;
-        var x = (Bounds.Width - w) / 2;
-        var y = (Bounds.Height - h) / 2;
+        var w = Math.Floor(dw * scale);
+        var h = Math.Floor(dh * scale);
+        // Keep the fitted rect fully inside bounds so ClipToBounds does not shave the first column/row.
+        var x = Math.Max(0, Math.Floor((Bounds.Width - w) / 2));
+        var y = Math.Max(0, Math.Floor((Bounds.Height - h) / 2));
+        if (x + w > Bounds.Width)
+            w = Math.Max(0, Math.Floor(Bounds.Width - x));
+        if (y + h > Bounds.Height)
+            h = Math.Max(0, Math.Floor(Bounds.Height - y));
         dest = new Rect(x, y, w, h);
         return true;
     }

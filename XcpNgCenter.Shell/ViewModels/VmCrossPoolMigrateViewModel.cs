@@ -88,7 +88,7 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
         }
 
         SelectedHost = Hosts.FirstOrDefault();
-        Hint = "Uses VM.migrate_send (cross-pool or storage migration). Map each disk to a destination SR and each VIF to a destination network. Connect the destination pool first.";
+        Hint = "Uses VM.migrate_send. For same-pool storage migrate, VIFs stay on their networks. Cross-pool requires per-disk SR and per-VIF network maps.";
         RefreshDestinationOptions();
     }
 
@@ -101,6 +101,9 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
 
     public bool HasDiskMaps => DiskMaps.Count > 0;
     public bool HasVifMaps => VifMaps.Count > 0;
+    public bool IsIntraPoolTarget =>
+        SelectedHost?.Host.Connection != null
+        && ReferenceEquals(_vm.Connection, SelectedHost.Host.Connection);
 
     [ObservableProperty]
     private CrossPoolHostOption? _selectedHost;
@@ -193,19 +196,24 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
             DiskMaps.Add(new CrossPoolDiskMapRow(vdi, label, srs, ApplyAllStorage));
         }
 
-        foreach (var vif in _vm.Connection.ResolveAll(_vm.VIFs)
-                     .OrderBy(v => v.device, StringComparer.OrdinalIgnoreCase))
+        // Intra-pool migrate_send rejects VIF maps — only collect them for true cross-pool moves.
+        if (!IsIntraPoolTarget)
         {
-            if (string.IsNullOrEmpty(vif.MAC))
-                continue;
-            var net = _vm.Connection.Resolve(vif.network);
-            var src = net != null ? Helpers.GetName(net) : "—";
-            var label = $"device {vif.device} · {vif.MAC} (from {src})";
-            VifMaps.Add(new CrossPoolVifMapRow(vif, label, networks, ApplyAllNetwork));
+            foreach (var vif in _vm.Connection.ResolveAll(_vm.VIFs)
+                         .OrderBy(v => v.device, StringComparer.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrEmpty(vif.MAC))
+                    continue;
+                var net = _vm.Connection.Resolve(vif.network);
+                var src = net != null ? Helpers.GetName(net) : "—";
+                var label = $"device {vif.device} · {vif.MAC} (from {src})";
+                VifMaps.Add(new CrossPoolVifMapRow(vif, label, networks, ApplyAllNetwork));
+            }
         }
 
         OnPropertyChanged(nameof(HasDiskMaps));
         OnPropertyChanged(nameof(HasVifMaps));
+        OnPropertyChanged(nameof(IsIntraPoolTarget));
     }
 
     [RelayCommand]
@@ -253,12 +261,6 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
             return;
         }
 
-        if (VifMaps.Any(v => v.SelectedNetwork == null))
-        {
-            StatusMessage = "Map every VIF to a destination network.";
-            return;
-        }
-
         var mapping = new VmMapping(_vm.opaque_ref)
         {
             VmNameLabel = _vm.name_label ?? string.Empty,
@@ -269,8 +271,19 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
         foreach (var row in DiskMaps)
             mapping.Storage[row.Vdi.opaque_ref] = row.SelectedStorage!;
 
-        foreach (var row in VifMaps)
-            mapping.VIFs[row.Vif.MAC] = row.SelectedNetwork!;
+        // Intra-pool migrate_send forbids a non-empty VIF map.
+        var intraPool = ReferenceEquals(_vm.Connection, SelectedHost.Host.Connection);
+        if (!intraPool)
+        {
+            if (VifMaps.Any(v => v.SelectedNetwork == null))
+            {
+                StatusMessage = "Map every VIF to a destination network.";
+                return;
+            }
+
+            foreach (var row in VifMaps)
+                mapping.VIFs[row.Vif.MAC] = row.SelectedNetwork!;
+        }
 
         var action = new VMCrossPoolMigrateAction(
             _vm,
