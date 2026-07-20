@@ -70,8 +70,7 @@ public partial class MainViewModel
 
     public bool ShowVmActionBar => SelectedVm != null;
 
-    public bool ShowPoolStorageActions =>
-        SelectedInfraNode is { Kind: InfraNodeKind.Pool or InfraNodeKind.Host, Server.Connection.IsConnected: true };
+    public bool ShowPoolStorageActions => SelectedConnection is { IsConnected: true };
 
     public bool CanStartVm => SelectedVm?.power_state is vm_power_state.Halted or vm_power_state.Suspended;
 
@@ -100,9 +99,16 @@ public partial class MainViewModel
         && (ops.Contains(vm_operations.copy) || ops.Contains(vm_operations.clone));
 
     public bool CanMigrateVm =>
-        SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Running, allowed_operations: { } ops }
-        && ops.Contains(vm_operations.pool_migrate)
-        && SelectedVm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()) > 1;
+        SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Running, allowed_operations: { } ops } vm
+        && (
+            (ops.Contains(vm_operations.pool_migrate)
+             && vm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()) > 1)
+            || (ops.Contains(vm_operations.migrate_send)
+                && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI())
+                && vm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()
+                                                       && (vm.resident_on == null
+                                                           || h.opaque_ref != vm.resident_on.opaque_ref)) > 0)
+        );
 
     public bool CanCrossPoolMigrateVm =>
         SelectedVm is { is_a_template: false, Locked: false, allowed_operations: { } ops } vm
@@ -124,6 +130,16 @@ public partial class MainViewModel
         && ops.Contains(vm_operations.destroy);
 
     public bool CanAttachIso => SelectedVm != null;
+
+    public bool ShowVmContextActions => SelectedVm != null;
+
+    public bool ShowPoolContextActions =>
+        SelectedInfraNode is { Kind: InfraNodeKind.Pool or InfraNodeKind.Host, Server.Connection.IsConnected: true };
+
+    public bool CanAddServer => true;
+
+    public bool CanDisconnectSelected =>
+        (SelectedInfraNode?.Server ?? SelectedServer)?.Connection != null;
 
     public bool ShowEmbeddedConsole => HasConsoleFrame && !IsConsolePoppedOut;
 
@@ -209,6 +225,9 @@ public partial class MainViewModel
         SelectedVm = vm;
         NotifyVmPowerCanExecuteChanged();
         OnPropertyChanged(nameof(ShowPoolStorageActions));
+        OnPropertyChanged(nameof(ShowVmContextActions));
+        OnPropertyChanged(nameof(ShowPoolContextActions));
+        OnPropertyChanged(nameof(CanDisconnectSelected));
         OnPropertyChanged(nameof(ShowEmbeddedConsole));
         OnPropertyChanged(nameof(ShowConsoleReattach));
     }
@@ -231,6 +250,10 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanDeleteVm));
         OnPropertyChanged(nameof(CanAttachIso));
         OnPropertyChanged(nameof(ShowVmActionBar));
+        OnPropertyChanged(nameof(ShowVmContextActions));
+        OnPropertyChanged(nameof(ShowPoolContextActions));
+        OnPropertyChanged(nameof(ShowPoolStorageActions));
+        OnPropertyChanged(nameof(CanDisconnectSelected));
         StartVmCommand.NotifyCanExecuteChanged();
         ShutdownVmCommand.NotifyCanExecuteChanged();
         ForceShutdownVmCommand.NotifyCanExecuteChanged();
@@ -246,6 +269,7 @@ public partial class MainViewModel
         MoveVmCommand.NotifyCanExecuteChanged();
         DeleteVmCommand.NotifyCanExecuteChanged();
         AttachIsoCommand.NotifyCanExecuteChanged();
+        DisconnectSelectedCommand.NotifyCanExecuteChanged();
     }
 
     private static VM? ResolveVm(InfraTreeNode? node)
@@ -377,6 +401,17 @@ public partial class MainViewModel
             await wizard.ShowDialog(owner);
         else
             wizard.Show();
+    }
+
+    [RelayCommand]
+    private async Task AddServerAsync()
+    {
+        var owner = GetMainWindow();
+        var dialog = new AddServerWindow(this);
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
     }
 
     [RelayCommand(CanExecute = nameof(CanEditVm))]

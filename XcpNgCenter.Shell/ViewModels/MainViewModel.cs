@@ -280,39 +280,43 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void Connect()
     {
-        var raw = HostInput.Trim();
+        var error = TryBeginConnect(HostInput, Username, Password, RememberPassword);
+        if (error != null)
+            StatusMessage = error;
+    }
+
+    /// <summary>
+    /// Starts a live connect. Returns an error message, or null when the connect was queued.
+    /// </summary>
+    public string? TryBeginConnect(string hostInput, string usernameInput, string password, bool rememberPassword)
+    {
+        var raw = hostInput.Trim();
         if (string.IsNullOrEmpty(raw))
-        {
-            StatusMessage = "Enter a hostname or IP address.";
-            return;
-        }
+            return "Enter a hostname or IP address.";
 
         if (!HostnameAddressClassifier.TryParseHostPort(raw, out var host, out var port))
-        {
-            StatusMessage = "That does not look like a valid host.";
-            return;
-        }
+            return "That does not look like a valid host.";
 
-        if (string.IsNullOrWhiteSpace(Username))
-        {
-            StatusMessage = "Enter a username.";
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(usernameInput))
+            return "Enter a username.";
 
-        if (ShowPublicIpWarning && !AcknowledgePublicIp)
-        {
-            StatusMessage = "Acknowledge the public-IP warning before connecting.";
-            return;
-        }
+        var isPublic = HostnameAddressClassifier.IsPublicIp(host);
+        if (isPublic && ShowWelcome && ShowPublicIpWarning && !AcknowledgePublicIp)
+            return "Acknowledge the public-IP warning before connecting.";
 
+        // Avoid duplicate live connections to the same address.
         var display = port > 0 ? $"{host}:{port}" : host;
-        var username = Username.Trim();
+        if (Servers.Any(s => s.IsConnected
+                             && string.Equals(s.Address, display, StringComparison.OrdinalIgnoreCase)))
+            return $"Already connected to {display}.";
+
+        var username = usernameInput.Trim();
         var node = new ServerNode
         {
             Name = host,
             Address = display,
             Status = "Connecting…",
-            IsPublicIp = HostnameAddressClassifier.IsPublicIp(host),
+            IsPublicIp = isPublic,
             IsConnecting = true,
             Username = username
         };
@@ -322,12 +326,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         HostInput = string.Empty;
         ShowPublicIpWarning = false;
         AcknowledgePublicIp = false;
-        StatusMessage = "Connecting…";
+        StatusMessage = $"Connecting to {display}…";
         IsBusy = true;
 
-        RememberServer(display, username, RememberPassword && CanPersistPasswords ? Password : null);
-        BeginLiveConnect(node, host, port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT, username, Password);
+        RememberServer(display, username, rememberPassword && CanPersistPasswords ? password : null);
+        BeginLiveConnect(node, host, port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT, username, password);
         Password = string.Empty;
+        return null;
     }
 
     [RelayCommand]
@@ -390,7 +395,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         StatusMessage = "Trusted certificates cleared. Next connect will prompt again.";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanDisconnectSelected))]
     private void DisconnectSelected()
     {
         var server = SelectedInfraNode?.Server ?? SelectedServer;

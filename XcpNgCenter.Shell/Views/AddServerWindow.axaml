@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.AddServerWindow"
+        x:DataType="vm:AddServerViewModel"
+        Title="Add server"
+        Width="440"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <StackPanel Spacing="12">
+      <TextBlock Text="Add server / pool" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="Connect another host or pool. Existing connections stay open."
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <TextBox Watermark="host.example or 10.0.0.5" Text="{Binding HostInput}" />
+      <TextBox Watermark="Username" Text="{Binding Username}" />
+      <TextBox Watermark="Password" Text="{Binding Password}" PasswordChar="•" />
+      <CheckBox IsChecked="{Binding RememberPassword}"
+                IsEnabled="{Binding CanPersistPasswords}"
+                Content="{Binding RememberPasswordLabel}" />
+      <TextBlock Text="{Binding StatusMessage}"
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}"
+                 IsVisible="{Binding StatusMessage.Length}" />
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,8,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Connect" IsDefault="True" Command="{Binding ConnectCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

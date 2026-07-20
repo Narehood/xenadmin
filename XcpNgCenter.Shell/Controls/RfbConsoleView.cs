@@ -176,6 +176,8 @@ public sealed class RfbConsoleView : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        if (!IsFocused)
+            return;
         UpdateButtons(e, pressed: false);
         SendPointer(e.GetPosition(this));
         if (_buttonMask == 0)
@@ -186,6 +188,9 @@ public sealed class RfbConsoleView : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        if (!IsFocused)
+            return;
+
         var pos = e.GetPosition(this);
         var over = TryMapToFramebuffer(pos, out _, out _);
         if (over != _pointerOverDesktop)
@@ -206,12 +211,18 @@ public sealed class RfbConsoleView : Control
         base.OnPointerExited(e);
         _pointerOverDesktop = false;
         UpdatePointerCursor();
+        if (!IsFocused)
+            return;
         _buttonMask = 0;
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
+        // Let page ScrollViewer keep scrolling until the console is clicked/focused.
+        if (!IsFocused)
+            return;
+
         if (!TryMapToFramebuffer(e.GetPosition(this), out var x, out var y))
             return;
 
@@ -225,6 +236,8 @@ public sealed class RfbConsoleView : Control
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        if (!IsFocused)
+            return;
         if (SendKey(e, down: true))
             e.Handled = true;
     }
@@ -232,6 +245,8 @@ public sealed class RfbConsoleView : Control
     protected override void OnKeyUp(KeyEventArgs e)
     {
         base.OnKeyUp(e);
+        if (!IsFocused)
+            return;
         if (SendKey(e, down: false))
             e.Handled = true;
     }

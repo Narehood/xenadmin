@@ -54,7 +54,7 @@
               BorderThickness="0,0,1,0"
               Padding="20">
         <Grid RowDefinitions="Auto,*,Auto">
-          <StackPanel Spacing="8" Margin="0,4,0,20">
+          <StackPanel Spacing="8" Margin="0,4,0,16">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
                      Width="40" Height="40"
@@ -70,6 +70,19 @@
                            Foreground="{StaticResource Brush.BrandOrange}" />
               </StackPanel>
             </StackPanel>
+
+            <WrapPanel Orientation="Horizontal" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
+              <Button Classes="ghost" Content="New VM" Margin="0,0,8,6"
+                      Command="{Binding NewVmCommand}" />
+              <Button Classes="ghost" Content="New SR" Margin="0,0,8,6"
+                      Command="{Binding NewSrCommand}"
+                      IsVisible="{Binding ShowPoolStorageActions}" />
+              <Button Classes="ghost" Content="Add server" Margin="0,0,8,6"
+                      Command="{Binding AddServerCommand}" />
+              <Button Classes="ghost" Content="Disconnect" Margin="0,0,8,6"
+                      Command="{Binding DisconnectSelectedCommand}"
+                      IsEnabled="{Binding CanDisconnectSelected}" />
+            </WrapPanel>
           </StackPanel>
 
           <Grid Grid.Row="1" RowDefinitions="Auto,*">
@@ -82,7 +95,48 @@
             <TreeView Grid.Row="1"
                       IsVisible="{Binding ShowInfrastructure}"
                       ItemsSource="{Binding InfrastructureRoots}"
-                      SelectedItem="{Binding SelectedInfraNode, Mode=TwoWay}">
+                      SelectedItem="{Binding SelectedInfraNode, Mode=TwoWay}"
+                      PointerPressed="OnInfraTreePointerPressed">
+              <TreeView.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="New VM…"
+                            Command="{Binding NewVmCommand}"
+                            IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="New SR…"
+                            Command="{Binding NewSrCommand}"
+                            IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="Refresh storage"
+                            Command="{Binding RefreshStorageCommand}"
+                            IsVisible="{Binding ShowPoolContextActions}" />
+                  <Separator IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="Disconnect"
+                            Command="{Binding DisconnectSelectedCommand}"
+                            IsVisible="{Binding CanDisconnectSelected}" />
+                  <MenuItem Header="Remove"
+                            Command="{Binding RemoveSelectedCommand}"
+                            IsVisible="{Binding CanDisconnectSelected}" />
+
+                  <Separator IsVisible="{Binding ShowVmContextActions}" />
+                  <MenuItem Header="Start" Command="{Binding StartVmCommand}" IsVisible="{Binding CanStartVm}" />
+                  <MenuItem Header="Shutdown" Command="{Binding ShutdownVmCommand}" IsVisible="{Binding CanShutdownVm}" />
+                  <MenuItem Header="Reboot" Command="{Binding RebootVmCommand}" IsVisible="{Binding CanRebootVm}" />
+                  <MenuItem Header="Suspend" Command="{Binding SuspendVmCommand}" IsVisible="{Binding CanSuspendVm}" />
+                  <MenuItem Header="Resume" Command="{Binding ResumeVmCommand}" IsVisible="{Binding CanResumeVm}" />
+                  <MenuItem Header="Force shutdown" Command="{Binding ForceShutdownVmCommand}" IsVisible="{Binding CanForceShutdownVm}" />
+                  <MenuItem Header="Force reboot" Command="{Binding ForceRebootVmCommand}" IsVisible="{Binding CanForceRebootVm}" />
+                  <Separator IsVisible="{Binding ShowVmContextActions}" />
+                  <MenuItem Header="Properties…" Command="{Binding EditVmCommand}" IsVisible="{Binding CanEditVm}" />
+                  <MenuItem Header="Clone…" Command="{Binding CloneVmCommand}" IsVisible="{Binding CanCloneVm}" />
+                  <MenuItem Header="Copy…" Command="{Binding CopyVmCommand}" IsVisible="{Binding CanCopyVm}" />
+                  <MenuItem Header="Migrate…" Command="{Binding MigrateVmCommand}" IsVisible="{Binding CanMigrateVm}" />
+                  <MenuItem Header="Cross-pool…" Command="{Binding CrossPoolMigrateVmCommand}" IsVisible="{Binding CanCrossPoolMigrateVm}" />
+                  <MenuItem Header="Move…" Command="{Binding MoveVmCommand}" IsVisible="{Binding CanMoveVm}" />
+                  <MenuItem Header="Delete…" Command="{Binding DeleteVmCommand}" IsVisible="{Binding CanDeleteVm}" />
+                  <Separator IsVisible="{Binding ShowVmContextActions}" />
+                  <MenuItem Header="Attach ISO…" Command="{Binding AttachIsoCommand}" IsVisible="{Binding CanAttachIso}" />
+                  <MenuItem Header="Eject ISO" Command="{Binding EjectIsoCommand}" IsVisible="{Binding CanAttachIso}" />
+                </ContextMenu>
+              </TreeView.ContextMenu>
               <TreeView.ItemTemplate>
                 <TreeDataTemplate ItemsSource="{Binding Children}"
                                   DataType="vm:InfraTreeNode">
@@ -261,34 +315,13 @@
         </Grid>
 
         <Grid IsVisible="{Binding ShowInfrastructure}" Margin="40,36" RowDefinitions="Auto,*,Auto">
-          <DockPanel Margin="0,0,0,24">
-            <StackPanel DockPanel.Dock="Left" Spacing="6">
-              <TextBlock Text="{Binding BrandName}"
-                         FontSize="28"
-                         FontWeight="Bold" />
-              <TextBlock Text="Infrastructure"
-                         Foreground="{StaticResource Brush.TextMuted}" />
-            </StackPanel>
-            <StackPanel DockPanel.Dock="Right"
-                        Orientation="Horizontal"
-                        Spacing="10"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center">
-              <Button Classes="ghost"
-                      Content="New VM"
-                      Command="{Binding NewVmCommand}" />
-              <Button Classes="ghost"
-                      Content="New SR"
-                      Command="{Binding NewSrCommand}"
-                      IsVisible="{Binding ShowPoolStorageActions}" />
-              <Button Classes="ghost"
-                      Content="Disconnect"
-                      Command="{Binding DisconnectSelectedCommand}" />
-              <Button Classes="ghost"
-                      Content="Remove"
-                      Command="{Binding RemoveSelectedCommand}" />
-            </StackPanel>
-          </DockPanel>
+          <StackPanel Spacing="6" Margin="0,0,0,24">
+            <TextBlock Text="{Binding BrandName}"
+                       FontSize="28"
+                       FontWeight="Bold" />
+            <TextBlock Text="Infrastructure"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
 
           <Border Grid.Row="1"
                   Background="#66161C22"
@@ -318,32 +351,11 @@
                            TextWrapping="Wrap"
                            Foreground="{StaticResource Brush.TextMuted}"
                            IsVisible="{Binding ActionStatusMessage.Length}" />
+                <TextBlock Text="Right-click a pool, host, or VM in the tree for actions."
+                           FontSize="12"
+                           Foreground="{StaticResource Brush.TextMuted}"
+                           Opacity="0.85" />
               </StackPanel>
-
-              <WrapPanel Orientation="Horizontal"
-                         IsVisible="{Binding ShowVmActionBar}">
-                <Button Classes="ghost" Content="Start" Margin="0,0,8,6" Command="{Binding StartVmCommand}" />
-                <Button Classes="ghost" Content="Shutdown" Margin="0,0,8,6" Command="{Binding ShutdownVmCommand}" />
-                <Button Classes="ghost" Content="Reboot" Margin="0,0,8,6" Command="{Binding RebootVmCommand}" />
-                <Button Classes="ghost" Content="Suspend" Margin="0,0,8,6" Command="{Binding SuspendVmCommand}" />
-                <Button Classes="ghost" Content="Resume" Margin="0,0,8,6" Command="{Binding ResumeVmCommand}" />
-                <Button Classes="ghost" Content="Force shutdown" Margin="0,0,8,6" Command="{Binding ForceShutdownVmCommand}" />
-                <Button Classes="ghost" Content="Force reboot" Margin="0,0,8,6" Command="{Binding ForceRebootVmCommand}" />
-                <Button Classes="ghost" Content="Properties…" Margin="0,0,8,6" Command="{Binding EditVmCommand}" />
-                <Button Classes="ghost" Content="Clone…" Margin="0,0,8,6" Command="{Binding CloneVmCommand}" />
-                <Button Classes="ghost" Content="Copy…" Margin="0,0,8,6" Command="{Binding CopyVmCommand}" />
-                <Button Classes="ghost" Content="Migrate…" Margin="0,0,8,6" Command="{Binding MigrateVmCommand}" />
-                <Button Classes="ghost" Content="Cross-pool…" Margin="0,0,8,6" Command="{Binding CrossPoolMigrateVmCommand}" />
-                <Button Classes="ghost" Content="Move…" Margin="0,0,8,6" Command="{Binding MoveVmCommand}" />
-                <Button Classes="ghost" Content="Delete…" Margin="0,0,8,6" Command="{Binding DeleteVmCommand}" />
-                <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6" Command="{Binding AttachIsoCommand}" />
-                <Button Classes="ghost" Content="Eject ISO" Margin="0,0,8,6" Command="{Binding EjectIsoCommand}" />
-              </WrapPanel>
-
-              <WrapPanel Orientation="Horizontal"
-                         IsVisible="{Binding ShowPoolStorageActions}">
-                <Button Classes="ghost" Content="Refresh storage" Margin="0,0,8,6" Command="{Binding RefreshStorageCommand}" />
-              </WrapPanel>
 
               <TabControl Margin="0,4,0,0">
                 <TabControl.Styles>
@@ -739,7 +751,7 @@
                                                  ClipToBounds="True"
                                                  Frame="{Binding ConsoleBitmap}"
                                                  Session="{Binding ConsoleSession}"
-                                                 ToolTip.Tip="Click to focus — keyboard and mouse are sent to the guest"
+                                                 ToolTip.Tip="Click the console to capture keyboard, mouse, and scroll — until then the page keeps scrolling"
                                                  FocusCaptureChanged="OnConsoleFocusCaptureChanged" />
                       </Grid>
                     </Border>
