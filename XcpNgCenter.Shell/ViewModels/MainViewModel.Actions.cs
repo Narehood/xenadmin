@@ -40,6 +40,8 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanForceShutdownVm))]
     [NotifyPropertyChangedFor(nameof(CanForceRebootVm))]
     [NotifyPropertyChangedFor(nameof(CanEditVm))]
+    [NotifyPropertyChangedFor(nameof(CanCloneVm))]
+    [NotifyPropertyChangedFor(nameof(CanDeleteVm))]
     [NotifyPropertyChangedFor(nameof(CanAttachIso))]
     [NotifyPropertyChangedFor(nameof(ShowPoolStorageActions))]
     [NotifyCanExecuteChangedFor(nameof(StartVmCommand))]
@@ -50,6 +52,8 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(SuspendVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(ResumeVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(EditVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CloneVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(AttachIsoCommand))]
     private VM? _selectedVm;
 
@@ -78,6 +82,14 @@ public partial class MainViewModel
         SelectedVm?.power_state is vm_power_state.Running or vm_power_state.Paused;
 
     public bool CanEditVm => SelectedVm != null;
+
+    public bool CanCloneVm =>
+        SelectedVm is { is_a_template: false, Locked: false, allowed_operations: { } ops }
+        && ops.Contains(vm_operations.clone);
+
+    public bool CanDeleteVm =>
+        SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted, allowed_operations: { } ops }
+        && ops.Contains(vm_operations.destroy);
 
     public bool CanAttachIso => SelectedVm != null;
 
@@ -305,7 +317,47 @@ public partial class MainViewModel
             return;
 
         var owner = GetMainWindow();
-        var dialog = new VmEditWindow(SelectedVm);
+        var dialog = new VmPropertiesWindow(SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCloneVm))]
+    private async Task CloneVmAsync()
+    {
+        if (SelectedVm == null)
+            return;
+
+        var owner = GetMainWindow();
+        var dialog = new VmCloneWindow(SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteVm))]
+    private async Task DeleteVmAsync()
+    {
+        if (SelectedVm == null)
+            return;
+
+        var owner = GetMainWindow();
+        var dialog = new VmDeleteWindow(SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
         if (owner != null)
             await dialog.ShowDialog(owner);
         else

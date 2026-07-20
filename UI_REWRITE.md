@@ -52,7 +52,9 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - CI: self-contained `win-x64` and `linux-x64` publish artifacts
 - **Phase 1 parity:** `ShellActionRunner` + Logs/Tasks tab (`ConnectionsManager.History`)
 - VM action bar: start / shutdown / reboot / suspend / resume / force variants (wraps on narrow widths)
-- Avalonia New VM wizard (`CreateVMAction`) and basic Edit (rename / CPU / memory — full Properties later)
+- Avalonia New VM wizard (`CreateVMAction`)
+- **Full VM Properties** (General name/description/tags, CPU/memory, boot, HA/startup, home server, GPU, USB)
+- **Clone VM** (`VMCloneAction`) and **Delete VM** (`VMDestroyAction` with disk/snapshot options)
 - ISO attach/eject (`ChangeVMISOAction` / `CreateCdDriveAction`)
 - New SR wizard: NFS ISO, NFS VHD, iSCSI (`SrCreateAction`) + SR refresh
 - Console pop-out window with reattach + Ctrl+Alt+Del
@@ -66,7 +68,7 @@ XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
   Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner
   ViewModels/        MainViewModel (+ Actions), wizards/dialogs, ActionLogRow
-  Views/             MainWindow, NewVm/NewSr/Iso/Edit/ConsolePopOut windows
+  Views/             MainWindow, Properties/Clone/Delete/NewVm/NewSr/Iso/ConsolePopOut
 ```
 
 Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).  
@@ -75,12 +77,11 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **Merge PR #20** (`cursor/shell-phase1-parity-abb3`) if not already on `development`.
-2. **Full VM Properties dialog** (boot, HA, home server, GPU/USB, description, tags) — Edit is rename/CPU/memory only today.
-3. **Clone / delete VM**, then migrate/copy.
-4. **More SR types** + richer iSCSI probe UI.
-5. **Linux desktop soak** — run `drop-shell-linux-x64`.
-6. Alerts, performance graphs, HA/AD/DR (later). RDP + plugins stay WinForms-only.
+1. **Merge PR #20** (`cursor/shell-phase1-parity-abb3`) when CI is green.
+2. **Migrate/copy** (`CrossPoolMigrateAction` later).
+3. **More SR types** + richer iSCSI probe UI.
+4. **Linux desktop soak** — run `drop-shell-linux-x64`.
+5. Alerts, performance graphs, HA/AD/DR (later). RDP + plugins stay WinForms-only.
 
 **RDP strategy (decided for preview):** keep RDP on WinForms/`XenAdmin` only. The Avalonia shell focuses on hosted RFB/VNC; an ActiveX-free RDP path is deferred.
 

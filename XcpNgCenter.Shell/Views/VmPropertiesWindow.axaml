@@ -1,0 +1,223 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.VmPropertiesWindow"
+        x:DataType="vm:VmPropertiesViewModel"
+        Title="VM Properties"
+        Width="780" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="16"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="180,*">
+      <StackPanel Grid.ColumnSpan="2" Spacing="4" Margin="0,0,0,12">
+        <TextBlock Text="VM Properties" FontSize="22" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding NameLabel}"
+                   Foreground="{StaticResource Brush.BrandOrange}"
+                   FontSize="14" />
+        <TextBlock Text="{Binding StatusMessage}"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   IsVisible="{Binding StatusMessage.Length}" />
+      </StackPanel>
+
+      <ListBox Grid.Row="1"
+               ItemsSource="{Binding Sections}"
+               SelectedItem="{Binding SelectedSectionItem}"
+               Background="Transparent"
+               BorderThickness="0"
+               Margin="0,0,12,0">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:VmPropertiesSectionItem">
+            <TextBlock Text="{Binding Title}" Margin="8,6" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <ScrollViewer Grid.Row="1" Grid.Column="1"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <Panel>
+          <!-- General -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowGeneral}">
+            <TextBlock Text="Name, description, and tags" FontWeight="SemiBold" FontSize="16" />
+            <TextBox Watermark="Name" Text="{Binding NameLabel}" />
+            <TextBox Watermark="Description"
+                     Text="{Binding Description}"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     Height="100" />
+            <TextBox Watermark="Tags (comma-separated)" Text="{Binding TagsText}" />
+            <TextBlock Text="Tags help organize VMs in the infrastructure tree and searches."
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+
+          <!-- CPU & Memory -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowCpuMemory}">
+            <TextBlock Text="CPU and memory" FontWeight="SemiBold" FontSize="16" />
+            <TextBox Watermark="vCPUs" Text="{Binding VcpusText}" />
+            <TextBox Watermark="Memory (MiB)" Text="{Binding MemoryMibText}" />
+            <TextBlock Text="CPU/memory changes on a running VM may require a reboot to fully apply."
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+
+          <!-- Boot -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowBoot}">
+            <TextBlock Text="Boot options" FontWeight="SemiBold" FontSize="16" />
+            <CheckBox Content="Auto-start this VM when the host boots"
+                      IsChecked="{Binding AutoPowerOn}" />
+
+            <StackPanel Spacing="8" IsVisible="{Binding ShowHvmBoot}">
+              <TextBlock Text="Boot order (enabled devices, top first)"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+              <ListBox ItemsSource="{Binding BootDevices}"
+                       SelectedItem="{Binding SelectedBootDevice}"
+                       MaxHeight="160">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BootDeviceItem">
+                    <TextBlock Margin="4" Text="{Binding Display}" />
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <WrapPanel>
+                <Button Classes="ghost" Content="Move up" Margin="0,0,8,6"
+                        Command="{Binding MoveBootUpCommand}" />
+                <Button Classes="ghost" Content="Move down" Margin="0,0,8,6"
+                        Command="{Binding MoveBootDownCommand}" />
+                <Button Classes="ghost" Content="Toggle enabled" Margin="0,0,8,6"
+                        Command="{Binding ToggleBootDeviceCommand}" />
+              </WrapPanel>
+            </StackPanel>
+
+            <StackPanel Spacing="8" IsVisible="{Binding ShowPvBoot}">
+              <TextBlock Text="Boot device" Foreground="{StaticResource Brush.TextMuted}" />
+              <ComboBox ItemsSource="{Binding PvBootDevices}"
+                        SelectedItem="{Binding SelectedPvBootDevice}" />
+              <TextBox Watermark="OS boot parameters (PV_args)" Text="{Binding PvArgs}" />
+            </StackPanel>
+          </StackPanel>
+
+          <!-- Startup / HA -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowStartupHa}">
+            <TextBlock Text="Startup options" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="{Binding HaStatusText}"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBox Watermark="Start order" Text="{Binding OrderText}" />
+            <TextBox Watermark="Start delay (seconds)" Text="{Binding StartDelayText}" />
+            <ComboBox ItemsSource="{Binding HaPriorities}"
+                      SelectedItem="{Binding SelectedHaPriority}"
+                      IsEnabled="{Binding PoolHaEnabled}"
+                      PlaceholderText="HA restart priority">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:HaPriorityOption">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <!-- Home server -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowHomeServer}">
+            <TextBlock Text="Home server" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Preferred host for this VM when starting in a pool."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <ComboBox ItemsSource="{Binding HomeServers}"
+                      SelectedItem="{Binding SelectedHomeServer}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:HomeServerOption">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <!-- GPU -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowGpu}">
+            <TextBlock Text="GPU" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="{Binding GpuHint}"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBlock Text="Assigned" Foreground="{StaticResource Brush.TextMuted}" />
+            <ListBox ItemsSource="{Binding AssignedGpus}"
+                     SelectedItem="{Binding SelectedAssignedGpu}"
+                     MaxHeight="140">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:GpuAssignmentItem">
+                  <TextBlock Text="{Binding Label}" Margin="4" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <Button Classes="ghost" Content="Remove selected"
+                    Command="{Binding RemoveGpuCommand}"
+                    IsEnabled="{Binding CanEditGpu}" />
+            <TextBlock Text="Add GPU" Foreground="{StaticResource Brush.TextMuted}" Margin="0,8,0,0" />
+            <ComboBox ItemsSource="{Binding GpuChoices}"
+                      SelectedItem="{Binding SelectedGpuChoice}"
+                      IsEnabled="{Binding CanEditGpu}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:GpuChoiceItem">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Classes="ghost" Content="Add"
+                    Command="{Binding AddGpuCommand}"
+                    IsEnabled="{Binding CanEditGpu}" />
+          </StackPanel>
+
+          <!-- USB -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowUsb}">
+            <TextBlock Text="USB" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="{Binding UsbHint}"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBlock Text="Attached" Foreground="{StaticResource Brush.TextMuted}" />
+            <ListBox ItemsSource="{Binding AttachedUsbs}"
+                     SelectedItem="{Binding SelectedAttachedUsb}"
+                     MaxHeight="120">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:UsbAttachedItem">
+                  <TextBlock Text="{Binding Label}" Margin="4" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <Button Classes="ghost" Content="Detach selected"
+                    Command="{Binding DetachUsbCommand}"
+                    IsEnabled="{Binding CanEditUsb}" />
+            <TextBlock Text="Available" Foreground="{StaticResource Brush.TextMuted}" Margin="0,8,0,0" />
+            <ListBox ItemsSource="{Binding AvailableUsbs}"
+                     SelectedItem="{Binding SelectedAvailableUsb}"
+                     MaxHeight="120">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:UsbAvailableItem">
+                  <TextBlock Text="{Binding Label}" Margin="4" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <Button Classes="ghost" Content="Attach selected"
+                    Command="{Binding AttachUsbCommand}"
+                    IsEnabled="{Binding CanEditUsb}" />
+          </StackPanel>
+        </Panel>
+      </ScrollViewer>
+
+      <StackPanel Grid.Row="2" Grid.ColumnSpan="2"
+                  Orientation="Horizontal"
+                  Spacing="10"
+                  HorizontalAlignment="Right"
+                  Margin="0,16,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="OK" IsDefault="True" Command="{Binding ApplyCommand}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
