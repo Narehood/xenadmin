@@ -1,58 +1,122 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:views="using:XcpNgCenter.Shell.Views"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
         x:Class="XcpNgCenter.Shell.Views.NewSrWizardWindow"
-        x:DataType="views:NewSrWizardViewModel"
+        x:DataType="vm:NewSrWizardViewModel"
         Title="New Storage Repository"
-        Width="560" Height="520"
+        Width="580" Height="640"
+        MinWidth="480" MinHeight="480"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource Brush.BgDeep}">
-  <Border Margin="16" Padding="20"
+  <Border Margin="16" Padding="16"
           Background="#99161C22"
           BorderBrush="{StaticResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
-    <StackPanel Spacing="12">
-      <TextBlock Text="New storage" FontSize="22" FontWeight="SemiBold" />
-      <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
-                 Foreground="{StaticResource Brush.TextMuted}"
-                 IsVisible="{Binding StatusMessage.Length}" />
+    <Grid RowDefinitions="*,Auto">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="4,0,8,0">
+        <StackPanel Spacing="12" Margin="0,0,0,16">
+          <TextBlock Text="New storage" FontSize="22" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}"
+                     IsVisible="{Binding StatusMessage.Length}" />
 
-      <ComboBox ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType}">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="views:SrTypeOption">
-            <TextBlock Text="{Binding Label}" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
+          <ComboBox ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:SrTypeOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
 
-      <TextBox Watermark="Name" Text="{Binding NameLabel}" />
-      <TextBox Watermark="Description" Text="{Binding Description}" />
+          <TextBox Watermark="Name" Text="{Binding NameLabel}" />
+          <TextBox Watermark="Description" Text="{Binding Description}" />
 
-      <StackPanel Spacing="8" IsVisible="{Binding ShowIsoNfs}">
-        <TextBlock Text="NFS ISO path (server:/share/path)" FontSize="12" Foreground="{StaticResource Brush.TextMuted}" />
-        <TextBox Watermark="filer.example:/iso" Text="{Binding NfsPath}" />
-      </StackPanel>
+          <StackPanel Spacing="8" IsVisible="{Binding ShowIsoNfs}">
+            <TextBlock Text="NFS ISO path (server:/share/path)" FontSize="12"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBox Watermark="filer.example:/iso" Text="{Binding NfsPath}" />
+          </StackPanel>
 
-      <StackPanel Spacing="8" IsVisible="{Binding ShowNfs}">
-        <TextBlock Text="NFS VHD path (server:/share/path)" FontSize="12" Foreground="{StaticResource Brush.TextMuted}" />
-        <TextBox Watermark="filer.example:/export" Text="{Binding NfsPath}" />
-      </StackPanel>
+          <StackPanel Spacing="8" IsVisible="{Binding ShowIsoCifs}">
+            <TextBlock Text="SMB/CIFS ISO share (//server/share)" FontSize="12"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBox Watermark="//fileserver/isos" Text="{Binding CifsLocation}" />
+            <TextBox Watermark="Username (optional)" Text="{Binding CifsUsername}" />
+            <TextBox Watermark="Password (optional)" Text="{Binding CifsPassword}" PasswordChar="•" />
+          </StackPanel>
 
-      <StackPanel Spacing="8" IsVisible="{Binding ShowIscsi}">
-        <TextBlock Text="iSCSI target" FontSize="12" Foreground="{StaticResource Brush.TextMuted}" />
-        <TextBox Watermark="Host / IP" Text="{Binding IscsiHost}" />
-        <TextBox Watermark="Port" Text="{Binding IscsiPort}" />
-        <TextBox Watermark="Target IQN" Text="{Binding IscsiIqn}" />
-        <TextBox Watermark="SCSI ID" Text="{Binding IscsiScsiId}" />
-        <TextBlock Text="IQN/LUN discovery UI is simplified — use values from your storage or legacy Center probe."
-                   FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
-      </StackPanel>
+          <StackPanel Spacing="8" IsVisible="{Binding ShowNfs}">
+            <TextBlock Text="NFS VHD path (server:/share/path)" FontSize="12"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBox Watermark="filer.example:/export" Text="{Binding NfsPath}" />
+          </StackPanel>
 
-      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,12,0,0">
+          <StackPanel Spacing="8" IsVisible="{Binding ShowSmb}">
+            <TextBlock Text="SMB storage path (server:/share)" FontSize="12"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBox Watermark="fileserver:/vms" Text="{Binding SmbPath}" />
+            <TextBox Watermark="Username (optional)" Text="{Binding SmbUsername}" />
+            <TextBox Watermark="Password (optional)" Text="{Binding SmbPassword}" PasswordChar="•" />
+          </StackPanel>
+
+          <StackPanel Spacing="8" IsVisible="{Binding ShowIscsi}">
+            <TextBlock Text="iSCSI target" FontSize="12" Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBox Watermark="Host / IP" Text="{Binding IscsiHost}" />
+            <TextBox Watermark="Port" Text="{Binding IscsiPort}" />
+            <TextBox Watermark="CHAP username (optional)" Text="{Binding IscsiChapUser}" />
+            <TextBox Watermark="CHAP password (optional)" Text="{Binding IscsiChapPassword}" PasswordChar="•" />
+
+            <WrapPanel>
+              <Button Classes="ghost" Content="Scan IQNs" Margin="0,0,8,6"
+                      Command="{Binding ProbeIqnsCommand}"
+                      IsEnabled="{Binding !IsProbing}" />
+              <Button Classes="ghost" Content="Scan LUNs" Margin="0,0,8,6"
+                      Command="{Binding ProbeLunsCommand}"
+                      IsEnabled="{Binding !IsProbing}" />
+            </WrapPanel>
+
+            <TextBlock Text="Target IQN" FontSize="12" Foreground="{StaticResource Brush.TextMuted}"
+                       IsVisible="{Binding HasIscsiIqns}" />
+            <ComboBox ItemsSource="{Binding IscsiIqns}"
+                      SelectedItem="{Binding SelectedIscsiIqn}"
+                      IsVisible="{Binding HasIscsiIqns}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:IscsiIqnOption">
+                  <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Text="LUN" FontSize="12" Foreground="{StaticResource Brush.TextMuted}"
+                       IsVisible="{Binding HasIscsiLuns}" />
+            <ComboBox ItemsSource="{Binding IscsiLuns}"
+                      SelectedItem="{Binding SelectedIscsiLun}"
+                      IsVisible="{Binding HasIscsiLuns}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:IscsiLunOption">
+                  <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBox Watermark="SCSI ID (filled by LUN scan, or enter manually)"
+                     Text="{Binding IscsiScsiId}" />
+            <TextBlock Text="Scan IQNs, pick a target, scan LUNs, then Create. CHAP is optional."
+                       FontSize="11" TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10"
+                  HorizontalAlignment="Right" Margin="0,12,0,0">
         <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
-        <Button Classes="cta" Content="Create" IsDefault="True" Command="{Binding CreateCommand}" />
+        <Button Classes="cta" Content="Create" IsDefault="True" Command="{Binding CreateCommand}"
+                IsEnabled="{Binding !IsProbing}" />
       </StackPanel>
-    </StackPanel>
+    </Grid>
   </Border>
 </Window>

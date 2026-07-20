@@ -1,21 +1,20 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using XenAdmin.Network;
 using XenAPI;
 using XcpNgCenter.Shell.ViewModels;
 
 namespace XcpNgCenter.Shell.Views;
 
-public partial class NewSrWizardWindow : Window
+public partial class VmMoveWindow : Window
 {
-    public NewSrWizardWindow()
+    public VmMoveWindow()
     {
         InitializeComponent();
     }
 
-    public NewSrWizardWindow(IXenConnection connection, Host host) : this()
+    public VmMoveWindow(VM vm, Action<string>? status = null) : this()
     {
-        DataContext = new NewSrWizardViewModel(connection, host, Close);
+        DataContext = new VmMoveViewModel(vm, Close, status);
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close();

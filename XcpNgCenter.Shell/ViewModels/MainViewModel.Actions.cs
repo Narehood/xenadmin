@@ -43,6 +43,7 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanCloneVm))]
     [NotifyPropertyChangedFor(nameof(CanCopyVm))]
     [NotifyPropertyChangedFor(nameof(CanMigrateVm))]
+    [NotifyPropertyChangedFor(nameof(CanMoveVm))]
     [NotifyPropertyChangedFor(nameof(CanDeleteVm))]
     [NotifyPropertyChangedFor(nameof(CanAttachIso))]
     [NotifyPropertyChangedFor(nameof(ShowPoolStorageActions))]
@@ -57,6 +58,7 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(CloneVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CopyVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(MigrateVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(AttachIsoCommand))]
     private VM? _selectedVm;
@@ -99,6 +101,10 @@ public partial class MainViewModel
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Running, allowed_operations: { } ops }
         && ops.Contains(vm_operations.pool_migrate)
         && SelectedVm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()) > 1;
+
+    public bool CanMoveVm =>
+        SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted } vm
+        && vm.CanBeMoved();
 
     public bool CanDeleteVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted, allowed_operations: { } ops }
@@ -385,6 +391,24 @@ public partial class MainViewModel
 
         var owner = GetMainWindow();
         var dialog = new VmMigrateWindow(SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMoveVm))]
+    private async Task MoveVmAsync()
+    {
+        if (SelectedVm == null)
+            return;
+
+        var owner = GetMainWindow();
+        var dialog = new VmMoveWindow(SelectedVm, msg =>
         {
             ActionStatusMessage = msg;
             StatusMessage = msg;

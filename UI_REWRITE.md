@@ -54,12 +54,13 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - VM action bar: start / shutdown / reboot / suspend / resume / force variants (wraps on narrow widths)
 - Avalonia New VM wizard (`CreateVMAction`)
 - **Full VM Properties** (General name/description/tags, CPU/memory, boot, HA/startup, home server, GPU, USB)
-- **Clone / Copy / Migrate / Delete VM** — `VMCloneAction`, `VMCopyAction`, live `VMMigrateAction` (pool), `VMDestroyAction`
+- **Clone / Copy / Migrate / Move / Delete VM** — `VMCloneAction`, `VMCopyAction`, live `VMMigrateAction` (pool), `VMMoveAction` (halted→SR), `VMDestroyAction`
 - ISO attach/eject (`ChangeVMISOAction` / `CreateCdDriveAction`)
-- New SR wizard: NFS ISO, NFS VHD, iSCSI (`SrCreateAction`) + SR refresh
+- New SR wizard: NFS ISO, **SMB/CIFS ISO**, NFS VHD, **SMB storage**, iSCSI with **IQN/LUN probe** (`SrCreateAction`)
 - Console pop-out window with reattach + Ctrl+Alt+Del
 - Scrollable infrastructure detail card; Console viewer fixed **520px** tall (scroll the card on small windows)
 - **Snapshots tab (Phase 2 start):** list, take disk snapshot, revert, delete
+- **Move VM** (halted → SR via `VMMoveAction`)
 
 ### Key shell layout
 
@@ -68,7 +69,7 @@ XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
   Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner
   ViewModels/        MainViewModel (+ Actions), wizards/dialogs, ActionLogRow
-  Views/             MainWindow, Properties/Clone/Copy/Migrate/Delete/NewVm/NewSr/Iso/ConsolePopOut
+  Views/             MainWindow, Properties/Clone/Copy/Migrate/Move/Delete/NewVm/NewSr/Iso/ConsolePopOut
 ```
 
 Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).  
@@ -77,9 +78,9 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **Merge PR #20** (`cursor/shell-phase1-parity-abb3`) when CI is green.
-2. **Cross-pool migrate** (`VMCrossPoolMigrateAction`) and halted VM move-to-SR.
-3. **More SR types** + richer iSCSI probe UI.
+1. **Merge PR #20** (`cursor/shell-phase1-parity-abb3`) when soak testing looks good.
+2. **Cross-pool migrate** (`VMCrossPoolMigrateAction`).
+3. **More SR types** (HBA/FCoE/GFS2) as needed.
 4. **Linux desktop soak** — run `drop-shell-linux-x64`.
 5. Alerts, performance graphs, HA/AD/DR (later). RDP + plugins stay WinForms-only.
 

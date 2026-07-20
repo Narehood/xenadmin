@@ -26,16 +26,16 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**Shipped so far (on `development` / open PRs):** live XenModel connect + TOFU trust dialogs, infrastructure tree, General/Storage/Network/Console (RFB with input/cursor/keysyms), Copy affordances, DPAPI password vault for saved servers, public-IP warning, shutdown cleanup, forget-password / clear-pins controls, CI artifacts `drop-shell-win-x64` and `drop-shell-linux-x64`, **Phase 1 parity** (Logs/Tasks, VM power + New VM, ISO attach, New SR ISO/iSCSI/NFS, console pop-out), layout polish (wrap actions, scrollable detail, larger console), **Phase 2:** Snapshots tab + **full VM Properties** + **Clone/Copy/Migrate/Delete VM** (PR `#20`).
+**Shipped so far (on `development` / open PRs):** live XenModel connect + TOFU trust dialogs, infrastructure tree, General/Storage/Network/Console (RFB with input/cursor/keysyms), Copy affordances, DPAPI password vault for saved servers, public-IP warning, shutdown cleanup, forget-password / clear-pins controls, CI artifacts `drop-shell-win-x64` and `drop-shell-linux-x64`, **Phase 1 parity** (Logs/Tasks, VM power + New VM, ISO attach, New SR, console pop-out), layout polish, **Phase 2:** Snapshots + full VM Properties + Clone/Copy/Migrate/Move/Delete + richer SR wizard (iSCSI probe, SMB/CIFS) (PR `#20`).
 
-**Windows Avalonia preview track:** complete. **Phase 1+Properties/clone/copy/migrate/delete:** in PR `#20` (`cursor/shell-phase1-parity-abb3`). **Next:** merge → cross-pool migrate → more SR types → Linux soak. RDP stays WinForms-only. Details in `UI_REWRITE.md`.
+**Windows Avalonia preview track:** complete. **Parity track:** PR `#20` (`cursor/shell-phase1-parity-abb3`). **Next:** merge after soak → cross-pool migrate → HBA/GFS2 SR types → Linux soak. RDP stays WinForms-only. Details in `UI_REWRITE.md`.
 
 ### Still later
 
 - Broader async cleanup / installer CI automation.
 - Linux desktop soak for the Avalonia shell (artifact published; runtime soak pending).
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
-- Phase 2+ remaining: cross-pool migrate, remaining SR types, HA/AD/DR, alerts, graphs.
+- Phase 2+ remaining: cross-pool migrate, HBA/FCoE/GFS2 SR types, HA/AD/DR, alerts, graphs.
 - Memory/quiesced snapshot types (disk-only shipped first).
 
 ## Non-goals
