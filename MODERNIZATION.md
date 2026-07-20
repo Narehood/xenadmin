@@ -28,7 +28,7 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
 **Shipped so far (on `development`):** live XenModel connect + TOFU trust dialogs, infrastructure tree, General/Storage/Network/Console (RFB with input/cursor/keysyms), Copy affordances, DPAPI password vault for saved servers, public-IP warning, CI artifact `drop-shell-win-x64`.
 
-**Next:** RDP strategy decision → Linux desktop soak → broader WinForms parity. Details in `UI_REWRITE.md`.
+**Next:** Linux desktop soak → broader WinForms parity. RDP stays WinForms-only for the preview. Details in `UI_REWRITE.md`.
 
 ### Still later
 

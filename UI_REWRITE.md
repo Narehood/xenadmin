@@ -62,9 +62,10 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **RDP strategy** — decide ActiveX-free path or keep RDP WinForms-only for now.
-2. **Linux desktop soak** — validate Avalonia shell + Drawing.Common paths after Windows preview is solid.
-3. **Broader WinForms parity** — wizards/actions beyond the preview tabs (out of scope for soak).
+1. **Linux desktop soak** — validate Avalonia shell + Drawing.Common paths after Windows preview is solid.
+2. **Broader WinForms parity** — wizards/actions beyond the preview tabs (out of scope for soak).
+
+**RDP strategy (decided for preview):** keep RDP on WinForms/`XenAdmin` only. The Avalonia shell focuses on hosted RFB/VNC; an ActiveX-free RDP path is deferred.
 
 ## How to try the preview
 
