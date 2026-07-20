@@ -62,7 +62,7 @@ public sealed class ShellConfigProvider : IXenAdminConfigProvider
 
     public void UpdateServerHistory(string hostnameWithPort)
     {
-        // Preview shell does not persist server history yet.
+        // Server list persistence is owned by SavedServerStore / MainViewModel.
     }
 
     public void SaveSettingsIfRequired()
