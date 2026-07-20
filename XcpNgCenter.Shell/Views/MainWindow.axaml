@@ -278,9 +278,13 @@
                   BorderBrush="{StaticResource Brush.StrokeSubtle}"
                   BorderThickness="1"
                   CornerRadius="10"
-                  Padding="28">
-            <Grid RowDefinitions="Auto,Auto,*">
-              <StackPanel Spacing="8" Margin="0,0,0,8">
+                  Padding="0"
+                  ClipToBounds="True">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="28">
+              <StackPanel Spacing="12">
+              <StackPanel Spacing="8">
                 <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
                            FontSize="12"
                            LetterSpacing="1.1"
@@ -299,9 +303,7 @@
                            IsVisible="{Binding ActionStatusMessage.Length}" />
               </StackPanel>
 
-              <WrapPanel Grid.Row="1"
-                         Orientation="Horizontal"
-                         Margin="0,4,0,8"
+              <WrapPanel Orientation="Horizontal"
                          IsVisible="{Binding ShowVmActionBar}">
                 <Button Classes="ghost" Content="Start" Margin="0,0,8,6" Command="{Binding StartVmCommand}" />
                 <Button Classes="ghost" Content="Shutdown" Margin="0,0,8,6" Command="{Binding ShutdownVmCommand}" />
@@ -315,14 +317,12 @@
                 <Button Classes="ghost" Content="Eject ISO" Margin="0,0,8,6" Command="{Binding EjectIsoCommand}" />
               </WrapPanel>
 
-              <WrapPanel Grid.Row="1"
-                         Orientation="Horizontal"
-                         Margin="0,4,0,8"
+              <WrapPanel Orientation="Horizontal"
                          IsVisible="{Binding ShowPoolStorageActions}">
                 <Button Classes="ghost" Content="Refresh storage" Margin="0,0,8,6" Command="{Binding RefreshStorageCommand}" />
               </WrapPanel>
 
-              <TabControl Grid.Row="2" Margin="0,12,0,0">
+              <TabControl Margin="0,4,0,0">
                 <TabControl.Styles>
                   <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="13" />
@@ -622,7 +622,7 @@
                 </TabItem>
 
                 <TabItem Header="Console">
-                  <Grid Margin="0,18,0,0" RowDefinitions="Auto,*,Auto">
+                  <StackPanel Margin="0,18,0,8" Spacing="12">
                     <StackPanel Spacing="8" Margin="0,0,4,0">
                       <ItemsControl ItemsSource="{Binding ConsoleTotals}">
                         <ItemsControl.ItemTemplate>
@@ -671,14 +671,13 @@
                       </WrapPanel>
                     </StackPanel>
 
-                    <Border Grid.Row="1"
-                            Margin="0,12,4,0"
-                            Background="#33161C22"
+                    <Border Background="#33161C22"
                             BorderBrush="{StaticResource Brush.StrokeSubtle}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="8"
-                            MinHeight="180"
+                            Height="520"
+                            MinHeight="520"
                             ClipToBounds="True">
                       <Grid ClipToBounds="True">
                         <StackPanel Spacing="8"
@@ -722,59 +721,133 @@
                       </Grid>
                     </Border>
 
-                    <ScrollViewer Grid.Row="2"
-                                  Margin="0,12,0,0"
-                                  MaxHeight="140"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  IsVisible="{Binding HasConsoleItems}">
-                      <StackPanel Spacing="10" Margin="0,0,4,0">
-                        <TextBlock Text="Console endpoints"
-                                   FontSize="11"
-                                   LetterSpacing="1.2"
-                                   Foreground="{StaticResource Brush.TextMuted}" />
-                        <ItemsControl ItemsSource="{Binding ConsoleItems}">
-                          <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:ConsoleItemRow">
-                              <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                                      BorderThickness="0,0,0,1"
-                                      Padding="0,0,8,8"
-                                      Margin="0,0,0,4">
-                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                                  <TextBlock Text="{Binding Primary}"
-                                             FontWeight="SemiBold"
-                                             FontSize="13"
-                                             Margin="0,0,12,0"
-                                             Foreground="{StaticResource Brush.TextPrimary}" />
-                                  <Button Grid.Column="1"
-                                          Classes="ghost"
-                                          Content="Copy"
-                                          Padding="10,4"
+                    <StackPanel Spacing="10" Margin="0,0,4,0"
+                                IsVisible="{Binding HasConsoleItems}">
+                      <TextBlock Text="Console endpoints"
+                                 FontSize="11"
+                                 LetterSpacing="1.2"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <ItemsControl ItemsSource="{Binding ConsoleItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:ConsoleItemRow">
+                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,0,8,8"
+                                    Margin="0,0,0,4">
+                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                <TextBlock Text="{Binding Primary}"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           Margin="0,0,12,0"
+                                           Foreground="{StaticResource Brush.TextPrimary}" />
+                                <Button Grid.Column="1"
+                                        Classes="ghost"
+                                        Content="Copy"
+                                        Padding="10,4"
+                                        FontSize="12"
+                                        IsVisible="{Binding CanCopyLocation}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
+                                        CommandParameter="{Binding Location}"
+                                        ToolTip.Tip="Copy console location" />
+                                <TextBlock Grid.Row="1"
+                                           Grid.ColumnSpan="2"
+                                           Text="{Binding Location}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding CanCopyLocation}" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <TextBlock Text="{Binding ConsoleCopyFeedback}"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.Ok}"
+                                 IsVisible="{Binding ConsoleCopyFeedback.Length}" />
+                    </StackPanel>
+                  </StackPanel>
+                </TabItem>
+
+                <TabItem Header="Snapshots">
+                  <Panel Margin="0,18,0,8">
+                    <StackPanel Spacing="14" IsVisible="{Binding CanManageSnapshots}">
+                      <TextBlock Text="Create a disk snapshot of the selected VM. Memory checkpoints and quiesced snapshots come later."
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <TextBox Watermark="Snapshot name" Text="{Binding NewSnapshotName}" />
+                      <TextBox Watermark="Description (optional)" Text="{Binding NewSnapshotDescription}" />
+                      <Button Classes="cta"
+                              Content="Take snapshot"
+                              HorizontalAlignment="Left"
+                              Command="{Binding TakeSnapshotCommand}" />
+                      <TextBlock Text="{Binding SnapshotStatusMessage}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 IsVisible="{Binding SnapshotStatusMessage.Length}" />
+
+                      <TextBlock Text="Existing snapshots"
+                                 FontSize="11"
+                                 LetterSpacing="1.2"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Margin="0,8,0,0" />
+                      <TextBlock Text="No snapshots yet."
+                                 IsVisible="{Binding !HasSnapshotItems}"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <ItemsControl ItemsSource="{Binding SnapshotItems}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:SnapshotItemRow">
+                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,0,0,12"
+                                    Margin="0,0,0,10">
+                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <TextBlock Text="{Binding Name}"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           TextWrapping="Wrap" />
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            Spacing="6"
+                                            HorizontalAlignment="Right">
+                                  <Button Classes="ghost"
+                                          Content="Revert"
                                           FontSize="12"
-                                          IsVisible="{Binding CanCopyLocation}"
-                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
-                                          CommandParameter="{Binding Location}"
-                                          ToolTip.Tip="Copy console location" />
-                                  <TextBlock Grid.Row="1"
-                                             Grid.ColumnSpan="2"
-                                             Text="{Binding Location}"
-                                             FontSize="11"
-                                             Foreground="{StaticResource Brush.TextMuted}"
-                                             Margin="0,4,0,0"
-                                             TextWrapping="Wrap"
-                                             TextTrimming="CharacterEllipsis"
-                                             IsVisible="{Binding CanCopyLocation}" />
-                                </Grid>
-                              </Border>
-                            </DataTemplate>
-                          </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <TextBlock Text="{Binding ConsoleCopyFeedback}"
-                                   FontSize="12"
-                                   Foreground="{StaticResource Brush.Ok}"
-                                   IsVisible="{Binding ConsoleCopyFeedback.Length}" />
-                      </StackPanel>
-                    </ScrollViewer>
-                  </Grid>
+                                          Padding="10,4"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RevertSnapshotCommand}"
+                                          CommandParameter="{Binding}" />
+                                  <Button Classes="ghost"
+                                          Content="Delete"
+                                          FontSize="12"
+                                          Padding="10,4"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).DeleteSnapshotCommand}"
+                                          CommandParameter="{Binding}" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding Description}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2"
+                                           Text="{Binding Created}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Margin="0,4,0,0" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                    <TextBlock Text="Select a VM to manage snapshots."
+                               IsVisible="{Binding !CanManageSnapshots}"
+                               Foreground="{StaticResource Brush.TextMuted}" />
+                  </Panel>
                 </TabItem>
 
                 <TabItem Header="Logs">
@@ -853,7 +926,8 @@
                   </Grid>
                 </TabItem>
               </TabControl>
-            </Grid>
+              </StackPanel>
+            </ScrollViewer>
           </Border>
 
           <TextBlock Grid.Row="2"

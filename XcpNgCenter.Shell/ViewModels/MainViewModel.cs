@@ -105,6 +105,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<ConsoleItemRow> ConsoleItems { get; } = new();
 
+    public ObservableCollection<SnapshotItemRow> SnapshotItems { get; } = new();
+
     [ObservableProperty]
     private bool _hasStorageItems;
 
@@ -120,6 +122,21 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private bool _hasConsoleItems;
+
+    [ObservableProperty]
+    private bool _hasSnapshotItems;
+
+    [ObservableProperty]
+    private bool _canManageSnapshots;
+
+    [ObservableProperty]
+    private string _newSnapshotName = string.Empty;
+
+    [ObservableProperty]
+    private string _newSnapshotDescription = string.Empty;
+
+    [ObservableProperty]
+    private string _snapshotStatusMessage = string.Empty;
 
     [ObservableProperty]
     private string _consoleStatusMessage = string.Empty;
@@ -637,6 +654,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         RefreshStorageProperties(node);
         RefreshNetworkProperties(node);
         RefreshConsoleProperties(node);
+        RefreshSnapshotProperties();
     }
 
     private void RefreshGeneralProperties(InfraTreeNode? node)
@@ -690,6 +708,24 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ConsoleStatusMessage = summary.StatusMessage;
         ConsolePlaceholderMessage = summary.PlaceholderMessage;
         SyncLiveConsole(summary.LiveTarget);
+    }
+
+    private void RefreshSnapshotProperties()
+    {
+        SnapshotItems.Clear();
+        SnapshotStatusMessage = string.Empty;
+        CanManageSnapshots = SelectedVm is { is_a_template: false, is_a_snapshot: false, is_control_domain: false };
+        if (!CanManageSnapshots)
+        {
+            HasSnapshotItems = false;
+            return;
+        }
+
+        foreach (var row in SnapshotSummaryBuilder.Build(SelectedVm))
+            SnapshotItems.Add(row);
+        HasSnapshotItems = SnapshotItems.Count > 0;
+        if (!HasSnapshotItems)
+            SnapshotStatusMessage = "No snapshots yet.";
     }
 
     private void SyncLiveConsole(LiveRfbTarget? target)

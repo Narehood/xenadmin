@@ -51,11 +51,13 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - Console input-capture hint when the RFB viewer is focused
 - CI: self-contained `win-x64` and `linux-x64` publish artifacts
 - **Phase 1 parity:** `ShellActionRunner` + Logs/Tasks tab (`ConnectionsManager.History`)
-- VM action bar: start / shutdown / reboot / suspend / resume / force variants
+- VM action bar: start / shutdown / reboot / suspend / resume / force variants (wraps on narrow widths)
 - Avalonia New VM wizard (`CreateVMAction`) and basic Edit (rename / CPU / memory — full Properties later)
 - ISO attach/eject (`ChangeVMISOAction` / `CreateCdDriveAction`)
 - New SR wizard: NFS ISO, NFS VHD, iSCSI (`SrCreateAction`) + SR refresh
 - Console pop-out window with reattach + Ctrl+Alt+Del
+- Scrollable infrastructure detail card; Console viewer fixed **520px** tall (scroll the card on small windows)
+- **Snapshots tab (Phase 2 start):** list, take disk snapshot, revert, delete
 
 ### Key shell layout
 
@@ -73,8 +75,12 @@ Console connect: `DuplicateSession` + `HTTPHelper.CONNECT` → `RfbClient` → `
 
 ## Next (priority order)
 
-1. **Linux desktop soak** — run `drop-shell-linux-x64` on a desktop session; validate Drawing.Common + TOFU + RFB.
-2. **Phase 2+ WinForms parity** — snapshots, migrate/clone/delete, full Properties, more SR types, HA/AD/DR, alerts, performance graphs. RDP + plugins stay WinForms-only for now.
+1. **Merge PR #20** (`cursor/shell-phase1-parity-abb3`) if not already on `development`.
+2. **Full VM Properties dialog** (boot, HA, home server, GPU/USB, description, tags) — Edit is rename/CPU/memory only today.
+3. **Clone / delete VM**, then migrate/copy.
+4. **More SR types** + richer iSCSI probe UI.
+5. **Linux desktop soak** — run `drop-shell-linux-x64`.
+6. Alerts, performance graphs, HA/AD/DR (later). RDP + plugins stay WinForms-only.
 
 **RDP strategy (decided for preview):** keep RDP on WinForms/`XenAdmin` only. The Avalonia shell focuses on hosted RFB/VNC; an ActiveX-free RDP path is deferred.
 

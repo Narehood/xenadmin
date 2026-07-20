@@ -442,6 +442,62 @@ public partial class MainViewModel
         ConsoleInputHint = "Sent Ctrl+Alt+Del to guest.";
     }
 
+    [RelayCommand]
+    private void TakeSnapshot()
+    {
+        if (SelectedVm == null || !CanManageSnapshots)
+            return;
+
+        var name = string.IsNullOrWhiteSpace(NewSnapshotName)
+            ? $"{SelectedVm.name_label} snapshot {DateTime.Now:yyyy-MM-dd HH:mm}"
+            : NewSnapshotName.Trim();
+
+        RunAction(new VMSnapshotCreateAction(
+            SelectedVm,
+            name,
+            NewSnapshotDescription?.Trim() ?? string.Empty,
+            SnapshotType.DISK,
+            (_, _, _) => null!));
+
+        NewSnapshotName = string.Empty;
+        NewSnapshotDescription = string.Empty;
+        SnapshotStatusMessage = "Snapshot queued — see Logs.";
+    }
+
+    [RelayCommand]
+    private void RevertSnapshot(SnapshotItemRow? row)
+    {
+        if (row == null || SelectedVm?.Connection is not { IsConnected: true } conn)
+            return;
+
+        var snapshot = conn.Resolve(new XenRef<VM>(row.OpaqueRef));
+        if (snapshot == null)
+        {
+            SnapshotStatusMessage = "Snapshot no longer available.";
+            return;
+        }
+
+        RunAction(new VMSnapshotRevertAction(snapshot));
+        SnapshotStatusMessage = "Revert queued — see Logs.";
+    }
+
+    [RelayCommand]
+    private void DeleteSnapshot(SnapshotItemRow? row)
+    {
+        if (row == null || SelectedVm?.Connection is not { IsConnected: true } conn)
+            return;
+
+        var snapshot = conn.Resolve(new XenRef<VM>(row.OpaqueRef));
+        if (snapshot == null)
+        {
+            SnapshotStatusMessage = "Snapshot no longer available.";
+            return;
+        }
+
+        RunAction(new VMSnapshotDeleteAction(snapshot));
+        SnapshotStatusMessage = "Delete queued — see Logs.";
+    }
+
     private void CloseConsolePopOut()
     {
         var window = _consolePopOut;
