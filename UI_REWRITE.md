@@ -11,7 +11,7 @@ rewrite reaches feature parity for your environment.
 | Integration branch | `development` (tip includes merged `#20`–`#24`) |
 | Open Cursor PRs / branches | Linux soak fixes (this track) |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
-| GitHub Releases | Tag `vYYYY.M.D.N` (manual workflow **Publish Shell Release**) |
+| GitHub Releases | **`v2026.7.21.1`** published (update-banner E2E); optional workflow **Publish Shell Release** |
 
 ## Projects
 
@@ -52,7 +52,7 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 ## Next
 
 1. Continue **Linux desktop soak** of `drop-shell-linux-x64` against real pools (multi-server, migrate/move, import/export, alerts, graphs, RFB).
-2. Verify update banner against a published `vYYYY.M.D.N` release (workflow: **Publish Shell Release**). Soak binary must stamp a **lower** version than the release tag.
+2. Verify update banner against published **`v2026.7.21.1`** (or newer via workflow **Publish Shell Release**). Soak binary must stamp a **lower** version than the release tag.
 3. Later: HA/AD/DR wizards (richer HA alert fix-links); graph editor beyond save-current-defaults; memory/quiesced snapshots.
 4. RDP stays WinForms-only.
 
