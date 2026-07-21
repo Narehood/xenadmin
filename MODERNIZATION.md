@@ -32,13 +32,9 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**On `development` (PR `#20`):** Phase 1–2 shell — connect/TOFU/tree/General/Storage/Network/Console, Snapshots (disk-only), full VM Properties, Clone/Copy/Migrate/Cross-pool/Move/Delete, New SR (iSCSI/GFS2/SMB/HBA/FCoE).
+**On `development` (merged `#20`–`#23`):** Phase 1–2 parity + migrate/move harden + VM chrome + Import/Export (XVA/OVF) + global Alerts + Performance graphs (hover/time axis) + calendar versioning + GitHub update banner + faster splash. No open Cursor feature branches.
 
-**PR `#21` (ready to merge after soak):** Linux soak notes; migrate/move WinForms parity; VM chrome (power toggles, status icons, snapshot tree, ISO, denser tree/General, splash); Import/Export XVA; UX polish. Cursor draft-review items (intra-pool `VMMoveAction`, empty-host fallback, CBT/license, `CanFitDisks`, resume CPU check) are addressed on the branch.
-
-**Follow-on (`cursor/shell-alerts-graphs-704a` / PR `#22`):** Alerts tab + badge + fix-links (repair SR / HA deferral); Performance tab with time-range picker, `gui_config` layout load/save; multi-LUN HBA/FCoE create; OVF/OVA import/export.
-
-**Next after `#21`:** Linux desktop soak of `drop-shell-linux-x64` → merge `#21` then `#22` → later HA/AD/DR. RDP stays WinForms-only.
+**Next:** Linux desktop soak of `drop-shell-linux-x64` → publish a GitHub Release to exercise the update banner → later HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 
