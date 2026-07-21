@@ -1230,5 +1230,39 @@
         </Grid>
       </Grid>
     </Grid>
+
+    <!-- GitHub Releases update notice (bottom-right). -->
+    <Border HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            Margin="24"
+            MaxWidth="360"
+            Padding="16"
+            CornerRadius="10"
+            BorderBrush="{StaticResource Brush.BrandOrange}"
+            BorderThickness="1"
+            Background="#F0161C22"
+            IsVisible="{Binding ShowUpdateBanner}"
+            ZIndex="100">
+      <StackPanel Spacing="10">
+        <TextBlock Text="{Binding UpdateBannerTitle}"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextPrimary}" />
+        <TextBlock Text="{Binding UpdateBannerMessage}"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}" />
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+          <Button Classes="ghost"
+                  Content="Dismiss"
+                  Command="{Binding DismissUpdateBannerCommand}" />
+          <Button Classes="cta"
+                  Content="View release"
+                  Padding="14,8"
+                  Command="{Binding OpenUpdateReleaseCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>

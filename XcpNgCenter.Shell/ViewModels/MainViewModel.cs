@@ -200,6 +200,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         RefreshTrustUi();
         InitializeActionHistoryUi();
         InitializeAlertsAndGraphsUi();
+        InitializeUpdateCheck();
     }
 
     public void Dispose()
@@ -208,6 +209,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         _disposed = true;
 
+        DisposeUpdateCheck();
         DisposeAlertsAndGraphsUi();
         DisposeActionHistoryUi();
         _consoleSession.StateChanged -= OnConsoleSessionStateChanged;

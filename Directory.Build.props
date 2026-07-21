@@ -7,15 +7,18 @@
 		<AssemblyDescription>$(Description)</AssemblyDescription>
 		<Copyright>Copyright © XCP-ng</Copyright>
 		<RepositoryType>git</RepositoryType>
-		<RepositoryUrl>https://github.com/xcp-ng/xenadmin</RepositoryUrl>
-		<RevisionNumber>$([System.DateTime]::Now.ToString("yy"))$([System.DateTime]::Now.DayOfYear.ToString("D3"))</RevisionNumber>
+		<RepositoryUrl>https://github.com/Narehood/xenadmin</RepositoryUrl>
 		<Authors>XCP-ng</Authors>
 		<Product>XCP-ng Center</Product>
-		<YearVer>0</YearVer>
-		<MonthVer>0</MonthVer>
-		<PatchVer>0</PatchVer>
-		<Version>$(YearVer).$(MonthVer).$(PatchVer).$(RevisionNumber)</Version>
-		<FileVersion>$(YearVer).$(MonthVer).$(PatchVer).$(RevisionNumber)</FileVersion>
+		<!-- year.month.day.revision — UTC calendar date; BuildRevision overridable in CI (-p:BuildRevision=$(github.run_number)). -->
+		<BuildYear>$([System.DateTime]::UtcNow.ToString("yyyy"))</BuildYear>
+		<BuildMonth>$([System.DateTime]::UtcNow.Month)</BuildMonth>
+		<BuildDay>$([System.DateTime]::UtcNow.Day)</BuildDay>
+		<BuildRevision Condition="'$(BuildRevision)' == ''">0</BuildRevision>
+		<Version>$(BuildYear).$(BuildMonth).$(BuildDay).$(BuildRevision)</Version>
+		<AssemblyVersion>$(Version)</AssemblyVersion>
+		<FileVersion>$(Version)</FileVersion>
+		<InformationalVersion>$(Version)</InformationalVersion>
 		<Codename>Medicine Hat</Codename>
 		<Lab>xcpngcenter_main</Lab>
 	</PropertyGroup>

@@ -156,7 +156,7 @@ namespace XenAdmin
 
             VersionText = Version.Major == 0 && Version.Minor == 0 && Version.Build == 0
                 ? "vNext"
-                : $"{Version.Major}.{Version.Minor}.{Version.Build}";
+                : Version.ToString(4);
 
             var logFolder = Path.Combine(
                 Properties.Settings.SettingsPath,

@@ -27,6 +27,8 @@ rewrite reaches feature parity for your environment.
 - **Alerts** — clickable sidebar badge opens an **app-global** alerts pane (all connected pools/servers); dismiss; fix-links (Repair SR via `SrRepairAction`; HA deferred to WinForms; multipath → Logs hint)
 - **Performance** — RRD poller + Avalonia charts with hover crosshair/tooltips and time-axis labels by range; time-range picker (10m / 2h / 1w / 1y); load/save `pool.gui_config` layouts
 - **Tab chrome** — Fluent accent + selected tab underline use brand orange (`#F07318`)
+- **Versioning** — `year.month.day.revision` (CI sets revision from `GITHUB_RUN_NUMBER`)
+- **Update banner** — checks GitHub Releases on launch; bottom-right notice with View release / Dismiss
 - **Multi-LUN HBA/FCoE** — select many LUNs → `ParallelAction` of `SrCreateAction`
 - **OVF/OVA** — appliance import/export wizards alongside XVA
 

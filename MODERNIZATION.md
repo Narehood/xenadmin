@@ -15,7 +15,13 @@ XCP-ng Center is modernized **only on the `development` branch**.
 | CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net8.0` |
 | XenAdmin (WinForms app) | `net8.0-windows` |
 
+**Versioning:** `year.month.day.revision` from `Directory.Build.props` (UTC date; `BuildRevision` defaults to `0`, CI sets `-p:BuildRevision=$GITHUB_RUN_NUMBER`).
+
 Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownloader`.
+
+### Client updates (Avalonia shell)
+
+`XcpNgCenter.Shell` checks GitHub Releases (`Narehood/xenadmin` by default; override with `XCPNG_UPDATE_GITHUB_REPO=owner/name`) a few seconds after launch. When a newer tag/version is found, a bottom-right banner offers **View release** / **Dismiss** (dismiss is remembered per version).
 
 ### Plugins (opt-in, IE WebBrowser)
 
