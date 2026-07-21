@@ -9,74 +9,54 @@ rewrite reaches feature parity for your environment.
 | Item | State |
 |------|--------|
 | Integration branch | `development` |
-| Active PR | `#21` — `cursor/shell-linux-migrate-harden-417d` → `development` (CI green; soak `drop-shell-linux-x64`) |
-| Follow-on | `cursor/shell-alerts-graphs-704a` — Alerts + Performance graphs |
+| Active PRs | `#21` soak-ready; `#22` alerts/graphs + polish → `development` |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
-
-**Phase status:** Phase 1–2 + Linux migrate harden / Import-Export on `#21`. Alerts + RRD performance graphs on the follow-on branch.
-
-## Branch basis
-
-Lives on `development` with the modernization stack (CI, security, `HttpClient`, Import Wizard
-fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 
 ## Projects
 
 | Project | Role |
 |---------|------|
 | `XenAdmin` | Current supported WinForms client (`net8.0-windows`) |
-| `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`, Windows-first; Linux later) |
-| `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`, buffer callbacks) |
+| `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`) |
+| `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`) |
 
-## Done in this track (through PR #21 + alerts/graphs)
+## Done through PR #22
 
-- Brand-first welcome (form column + banner no longer overlap)
-- Live connect + TOFU, tree, General/Storage/Network/Console (RFB fit/input/cursor/pop-out/CAD)
-- Logs/Tasks via `ConnectionsManager.History` + `ShellActionRunner`
-- New VM wizard; ISO attach/eject; Snapshots (disk-only)
-- Full VM Properties; Clone / Copy / Migrate / Cross-pool / Move / Delete
-- New SR wizard (NFS ISO/VHD, SMB, iSCSI+GFS2, HBA/FCoE)
-- Import / Export XVA; sidebar UX polish; status icons
-- **Alerts** — XAPI `Message` → `ShellMessageAlert` / `ShellAlarmMessageAlert` into XenModel `Alert` collection; badge + Alerts tab; dismiss selected/all via `DismissAlertsAction`
-- **Performance** — WinForms-free `ShellRrdMaintainer` (`/host_rrds` `/vm_rrds` `/rrd_updates`) + Avalonia `PerformanceChart` for default Host/VM CPU/memory/network(/disk) series
+- Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM; Snapshots (disk-only)
+- Full VM Properties; Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA
+- **Alerts** — badge + tab; dismiss; fix-links (Repair SR via `SrRepairAction`; HA deferred to WinForms; multipath → Logs hint)
+- **Performance** — RRD poller + Avalonia charts; time-range picker (10m / 2h / 1w / 1y); load/save `pool.gui_config` layouts
+- **Multi-LUN HBA/FCoE** — select many LUNs → `ParallelAction` of `SrCreateAction`
+- **OVF/OVA** — appliance import/export wizards alongside XVA
 
 ### Key shell layout
 
 ```
-XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
-  Alerts/            ShellMessageAlert, ShellAlarmMessageAlert
-  Actions/           DismissAlertsAction
-  Services/          … ShellAlertHub, Performance/ShellRrdMaintainer + GraphBuilder
-  ViewModels/        MainViewModel (+ Actions, AlertsGraphs), …
-  Views/             MainWindow + wizards/dialogs
+  Alerts/            ShellMessageAlert, ShellAlarmMessageAlert, ShellAlertFixActions
+  Actions/           DismissAlertsAction, SaveShellGraphLayoutAction
+  Services/          ShellAlertHub, Performance/*
+  ViewModels/        … OvfImport/Export, NewSr multi-LUN, MainViewModel.AlertsGraphs
+  Views/             … OvfImport/Export windows
   Controls/          RfbConsoleView, PerformanceChart
 ```
 
-Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).
+Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).
 
-## Next (priority order for following agents)
+## Next
 
-1. **Merge PR #21** after Linux soak of `drop-shell-linux-x64` is clean.
-2. Merge alerts/graphs follow-on after soak.
-3. Optional: zoom/time-range picker; persist graph layouts via `pool.gui_config`; alert fix-links (HA/SR) when those wizards land.
-4. Later: HA/AD/DR wizards. RDP + plugins stay WinForms-only.
-5. Optional: multi-LUN HBA create in one pass; OVF/OVA appliance wizards (XVA only shipped).
+1. Merge `#21` after Linux soak; then `#22`.
+2. Later: HA/AD/DR wizards (enables richer HA alert fix-links); graph editor UI beyond save-current-defaults.
+3. RDP stays WinForms-only.
 
-**RDP strategy (decided):** keep RDP on WinForms/`XenAdmin` only.
-
-## How to try the preview
-
-**Preferred:** CI artifact `drop-shell-win-x64` / `drop-shell-linux-x64` from Test Builds on the PR branch or `development`.
-
-**From source:**
+## How to try
 
 ```bash
 dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -o artifacts/shell-win-x64
 dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -o artifacts/shell-linux-x64
 ```
 
-Pins / saved servers: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` (Windows) or `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux).
+Pins: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-ng Center Shell/`.
 
 ## Non-goals
 

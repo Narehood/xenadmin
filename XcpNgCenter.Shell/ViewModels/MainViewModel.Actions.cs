@@ -609,6 +609,12 @@ public partial class MainViewModel
             case ImportExportChoice.Export:
                 await ShowExportDialogAsync(conn, owner);
                 break;
+            case ImportExportChoice.ImportOvf:
+                await ShowOvfImportDialogAsync(conn, owner);
+                break;
+            case ImportExportChoice.ExportOvf:
+                await ShowOvfExportDialogAsync(conn, owner);
+                break;
         }
     }
 
@@ -637,6 +643,32 @@ public partial class MainViewModel
     private async Task ShowImportDialogAsync(IXenConnection conn, Window? owner)
     {
         var dialog = new VmImportWindow(conn, ResolveSelectedHost(), msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    private async Task ShowOvfImportDialogAsync(IXenConnection conn, Window? owner)
+    {
+        var dialog = new OvfImportWindow(conn, ResolveSelectedHost(), msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    private async Task ShowOvfExportDialogAsync(IXenConnection conn, Window? owner)
+    {
+        var dialog = new OvfExportWindow(conn, SelectedVm, msg =>
         {
             ActionStatusMessage = msg;
             StatusMessage = msg;

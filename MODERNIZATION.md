@@ -30,17 +30,16 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
 **PR `#21` (ready to merge after soak):** Linux soak notes; migrate/move WinForms parity; VM chrome (power toggles, status icons, snapshot tree, ISO, denser tree/General, splash); Import/Export XVA; UX polish. Cursor draft-review items (intra-pool `VMMoveAction`, empty-host fallback, CBT/license, `CanFitDisks`, resume CPU check) are addressed on the branch.
 
-**Follow-on (`cursor/shell-alerts-graphs-704a`):** Alerts tab + badge (`ShellMessageAlert` / `ShellAlertHub`); Performance tab with WinForms-free RRD poller + Avalonia charts for Host/VM defaults.
+**Follow-on (`cursor/shell-alerts-graphs-704a` / PR `#22`):** Alerts tab + badge + fix-links (repair SR / HA deferral); Performance tab with time-range picker, `gui_config` layout load/save; multi-LUN HBA/FCoE create; OVF/OVA import/export.
 
-**Next after `#21`:** Linux desktop soak of `drop-shell-linux-x64` → merge alerts/graphs → optional multi-LUN HBA → later HA/AD/DR. RDP stays WinForms-only.
+**Next after `#21`:** Linux desktop soak of `drop-shell-linux-x64` → merge `#21` then `#22` → later HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 
 - Broader async cleanup / installer CI automation.
 - Memory/quiesced snapshot types (disk-only shipped first; `System.Drawing.Common` is Windows-only on .NET 8).
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
-- HA/AD/DR wizards; richer graph zoom / `gui_config` layouts; alert fix-links.
-- OVF/OVA appliance import/export (XVA path shipped in `#21`).
+- HA/AD/DR wizards (alert fix-link for HA still points users to WinForms).
 
 ## Non-goals
 

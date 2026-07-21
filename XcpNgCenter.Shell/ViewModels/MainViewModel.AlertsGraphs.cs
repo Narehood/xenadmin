@@ -7,6 +7,7 @@ using XenAdmin.Alerts;
 using XenAdmin.Network;
 using XenAPI;
 using XcpNgCenter.Shell.Actions;
+using XcpNgCenter.Shell.Alerts;
 using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.Services.Performance;
 
@@ -22,6 +23,8 @@ public partial class MainViewModel
     public ObservableCollection<AlertItemRow> AlertItems { get; } = new();
 
     public ObservableCollection<PerformanceGraphRow> PerformanceGraphs { get; } = new();
+
+    public IReadOnlyList<PerformanceRangeOption> PerformanceRangeOptions => PerformanceGraphBuilder.RangeOptions;
 
     public bool HasAlertItems => AlertItems.Count > 0;
 
@@ -39,6 +42,9 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(ShowPerformanceWaiting))]
     private bool _canShowPerformance;
 
+    [ObservableProperty]
+    private PerformanceRangeOption? _selectedPerformanceRange;
+
     public bool HasAlertsBadge => AlertCount > 0;
 
     public string AlertsBadgeText => AlertCount > 99 ? "99+" : AlertCount.ToString();
@@ -47,8 +53,11 @@ public partial class MainViewModel
 
     public bool ShowPerformanceWaiting => CanShowPerformance && !HasPerformanceGraphs;
 
+    public bool CanSavePerformanceLayout => HasPerformanceGraphs && CanShowPerformance;
+
     private void InitializeAlertsAndGraphsUi()
     {
+        SelectedPerformanceRange = PerformanceRangeOptions[0];
         AlertItems.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasAlertItems));
@@ -58,12 +67,19 @@ public partial class MainViewModel
         };
 
         Alert.RegisterAlertCollectionChanged(OnAlertCollectionChanged);
+        ShellAlertFixActions.ReportStatus = msg => StatusMessage = msg;
+        ShellAlertFixActions.OpenLogs = () =>
+        {
+            StatusMessage = "See the Logs tab for recent actions and host messages.";
+        };
         RebuildAlertItems();
     }
 
     private void DisposeAlertsAndGraphsUi()
     {
         Alert.DeregisterAlertCollectionChanged(OnAlertCollectionChanged);
+        ShellAlertFixActions.ReportStatus = null;
+        ShellAlertFixActions.OpenLogs = null;
         StopPerformancePolling();
         _alertHub.Dispose();
         _alertRows.Clear();
@@ -267,15 +283,56 @@ public partial class MainViewModel
     private void RebuildPerformanceGraphs()
     {
         var xo = ResolvePerformanceTarget(SelectedInfraNode ?? _pinnedInfraNode);
+        var interval = SelectedPerformanceRange?.Interval ?? RrdArchiveInterval.FiveSecond;
         PerformanceGraphs.Clear();
-        foreach (var row in PerformanceGraphBuilder.Build(xo, _rrdMaintainer))
+        foreach (var row in PerformanceGraphBuilder.Build(xo, _rrdMaintainer, interval))
             PerformanceGraphs.Add(row);
 
         OnPropertyChanged(nameof(HasPerformanceGraphs));
         OnPropertyChanged(nameof(ShowPerformanceWaiting));
+        OnPropertyChanged(nameof(CanSavePerformanceLayout));
+        SavePerformanceLayoutCommand.NotifyCanExecuteChanged();
+
+        var rangeLabel = SelectedPerformanceRange?.Label ?? "Last ~10 minutes";
         PerformanceStatusMessage = PerformanceGraphs.Count == 0
             ? "Waiting for RRD samples from the host…"
-            : $"Updated {DateTime.Now:T} — last ~10 minutes (5s resolution).";
+            : $"Updated {DateTime.Now:T} — {rangeLabel}.";
+    }
+
+    partial void OnSelectedPerformanceRangeChanged(PerformanceRangeOption? value)
+    {
+        if (_rrdMaintainer != null)
+            RebuildPerformanceGraphs();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSavePerformanceLayout))]
+    private void SavePerformanceLayout()
+    {
+        var xo = ResolvePerformanceTarget(SelectedInfraNode ?? _pinnedInfraNode);
+        if (xo == null || PerformanceGraphs.Count == 0)
+            return;
+
+        var layout = PerformanceGraphBuilder.DescribeLayout(PerformanceGraphs);
+        ShellActionRunner.Run(new SaveShellGraphLayoutAction(xo, layout), msg =>
+        {
+            StatusMessage = msg;
+            PerformanceStatusMessage = msg;
+        });
+    }
+
+    [RelayCommand]
+    private void RunAlertFix(AlertItemRow? row)
+    {
+        if (row?.Alert.FixLinkAction == null)
+            return;
+        try
+        {
+            row.Alert.FixLinkAction();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = ex.Message;
+        }
     }
 
     private void StopPerformancePolling()

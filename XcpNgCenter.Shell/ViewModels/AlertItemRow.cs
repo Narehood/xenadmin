@@ -14,6 +14,8 @@ public partial class AlertItemRow : ObservableObject
         PriorityLabel = FormatPriority(alert.Priority);
         TimestampText = alert.Timestamp.ToLocalTime().ToString("g");
         CanDismiss = alert.AllowedToDismiss();
+        FixLinkText = string.IsNullOrWhiteSpace(alert.FixLinkText) ? "" : alert.FixLinkText;
+        HasFixLink = alert.FixLinkAction != null && !string.IsNullOrWhiteSpace(FixLinkText);
     }
 
     public Alert Alert { get; }
@@ -23,6 +25,8 @@ public partial class AlertItemRow : ObservableObject
     public string AppliesTo { get; }
     public string PriorityLabel { get; }
     public string TimestampText { get; }
+    public string FixLinkText { get; }
+    public bool HasFixLink { get; }
 
     [ObservableProperty]
     private bool _isSelected;

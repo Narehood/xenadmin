@@ -260,9 +260,50 @@ public class ShellMessageAlert : Alert
         return bond == null ? Messages.UNKNOWN : bond.Name();
     }
 
-    public override Action FixLinkAction => null!;
+    public override Action FixLinkAction
+    {
+        get
+        {
+            if (XenObject == null)
+                return null!;
 
-    public override string FixLinkText => null!;
+            var typ = Message.Type;
+            switch (typ)
+            {
+                case Message.MessageType.HA_HEARTBEAT_APPROACHING_TIMEOUT:
+                case Message.MessageType.HA_HOST_FAILED:
+                case Message.MessageType.HA_HOST_WAS_FENCED:
+                case Message.MessageType.HA_NETWORK_BONDING_ERROR:
+                case Message.MessageType.HA_POOL_DROP_IN_PLAN_EXISTS_FOR:
+                case Message.MessageType.HA_POOL_OVERCOMMITTED:
+                case Message.MessageType.HA_PROTECTED_VM_RESTART_FAILED:
+                case Message.MessageType.HA_STATEFILE_APPROACHING_TIMEOUT:
+                case Message.MessageType.HA_STATEFILE_LOST:
+                case Message.MessageType.HA_XAPI_HEALTHCHECK_APPROACHING_TIMEOUT:
+                    return () => ShellAlertFixActions.NotifyHaConfigureUnavailable();
+
+                case Message.MessageType.MULTIPATH_PERIODIC_ALERT:
+                    return () => ShellAlertFixActions.OpenLogs?.Invoke();
+
+                case Message.MessageType.PBD_PLUG_FAILED_ON_SERVER_START:
+                    return () => ShellAlertFixActions.RepairBrokenStorage(Connection);
+
+                default:
+                    return null!;
+            }
+        }
+    }
+
+    public override string FixLinkText
+    {
+        get
+        {
+            if (XenObject == null || FixLinkAction == null)
+                return null!;
+
+            return Message.FriendlyAction(Message.MessageTypeString()) ?? Messages.DETAILS;
+        }
+    }
 
     public override string Title
     {

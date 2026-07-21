@@ -7,7 +7,9 @@ public enum ImportExportChoice
 {
     Cancel,
     Import,
-    Export
+    Export,
+    ImportOvf,
+    ExportOvf
 }
 
 public partial class ImportExportChoiceWindow : Window
@@ -28,6 +30,18 @@ public partial class ImportExportChoiceWindow : Window
     private void OnExportClick(object? sender, RoutedEventArgs e)
     {
         ResultChoice = ImportExportChoice.Export;
+        Close();
+    }
+
+    private void OnImportOvfClick(object? sender, RoutedEventArgs e)
+    {
+        ResultChoice = ImportExportChoice.ImportOvf;
+        Close();
+    }
+
+    private void OnExportOvfClick(object? sender, RoutedEventArgs e)
+    {
+        ResultChoice = ImportExportChoice.ExportOvf;
         Close();
     }
 
