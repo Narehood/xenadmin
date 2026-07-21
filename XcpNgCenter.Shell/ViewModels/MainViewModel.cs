@@ -20,6 +20,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private readonly SavedServerStore _savedServerStore = new();
     private readonly ShellAppSettings _appSettings = new();
     private bool _disposed;
+    private CancellationTokenSource? _autoReconnectCts;
 
     public string BrandName => "XCP-ng Center";
 
@@ -192,7 +193,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public MainViewModel()
     {
-        RememberPassword = CanPersistPasswords;
+        // Opt-in: do not default RememberPassword just because the platform can persist.
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
         SavedServers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSavedServers));
         _consoleSession.StateChanged += OnConsoleSessionStateChanged;
@@ -209,6 +210,18 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (_disposed)
             return;
         _disposed = true;
+
+        try
+        {
+            _autoReconnectCts?.Cancel();
+            _autoReconnectCts?.Dispose();
+        }
+        catch
+        {
+            // Best-effort.
+        }
+
+        _autoReconnectCts = null;
 
         DisposeUpdateCheck();
         DisposeAlertsAndGraphsUi();
@@ -328,9 +341,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (isPublic && ShowWelcome && ShowPublicIpWarning && !AcknowledgePublicIp)
             return "Acknowledge the public-IP warning before connecting.";
 
-        // Avoid duplicate live connections to the same address.
+        // Avoid duplicate live connections / in-flight connects to the same address.
         var display = port > 0 ? $"{host}:{port}" : host;
-        if (Servers.Any(s => s.IsConnected
+        if (Servers.Any(s => (s.IsConnected || s.IsConnecting)
                              && string.Equals(s.Address, display, StringComparison.OrdinalIgnoreCase)))
             return $"Already connected to {display}.";
 
@@ -398,12 +411,30 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (candidates.Count == 0)
             return;
 
+        _autoReconnectCts?.Cancel();
+        _autoReconnectCts?.Dispose();
+        _autoReconnectCts = new CancellationTokenSource();
+        var token = _autoReconnectCts.Token;
+
         _ = Task.Run(async () =>
         {
-            // Let the main window paint before opening connections / TOFU prompts.
-            await Task.Delay(900).ConfigureAwait(false);
-            Dispatcher.UIThread.Post(() => AutoReconnectSavedServers(candidates));
-        });
+            try
+            {
+                // Let the main window paint before opening connections / TOFU prompts.
+                await Task.Delay(900, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_disposed || !_appSettings.AutoReconnectSavedServers)
+                    return;
+                AutoReconnectSavedServers(candidates);
+            });
+        }, token);
     }
 
     private void AutoReconnectSavedServers(IReadOnlyList<SavedServerEntry> candidates)

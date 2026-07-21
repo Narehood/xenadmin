@@ -19,12 +19,18 @@ public partial class ActionLogRow : ObservableObject, IDisposable
     public ActionBase Action { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCopy))]
+    [NotifyPropertyChangedFor(nameof(CopyText))]
     private string _title = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCopy))]
+    [NotifyPropertyChangedFor(nameof(CopyText))]
     private string _description = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCopy))]
+    [NotifyPropertyChangedFor(nameof(CopyText))]
     private string _status = string.Empty;
 
     [ObservableProperty]
@@ -43,6 +49,8 @@ public partial class ActionLogRow : ObservableObject, IDisposable
     private bool _isError;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCopy))]
+    [NotifyPropertyChangedFor(nameof(CopyText))]
     private string _startedText = string.Empty;
 
     public bool CanCopy =>
