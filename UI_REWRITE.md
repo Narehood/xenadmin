@@ -44,7 +44,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - **New SR wizard** — NFS ISO, SMB/CIFS ISO, NFS VHD, SMB, iSCSI (+ optional GFS2), **HBA (`lvmohba`)** / **FCoE (`lvmofcoe`)** with LUN probe (+ GFS2 on HBA)
 - HA start/resume prompts; richer **start-failure host table** (per-host assert_can_boot_here + resume CPU vendor check; session logout)
 - **VM chrome (WinForms-aligned):** power bar above tabs; Force* in context menu; Properties on General; Console ISO selector (and compact pop-out toolbar); WinForms status icons for pool/host/VM/SR (running/halted/suspended/paused/migrating/lifecycle); snapshot **tree**; storage nodes under hosts (local) and pool (shared)
-- Layout polish: wrap actions, scrollable detail, console Height=520, Properties scroll padding
+- Layout polish: wrap actions, scrollable detail, console Height=520, Properties scroll padding; denser infra tree; copyable row orange border on hover only; pop-out CAD = Ctrl+Alt+Del
 
 ### Key shell layout
 

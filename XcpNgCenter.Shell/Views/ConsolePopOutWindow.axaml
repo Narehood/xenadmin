@@ -44,7 +44,7 @@
               Margin="6,0,0,0" Padding="10,6"
               IsVisible="{Binding ShowConsoleIsoBar}"
               Command="{Binding EjectIsoCommand}" />
-      <Button Grid.Column="4" Classes="ghost" Content="Control Alt Delete"
+      <Button Grid.Column="4" Classes="ghost" Content="Ctrl+Alt+Del"
               Margin="6,0,0,0" Padding="10,6"
               Command="{Binding SendCtrlAltDelCommand}" />
       <Button Grid.Column="5" Classes="ghost" Content="Reattach"

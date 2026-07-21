@@ -91,23 +91,29 @@
       <Setter Property="Opacity" Value="0" />
       <Setter Property="IsHitTestVisible" Value="False" />
     </Style>
+    <!-- Reserve 1px so hover border does not shift layout; chrome only on hover/focus. -->
     <Style Selector="Border.prop-row.copyable">
-      <Setter Property="BorderBrush" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:pointerover">
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.BrandOrange}" />
       <Setter Property="Background" Value="#14F07318" />
     </Style>
-    <Style Selector="Border.prop-row.copyable Button.copy">
-      <Setter Property="Opacity" Value="0.7" />
+    <Style Selector="Border.prop-row.copyable:focus-within">
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Background" Value="#14F07318" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:pointerover Button.copy">
+      <Setter Property="Opacity" Value="1" />
       <Setter Property="IsHitTestVisible" Value="True" />
       <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
     </Style>
-    <Style Selector="Border.prop-row:pointerover Button.copy">
+    <Style Selector="Border.prop-row.copyable:focus-within Button.copy">
       <Setter Property="Opacity" Value="1" />
       <Setter Property="IsHitTestVisible" Value="True" />
-    </Style>
-    <Style Selector="Border.prop-row:focus-within Button.copy">
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="IsHitTestVisible" Value="True" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
     </Style>
     <Style Selector="Button.copy:pointerover /template/ ContentPresenter">
       <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
