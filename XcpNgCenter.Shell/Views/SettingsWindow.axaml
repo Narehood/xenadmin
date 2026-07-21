@@ -79,13 +79,12 @@
                   Content="Check for updates"
                   HorizontalAlignment="Left"
                   Margin="0,12,0,0"
-                  Command="{Binding CheckForUpdatesCommand}"
-                  IsEnabled="{Binding !IsCheckingUpdates}" />
+                  Command="{Binding CheckForUpdatesCommand}" />
           <TextBlock Text="{Binding UpdateCheckStatus}"
                      FontSize="12"
                      TextWrapping="Wrap"
                      Foreground="{StaticResource Brush.TextMuted}"
-                     IsVisible="{Binding UpdateCheckStatus.Length}" />
+                     IsVisible="{Binding HasUpdateCheckStatus}" />
         </StackPanel>
       </TabItem>
     </TabControl>

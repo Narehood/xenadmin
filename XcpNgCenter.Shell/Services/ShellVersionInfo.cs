@@ -64,9 +64,9 @@ public static class ShellVersionInfo
                     raw,
                     "yyyyMMdd_HHmmss",
                     System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.AssumeLocal,
-                    out var local))
-                return local.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") + " UTC";
+                    System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                    out var utc))
+                return utc.ToString("yyyy-MM-dd HH:mm") + " UTC";
 
             return raw;
         }

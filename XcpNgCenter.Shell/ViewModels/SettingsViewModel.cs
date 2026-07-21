@@ -15,7 +15,8 @@ public partial class SettingsViewModel : ViewModelBase
         _main = main;
         _settings = settings;
         _close = close;
-        AutoReconnectSavedServers = settings.AutoReconnectSavedServers;
+        // Assign the backing field so OnAutoReconnectSavedServersChanged does not rewrite settings on open.
+        _autoReconnectSavedServers = settings.AutoReconnectSavedServers;
         VersionText = ShellVersionInfo.Display;
         BuildDateText = ShellVersionInfo.BuildDateDisplay;
         CodenameText = ShellVersionInfo.Codename;
@@ -40,10 +41,13 @@ public partial class SettingsViewModel : ViewModelBase
     private string _passwordStorageNote = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUpdateCheckStatus))]
     private string _updateCheckStatus = string.Empty;
 
     [ObservableProperty]
     private bool _isCheckingUpdates;
+
+    public bool HasUpdateCheckStatus => !string.IsNullOrEmpty(UpdateCheckStatus);
 
     partial void OnAutoReconnectSavedServersChanged(bool value)
     {

@@ -827,32 +827,32 @@
 
                 <TabItem Header="Console">
                   <Grid Margin="0,4,0,0" RowDefinitions="Auto,*">
-                    <!-- CD/DVD + console actions on one compact row. -->
-                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto"
-                          Margin="0,0,4,4"
-                          IsVisible="{Binding ShowConsoleIsoBar}">
+                    <!-- CD/DVD + console actions; wraps to a second row at MinWidth. -->
+                    <WrapPanel Orientation="Horizontal"
+                               Margin="0,0,4,4"
+                               IsVisible="{Binding ShowConsoleIsoBar}">
                       <TextBlock Text="CD/DVD"
                                  FontSize="12"
                                  FontWeight="SemiBold"
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  VerticalAlignment="Center"
-                                 Margin="0,0,10,0" />
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding AttachedIsoLabel}"
+                                 Margin="0,0,10,4" />
+                      <TextBlock Text="{Binding AttachedIsoLabel}"
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  TextTrimming="CharacterEllipsis"
                                  VerticalAlignment="Center"
-                                 Margin="0,0,10,0" />
-                      <ComboBox Grid.Column="2"
-                                ItemsSource="{Binding ConsoleIsoOptions}"
+                                 MaxWidth="240"
+                                 Margin="0,0,10,4" />
+                      <ComboBox ItemsSource="{Binding ConsoleIsoOptions}"
                                 SelectedItem="{Binding SelectedConsoleIso}"
                                 PlaceholderText="Select ISO…"
                                 IsEnabled="{Binding HasConsoleIsoOptions}"
                                 MinWidth="180"
                                 MaxWidth="280"
                                 MinHeight="32"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Center"
+                                Margin="0,0,8,4">
                         <ComboBox.ItemTemplate>
                           <DataTemplate x:DataType="vm:IsoOption">
                             <StackPanel Spacing="1">
@@ -865,37 +865,37 @@
                           </DataTemplate>
                         </ComboBox.ItemTemplate>
                       </ComboBox>
-                      <Button Grid.Column="3" Classes="ghost" Content="Insert"
-                              Margin="8,0,0,0" Padding="10,4"
+                      <Button Classes="ghost" Content="Insert"
+                              Margin="0,0,6,4" Padding="10,4"
                               VerticalAlignment="Center"
                               Command="{Binding ApplyConsoleIsoCommand}"
                               ToolTip.Tip="Insert the selected ISO" />
-                      <Button Grid.Column="4" Classes="ghost" Content="Eject"
-                              Margin="6,0,0,0" Padding="10,4"
+                      <Button Classes="ghost" Content="Eject"
+                              Margin="0,0,6,4" Padding="10,4"
                               VerticalAlignment="Center"
                               Command="{Binding EjectIsoCommand}"
                               ToolTip.Tip="Eject the current ISO" />
-                      <Button Grid.Column="5" Classes="ghost" Content="Browse…"
-                              Margin="6,0,0,0" Padding="10,4"
+                      <Button Classes="ghost" Content="Browse…"
+                              Margin="0,0,6,4" Padding="10,4"
                               VerticalAlignment="Center"
                               Command="{Binding AttachIsoCommand}"
                               ToolTip.Tip="Open the full ISO library picker" />
-                      <Button Grid.Column="6" Classes="ghost" Content="Pop Out"
-                              Margin="16,0,0,0" Padding="10,4"
+                      <Button Classes="ghost" Content="Pop Out"
+                              Margin="8,0,6,4" Padding="10,4"
                               VerticalAlignment="Center"
                               Command="{Binding PopOutConsoleCommand}"
                               IsVisible="{Binding !IsConsolePoppedOut}" />
-                      <Button Grid.Column="6" Classes="ghost" Content="Reattach"
-                              Margin="16,0,0,0" Padding="10,4"
+                      <Button Classes="ghost" Content="Reattach"
+                              Margin="8,0,6,4" Padding="10,4"
                               VerticalAlignment="Center"
                               Command="{Binding ReattachConsoleCommand}"
                               IsVisible="{Binding ShowConsoleReattach}" />
-                      <Button Grid.Column="7" Classes="ghost" Content="Ctrl+Alt+Del"
-                              Margin="6,0,0,0" Padding="10,4"
+                      <Button Classes="ghost" Content="Ctrl+Alt+Del"
+                              Margin="0,0,0,4" Padding="10,4"
                               VerticalAlignment="Center"
                               Command="{Binding SendCtrlAltDelCommand}"
                               IsVisible="{Binding HasConsoleFrame}" />
-                    </Grid>
+                    </WrapPanel>
 
                     <WrapPanel Grid.Row="0"
                                Orientation="Horizontal"

@@ -27,8 +27,12 @@ public sealed record SavedServerEntry(
 /// </summary>
 public sealed class SavedServerStore
 {
-    /// <summary>True when the shell can protect passwords for the current user.</summary>
-    public static bool CanPersistPasswords => true;
+    /// <summary>
+    /// True when the OS can protect passwords for the current user
+    /// (Windows DPAPI, or a Unix user-only AES device key).
+    /// </summary>
+    public static bool CanPersistPasswords =>
+        OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
 
     private readonly string _path;
     private readonly string _keyPath;
@@ -36,7 +40,6 @@ public sealed class SavedServerStore
     public SavedServerStore(string? path = null)
     {
         var root = GetConfigRoot();
-        Directory.CreateDirectory(root);
         _path = path ?? Path.Combine(root, "saved-servers.json");
         _keyPath = Path.Combine(root, "device.key");
     }
@@ -82,6 +85,10 @@ public sealed class SavedServerStore
                 })
                 .ToList();
 
+            var directory = Path.GetDirectoryName(_path);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+
             var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_path, json);
         }
@@ -93,7 +100,7 @@ public sealed class SavedServerStore
 
     public static string? ProtectPassword(string? password)
     {
-        if (string.IsNullOrEmpty(password))
+        if (string.IsNullOrEmpty(password) || !CanPersistPasswords)
             return null;
 
         try
@@ -191,21 +198,30 @@ public sealed class SavedServerStore
         {
             var existing = File.ReadAllBytes(keyPath);
             if (existing.Length == 32)
+            {
+                EnforceUserOnlyKeyPermissions(keyPath);
                 return existing;
+            }
         }
 
         var key = RandomNumberGenerator.GetBytes(32);
         File.WriteAllBytes(keyPath, key);
-        try
-        {
-            if (!OperatingSystem.IsWindows())
-                File.SetUnixFileMode(keyPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-        }
-        catch
-        {
-            // Best-effort chmod.
-        }
-
+        EnforceUserOnlyKeyPermissions(keyPath);
         return key;
+    }
+
+    /// <summary>
+    /// Requires user-read/user-write only on Unix. Fail closed on chmod or validation errors.
+    /// </summary>
+    private static void EnforceUserOnlyKeyPermissions(string keyPath)
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        const UnixFileMode userOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(keyPath, userOnly);
+        var mode = File.GetUnixFileMode(keyPath);
+        if ((mode & ~userOnly) != 0 || (mode & userOnly) != userOnly)
+            throw new CryptographicException("device.key must be user-read/user-write only.");
     }
 }

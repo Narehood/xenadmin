@@ -15,7 +15,6 @@ public sealed class ShellAppSettings
     public ShellAppSettings(string? path = null)
     {
         var root = GetConfigRoot();
-        Directory.CreateDirectory(root);
         _path = path ?? Path.Combine(root, "app-settings.json");
         _state = Load();
     }
@@ -58,6 +57,10 @@ public sealed class ShellAppSettings
     {
         try
         {
+            var directory = Path.GetDirectoryName(_path);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+
             var json = JsonSerializer.Serialize(_state, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_path, json);
         }
