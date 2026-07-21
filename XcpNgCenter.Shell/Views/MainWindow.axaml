@@ -459,9 +459,9 @@
           </ScrollViewer>
         </Grid>
 
-        <Grid IsVisible="{Binding ShowInfrastructureDetail}" Margin="28,20,28,12" RowDefinitions="Auto,*,Auto">
+        <Grid IsVisible="{Binding ShowInfrastructureDetail}" Margin="28,16,28,10" RowDefinitions="Auto,*,Auto">
           <!-- Compact object header: kind + name inline; VM power controls top-right. -->
-          <DockPanel Margin="12,0,12,8" LastChildFill="True">
+          <DockPanel Margin="12,0,12,2" LastChildFill="True">
             <StackPanel DockPanel.Dock="Right"
                         Orientation="Horizontal"
                         Spacing="6"
@@ -479,12 +479,12 @@
                       IsVisible="{Binding ShowPauseToggle}" />
             </StackPanel>
 
-            <StackPanel Spacing="2" VerticalAlignment="Center">
+            <StackPanel Spacing="1" VerticalAlignment="Center">
               <StackPanel Orientation="Horizontal" Spacing="10">
                 <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
-                           FontSize="14"
-                           FontWeight="SemiBold"
-                           LetterSpacing="0.8"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           LetterSpacing="0.6"
                            Foreground="{StaticResource Brush.BrandOrange}"
                            VerticalAlignment="Center" />
                 <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Select a pool, host, or VM'}"
@@ -514,8 +514,8 @@
                   <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="13" />
                     <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
-                    <Setter Property="Padding" Value="14,8" />
-                    <Setter Property="Margin" Value="0,0,8,0" />
+                    <Setter Property="Padding" Value="12,6" />
+                    <Setter Property="Margin" Value="0,0,6,0" />
                   </Style>
                   <Style Selector="TabItem:selected">
                     <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
@@ -826,10 +826,10 @@
                 </TabItem>
 
                 <TabItem Header="Console">
-                  <Grid Margin="0,12,0,0" RowDefinitions="Auto,*">
+                  <Grid Margin="0,4,0,0" RowDefinitions="Auto,*">
                     <!-- CD/DVD + console actions on one compact row. -->
                     <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto"
-                          Margin="0,0,4,8"
+                          Margin="0,0,4,4"
                           IsVisible="{Binding ShowConsoleIsoBar}">
                       <TextBlock Text="CD/DVD"
                                  FontSize="12"
@@ -899,7 +899,7 @@
 
                     <WrapPanel Grid.Row="0"
                                Orientation="Horizontal"
-                               Margin="0,0,4,8"
+                               Margin="0,0,4,4"
                                IsVisible="{Binding !ShowConsoleIsoBar}">
                       <Button Classes="ghost" Content="Pop Out" Margin="0,0,8,0" Padding="10,4"
                               Command="{Binding PopOutConsoleCommand}"
@@ -922,8 +922,8 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="6"
-                                MinHeight="640"
-                                Height="640"
+                                MinHeight="600"
+                                Height="600"
                                 ClipToBounds="True">
                           <Grid ClipToBounds="True">
                             <StackPanel Spacing="8"
