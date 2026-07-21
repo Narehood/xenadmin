@@ -20,13 +20,15 @@ public sealed class PerformanceChart : Control
 
     private Point? _pointer;
     private bool _pointerInside;
-    private static readonly FontFamily ChartFontFamily = ResolveChartFont();
+    private static FontFamily? _chartFontFamily;
 
     static PerformanceChart()
     {
         AffectsRender<PerformanceChart>(SeriesProperty, IntervalProperty, BoundsProperty);
         ClipToBoundsProperty.OverrideDefaultValue<PerformanceChart>(true);
     }
+
+    private static FontFamily ChartFontFamily => _chartFontFamily ??= ResolveChartFont();
 
     private static FontFamily ResolveChartFont()
     {

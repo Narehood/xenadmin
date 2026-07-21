@@ -67,7 +67,9 @@ public sealed class TofuCertificateValidator
 
             lock (_gate)
                 _store.Set(hostname, hash);
-            LastMessage = $"Updated pinned certificate for {hostname}.";
+            LastMessage = string.IsNullOrWhiteSpace(_store.LastSaveError)
+                ? $"Updated pinned certificate for {hostname}."
+                : $"Accepted certificate for {hostname}, but pin was not saved: {_store.LastSaveError}";
             return true;
         }
 
@@ -85,7 +87,9 @@ public sealed class TofuCertificateValidator
 
         lock (_gate)
             _store.Set(hostname, hash);
-        LastMessage = $"Pinned certificate for {hostname}.";
+        LastMessage = string.IsNullOrWhiteSpace(_store.LastSaveError)
+            ? $"Pinned certificate for {hostname}."
+            : $"Accepted certificate for {hostname}, but pin was not saved: {_store.LastSaveError}";
         return true;
     }
 

@@ -7,12 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       revision:
-        description: "BuildRevision (fourth version segment). Prefer a value greater than any soak binary under test."
+        description: "BuildRevision (non-negative integer). Prefer a value greater than any soak binary under test."
         required: true
         type: string
         default: "1"
       attach_artifacts:
-        description: "Build and attach self-contained win-x64 + linux-x64 shell zips"
+        description: "Build and attach self-contained win-x64 zip + linux-x64 tar.gz"
         required: true
         type: boolean
         default: true
@@ -26,8 +26,12 @@ permissions:
   contents: write
 
 jobs:
-  publish:
+  publish-windows:
+    if: ${{ inputs.attach_artifacts }}
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,73 +42,165 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Compute version
+      - name: Validate revision and compute version
         id: ver
         shell: pwsh
         run: |
+          $rev = "${{ inputs.revision }}".Trim()
+          if ($rev -notmatch '^\d+$') {
+            throw "revision must be a non-negative integer (got '$rev')"
+          }
           $utc = [DateTime]::UtcNow
-          $rev = "${{ inputs.revision }}"
           $version = "{0}.{1}.{2}.{3}" -f $utc.Year, $utc.Month, $utc.Day, $rev
           $tag = "v$version"
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "revision=$rev" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Publishing $tag"
 
       - name: Publish Avalonia shell (win-x64)
-        if: ${{ inputs.attach_artifacts }}
         run: >
           dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
           -c Release
           -r win-x64
           --self-contained true
           -p:PublishSingleFile=false
-          -p:BuildRevision=${{ inputs.revision }}
+          -p:BuildRevision=${{ steps.ver.outputs.revision }}
           -o artifacts/shell-win-x64
           --nologo
 
+      - name: Zip win-x64
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $v = "${{ steps.ver.outputs.version }}"
+          Compress-Archive -Path artifacts/shell-win-x64/* -DestinationPath "dist/XcpNgCenter.Shell-win-x64-$v.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-win-x64
+          path: dist/*.zip
+          if-no-files-found: error
+
+  publish-linux:
+    if: ${{ inputs.attach_artifacts }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Validate revision and compute version
+        id: ver
+        shell: bash
+        run: |
+          REV="${{ inputs.revision }}"
+          REV="$(echo "$REV" | tr -d '[:space:]')"
+          if ! [[ "$REV" =~ ^[0-9]+$ ]]; then
+            echo "revision must be a non-negative integer (got '$REV')" >&2
+            exit 1
+          fi
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%-m)
+          DAY=$(date -u +%-d)
+          VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "revision=${REV}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${TAG}"
+
       - name: Publish Avalonia shell (linux-x64)
-        if: ${{ inputs.attach_artifacts }}
         run: >
           dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
           -c Release
           -r linux-x64
           --self-contained true
           -p:PublishSingleFile=false
-          -p:BuildRevision=${{ inputs.revision }}
+          -p:BuildRevision=${{ steps.ver.outputs.revision }}
           -o artifacts/shell-linux-x64
           --nologo
 
-      - name: Zip artifacts
-        if: ${{ inputs.attach_artifacts }}
-        shell: pwsh
+      - name: Tar linux-x64 (preserves executable bits)
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          $v = "${{ steps.ver.outputs.version }}"
-          Compress-Archive -Path artifacts/shell-win-x64/* -DestinationPath "dist/XcpNgCenter.Shell-win-x64-$v.zip"
-          Compress-Archive -Path artifacts/shell-linux-x64/* -DestinationPath "dist/XcpNgCenter.Shell-linux-x64-$v.zip"
+          mkdir -p dist
+          V="${{ steps.ver.outputs.version }}"
+          chmod +x artifacts/shell-linux-x64/XcpNgCenter.Shell || true
+          tar -C artifacts/shell-linux-x64 -czf "dist/XcpNgCenter.Shell-linux-x64-${V}.tar.gz" .
 
-      - name: Create GitHub Release (with assets)
-        if: ${{ inputs.attach_artifacts }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-linux-x64
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish-release:
+    needs: [publish-windows, publish-linux]
+    if: ${{ always() && inputs.attach_artifacts && needs.publish-windows.result == 'success' && needs.publish-linux.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download assets
+        uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: XCP-ng Center Shell ${{ steps.ver.outputs.version }}
+          tag_name: ${{ needs.publish-linux.outputs.tag }}
+          name: XCP-ng Center Shell ${{ needs.publish-linux.outputs.version }}
           target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
           body: |
-            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ steps.ver.outputs.version }}**.
+            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ needs.publish-linux.outputs.version }}**.
 
             Calendar versioning: `year.month.day.revision`. Production client remains WinForms `XenAdmin` until Linux/Windows soak is clean.
 
+            Assets:
+            - `XcpNgCenter.Shell-win-x64-*.zip`
+            - `XcpNgCenter.Shell-linux-x64-*.tar.gz` (preserves `+x` on the main binary)
+
             Update banner: launch an older shell build; a bottom-right banner should offer **View release** / **Dismiss** when this tag is newer than the stamped assembly version (and not a prerelease).
-          files: dist/*.zip
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  publish-notes-only:
+    if: ${{ !inputs.attach_artifacts }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate revision and compute version
+        id: ver
+        shell: bash
+        run: |
+          REV="${{ inputs.revision }}"
+          REV="$(echo "$REV" | tr -d '[:space:]')"
+          if ! [[ "$REV" =~ ^[0-9]+$ ]]; then
+            echo "revision must be a non-negative integer (got '$REV')" >&2
+            exit 1
+          fi
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%-m)
+          DAY=$(date -u +%-d)
+          VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${TAG}"
+
       - name: Create GitHub Release (notes only)
-        if: ${{ !inputs.attach_artifacts }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}

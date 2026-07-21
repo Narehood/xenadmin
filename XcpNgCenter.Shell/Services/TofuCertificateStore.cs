@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace XcpNgCenter.Shell.Services;
@@ -7,6 +8,9 @@ namespace XcpNgCenter.Shell.Services;
 /// </summary>
 public sealed class TofuCertificateStore
 {
+    private static readonly log4net.ILog Log =
+        log4net.LogManager.GetLogger(typeof(TofuCertificateStore));
+
     private readonly object _gate = new();
     private readonly string _path;
     private Dictionary<string, string> _pins = new(StringComparer.OrdinalIgnoreCase);
@@ -16,6 +20,9 @@ public sealed class TofuCertificateStore
         _path = path ?? Path.Combine(ShellPaths.GetConfigRoot(), "known-servers.json");
         Load();
     }
+
+    /// <summary>Last persistence error, if any (cleared on successful save).</summary>
+    public string? LastSaveError { get; private set; }
 
     public bool TryGet(string hostname, out string hash)
     {
@@ -77,8 +84,9 @@ public sealed class TofuCertificateStore
             if (loaded != null)
                 _pins = new Dictionary<string, string>(loaded, StringComparer.OrdinalIgnoreCase);
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warn($"Failed to load TOFU pins from '{_path}'", ex);
             _pins = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
     }
@@ -92,10 +100,13 @@ public sealed class TofuCertificateStore
                 Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(_pins, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_path, json);
+            LastSaveError = null;
         }
-        catch
+        catch (Exception ex)
         {
-            // Best-effort persistence; connection can continue without a durable pin.
+            LastSaveError = ex.Message;
+            Log.Warn($"Failed to persist TOFU pins to '{_path}': {ex.Message}", ex);
+            Debug.WriteLine($"TOFU pin save failed: {ex}");
         }
     }
 }
