@@ -8,8 +8,8 @@ rewrite reaches feature parity for your environment.
 
 | Item | State |
 |------|--------|
-| Integration branch | `development` |
-| Active PRs | `#21` soak-ready; `#22` (+ UX follow-up) alerts/graphs → `development` |
+| Integration branch | `development` (tip includes merged `#20`–`#23`) |
+| Open Cursor PRs / branches | **none** |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
 
 ## Projects
@@ -20,17 +20,17 @@ rewrite reaches feature parity for your environment.
 | `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`) |
 | `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`) |
 
-## Done through PR #22
+## Done on `development` (through PR `#23`)
 
 - Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM; Snapshots (disk-only)
-- Full VM Properties; Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA
-- **Alerts** — clickable sidebar badge opens an **app-global** alerts pane (all connected pools/servers); dismiss; fix-links (Repair SR via `SrRepairAction`; HA deferred to WinForms; multipath → Logs hint)
-- **Performance** — RRD poller + Avalonia charts with hover crosshair/tooltips and time-axis labels by range; time-range picker (10m / 2h / 1w / 1y); load/save `pool.gui_config` layouts
-- **Tab chrome** — Fluent accent + selected tab underline use brand orange (`#F07318`)
-- **Versioning** — `year.month.day.revision` (CI sets revision from `GITHUB_RUN_NUMBER`)
-- **Update banner** — checks GitHub Releases on launch; bottom-right notice with View release / Dismiss
-- **Multi-LUN HBA/FCoE** — select many LUNs → `ParallelAction` of `SrCreateAction`
-- **OVF/OVA** — appliance import/export wizards alongside XVA
+- Full VM Properties; Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA + OVF/OVA
+- VM chrome: power toggles, status icons, snapshot tree, Console ISO, denser tree/General
+- **Alerts** — always-visible sidebar badge (gray `0` / orange count) opens an **app-global** alerts pane
+- **Performance** — RRD charts with hover tooltips + time-axis labels; ranges 10m / 2h / 1w / 1y; layout save
+- **Splash** — paints before bootstrap; shows `year.month.day.revision`; held ~2.8s
+- **Versioning** — `year.month.day.revision` (CI `-p:BuildRevision=${{ github.run_number }}`)
+- **Update banner** — GitHub Releases check; bottom-right View release / Dismiss
+- Brand-orange Fluent tab underline; multi-LUN HBA/FCoE
 
 ### Key shell layout
 
@@ -38,9 +38,9 @@ rewrite reaches feature parity for your environment.
 XcpNgCenter.Shell/
   Alerts/            ShellMessageAlert, ShellAlarmMessageAlert, ShellAlertFixActions
   Actions/           DismissAlertsAction, SaveShellGraphLayoutAction
-  Services/          ShellAlertHub, Performance/*
-  ViewModels/        … OvfImport/Export, NewSr multi-LUN, MainViewModel.AlertsGraphs
-  Views/             … OvfImport/Export windows
+  Services/          ShellAlertHub, Performance/*, ShellGitHubUpdateChecker, ShellVersionInfo
+  ViewModels/        … OvfImport/Export, NewSr multi-LUN, MainViewModel.AlertsGraphs/Updates
+  Views/             … Splash, OvfImport/Export, global alerts overlay
   Controls/          RfbConsoleView, PerformanceChart
 ```
 
@@ -48,18 +48,19 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 
 ## Next
 
-1. **Soak + merge PR `#21`**, then **`#22`** (alerts/graphs + hover tooltips + global alerts pane).
-2. Later: HA/AD/DR wizards (enables richer HA alert fix-links); graph editor UI beyond save-current-defaults.
-3. RDP stays WinForms-only.
+1. **Linux desktop soak** of `drop-shell-linux-x64` from `development` (TOFU, RFB, multi-server, migrate/move, import/export, alerts, graphs).
+2. Publish a GitHub Release tagged `vYYYY.M.D.N` so the update banner can be verified end-to-end.
+3. Later: HA/AD/DR wizards (richer HA alert fix-links); graph editor beyond save-current-defaults; memory/quiesced snapshots.
+4. RDP stays WinForms-only.
 
 ## How to try
 
 ```bash
-dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -o artifacts/shell-win-x64
-dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -o artifacts/shell-linux-x64
+dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -p:BuildRevision=1 -o artifacts/shell-win-x64
+dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -p:BuildRevision=1 -o artifacts/shell-linux-x64
 ```
 
-Pins: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-ng Center Shell/`.
+Pins / prefs: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-ng Center Shell/`.
 
 ## Non-goals
 
