@@ -19,7 +19,7 @@
 		<AssemblyVersion>$(Version)</AssemblyVersion>
 		<FileVersion>$(Version)</FileVersion>
 		<InformationalVersion>$(Version)</InformationalVersion>
-		<Codename>Medicine Hat</Codename>
+		<Codename>Emberlane</Codename>
 		<Lab>xcpngcenter_main</Lab>
 	</PropertyGroup>
 </Project>

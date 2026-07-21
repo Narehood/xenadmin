@@ -3,6 +3,7 @@ List of maintainers
 
 * Alexander Schulz (borzel) - code@schulzalex.de
 * Michael Manley - mjmanley@wisegs.net
+* Michael Manley (Narehood) - michael@narehood.net
 
 -----------------------------------------------------------------------------
 

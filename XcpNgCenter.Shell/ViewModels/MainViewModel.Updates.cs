@@ -79,6 +79,27 @@ public partial class MainViewModel
         }
     }
 
+    /// <summary>Manual update check used by Settings → About.</summary>
+    public async Task<string> CheckForUpdatesManualAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var offer = await _updateChecker.CheckForUpdateAsync(cancellationToken).ConfigureAwait(true);
+            if (offer == null)
+            {
+                UpdateAvailable = false;
+                return $"You're up to date ({ShellVersionInfo.Display}).";
+            }
+
+            ApplyUpdateOffer(offer);
+            return $"Update available: {offer.Version.ToString(4)} — see the banner or open the release page.";
+        }
+        catch (Exception ex)
+        {
+            return $"Update check failed: {ex.Message}";
+        }
+    }
+
     [RelayCommand]
     private void DismissUpdateBanner()
     {

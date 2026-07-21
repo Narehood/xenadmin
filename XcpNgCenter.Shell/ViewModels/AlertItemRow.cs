@@ -38,6 +38,28 @@ public partial class AlertItemRow : ObservableObject
     public string FixLinkText { get; }
     public bool HasFixLink { get; }
 
+    public bool CanCopy => !string.IsNullOrWhiteSpace(Title) || !string.IsNullOrWhiteSpace(Description);
+
+    /// <summary>Clipboard payload matching the visible alert fields.</summary>
+    public string CopyText
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Title))
+                parts.Add(Title);
+            if (!string.IsNullOrWhiteSpace(PriorityLabel))
+                parts.Add($"Priority: {PriorityLabel}");
+            if (!string.IsNullOrWhiteSpace(Description))
+                parts.Add(Description);
+            if (!string.IsNullOrWhiteSpace(SourceLabel))
+                parts.Add($"Source: {SourceLabel}");
+            if (!string.IsNullOrWhiteSpace(TimestampText))
+                parts.Add($"When: {TimestampText}");
+            return string.Join(Environment.NewLine, parts);
+        }
+    }
+
     private static string FormatConnection(Alert alert)
     {
         var conn = alert.Connection;

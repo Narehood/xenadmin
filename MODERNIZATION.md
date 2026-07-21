@@ -32,9 +32,9 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**On `development` (merged `#20`–`#23`):** Phase 1–2 parity + migrate/move harden + VM chrome + Import/Export (XVA/OVF) + global Alerts + Performance graphs (hover/time axis) + calendar versioning + GitHub update banner + faster splash. No open Cursor feature branches.
+**On `development`:** Phase 1–2 parity + migrate/move harden + VM chrome + Import/Export (XVA/OVF) + global Alerts + Performance graphs + calendar versioning + GitHub update banner + Settings/About (**Emberlane**) + auto-reconnect + Linux soak hardening. Production remains WinForms until soak is clean.
 
-**Next:** Linux desktop soak of `drop-shell-linux-x64` → publish a GitHub Release to exercise the update banner → later HA/AD/DR. RDP stays WinForms-only.
+**Next:** Continue Linux/Windows desktop soak against real pools → later HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 
