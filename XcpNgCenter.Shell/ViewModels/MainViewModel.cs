@@ -728,9 +728,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         foreach (var row in SnapshotSummaryBuilder.Build(SelectedVm))
             SnapshotItems.Add(row);
-        HasSnapshotItems = SnapshotItems.Count > 0;
+
+        HasSnapshotItems = SelectedVm!.snapshots is { Count: > 0 };
         if (!HasSnapshotItems)
-            SnapshotStatusMessage = "No snapshots yet.";
+            SnapshotStatusMessage = "No snapshots yet — take one to start a tree.";
     }
 
     private void SyncLiveConsole(LiveRfbTarget? target)

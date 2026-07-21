@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using Avalonia.Media;
+using XenAdmin;
 using XenAdmin.Core;
 using XenAdmin.Network;
 using XenAPI;
@@ -9,12 +9,6 @@ namespace XcpNgCenter.Shell.Services;
 
 public static class InfrastructureTreeBuilder
 {
-    private static readonly IBrush RunningBrush = SolidColorBrush.Parse("#3DBE7A");
-    private static readonly IBrush HaltedBrush = SolidColorBrush.Parse("#E35D5D");
-    private static readonly IBrush SuspendedBrush = SolidColorBrush.Parse("#5B9BD5");
-    private static readonly IBrush PausedBrush = SolidColorBrush.Parse("#F07318");
-    private static readonly IBrush UnknownBrush = SolidColorBrush.Parse("#9AA6B2");
-
     public static InfraTreeNode Build(ServerNode server, IXenConnection conn)
     {
         var pool = Helpers.GetPoolOfOne(conn);
@@ -32,6 +26,7 @@ public static class InfrastructureTreeBuilder
             .OrderBy(vm => Helpers.GetName(vm), StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var (poolIcon, poolTip) = ShellStatusIcons.ForPool(conn);
         var root = new InfraTreeNode
         {
             Kind = InfraNodeKind.Pool,
@@ -40,10 +35,15 @@ public static class InfrastructureTreeBuilder
             Detail = $"{hosts.Count} host(s), {vms.Count} VM(s)",
             Server = server,
             OpaqueRef = pool?.opaque_ref,
-            IsExpanded = true
+            IsExpanded = true,
+            ShowStatusIcon = true,
+            StatusIcon = poolIcon,
+            StatusTooltip = poolTip
         };
 
         var placed = new HashSet<string>(StringComparer.Ordinal);
+        var allSrs = VisibleSrs(conn).ToList();
+        var placedSrs = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var host in hosts)
         {
@@ -54,6 +54,7 @@ public static class InfrastructureTreeBuilder
             foreach (var vm in hostVms)
                 placed.Add(vm.opaque_ref);
 
+            var (hostIcon, hostTip) = ShellStatusIcons.ForHost(host);
             var isCoordinator = Helpers.HostIsCoordinator(host);
             var hostNode = new InfraTreeNode
             {
@@ -65,11 +66,21 @@ public static class InfrastructureTreeBuilder
                     : $"{hostVms.Count} VM(s)",
                 Server = server,
                 OpaqueRef = host.opaque_ref,
-                IsExpanded = true
+                IsExpanded = true,
+                ShowStatusIcon = true,
+                StatusIcon = hostIcon,
+                StatusTooltip = hostTip
             };
 
             foreach (var vm in hostVms)
                 hostNode.Children.Add(CreateVmNode(server, vm));
+
+            // Local / single-PBD storage under this host.
+            foreach (var sr in allSrs.Where(sr => SameHost(sr.Home(), host)))
+            {
+                placedSrs.Add(sr.opaque_ref);
+                hostNode.Children.Add(CreateSrNode(server, sr));
+            }
 
             root.Children.Add(hostNode);
         }
@@ -93,47 +104,61 @@ public static class InfrastructureTreeBuilder
             root.Children.Add(group);
         }
 
+        // Shared / pool-level storage under the cluster root.
+        foreach (var sr in allSrs.Where(sr => !placedSrs.Contains(sr.opaque_ref)))
+            root.Children.Add(CreateSrNode(server, sr));
+
         return root;
     }
 
+    private static IEnumerable<SR> VisibleSrs(IXenConnection conn) =>
+        (conn.Cache.SRs ?? Array.Empty<SR>())
+            .Where(sr => sr != null
+                         && !sr.IsToolsSR()
+                         && sr.Show(true)
+                         && sr.HasPBDs())
+            .OrderBy(sr => sr.IsLocalSR() ? 0 : 1)
+            .ThenBy(sr => sr.NameWithoutHost(), StringComparer.OrdinalIgnoreCase);
+
     private static InfraTreeNode CreateVmNode(ServerNode server, VM vm)
     {
-        var power = FormatPower(vm.power_state);
+        var (icon, tip) = ShellStatusIcons.ForVm(vm);
         var home = vm.Home();
         return new InfraTreeNode
         {
             Kind = InfraNodeKind.Vm,
             Title = Helpers.GetName(vm),
-            Subtitle = power,
-            Detail = home != null
-                ? $"{power} · {Helpers.GetName(home)}"
-                : power,
+            Subtitle = tip,
+            Detail = home != null ? $"{tip} · {Helpers.GetName(home)}" : tip,
             Server = server,
             OpaqueRef = vm.opaque_ref,
             IsExpanded = false,
-            ShowStatusDot = true,
-            StatusBrush = BrushForPower(vm.power_state),
-            StatusTooltip = power
+            ShowStatusIcon = true,
+            StatusIcon = icon,
+            StatusTooltip = tip
         };
     }
 
-    private static string FormatPower(vm_power_state state) => state switch
+    private static InfraTreeNode CreateSrNode(ServerNode server, SR sr)
     {
-        vm_power_state.Running => "Running",
-        vm_power_state.Halted => "Halted",
-        vm_power_state.Suspended => "Suspended",
-        vm_power_state.Paused => "Paused",
-        _ => state.ToString()
-    };
-
-    private static IBrush BrushForPower(vm_power_state state) => state switch
-    {
-        vm_power_state.Running => RunningBrush,
-        vm_power_state.Halted => HaltedBrush,
-        vm_power_state.Suspended => SuspendedBrush,
-        vm_power_state.Paused => PausedBrush,
-        _ => UnknownBrush
-    };
+        var (icon, tip) = ShellStatusIcons.ForSr(sr);
+        var free = Util.DiskSizeString(sr.FreeSpace(), 1);
+        var total = Util.DiskSizeString(sr.physical_size, 1);
+        var kind = sr.IsLocalSR() ? "Local" : "Shared";
+        return new InfraTreeNode
+        {
+            Kind = InfraNodeKind.Storage,
+            Title = sr.NameWithoutHost(),
+            Subtitle = $"{kind} · {free} free of {total}",
+            Detail = tip,
+            Server = server,
+            OpaqueRef = sr.opaque_ref,
+            IsExpanded = false,
+            ShowStatusIcon = true,
+            StatusIcon = icon,
+            StatusTooltip = tip
+        };
+    }
 
     private static bool SameHost(Host? a, Host b)
         => a != null && a.opaque_ref == b.opaque_ref;

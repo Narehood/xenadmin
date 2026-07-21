@@ -127,7 +127,7 @@
                   <MenuItem Header="Force shutdown" Command="{Binding ForceShutdownVmCommand}" IsVisible="{Binding CanForceShutdownVm}" />
                   <MenuItem Header="Force reboot" Command="{Binding ForceRebootVmCommand}" IsVisible="{Binding CanForceRebootVm}" />
                   <Separator IsVisible="{Binding ShowVmContextActions}" />
-                  <MenuItem Header="Properties…" Command="{Binding EditVmCommand}" IsVisible="{Binding CanEditVm}" />
+                  <MenuItem Header="Properties" Command="{Binding EditVmCommand}" IsVisible="{Binding CanEditVm}" />
                   <MenuItem Header="Clone…" Command="{Binding CloneVmCommand}" IsVisible="{Binding CanCloneVm}" />
                   <MenuItem Header="Copy…" Command="{Binding CopyVmCommand}" IsVisible="{Binding CanCopyVm}" />
                   <MenuItem Header="Migrate…" Command="{Binding MigrateVmCommand}" IsVisible="{Binding CanMigrateVm}" />
@@ -140,11 +140,11 @@
                 <TreeDataTemplate ItemsSource="{Binding Children}"
                                   DataType="vm:InfraTreeNode">
                   <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
-                    <Ellipse Width="8" Height="8"
-                             VerticalAlignment="Center"
-                             Fill="{Binding StatusBrush}"
-                             IsVisible="{Binding ShowStatusDot}"
-                             ToolTip.Tip="{Binding StatusTooltip}" />
+                    <Image Width="16" Height="16"
+                           VerticalAlignment="Center"
+                           Source="{Binding StatusIcon}"
+                           IsVisible="{Binding ShowStatusIcon}"
+                           ToolTip.Tip="{Binding StatusTooltip}" />
                     <StackPanel Spacing="1">
                       <TextBlock Text="{Binding Title}"
                                  FontWeight="SemiBold"
@@ -381,7 +381,7 @@
                   <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="12" Margin="0,0,4,0">
                       <Button Classes="ghost"
-                              Content="Properties…"
+                              Content="Properties"
                               HorizontalAlignment="Left"
                               Command="{Binding EditVmCommand}"
                               IsVisible="{Binding CanEditVm}" />
@@ -856,7 +856,7 @@
                 <TabItem Header="Snapshots">
                   <Panel Margin="0,18,0,8">
                     <StackPanel Spacing="14" IsVisible="{Binding CanManageSnapshots}">
-                      <TextBlock Text="Create a disk snapshot of the selected VM. Memory checkpoints and quiesced snapshots come later."
+                      <TextBlock Text="Disk snapshots form a tree from the VM base. NOW marks the current branch tip. Memory checkpoints come later."
                                  TextWrapping="Wrap"
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.TextMuted}" />
@@ -872,59 +872,65 @@
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  IsVisible="{Binding SnapshotStatusMessage.Length}" />
 
-                      <TextBlock Text="Existing snapshots"
+                      <TextBlock Text="Snapshot tree"
                                  FontSize="11"
                                  LetterSpacing="1.2"
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  Margin="0,8,0,0" />
-                      <TextBlock Text="No snapshots yet."
-                                 IsVisible="{Binding !HasSnapshotItems}"
-                                 Foreground="{StaticResource Brush.TextMuted}" />
-                      <ItemsControl ItemsSource="{Binding SnapshotItems}">
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate x:DataType="vm:SnapshotItemRow">
-                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                                    BorderThickness="0,0,0,1"
-                                    Padding="0,0,0,12"
-                                    Margin="0,0,0,10">
-                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                      <TreeView ItemsSource="{Binding SnapshotItems}"
+                                MinHeight="160">
+                        <TreeView.Styles>
+                          <Style Selector="TreeViewItem" x:DataType="vm:SnapshotItemRow" x:CompileBindings="True">
+                            <Setter Property="IsExpanded" Value="True" />
+                            <Setter Property="Padding" Value="4,3" />
+                          </Style>
+                        </TreeView.Styles>
+                        <TreeView.ItemTemplate>
+                          <TreeDataTemplate ItemsSource="{Binding Children}"
+                                            DataType="vm:SnapshotItemRow">
+                            <Grid ColumnDefinitions="Auto,*,Auto" MinWidth="280">
+                              <Image Width="16" Height="16"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,8,0"
+                                     Source="{Binding Icon}" />
+                              <StackPanel Grid.Column="1" Spacing="1" Margin="0,0,8,0">
                                 <TextBlock Text="{Binding Name}"
                                            FontWeight="SemiBold"
-                                           FontSize="14"
-                                           TextWrapping="Wrap" />
-                                <StackPanel Grid.Column="1"
-                                            Orientation="Horizontal"
-                                            Spacing="6"
-                                            HorizontalAlignment="Right">
-                                  <Button Classes="ghost"
-                                          Content="Revert"
-                                          FontSize="12"
-                                          Padding="10,4"
-                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RevertSnapshotCommand}"
-                                          CommandParameter="{Binding}" />
-                                  <Button Classes="ghost"
-                                          Content="Delete"
-                                          FontSize="12"
-                                          Padding="10,4"
-                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).DeleteSnapshotCommand}"
-                                          CommandParameter="{Binding}" />
-                                </StackPanel>
-                                <TextBlock Grid.Row="1"
-                                           Text="{Binding Description}"
-                                           FontSize="12"
-                                           Foreground="{StaticResource Brush.TextMuted}"
-                                           Margin="0,4,0,0"
-                                           TextWrapping="Wrap" />
-                                <TextBlock Grid.Row="2"
-                                           Text="{Binding Created}"
+                                           FontSize="13"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Description}"
                                            FontSize="11"
                                            Foreground="{StaticResource Brush.TextMuted}"
-                                           Margin="0,4,0,0" />
-                              </Grid>
-                            </Border>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding Description.Length}" />
+                                <TextBlock Text="{Binding Created}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           IsVisible="{Binding Created.Length}" />
+                              </StackPanel>
+                              <StackPanel Grid.Column="2"
+                                          Orientation="Horizontal"
+                                          Spacing="6"
+                                          VerticalAlignment="Center">
+                                <Button Classes="ghost"
+                                        Content="Revert"
+                                        FontSize="12"
+                                        Padding="10,4"
+                                        IsVisible="{Binding CanRevert}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RevertSnapshotCommand}"
+                                        CommandParameter="{Binding}" />
+                                <Button Classes="ghost"
+                                        Content="Delete"
+                                        FontSize="12"
+                                        Padding="10,4"
+                                        IsVisible="{Binding CanDelete}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).DeleteSnapshotCommand}"
+                                        CommandParameter="{Binding}" />
+                              </StackPanel>
+                            </Grid>
+                          </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                      </TreeView>
                     </StackPanel>
                     <TextBlock Text="Select a VM to manage snapshots."
                                IsVisible="{Binding !CanManageSnapshots}"
