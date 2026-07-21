@@ -46,16 +46,45 @@
       <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
     </Style>
     <Style Selector="Button.alert-badge">
-      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
-      <Setter Property="Foreground" Value="#141414" />
+      <Setter Property="Background" Value="#3A4550" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="8,2" />
       <Setter Property="MinHeight" Value="0" />
+      <Setter Property="MinWidth" Value="28" />
       <Setter Property="Cursor" Value="Hand" />
     </Style>
     <Style Selector="Button.alert-badge:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Foreground" Value="#141414" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{StaticResource Brush.BrandOrangeDeep}" />
+    </Style>
+    <Style Selector="Border.alert-count">
+      <Setter Property="Background" Value="#3A4550" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="MinWidth" Value="28" />
+    </Style>
+    <Style Selector="Border.alert-count.has-alerts">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Button.alert-badge TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts TextBlock">
+      <Setter Property="Foreground" Value="#141414" />
+    </Style>
+    <Style Selector="Border.alert-count TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+    </Style>
+    <Style Selector="Border.alert-count.has-alerts TextBlock">
+      <Setter Property="Foreground" Value="#141414" />
     </Style>
     <Style Selector="Window">
       <Setter Property="FontFamily" Value="{StaticResource Font.Outfit}" />

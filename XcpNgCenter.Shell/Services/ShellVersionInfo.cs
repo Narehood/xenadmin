@@ -16,6 +16,18 @@ public static class ShellVersionInfo
     {
         get
         {
+            // Directory.Build.targets stamps ThisAssembly.InformationalData.Version at compile time.
+            try
+            {
+                var stamped = ThisAssembly.InformationalData.Version;
+                if (TryParse(stamped, out var fromStamp) && !(fromStamp.Major == 0 && fromStamp.Minor == 0))
+                    return fromStamp.ToString(4);
+            }
+            catch
+            {
+                // Generated ThisAssembly may be unavailable in some tooling contexts.
+            }
+
             var version = Current;
             return version.Major == 0 && version.Minor == 0 && version.Build == 0 && version.Revision <= 0
                 ? "Preview"

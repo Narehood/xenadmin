@@ -40,16 +40,16 @@
           <TextBlock Text="Preview shell"
                      FontSize="13"
                      Foreground="{StaticResource Brush.BrandOrange}" />
+          <TextBlock x:Name="VersionText"
+                     FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{StaticResource Brush.TextMuted}"
+                     Margin="0,4,0,0" />
         </StackPanel>
       </StackPanel>
 
-      <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,18,0,0">
+      <Grid Grid.Row="1" Margin="0,18,0,0">
         <TextBlock Text="Starting…"
-                   FontSize="12"
-                   Foreground="{StaticResource Brush.TextMuted}"
-                   VerticalAlignment="Center" />
-        <TextBlock x:Name="VersionText"
-                   Grid.Column="1"
                    FontSize="12"
                    Foreground="{StaticResource Brush.TextMuted}"
                    VerticalAlignment="Center" />
