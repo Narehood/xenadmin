@@ -779,7 +779,7 @@ namespace XcpNgCenter.Rfb
         {
             try
             {
-                var bgra = EnsureBgra32(img, start, stride, width, height);
+                var bgra = EnsureBgra32(img, start, stride, width, height, preserveAlpha: cursor);
                 if (cursor)
                     client.SetCursor(bgra, 0, width * 4, x, y, width, height);
                 else
@@ -794,17 +794,21 @@ namespace XcpNgCenter.Rfb
         /// <summary>
         /// Normalize decoded RFB pixels to BGRA32 for Avalonia WriteableBitmap.
         /// For 32bpp little-endian (B,G,R,X) this is already the right layout.
+        /// Cursor masks already encode transparency in alpha — do not force opaque.
         /// </summary>
-        private byte[] EnsureBgra32(byte[] img, int start, int stride, int width, int height)
+        private byte[] EnsureBgra32(byte[] img, int start, int stride, int width, int height, bool preserveAlpha = false)
         {
             var dstStride = width * 4;
             if (bitsPerPixel == 32 && stride == dstStride && start == 0 && img.Length >= dstStride * height)
             {
-                // Ensure alpha is opaque for Format32bppRgb-style buffers.
-                for (int i = 3; i < dstStride * height; i += 4)
+                if (!preserveAlpha)
                 {
-                    if (img[i] == 0)
-                        img[i] = 0xFF;
+                    // Ensure alpha is opaque for Format32bppRgb-style framebuffer buffers.
+                    for (int i = 3; i < dstStride * height; i += 4)
+                    {
+                        if (img[i] == 0)
+                            img[i] = 0xFF;
+                    }
                 }
                 return img;
             }
@@ -815,11 +819,14 @@ namespace XcpNgCenter.Rfb
                 for (int row = 0; row < height; row++)
                 {
                     Buffer.BlockCopy(img, start + row * stride, bgra, row * dstStride, dstStride);
-                    for (int col = 0; col < width; col++)
+                    if (!preserveAlpha)
                     {
-                        var i = row * dstStride + col * 4 + 3;
-                        if (bgra[i] == 0)
-                            bgra[i] = 0xFF;
+                        for (int col = 0; col < width; col++)
+                        {
+                            var i = row * dstStride + col * 4 + 3;
+                            if (bgra[i] == 0)
+                                bgra[i] = 0xFF;
+                        }
                     }
                 }
                 return bgra;

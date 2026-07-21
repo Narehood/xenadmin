@@ -8,9 +8,10 @@ rewrite reaches feature parity for your environment.
 
 | Item | State |
 |------|--------|
-| Integration branch | `development` (tip includes merged `#20`–`#23`) |
-| Open Cursor PRs / branches | **none** |
+| Integration branch | `development` (tip includes merged `#20`–`#24`) |
+| Open Cursor PRs / branches | Linux soak fixes (this track) |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
+| GitHub Releases | Tag `vYYYY.M.D.N` (manual workflow **Publish Shell Release**) |
 
 ## Projects
 
@@ -20,7 +21,7 @@ rewrite reaches feature parity for your environment.
 | `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`) |
 | `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`) |
 
-## Done on `development` (through PR `#23`)
+## Done on `development` (through PR `#24` + soak fixes)
 
 - Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM; Snapshots (disk-only)
 - Full VM Properties; Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA + OVF/OVA
@@ -29,8 +30,9 @@ rewrite reaches feature parity for your environment.
 - **Performance** — RRD charts with hover tooltips + time-axis labels; ranges 10m / 2h / 1w / 1y; layout save
 - **Splash** — paints before bootstrap; shows `year.month.day.revision`; held ~2.8s
 - **Versioning** — `year.month.day.revision` (CI `-p:BuildRevision=${{ github.run_number }}`)
-- **Update banner** — GitHub Releases check; bottom-right View release / Dismiss
+- **Update banner** — GitHub Releases check; bottom-right View release / Dismiss (Linux uses `xdg-open`)
 - Brand-orange Fluent tab underline; multi-LUN HBA/FCoE
+- **Linux soak hardening** — RFB cursor alpha preserved; GTK-friendly file pickers; XDG config fallback; chart Outfit font via embedded family
 
 ### Key shell layout
 
@@ -38,9 +40,10 @@ rewrite reaches feature parity for your environment.
 XcpNgCenter.Shell/
   Alerts/            ShellMessageAlert, ShellAlarmMessageAlert, ShellAlertFixActions
   Actions/           DismissAlertsAction, SaveShellGraphLayoutAction
-  Services/          ShellAlertHub, Performance/*, ShellGitHubUpdateChecker, ShellVersionInfo
+  Services/          ShellAlertHub, Performance/*, ShellGitHubUpdateChecker, ShellVersionInfo,
+                     ShellPaths, ShellExternalOpener
   ViewModels/        … OvfImport/Export, NewSr multi-LUN, MainViewModel.AlertsGraphs/Updates
-  Views/             … Splash, OvfImport/Export, global alerts overlay
+  Views/             … Splash, OvfImport/Export, global alerts overlay, ShellFilePicker
   Controls/          RfbConsoleView, PerformanceChart
 ```
 
@@ -48,8 +51,8 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 
 ## Next
 
-1. **Linux desktop soak** of `drop-shell-linux-x64` from `development` (TOFU, RFB, multi-server, migrate/move, import/export, alerts, graphs).
-2. Publish a GitHub Release tagged `vYYYY.M.D.N` so the update banner can be verified end-to-end.
+1. Continue **Linux desktop soak** of `drop-shell-linux-x64` against real pools (multi-server, migrate/move, import/export, alerts, graphs, RFB).
+2. Verify update banner against a published `vYYYY.M.D.N` release (workflow: **Publish Shell Release**). Soak binary must stamp a **lower** version than the release tag.
 3. Later: HA/AD/DR wizards (richer HA alert fix-links); graph editor beyond save-current-defaults; memory/quiesced snapshots.
 4. RDP stays WinForms-only.
 
@@ -61,6 +64,8 @@ dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -
 ```
 
 Pins / prefs: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-ng Center Shell/`.
+
+**Linux notes:** saved passwords are not persisted (no DPAPI); re-enter on reconnect. Update banner **View release** uses `xdg-open`.
 
 ## Non-goals
 

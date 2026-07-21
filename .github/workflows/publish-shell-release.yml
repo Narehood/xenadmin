@@ -1,0 +1,123 @@
+name: Publish Shell Release
+
+# Optional: publish a GitHub Release tagged vYYYY.M.D.N so the Avalonia shell
+# update banner can be verified end-to-end. Trigger manually after soak.
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "BuildRevision (fourth version segment). Prefer a value greater than any soak binary under test."
+        required: true
+        type: string
+        default: "1"
+      attach_artifacts:
+        description: "Build and attach self-contained win-x64 + linux-x64 shell zips"
+        required: true
+        type: boolean
+        default: true
+      prerelease:
+        description: "Mark release as prerelease (update banner ignores prereleases)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Compute version
+        id: ver
+        shell: pwsh
+        run: |
+          $utc = [DateTime]::UtcNow
+          $rev = "${{ inputs.revision }}"
+          $version = "{0}.{1}.{2}.{3}" -f $utc.Year, $utc.Month, $utc.Day, $rev
+          $tag = "v$version"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Publishing $tag"
+
+      - name: Publish Avalonia shell (win-x64)
+        if: ${{ inputs.attach_artifacts }}
+        run: >
+          dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=false
+          -p:BuildRevision=${{ inputs.revision }}
+          -o artifacts/shell-win-x64
+          --nologo
+
+      - name: Publish Avalonia shell (linux-x64)
+        if: ${{ inputs.attach_artifacts }}
+        run: >
+          dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
+          -c Release
+          -r linux-x64
+          --self-contained true
+          -p:PublishSingleFile=false
+          -p:BuildRevision=${{ inputs.revision }}
+          -o artifacts/shell-linux-x64
+          --nologo
+
+      - name: Zip artifacts
+        if: ${{ inputs.attach_artifacts }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $v = "${{ steps.ver.outputs.version }}"
+          Compress-Archive -Path artifacts/shell-win-x64/* -DestinationPath "dist/XcpNgCenter.Shell-win-x64-$v.zip"
+          Compress-Archive -Path artifacts/shell-linux-x64/* -DestinationPath "dist/XcpNgCenter.Shell-linux-x64-$v.zip"
+
+      - name: Create GitHub Release (with assets)
+        if: ${{ inputs.attach_artifacts }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: XCP-ng Center Shell ${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          body: |
+            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ steps.ver.outputs.version }}**.
+
+            Calendar versioning: `year.month.day.revision`. Production client remains WinForms `XenAdmin` until Linux/Windows soak is clean.
+
+            Update banner: launch an older shell build; a bottom-right banner should offer **View release** / **Dismiss** when this tag is newer than the stamped assembly version (and not a prerelease).
+          files: dist/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release (notes only)
+        if: ${{ !inputs.attach_artifacts }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: XCP-ng Center Shell ${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          body: |
+            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ steps.ver.outputs.version }}**.
+
+            Calendar versioning: `year.month.day.revision`. Production client remains WinForms `XenAdmin` until Linux/Windows soak is clean.
+
+            CI artifacts: download `drop-shell-linux-x64` / `drop-shell-win-x64` from the Test Builds workflow on `development`.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

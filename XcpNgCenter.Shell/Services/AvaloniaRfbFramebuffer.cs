@@ -154,11 +154,12 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
 
             if (_pendingCursorBgra != null && _pendingCursorWidth > 0 && _pendingCursorHeight > 0)
             {
+                // Cursor BGRA from RFB is straight (unpremultiplied) alpha.
                 var bmp = new WriteableBitmap(
                     new PixelSize(_pendingCursorWidth, _pendingCursorHeight),
                     new Vector(96, 96),
                     PixelFormat.Bgra8888,
-                    AlphaFormat.Premul);
+                    AlphaFormat.Unpremul);
 
                 using (var fb = bmp.Lock())
                 {

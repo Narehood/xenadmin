@@ -13,12 +13,7 @@ public sealed class TofuCertificateStore
 
     public TofuCertificateStore(string? path = null)
     {
-        var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "XCP-ng",
-            "XCP-ng Center Shell");
-        Directory.CreateDirectory(root);
-        _path = path ?? Path.Combine(root, "known-servers.json");
+        _path = path ?? Path.Combine(ShellPaths.GetConfigRoot(), "known-servers.json");
         Load();
     }
 
@@ -90,7 +85,17 @@ public sealed class TofuCertificateStore
 
     private void Save()
     {
-        var json = JsonSerializer.Serialize(_pins, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(_path, json);
+        try
+        {
+            var dir = Path.GetDirectoryName(_path);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+            var json = JsonSerializer.Serialize(_pins, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_path, json);
+        }
+        catch
+        {
+            // Best-effort persistence; connection can continue without a durable pin.
+        }
     }
 }

@@ -33,12 +33,7 @@ public sealed class SavedServerStore
 
     public SavedServerStore(string? path = null)
     {
-        var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "XCP-ng",
-            "XCP-ng Center Shell");
-        Directory.CreateDirectory(root);
-        _path = path ?? Path.Combine(root, "saved-servers.json");
+        _path = path ?? Path.Combine(ShellPaths.GetConfigRoot(), "saved-servers.json");
     }
 
     public IReadOnlyList<SavedServerEntry> Load()

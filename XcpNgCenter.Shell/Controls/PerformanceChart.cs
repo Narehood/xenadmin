@@ -20,12 +20,34 @@ public sealed class PerformanceChart : Control
 
     private Point? _pointer;
     private bool _pointerInside;
+    private static readonly FontFamily ChartFontFamily = ResolveChartFont();
 
     static PerformanceChart()
     {
         AffectsRender<PerformanceChart>(SeriesProperty, IntervalProperty, BoundsProperty);
         ClipToBoundsProperty.OverrideDefaultValue<PerformanceChart>(true);
     }
+
+    private static FontFamily ResolveChartFont()
+    {
+        try
+        {
+            if (Application.Current?.Resources.TryGetResource("Font.Outfit", null, out var resource) == true
+                && resource is FontFamily family)
+                return family;
+        }
+        catch
+        {
+            // Fall through to embedded family name.
+        }
+
+        return new FontFamily(
+            "avares://XcpNgCenter.Shell/Assets/Fonts/Outfit-Regular.ttf#Outfit," +
+            "avares://XcpNgCenter.Shell/Assets/Fonts/Outfit-SemiBold.ttf#Outfit," +
+            "avares://XcpNgCenter.Shell/Assets/Fonts/Outfit-Bold.ttf#Outfit");
+    }
+
+    private static Typeface ChartTypeface => new(ChartFontFamily);
 
     public PerformanceChart()
     {
@@ -95,7 +117,7 @@ public sealed class PerformanceChart : Control
                 "No samples yet",
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                new Typeface("Outfit"),
+                ChartTypeface,
                 12,
                 new SolidColorBrush(Color.Parse("#9AA6B2")));
             context.DrawText(msg, new Point(plot.X + 12, plot.Y + plot.Height / 2 - 6));
@@ -170,7 +192,7 @@ public sealed class PerformanceChart : Control
                 label,
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                new Typeface("Outfit"),
+                ChartTypeface,
                 10,
                 muted);
 
@@ -233,7 +255,7 @@ public sealed class PerformanceChart : Control
             l.Text,
             System.Globalization.CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight,
-            new Typeface("Outfit"),
+            ChartTypeface,
             11,
             new SolidColorBrush(l.Color))).ToList();
 
