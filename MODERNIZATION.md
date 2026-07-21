@@ -28,7 +28,9 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
 **Shipped on `development` (Phase 1–2 via PR `#20`):** Avalonia `XcpNgCenter.Shell` with connect/TOFU/tree/General/Storage/Network/Console, Phase 1–2 actions (Snapshots disk-only, full VM Properties, Clone/Copy/Migrate/Cross-pool with per-disk/VIF maps/Move/Delete), New SR (iSCSI + GFS2 + SMB/CIFS + HBA/FCoE).
 
-**Next:** Linux desktop soak of `drop-shell-linux-x64` → harden migrate edge cases from soak → optional multi-LUN HBA / richer start-failure UI → later alerts/graphs/HA/AD/DR. RDP stays WinForms-only.
+**Follow-up:** Linux soak + migrate harden; VM chrome closer to WinForms (power bar, Properties on General, ISO on Console, tree status dots).
+
+**Next:** continue Linux desktop soak → optional multi-LUN HBA → later alerts/graphs/HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 

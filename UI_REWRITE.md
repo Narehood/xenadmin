@@ -42,6 +42,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
   - SR pickers label shared vs host-local, filter by target-host visibility, skip current location / non-migratable SRs
 - **New SR wizard** — NFS ISO, SMB/CIFS ISO, NFS VHD, SMB, iSCSI (+ optional GFS2), **HBA (`lvmohba`)** / **FCoE (`lvmofcoe`)** with LUN probe (+ GFS2 on HBA)
 - HA start/resume prompts; richer **start-failure host table** (per-host assert_can_boot_here)
+- **VM chrome (WinForms-aligned):** power bar (Start/Shutdown/Reboot/Suspend/Resume/Pause/Unpause) above tabs; Force* only in tree context menu; Properties nested under General; ISO selector + Insert/Eject on Console and pop-out; color status dots in the tree
 - Layout polish: wrap actions, scrollable detail, console Height=520, Properties scroll padding
 
 ### Key shell layout

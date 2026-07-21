@@ -122,6 +122,8 @@
                   <MenuItem Header="Reboot" Command="{Binding RebootVmCommand}" IsVisible="{Binding CanRebootVm}" />
                   <MenuItem Header="Suspend" Command="{Binding SuspendVmCommand}" IsVisible="{Binding CanSuspendVm}" />
                   <MenuItem Header="Resume" Command="{Binding ResumeVmCommand}" IsVisible="{Binding CanResumeVm}" />
+                  <MenuItem Header="Pause" Command="{Binding PauseVmCommand}" IsVisible="{Binding CanPauseVm}" />
+                  <MenuItem Header="Unpause" Command="{Binding UnpauseVmCommand}" IsVisible="{Binding CanUnpauseVm}" />
                   <MenuItem Header="Force shutdown" Command="{Binding ForceShutdownVmCommand}" IsVisible="{Binding CanForceShutdownVm}" />
                   <MenuItem Header="Force reboot" Command="{Binding ForceRebootVmCommand}" IsVisible="{Binding CanForceRebootVm}" />
                   <Separator IsVisible="{Binding ShowVmContextActions}" />
@@ -132,24 +134,28 @@
                   <MenuItem Header="Cross-pool…" Command="{Binding CrossPoolMigrateVmCommand}" IsVisible="{Binding CanCrossPoolMigrateVm}" />
                   <MenuItem Header="Move…" Command="{Binding MoveVmCommand}" IsVisible="{Binding CanMoveVm}" />
                   <MenuItem Header="Delete…" Command="{Binding DeleteVmCommand}" IsVisible="{Binding CanDeleteVm}" />
-                  <Separator IsVisible="{Binding ShowVmContextActions}" />
-                  <MenuItem Header="Attach ISO…" Command="{Binding AttachIsoCommand}" IsVisible="{Binding CanAttachIso}" />
-                  <MenuItem Header="Eject ISO" Command="{Binding EjectIsoCommand}" IsVisible="{Binding CanAttachIso}" />
                 </ContextMenu>
               </TreeView.ContextMenu>
               <TreeView.ItemTemplate>
                 <TreeDataTemplate ItemsSource="{Binding Children}"
                                   DataType="vm:InfraTreeNode">
-                  <StackPanel Spacing="1" Margin="0,2">
-                    <TextBlock Text="{Binding Title}"
-                               FontWeight="SemiBold"
-                               FontSize="13"
-                               Foreground="{StaticResource Brush.TextPrimary}"
-                               TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding Subtitle}"
-                               FontSize="11"
-                               Foreground="{StaticResource Brush.TextMuted}"
-                               TextTrimming="CharacterEllipsis" />
+                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                    <Ellipse Width="8" Height="8"
+                             VerticalAlignment="Center"
+                             Fill="{Binding StatusBrush}"
+                             IsVisible="{Binding ShowStatusDot}"
+                             ToolTip.Tip="{Binding StatusTooltip}" />
+                    <StackPanel Spacing="1">
+                      <TextBlock Text="{Binding Title}"
+                                 FontWeight="SemiBold"
+                                 FontSize="13"
+                                 Foreground="{StaticResource Brush.TextPrimary}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Subtitle}"
+                                 FontSize="11"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
                   </StackPanel>
                 </TreeDataTemplate>
               </TreeView.ItemTemplate>
@@ -350,17 +356,8 @@
                 <Button Classes="ghost" Content="Reboot" Margin="0,0,8,6" Command="{Binding RebootVmCommand}" />
                 <Button Classes="ghost" Content="Suspend" Margin="0,0,8,6" Command="{Binding SuspendVmCommand}" />
                 <Button Classes="ghost" Content="Resume" Margin="0,0,8,6" Command="{Binding ResumeVmCommand}" />
-                <Button Classes="ghost" Content="Force shutdown" Margin="0,0,8,6" Command="{Binding ForceShutdownVmCommand}" />
-                <Button Classes="ghost" Content="Force reboot" Margin="0,0,8,6" Command="{Binding ForceRebootVmCommand}" />
-                <Button Classes="ghost" Content="Properties…" Margin="0,0,8,6" Command="{Binding EditVmCommand}" />
-                <Button Classes="ghost" Content="Clone…" Margin="0,0,8,6" Command="{Binding CloneVmCommand}" />
-                <Button Classes="ghost" Content="Copy…" Margin="0,0,8,6" Command="{Binding CopyVmCommand}" />
-                <Button Classes="ghost" Content="Migrate…" Margin="0,0,8,6" Command="{Binding MigrateVmCommand}" />
-                <Button Classes="ghost" Content="Cross-pool…" Margin="0,0,8,6" Command="{Binding CrossPoolMigrateVmCommand}" />
-                <Button Classes="ghost" Content="Move…" Margin="0,0,8,6" Command="{Binding MoveVmCommand}" />
-                <Button Classes="ghost" Content="Delete…" Margin="0,0,8,6" Command="{Binding DeleteVmCommand}" />
-                <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6" Command="{Binding AttachIsoCommand}" />
-                <Button Classes="ghost" Content="Eject ISO" Margin="0,0,8,6" Command="{Binding EjectIsoCommand}" />
+                <Button Classes="ghost" Content="Pause" Margin="0,0,8,6" Command="{Binding PauseVmCommand}" />
+                <Button Classes="ghost" Content="Unpause" Margin="0,0,8,6" Command="{Binding UnpauseVmCommand}" />
               </WrapPanel>
 
               <TabControl Margin="0,4,0,0">
@@ -382,7 +379,12 @@
 
                 <TabItem Header="General">
                   <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Spacing="4" Margin="0,0,4,0">
+                    <StackPanel Spacing="12" Margin="0,0,4,0">
+                      <Button Classes="ghost"
+                              Content="Properties…"
+                              HorizontalAlignment="Left"
+                              Command="{Binding EditVmCommand}"
+                              IsVisible="{Binding CanEditVm}" />
                       <ItemsControl ItemsSource="{Binding GeneralProperties}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
@@ -696,6 +698,48 @@
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.BrandOrange}"
                                  IsVisible="{Binding ConsoleInputHint.Length}" />
+
+                      <StackPanel Spacing="6" IsVisible="{Binding ShowConsoleIsoBar}">
+                        <TextBlock Text="CD/DVD"
+                                   FontSize="11"
+                                   LetterSpacing="1.1"
+                                   Foreground="{StaticResource Brush.TextMuted}" />
+                        <TextBlock Text="{Binding AttachedIsoLabel}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource Brush.TextMuted}" />
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                          <ComboBox ItemsSource="{Binding ConsoleIsoOptions}"
+                                    SelectedItem="{Binding SelectedConsoleIso}"
+                                    PlaceholderText="Select ISO…"
+                                    IsEnabled="{Binding HasConsoleIsoOptions}"
+                                    MinHeight="36">
+                            <ComboBox.ItemTemplate>
+                              <DataTemplate x:DataType="vm:IsoOption">
+                                <StackPanel Spacing="1">
+                                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                  <TextBlock Text="{Binding Subtitle}"
+                                             FontSize="11"
+                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                              </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                          </ComboBox>
+                          <Button Grid.Column="1" Classes="ghost" Content="Insert"
+                                  Margin="8,0,0,0"
+                                  Command="{Binding ApplyConsoleIsoCommand}"
+                                  ToolTip.Tip="Insert the selected ISO" />
+                          <Button Grid.Column="2" Classes="ghost" Content="Eject"
+                                  Margin="8,0,0,0"
+                                  Command="{Binding EjectIsoCommand}"
+                                  ToolTip.Tip="Eject the current ISO" />
+                          <Button Grid.Column="3" Classes="ghost" Content="Browse…"
+                                  Margin="8,0,0,0"
+                                  Command="{Binding AttachIsoCommand}"
+                                  ToolTip.Tip="Open the full ISO library picker" />
+                        </Grid>
+                      </StackPanel>
+
                       <WrapPanel Orientation="Horizontal" Margin="0,4,0,0"
                                  IsVisible="{Binding HasConsoleFrame}">
                         <Button Classes="ghost" Content="Pop out" Margin="0,0,8,6"
@@ -706,9 +750,6 @@
                                 IsVisible="{Binding ShowConsoleReattach}" />
                         <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,6"
                                 Command="{Binding SendCtrlAltDelCommand}" />
-                        <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6"
-                                Command="{Binding AttachIsoCommand}"
-                                IsVisible="{Binding CanAttachIso}" />
                       </WrapPanel>
                     </StackPanel>
 

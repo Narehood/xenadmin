@@ -8,8 +8,8 @@
         Width="1024" Height="768"
         MinWidth="640" MinHeight="480"
         Background="{StaticResource Brush.BgDeep}">
-  <Grid RowDefinitions="Auto,*" Margin="16">
-    <DockPanel Margin="0,0,0,12">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="16">
+    <DockPanel Margin="0,0,0,10">
       <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Console'}"
                  FontSize="16"
                  FontWeight="SemiBold"
@@ -22,7 +22,47 @@
         <Button Classes="ghost" Content="Reattach" Command="{Binding ReattachConsoleCommand}" />
       </StackPanel>
     </DockPanel>
-    <Border Grid.Row="1"
+
+    <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,12"
+                IsVisible="{Binding ShowConsoleIsoBar}">
+      <TextBlock Text="CD/DVD"
+                 FontSize="11"
+                 LetterSpacing="1.1"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <TextBlock Text="{Binding AttachedIsoLabel}"
+                 FontSize="12"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <ComboBox ItemsSource="{Binding ConsoleIsoOptions}"
+                  SelectedItem="{Binding SelectedConsoleIso}"
+                  PlaceholderText="Select ISO…"
+                  IsEnabled="{Binding HasConsoleIsoOptions}"
+                  MinHeight="36">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:IsoOption">
+              <StackPanel Spacing="1">
+                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}"
+                           FontSize="11"
+                           Foreground="{StaticResource Brush.TextMuted}"
+                           TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button Grid.Column="1" Classes="ghost" Content="Insert"
+                Margin="8,0,0,0"
+                Command="{Binding ApplyConsoleIsoCommand}" />
+        <Button Grid.Column="2" Classes="ghost" Content="Eject"
+                Margin="8,0,0,0"
+                Command="{Binding EjectIsoCommand}" />
+        <Button Grid.Column="3" Classes="ghost" Content="Browse…"
+                Margin="8,0,0,0"
+                Command="{Binding AttachIsoCommand}" />
+      </Grid>
+    </StackPanel>
+
+    <Border Grid.Row="2"
             Background="#0B0F12"
             BorderBrush="{StaticResource Brush.StrokeSubtle}"
             BorderThickness="1"

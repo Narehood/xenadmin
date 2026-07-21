@@ -2,13 +2,16 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using XenAdmin.Actions;
-using XenAdmin.Core;
 using XenAPI;
 using XcpNgCenter.Shell.Services;
 
 namespace XcpNgCenter.Shell.ViewModels;
 
-public sealed record IsoOption(string Name, string Subtitle, VDI Vdi);
+public sealed record IsoOption(string Name, string Subtitle, VDI Vdi)
+{
+    public string DisplayLabel => string.IsNullOrWhiteSpace(Subtitle) ? Name : $"{Name}  ·  {Subtitle}";
+    public override string ToString() => DisplayLabel;
+}
 
 public partial class IsoAttachViewModel : ViewModelBase
 {
@@ -19,7 +22,7 @@ public partial class IsoAttachViewModel : ViewModelBase
     {
         _vm = vm;
         _close = close;
-        foreach (var iso in EnumerateIsos(vm))
+        foreach (var iso in ShellIsoLibrary.Enumerate(vm))
             Isos.Add(iso);
         HasIsos = Isos.Count > 0;
         StatusMessage = HasIsos
@@ -78,27 +81,5 @@ public partial class IsoAttachViewModel : ViewModelBase
         }
 
         ShellActionRunner.Run(new ChangeVMISOAction(_vm.Connection, _vm, vdi, cdrom));
-    }
-
-    private static IEnumerable<IsoOption> EnumerateIsos(VM vm)
-    {
-        var conn = vm.Connection;
-        if (conn == null)
-            yield break;
-
-        foreach (var sr in conn.Cache.SRs
-                     .Where(sr => sr != null && sr.content_type == "iso" && !sr.IsToolsSR())
-                     .OrderBy(sr => Helpers.GetName(sr), StringComparer.OrdinalIgnoreCase))
-        {
-            foreach (var vdi in conn.ResolveAll(sr.VDIs)
-                         .Where(v => v != null && !v.is_a_snapshot)
-                         .OrderBy(v => Helpers.GetName(v), StringComparer.OrdinalIgnoreCase))
-            {
-                yield return new IsoOption(
-                    Helpers.GetName(vdi),
-                    Helpers.GetName(sr),
-                    vdi);
-            }
-        }
     }
 }

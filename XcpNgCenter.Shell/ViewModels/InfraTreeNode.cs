@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace XcpNgCenter.Shell.ViewModels;
@@ -24,6 +25,15 @@ public partial class InfraTreeNode : ObservableObject
 
     [ObservableProperty]
     private bool _isExpanded = true;
+
+    [ObservableProperty]
+    private bool _showStatusDot;
+
+    [ObservableProperty]
+    private IBrush? _statusBrush;
+
+    [ObservableProperty]
+    private string _statusTooltip = string.Empty;
 
     public InfraNodeKind Kind { get; init; }
 

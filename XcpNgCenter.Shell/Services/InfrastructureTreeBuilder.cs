@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Media;
 using XenAdmin.Core;
 using XenAdmin.Network;
 using XenAPI;
@@ -8,6 +9,12 @@ namespace XcpNgCenter.Shell.Services;
 
 public static class InfrastructureTreeBuilder
 {
+    private static readonly IBrush RunningBrush = SolidColorBrush.Parse("#3DBE7A");
+    private static readonly IBrush HaltedBrush = SolidColorBrush.Parse("#E35D5D");
+    private static readonly IBrush SuspendedBrush = SolidColorBrush.Parse("#5B9BD5");
+    private static readonly IBrush PausedBrush = SolidColorBrush.Parse("#F07318");
+    private static readonly IBrush UnknownBrush = SolidColorBrush.Parse("#9AA6B2");
+
     public static InfraTreeNode Build(ServerNode server, IXenConnection conn)
     {
         var pool = Helpers.GetPoolOfOne(conn);
@@ -91,7 +98,7 @@ public static class InfrastructureTreeBuilder
 
     private static InfraTreeNode CreateVmNode(ServerNode server, VM vm)
     {
-        var power = vm.power_state.ToString();
+        var power = FormatPower(vm.power_state);
         var home = vm.Home();
         return new InfraTreeNode
         {
@@ -103,9 +110,30 @@ public static class InfrastructureTreeBuilder
                 : power,
             Server = server,
             OpaqueRef = vm.opaque_ref,
-            IsExpanded = false
+            IsExpanded = false,
+            ShowStatusDot = true,
+            StatusBrush = BrushForPower(vm.power_state),
+            StatusTooltip = power
         };
     }
+
+    private static string FormatPower(vm_power_state state) => state switch
+    {
+        vm_power_state.Running => "Running",
+        vm_power_state.Halted => "Halted",
+        vm_power_state.Suspended => "Suspended",
+        vm_power_state.Paused => "Paused",
+        _ => state.ToString()
+    };
+
+    private static IBrush BrushForPower(vm_power_state state) => state switch
+    {
+        vm_power_state.Running => RunningBrush,
+        vm_power_state.Halted => HaltedBrush,
+        vm_power_state.Suspended => SuspendedBrush,
+        vm_power_state.Paused => PausedBrush,
+        _ => UnknownBrush
+    };
 
     private static bool SameHost(Host? a, Host b)
         => a != null && a.opaque_ref == b.opaque_ref;
