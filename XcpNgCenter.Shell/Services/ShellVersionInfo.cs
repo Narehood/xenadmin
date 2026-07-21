@@ -35,6 +35,59 @@ public static class ShellVersionInfo
         }
     }
 
+    /// <summary>Build timestamp stamped at compile time (<c>yyyyMMdd_HHmmss</c>), or empty.</summary>
+    public static string BuildDateRaw
+    {
+        get
+        {
+            try
+            {
+                return ThisAssembly.InformationalData.BuildDateTime ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+    }
+
+    /// <summary>Human-readable UTC build date when available.</summary>
+    public static string BuildDateDisplay
+    {
+        get
+        {
+            var raw = BuildDateRaw;
+            if (string.IsNullOrWhiteSpace(raw))
+                return "Unknown";
+
+            if (DateTime.TryParseExact(
+                    raw,
+                    "yyyyMMdd_HHmmss",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeLocal,
+                    out var local))
+                return local.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") + " UTC";
+
+            return raw;
+        }
+    }
+
+    public static string Codename
+    {
+        get
+        {
+            try
+            {
+                var name = ThisAssembly.InformationalData.Codename;
+                return string.IsNullOrWhiteSpace(name) ? "Preview" : name;
+            }
+            catch
+            {
+                return "Preview";
+            }
+        }
+    }
+
     public static Version Current
     {
         get

@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="Settings"
+        Width="520"
+        Height="460"
+        MinWidth="420"
+        MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto">
+    <TextBlock Text="Settings"
+               FontSize="22"
+               FontWeight="SemiBold"
+               Margin="0,0,0,16" />
+
+    <TabControl Grid.Row="1">
+      <TabItem Header="General">
+        <StackPanel Spacing="14" Margin="0,16,0,0">
+          <CheckBox Content="Reconnect saved servers on startup"
+                    IsChecked="{Binding AutoReconnectSavedServers}" />
+          <TextBlock Text="When enabled, the shell signs into every saved server that has a stored password."
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+
+          <TextBlock Text="{Binding PasswordStorageNote}"
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}"
+                     Margin="0,8,0,0" />
+
+          <Button Classes="ghost"
+                  Content="Clear trusted certificates"
+                  HorizontalAlignment="Left"
+                  Margin="0,12,0,0"
+                  Command="{Binding ClearTrustedCertificatesCommand}" />
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="About">
+        <StackPanel Spacing="10" Margin="0,16,0,0">
+          <TextBlock Text="XCP-ng Center (Preview)"
+                     FontSize="16"
+                     FontWeight="SemiBold" />
+          <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+            <TextBlock Text="Version"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="13" />
+            <TextBlock Grid.Column="1"
+                       Text="{Binding VersionText}"
+                       FontSize="13" />
+            <TextBlock Grid.Row="1"
+                       Text="Build date"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="13"
+                       Margin="0,6,0,0" />
+            <TextBlock Grid.Row="1"
+                       Grid.Column="1"
+                       Text="{Binding BuildDateText}"
+                       FontSize="13"
+                       Margin="0,6,0,0" />
+            <TextBlock Grid.Row="2"
+                       Text="Codename"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="13"
+                       Margin="0,6,0,0" />
+            <TextBlock Grid.Row="2"
+                       Grid.Column="1"
+                       Text="{Binding CodenameText}"
+                       FontSize="13"
+                       Margin="0,6,0,0" />
+          </Grid>
+
+          <Button Classes="cta"
+                  Content="Check for updates"
+                  HorizontalAlignment="Left"
+                  Margin="0,12,0,0"
+                  Command="{Binding CheckForUpdatesCommand}"
+                  IsEnabled="{Binding !IsCheckingUpdates}" />
+          <TextBlock Text="{Binding UpdateCheckStatus}"
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}"
+                     IsVisible="{Binding UpdateCheckStatus.Length}" />
+        </StackPanel>
+      </TabItem>
+    </TabControl>
+
+    <Button Grid.Row="2"
+            Classes="ghost"
+            Content="Close"
+            HorizontalAlignment="Right"
+            Margin="0,16,0,0"
+            IsCancel="True"
+            Command="{Binding CloseCommand}" />
+  </Grid>
+</Window>

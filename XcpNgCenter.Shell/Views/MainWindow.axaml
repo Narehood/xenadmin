@@ -70,16 +70,22 @@
                            FontSize="12"
                            Foreground="{StaticResource Brush.BrandOrange}" />
               </StackPanel>
-              <Button Classes="alert-badge"
-                      Classes.has-alerts="{Binding HasAlertsBadge}"
-                      VerticalAlignment="Top"
-                      Margin="0,2,0,0"
-                      ToolTip.Tip="Open all alerts"
-                      Command="{Binding OpenGlobalAlertsCommand}">
-                <TextBlock Text="{Binding AlertsBadgeText}"
-                           FontSize="11"
-                           FontWeight="SemiBold" />
-              </Button>
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" Margin="0,2,0,0">
+                <Button Classes="alert-badge"
+                        Classes.has-alerts="{Binding HasAlertsBadge}"
+                        ToolTip.Tip="Open all alerts"
+                        Command="{Binding OpenGlobalAlertsCommand}">
+                  <TextBlock Text="{Binding AlertsBadgeText}"
+                             FontSize="11"
+                             FontWeight="SemiBold" />
+                </Button>
+                <Button Classes="ghost"
+                        Content="Settings"
+                        Padding="8,2"
+                        FontSize="11"
+                        ToolTip.Tip="Settings"
+                        Command="{Binding OpenSettingsCommand}" />
+              </StackPanel>
             </StackPanel>
 
             <UniformGrid Columns="2" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
@@ -820,7 +826,7 @@
                 </TabItem>
 
                 <TabItem Header="Console">
-                  <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,*,Auto">
+                  <Grid Margin="0,12,0,0" RowDefinitions="Auto,*">
                     <!-- CD/DVD + console actions on one compact row. -->
                     <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto"
                           Margin="0,0,4,8"
@@ -891,7 +897,7 @@
                               IsVisible="{Binding HasConsoleFrame}" />
                     </Grid>
 
-                    <WrapPanel Grid.Row="1"
+                    <WrapPanel Grid.Row="0"
                                Orientation="Horizontal"
                                Margin="0,0,4,8"
                                IsVisible="{Binding !ShowConsoleIsoBar}">
@@ -906,142 +912,143 @@
                               IsVisible="{Binding HasConsoleFrame}" />
                     </WrapPanel>
 
-                    <Border Grid.Row="2"
-                            Background="#33161C22"
-                            BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="6"
-                            MinHeight="360"
-                            ClipToBounds="True">
-                      <Grid ClipToBounds="True">
-                        <StackPanel Spacing="8"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    MaxWidth="420"
-                                    IsVisible="{Binding !HasConsoleFrame}">
-                          <TextBlock Text="Console preview"
-                                     FontWeight="SemiBold"
-                                     FontSize="14"
-                                     HorizontalAlignment="Center"
-                                     Foreground="{StaticResource Brush.TextPrimary}" />
-                          <TextBlock Text="{Binding ConsolePlaceholderMessage}"
-                                     TextWrapping="Wrap"
-                                     TextAlignment="Center"
-                                     FontSize="13"
-                                     Foreground="{StaticResource Brush.TextMuted}" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="8"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    MaxWidth="420"
-                                    IsVisible="{Binding ShowConsoleReattach}">
-                          <TextBlock Text="Console is in a separate window"
-                                     FontWeight="SemiBold"
-                                     FontSize="14"
-                                     HorizontalAlignment="Center" />
-                          <Button Classes="cta" Content="Reattach here" HorizontalAlignment="Center"
-                                  Command="{Binding ReattachConsoleCommand}" />
-                        </StackPanel>
-
-                        <controls:RfbConsoleView IsVisible="{Binding ShowEmbeddedConsole}"
-                                                 HorizontalAlignment="Stretch"
-                                                 VerticalAlignment="Stretch"
-                                                 ClipToBounds="True"
-                                                 Frame="{Binding ConsoleBitmap}"
-                                                 Session="{Binding ConsoleSession}"
-                                                 ToolTip.Tip="Click the console to capture keyboard, mouse, and scroll — until then the page keeps scrolling"
-                                                 FocusCaptureChanged="OnConsoleFocusCaptureChanged" />
-                      </Grid>
-                    </Border>
-
-                    <ScrollViewer Grid.Row="3"
-                                  Margin="0,8,0,0"
-                                  MaxHeight="140"
+                    <!-- Console fills the fold; Object / Power state / hints sit below (scroll to see). -->
+                    <ScrollViewer Grid.Row="1"
                                   HorizontalScrollBarVisibility="Disabled"
                                   VerticalScrollBarVisibility="Auto">
-                      <StackPanel Spacing="6" Margin="0,0,4,0">
-                        <ItemsControl ItemsSource="{Binding ConsoleTotals}">
-                          <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                              <Grid ColumnDefinitions="120,*" Margin="0,0,0,2">
-                                <TextBlock Text="{Binding Label}"
-                                           Foreground="{StaticResource Brush.TextMuted}"
-                                           FontSize="12" />
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Value}"
-                                           TextWrapping="Wrap"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           FontSize="12" />
-                              </Grid>
-                            </DataTemplate>
-                          </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                      <StackPanel Spacing="8">
+                        <Border Background="#33161C22"
+                                BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="6"
+                                MinHeight="640"
+                                Height="640"
+                                ClipToBounds="True">
+                          <Grid ClipToBounds="True">
+                            <StackPanel Spacing="8"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        MaxWidth="420"
+                                        IsVisible="{Binding !HasConsoleFrame}">
+                              <TextBlock Text="Console preview"
+                                         FontWeight="SemiBold"
+                                         FontSize="14"
+                                         HorizontalAlignment="Center"
+                                         Foreground="{StaticResource Brush.TextPrimary}" />
+                              <TextBlock Text="{Binding ConsolePlaceholderMessage}"
+                                         TextWrapping="Wrap"
+                                         TextAlignment="Center"
+                                         FontSize="13"
+                                         Foreground="{StaticResource Brush.TextMuted}" />
+                            </StackPanel>
 
-                        <TextBlock Text="{Binding ConsoleStatusMessage}"
-                                   TextWrapping="Wrap"
-                                   FontSize="12"
-                                   Foreground="{StaticResource Brush.BrandOrange}"
-                                   IsVisible="{Binding ConsoleStatusMessage.Length}" />
-                        <TextBlock Text="{Binding ConsoleViewerStatus}"
-                                   TextWrapping="Wrap"
-                                   FontSize="12"
-                                   Foreground="{StaticResource Brush.TextMuted}"
-                                   IsVisible="{Binding ConsoleViewerStatus.Length}" />
-                        <TextBlock Text="{Binding ConsoleInputHint}"
-                                   TextWrapping="Wrap"
-                                   FontSize="12"
-                                   Foreground="{StaticResource Brush.BrandOrange}"
-                                   IsVisible="{Binding ConsoleInputHint.Length}" />
+                            <StackPanel Spacing="8"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        MaxWidth="420"
+                                        IsVisible="{Binding ShowConsoleReattach}">
+                              <TextBlock Text="Console is in a separate window"
+                                         FontWeight="SemiBold"
+                                         FontSize="14"
+                                         HorizontalAlignment="Center" />
+                              <Button Classes="cta" Content="Reattach here" HorizontalAlignment="Center"
+                                      Command="{Binding ReattachConsoleCommand}" />
+                            </StackPanel>
 
-                        <StackPanel Spacing="8"
-                                    IsVisible="{Binding HasConsoleItems}">
-                          <TextBlock Text="Console endpoints"
-                                     FontSize="11"
-                                     LetterSpacing="1.2"
-                                     Foreground="{StaticResource Brush.TextMuted}" />
-                          <ItemsControl ItemsSource="{Binding ConsoleItems}">
+                            <controls:RfbConsoleView IsVisible="{Binding ShowEmbeddedConsole}"
+                                                     HorizontalAlignment="Stretch"
+                                                     VerticalAlignment="Stretch"
+                                                     ClipToBounds="True"
+                                                     Frame="{Binding ConsoleBitmap}"
+                                                     Session="{Binding ConsoleSession}"
+                                                     ToolTip.Tip="Click the console to capture keyboard, mouse, and scroll — until then the page keeps scrolling"
+                                                     FocusCaptureChanged="OnConsoleFocusCaptureChanged" />
+                          </Grid>
+                        </Border>
+
+                        <StackPanel Spacing="6" Margin="0,4,4,12">
+                          <ItemsControl ItemsSource="{Binding ConsoleTotals}">
                             <ItemsControl.ItemTemplate>
-                              <DataTemplate x:DataType="vm:ConsoleItemRow">
-                                <Border Classes="prop-row"
-                                        Classes.copyable="{Binding CanCopyLocation}"
-                                        Padding="8,6"
-                                        Margin="0,0,0,4"
-                                        CornerRadius="6"
-                                        Background="Transparent">
-                                  <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                                    <TextBlock Text="{Binding Primary}"
-                                               FontWeight="SemiBold"
-                                               FontSize="13"
-                                               Margin="0,0,12,0"
-                                               Foreground="{StaticResource Brush.TextPrimary}" />
-                                    <Button Grid.Column="1"
-                                            Classes="copy"
-                                            Content="Copy"
-                                            VerticalAlignment="Top"
-                                            IsVisible="{Binding CanCopyLocation}"
-                                            Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
-                                            CommandParameter="{Binding Location}"
-                                            ToolTip.Tip="Copy console location" />
-                                    <TextBlock Grid.Row="1"
-                                               Grid.ColumnSpan="2"
-                                               Text="{Binding Location}"
-                                               FontSize="11"
-                                               Foreground="{StaticResource Brush.TextMuted}"
-                                               Margin="0,4,0,0"
-                                               TextWrapping="Wrap"
-                                               TextTrimming="CharacterEllipsis"
-                                               IsVisible="{Binding CanCopyLocation}" />
-                                  </Grid>
-                                </Border>
+                              <DataTemplate x:DataType="vm:GeneralPropertyRow">
+                                <Grid ColumnDefinitions="120,*" Margin="0,0,0,2">
+                                  <TextBlock Text="{Binding Label}"
+                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             FontSize="12" />
+                                  <TextBlock Grid.Column="1"
+                                             Text="{Binding Value}"
+                                             TextWrapping="Wrap"
+                                             Foreground="{StaticResource Brush.TextPrimary}"
+                                             FontSize="12" />
+                                </Grid>
                               </DataTemplate>
                             </ItemsControl.ItemTemplate>
                           </ItemsControl>
-                          <TextBlock Text="{Binding ConsoleCopyFeedback}"
+
+                          <TextBlock Text="{Binding ConsoleStatusMessage}"
+                                     TextWrapping="Wrap"
                                      FontSize="12"
-                                     Foreground="{StaticResource Brush.Ok}"
-                                     IsVisible="{Binding ConsoleCopyFeedback.Length}" />
+                                     Foreground="{StaticResource Brush.BrandOrange}"
+                                     IsVisible="{Binding ConsoleStatusMessage.Length}" />
+                          <TextBlock Text="{Binding ConsoleViewerStatus}"
+                                     TextWrapping="Wrap"
+                                     FontSize="12"
+                                     Foreground="{StaticResource Brush.TextMuted}"
+                                     IsVisible="{Binding ConsoleViewerStatus.Length}" />
+                          <TextBlock Text="{Binding ConsoleInputHint}"
+                                     TextWrapping="Wrap"
+                                     FontSize="12"
+                                     Foreground="{StaticResource Brush.BrandOrange}"
+                                     IsVisible="{Binding ConsoleInputHint.Length}" />
+
+                          <StackPanel Spacing="8"
+                                      IsVisible="{Binding HasConsoleItems}">
+                            <TextBlock Text="Console endpoints"
+                                       FontSize="11"
+                                       LetterSpacing="1.2"
+                                       Foreground="{StaticResource Brush.TextMuted}" />
+                            <ItemsControl ItemsSource="{Binding ConsoleItems}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ConsoleItemRow">
+                                  <Border Classes="prop-row"
+                                          Classes.copyable="{Binding CanCopyLocation}"
+                                          Padding="8,6"
+                                          Margin="0,0,0,4"
+                                          CornerRadius="6"
+                                          Background="Transparent">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                      <TextBlock Text="{Binding Primary}"
+                                                 FontWeight="SemiBold"
+                                                 FontSize="13"
+                                                 Margin="0,0,12,0"
+                                                 Foreground="{StaticResource Brush.TextPrimary}" />
+                                      <Button Grid.Column="1"
+                                              Classes="copy"
+                                              Content="Copy"
+                                              VerticalAlignment="Top"
+                                              IsVisible="{Binding CanCopyLocation}"
+                                              Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
+                                              CommandParameter="{Binding Location}"
+                                              ToolTip.Tip="Copy console location" />
+                                      <TextBlock Grid.Row="1"
+                                                 Grid.ColumnSpan="2"
+                                                 Text="{Binding Location}"
+                                                 FontSize="11"
+                                                 Foreground="{StaticResource Brush.TextMuted}"
+                                                 Margin="0,4,0,0"
+                                                 TextWrapping="Wrap"
+                                                 TextTrimming="CharacterEllipsis"
+                                                 IsVisible="{Binding CanCopyLocation}" />
+                                    </Grid>
+                                  </Border>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding ConsoleCopyFeedback}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource Brush.Ok}"
+                                       IsVisible="{Binding ConsoleCopyFeedback.Length}" />
+                          </StackPanel>
                         </StackPanel>
                       </StackPanel>
                     </ScrollViewer>

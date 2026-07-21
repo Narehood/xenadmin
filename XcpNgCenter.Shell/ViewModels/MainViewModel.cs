@@ -10,6 +10,7 @@ using XenAdmin.Core;
 using XenAdmin.Network;
 using XenCenterLib;
 using XcpNgCenter.Shell.Services;
+using XcpNgCenter.Shell.Views;
 
 namespace XcpNgCenter.Shell.ViewModels;
 
@@ -17,6 +18,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly HostedConsoleSession _consoleSession = new();
     private readonly SavedServerStore _savedServerStore = new();
+    private readonly ShellAppSettings _appSettings = new();
     private bool _disposed;
 
     public string BrandName => "XCP-ng Center";
@@ -25,16 +27,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public HostedConsoleSession ConsoleSession => _consoleSession;
 
-    /// <summary>Windows DPAPI can store passwords; other platforms leave the checkbox disabled.</summary>
+    /// <summary>Passwords can be remembered on all platforms (DPAPI on Windows; AES key file elsewhere).</summary>
     public bool CanPersistPasswords => SavedServerStore.CanPersistPasswords;
 
-    public string RememberPasswordLabel => CanPersistPasswords
-        ? "Remember password for this server (Windows DPAPI)"
-        : "Remember password (unavailable on this platform)";
+    public string RememberPasswordLabel => "Remember password for this server";
 
-    public string PasswordVaultHint => CanPersistPasswords
+    public string PasswordVaultHint => OperatingSystem.IsWindows()
         ? "Passwords are encrypted with Windows DPAPI for the current user when remembered."
-        : "Password vault requires Windows DPAPI — hosts and usernames still save on this platform.";
+        : "Passwords are encrypted with a per-user key file under ~/.config/XCP-ng/XCP-ng Center Shell/.";
 
     [ObservableProperty]
     private string _hostInput = string.Empty;
@@ -201,6 +201,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         InitializeActionHistoryUi();
         InitializeAlertsAndGraphsUi();
         InitializeUpdateCheck();
+        QueueAutoReconnectSavedServers();
     }
 
     public void Dispose()
@@ -373,13 +374,70 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             Password = restored;
             RememberPassword = true;
-            StatusMessage = "Saved server loaded with stored password — Connect when ready.";
+            // Prefer signing in immediately when a password is available.
+            var error = TryBeginConnect(entry.Address, entry.Username, restored, rememberPassword: true);
+            StatusMessage = error ?? $"Connecting to {entry.Address}…";
+            if (error == null)
+                Password = string.Empty;
         }
         else
         {
             Password = string.Empty;
             StatusMessage = "Saved server loaded — enter password and Connect.";
         }
+    }
+
+    private void QueueAutoReconnectSavedServers()
+    {
+        if (!_appSettings.AutoReconnectSavedServers)
+            return;
+
+        var candidates = SavedServers
+            .Where(s => s.HasSavedPassword && !string.IsNullOrWhiteSpace(s.Address))
+            .ToList();
+        if (candidates.Count == 0)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            // Let the main window paint before opening connections / TOFU prompts.
+            await Task.Delay(900).ConfigureAwait(false);
+            Dispatcher.UIThread.Post(() => AutoReconnectSavedServers(candidates));
+        });
+    }
+
+    private void AutoReconnectSavedServers(IReadOnlyList<SavedServerEntry> candidates)
+    {
+        var started = 0;
+        foreach (var entry in candidates)
+        {
+            var password = SavedServerStore.UnprotectPassword(entry.EncryptedPassword);
+            if (string.IsNullOrEmpty(password))
+                continue;
+
+            var error = TryBeginConnect(entry.Address, entry.Username, password, rememberPassword: true);
+            if (error == null)
+                started++;
+        }
+
+        if (started > 0)
+            StatusMessage = started == 1
+                ? "Reconnecting saved server…"
+                : $"Reconnecting {started} saved servers…";
+    }
+
+    [RelayCommand]
+    private async Task OpenSettingsAsync()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
+            {
+                MainWindow: { } owner
+            })
+            return;
+
+        var dialog = new SettingsWindow(this, _appSettings);
+        await dialog.ShowDialog(owner);
+        RefreshTrustUi();
     }
 
     [RelayCommand]
