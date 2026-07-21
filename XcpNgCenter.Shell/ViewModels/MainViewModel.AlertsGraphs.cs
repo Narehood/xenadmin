@@ -71,8 +71,26 @@ public partial class MainViewModel
         ShellAlertFixActions.OpenLogs = () =>
         {
             StatusMessage = "See the Logs tab for recent actions and host messages.";
+            CloseGlobalAlerts();
         };
         RebuildAlertItems();
+    }
+
+    [RelayCommand]
+    private void OpenGlobalAlerts()
+    {
+        ShowGlobalAlerts = true;
+        StatusMessage = HasAlertItems
+            ? $"Showing {AlertCount} alert{(AlertCount == 1 ? "" : "s")} across all connected servers."
+            : "No alerts from connected servers.";
+    }
+
+    [RelayCommand]
+    private void CloseGlobalAlerts()
+    {
+        if (!ShowGlobalAlerts)
+            return;
+        ShowGlobalAlerts = false;
     }
 
     private void DisposeAlertsAndGraphsUi()

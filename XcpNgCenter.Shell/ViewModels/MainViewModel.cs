@@ -66,14 +66,24 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowWelcome))]
     [NotifyPropertyChangedFor(nameof(ShowInfrastructure))]
+    [NotifyPropertyChangedFor(nameof(ShowInfrastructureDetail))]
     private bool _hasServers;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowWelcome))]
+    [NotifyPropertyChangedFor(nameof(ShowInfrastructureDetail))]
+    private bool _showGlobalAlerts;
 
     [ObservableProperty]
     private bool _isBusy;
 
-    public bool ShowWelcome => !HasServers;
+    public bool ShowWelcome => !HasServers && !ShowGlobalAlerts;
 
+    /// <summary>Sidebar tree and actions when any server is connected.</summary>
     public bool ShowInfrastructure => HasServers;
+
+    /// <summary>Object detail pane (hidden while the global alerts pane is open).</summary>
+    public bool ShowInfrastructureDetail => HasServers && !ShowGlobalAlerts;
 
     public ObservableCollection<ServerNode> Servers { get; } = new();
 
@@ -266,6 +276,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedInfraNodeChanged(InfraTreeNode? value)
     {
+        if (value != null && ShowGlobalAlerts)
+            ShowGlobalAlerts = false;
+
         if (value == null)
         {
             if (_suppressSelectionClear || _pinnedInfraNode == null || !HasServers)

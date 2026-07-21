@@ -9,7 +9,7 @@ rewrite reaches feature parity for your environment.
 | Item | State |
 |------|--------|
 | Integration branch | `development` |
-| Active PRs | `#21` soak-ready; `#22` alerts/graphs + polish → `development` |
+| Active PRs | `#21` soak-ready; `#22` (+ UX follow-up) alerts/graphs → `development` |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
 
 ## Projects
@@ -24,8 +24,9 @@ rewrite reaches feature parity for your environment.
 
 - Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM; Snapshots (disk-only)
 - Full VM Properties; Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA
-- **Alerts** — badge + tab; dismiss; fix-links (Repair SR via `SrRepairAction`; HA deferred to WinForms; multipath → Logs hint)
-- **Performance** — RRD poller + Avalonia charts; time-range picker (10m / 2h / 1w / 1y); load/save `pool.gui_config` layouts
+- **Alerts** — clickable sidebar badge opens an **app-global** alerts pane (all connected pools/servers); dismiss; fix-links (Repair SR via `SrRepairAction`; HA deferred to WinForms; multipath → Logs hint)
+- **Performance** — RRD poller + Avalonia charts with hover crosshair/tooltips and time-axis labels by range; time-range picker (10m / 2h / 1w / 1y); load/save `pool.gui_config` layouts
+- **Tab chrome** — Fluent accent + selected tab underline use brand orange (`#F07318`)
 - **Multi-LUN HBA/FCoE** — select many LUNs → `ParallelAction` of `SrCreateAction`
 - **OVF/OVA** — appliance import/export wizards alongside XVA
 
@@ -45,7 +46,7 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 
 ## Next
 
-1. Merge `#21` after Linux soak; then `#22`.
+1. **Soak + merge PR `#21`**, then **`#22`** (alerts/graphs + hover tooltips + global alerts pane).
 2. Later: HA/AD/DR wizards (enables richer HA alert fix-links); graph editor UI beyond save-current-defaults.
 3. RDP stays WinForms-only.
 

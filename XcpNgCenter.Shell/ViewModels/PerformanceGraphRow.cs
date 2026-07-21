@@ -22,15 +22,18 @@ public sealed class PerformanceSeriesView
 
 public partial class PerformanceGraphRow : ObservableObject
 {
-    public PerformanceGraphRow(string title, IReadOnlyList<PerformanceSeriesView> series)
+    public PerformanceGraphRow(string title, IReadOnlyList<PerformanceSeriesView> series, RrdArchiveInterval interval)
     {
         Title = title;
+        Interval = interval;
         Series = new ObservableCollection<PerformanceSeriesView>(series);
         HasData = series.Any(s => s.Points.Count > 0);
         LatestSummary = BuildSummary(series);
     }
 
     public string Title { get; }
+
+    public RrdArchiveInterval Interval { get; }
 
     public ObservableCollection<PerformanceSeriesView> Series { get; }
 

@@ -11,6 +11,12 @@ public partial class AlertItemRow : ObservableObject
         Title = alert.Title ?? "";
         Description = alert.Description ?? "";
         AppliesTo = alert.AppliesTo ?? "";
+        ConnectionLabel = FormatConnection(alert);
+        SourceLabel = string.IsNullOrWhiteSpace(ConnectionLabel)
+            ? AppliesTo
+            : string.IsNullOrWhiteSpace(AppliesTo) || string.Equals(AppliesTo, ConnectionLabel, StringComparison.OrdinalIgnoreCase)
+                ? ConnectionLabel
+                : $"{ConnectionLabel} · {AppliesTo}";
         PriorityLabel = FormatPriority(alert.Priority);
         TimestampText = alert.Timestamp.ToLocalTime().ToString("g");
         CanDismiss = alert.AllowedToDismiss();
@@ -23,10 +29,27 @@ public partial class AlertItemRow : ObservableObject
     public string Title { get; }
     public string Description { get; }
     public string AppliesTo { get; }
+    /// <summary>Hostname / nickname of the connected server or pool coordinator.</summary>
+    public string ConnectionLabel { get; }
+    /// <summary>Connection + applies-to label for the global alerts pane.</summary>
+    public string SourceLabel { get; }
     public string PriorityLabel { get; }
     public string TimestampText { get; }
     public string FixLinkText { get; }
     public bool HasFixLink { get; }
+
+    private static string FormatConnection(Alert alert)
+    {
+        var conn = alert.Connection;
+        if (conn == null)
+            return "";
+
+        if (!string.IsNullOrWhiteSpace(conn.Name))
+            return conn.Name;
+        if (!string.IsNullOrWhiteSpace(conn.Hostname))
+            return conn.Hostname;
+        return "";
+    }
 
     [ObservableProperty]
     private bool _isSelected;

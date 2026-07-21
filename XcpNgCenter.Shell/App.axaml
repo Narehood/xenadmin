@@ -35,7 +35,28 @@
   </Application.Resources>
 
   <Application.Styles>
-    <FluentTheme />
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <!-- Brand orange accent so Fluent chrome (tab underlines, focus) matches the shell. -->
+        <ColorPaletteResources x:Key="Dark" Accent="#F07318" />
+        <ColorPaletteResources x:Key="Light" Accent="#F07318" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Button.alert-badge">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Foreground" Value="#141414" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.alert-badge:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrangeDeep}" />
+    </Style>
     <Style Selector="Window">
       <Setter Property="FontFamily" Value="{StaticResource Font.Outfit}" />
       <Setter Property="Background" Value="{StaticResource Brush.BgDeep}" />

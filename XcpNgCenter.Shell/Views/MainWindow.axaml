@@ -70,18 +70,17 @@
                            FontSize="12"
                            Foreground="{StaticResource Brush.BrandOrange}" />
               </StackPanel>
-              <Border IsVisible="{Binding HasAlertsBadge}"
-                      Background="{StaticResource Brush.BrandOrange}"
-                      CornerRadius="10"
-                      Padding="8,2"
+              <Button Classes="alert-badge"
+                      IsVisible="{Binding HasAlertsBadge}"
                       VerticalAlignment="Top"
                       Margin="0,2,0,0"
-                      ToolTip.Tip="Open Alerts tab">
+                      ToolTip.Tip="Open all alerts"
+                      Command="{Binding OpenGlobalAlertsCommand}">
                 <TextBlock Text="{Binding AlertsBadgeText}"
                            FontSize="11"
                            FontWeight="SemiBold"
                            Foreground="#141414" />
-              </Border>
+              </Button>
             </StackPanel>
 
             <UniformGrid Columns="2" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
@@ -341,7 +340,111 @@
           </Border>
         </Grid>
 
-        <Grid IsVisible="{Binding ShowInfrastructure}" Margin="28,24,28,16" RowDefinitions="*,Auto">
+
+        <Grid IsVisible="{Binding ShowGlobalAlerts}" Margin="28,24,28,16" RowDefinitions="Auto,*">
+          <StackPanel Spacing="8" Margin="0,0,0,12">
+            <DockPanel>
+              <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="Alerts"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <Border Background="{StaticResource Brush.BrandOrange}"
+                        CornerRadius="10"
+                        Padding="8,2"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding HasAlertsBadge}">
+                  <TextBlock Text="{Binding AlertsBadgeText}"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             Foreground="#141414" />
+                </Border>
+              </StackPanel>
+              <StackPanel DockPanel.Dock="Right"
+                          Orientation="Horizontal"
+                          Spacing="8"
+                          HorizontalAlignment="Right">
+                <Button Classes="ghost"
+                        Content="Dismiss selected"
+                        Command="{Binding DismissSelectedAlertsCommand}" />
+                <Button Classes="ghost"
+                        Content="Dismiss all"
+                        Command="{Binding DismissAllAlertsCommand}" />
+                <Button Classes="ghost"
+                        Content="Back"
+                        Command="{Binding CloseGlobalAlertsCommand}" />
+              </StackPanel>
+            </DockPanel>
+            <TextBlock Text="All messages from every connected pool and server, newest first."
+                       FontSize="13"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+          <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="8" Margin="0,0,4,0">
+              <TextBlock Text="No alerts. Messages from all connected pools appear here."
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         IsVisible="{Binding !HasAlertItems}" />
+              <ItemsControl ItemsSource="{Binding AlertItems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:AlertItemRow">
+                    <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                            BorderThickness="0,0,0,1"
+                            Padding="0,0,0,10"
+                            Margin="0,0,0,6">
+                      <Grid ColumnDefinitions="Auto,*">
+                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                  VerticalAlignment="Top"
+                                  Margin="0,2,10,0"
+                                  IsEnabled="{Binding CanDismiss}" />
+                        <StackPanel Grid.Column="1" Spacing="2">
+                          <DockPanel>
+                            <TextBlock Text="{Binding Title}"
+                                       FontWeight="SemiBold"
+                                       FontSize="13"
+                                       TextWrapping="Wrap" />
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding PriorityLabel}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource Brush.BrandOrange}"
+                                       Margin="12,0,0,0" />
+                          </DockPanel>
+                          <TextBlock Text="{Binding Description}"
+                                     FontSize="12"
+                                     TextWrapping="Wrap"
+                                     Foreground="{StaticResource Brush.TextMuted}" />
+                          <DockPanel Margin="0,2,0,0">
+                            <TextBlock Text="{Binding SourceLabel}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource Brush.TextMuted}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <StackPanel DockPanel.Dock="Right"
+                                        Orientation="Horizontal"
+                                        Spacing="8"
+                                        Margin="12,0,0,0">
+                              <Button Classes="ghost"
+                                      Content="{Binding FixLinkText}"
+                                      FontSize="11"
+                                      Padding="8,2"
+                                      IsVisible="{Binding HasFixLink}"
+                                      Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RunAlertFixCommand}"
+                                      CommandParameter="{Binding}" />
+                              <TextBlock Text="{Binding TimestampText}"
+                                         FontSize="11"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         VerticalAlignment="Center" />
+                            </StackPanel>
+                          </DockPanel>
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+
+        <Grid IsVisible="{Binding ShowInfrastructureDetail}" Margin="28,24,28,16" RowDefinitions="*,Auto">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                         VerticalScrollBarVisibility="Auto"
                         Padding="12,0,12,0">
@@ -393,6 +496,10 @@
                   </Style>
                   <Style Selector="TabItem:selected">
                     <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                  </Style>
+                  <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+                    <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+                    <Setter Property="Height" Value="3" />
                   </Style>
                   <!-- Keep tab content clear of the vertical scrollbar thumb. -->
                   <Style Selector="TabItem ScrollViewer">
@@ -971,97 +1078,6 @@
                   </Panel>
                 </TabItem>
 
-                <TabItem Header="Alerts">
-                  <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
-                    <DockPanel Margin="0,0,4,8">
-                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Alerts"
-                                   FontSize="14"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding AlertCount}"
-                                   FontSize="12"
-                                   Foreground="{StaticResource Brush.BrandOrange}"
-                                   VerticalAlignment="Center"
-                                   IsVisible="{Binding HasAlertsBadge}" />
-                      </StackPanel>
-                      <StackPanel DockPanel.Dock="Right"
-                                  Orientation="Horizontal"
-                                  Spacing="8"
-                                  HorizontalAlignment="Right">
-                        <Button Classes="ghost"
-                                Content="Dismiss selected"
-                                Command="{Binding DismissSelectedAlertsCommand}" />
-                        <Button Classes="ghost"
-                                Content="Dismiss all"
-                                Command="{Binding DismissAllAlertsCommand}" />
-                      </StackPanel>
-                    </DockPanel>
-                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
-                      <StackPanel Spacing="8" Margin="0,0,4,0">
-                        <TextBlock Text="No alerts. Messages from connected pools appear here."
-                                   Foreground="{StaticResource Brush.TextMuted}"
-                                   IsVisible="{Binding !HasAlertItems}" />
-                        <ItemsControl ItemsSource="{Binding AlertItems}">
-                          <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:AlertItemRow">
-                              <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                                      BorderThickness="0,0,0,1"
-                                      Padding="0,0,0,10"
-                                      Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
-                                  <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                            VerticalAlignment="Top"
-                                            Margin="0,2,10,0"
-                                            IsEnabled="{Binding CanDismiss}" />
-                                  <StackPanel Grid.Column="1" Spacing="2">
-                                    <DockPanel>
-                                      <TextBlock Text="{Binding Title}"
-                                                 FontWeight="SemiBold"
-                                                 FontSize="13"
-                                                 TextWrapping="Wrap" />
-                                      <TextBlock DockPanel.Dock="Right"
-                                                 Text="{Binding PriorityLabel}"
-                                                 FontSize="11"
-                                                 Foreground="{StaticResource Brush.BrandOrange}"
-                                                 Margin="12,0,0,0" />
-                                    </DockPanel>
-                                    <TextBlock Text="{Binding Description}"
-                                               FontSize="12"
-                                               TextWrapping="Wrap"
-                                               Foreground="{StaticResource Brush.TextMuted}" />
-                                    <DockPanel Margin="0,2,0,0">
-                                      <TextBlock Text="{Binding AppliesTo}"
-                                                 FontSize="11"
-                                                 Foreground="{StaticResource Brush.TextMuted}" />
-                                      <StackPanel DockPanel.Dock="Right"
-                                                  Orientation="Horizontal"
-                                                  Spacing="8"
-                                                  Margin="12,0,0,0">
-                                        <Button Classes="ghost"
-                                                Content="{Binding FixLinkText}"
-                                                FontSize="11"
-                                                Padding="8,2"
-                                                IsVisible="{Binding HasFixLink}"
-                                                Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RunAlertFixCommand}"
-                                                CommandParameter="{Binding}" />
-                                        <TextBlock Text="{Binding TimestampText}"
-                                                   FontSize="11"
-                                                   Foreground="{StaticResource Brush.TextMuted}"
-                                                   VerticalAlignment="Center" />
-                                      </StackPanel>
-                                    </DockPanel>
-                                  </StackPanel>
-                                </Grid>
-                              </Border>
-                            </DataTemplate>
-                          </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                      </StackPanel>
-                    </ScrollViewer>
-                  </Grid>
-                </TabItem>
-
                 <TabItem Header="Performance">
                   <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
                     <StackPanel Spacing="8" Margin="0,0,4,8">
@@ -1115,8 +1131,9 @@
                                              MaxWidth="420"
                                              HorizontalAlignment="Right" />
                                 </DockPanel>
-                                <controls:PerformanceChart Height="160"
-                                                           Series="{Binding Series}" />
+                                <controls:PerformanceChart Height="180"
+                                                           Series="{Binding Series}"
+                                                           Interval="{Binding Interval}" />
                               </StackPanel>
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>

@@ -34,14 +34,17 @@ public static class PerformanceGraphBuilder
         if (archive == null || archive.SeriesById.Count == 0)
             return Array.Empty<PerformanceGraphRow>();
 
-        var fromConfig = TryBuildFromGuiConfig(xo, archive);
+        // Prefer the interval the user selected for axis labels even if we fell back to another archive.
+        var axisInterval = preferredInterval;
+
+        var fromConfig = TryBuildFromGuiConfig(xo, archive, axisInterval);
         if (fromConfig.Count > 0)
             return fromConfig;
 
         return xo switch
         {
-            Host host => BuildHostDefaults(host, archive),
-            VM vm => BuildVmDefaults(vm, archive),
+            Host host => BuildHostDefaults(host, archive, axisInterval),
+            VM vm => BuildVmDefaults(vm, archive, axisInterval),
             _ => Array.Empty<PerformanceGraphRow>()
         };
     }
@@ -82,7 +85,10 @@ public static class PerformanceGraphBuilder
         return null;
     }
 
-    private static IReadOnlyList<PerformanceGraphRow> TryBuildFromGuiConfig(IXenObject xo, RrdArchive archive)
+    private static IReadOnlyList<PerformanceGraphRow> TryBuildFromGuiConfig(
+        IXenObject xo,
+        RrdArchive archive,
+        RrdArchiveInterval interval)
     {
         var gui = ShellGraphLayoutKeys.GetGuiConfig(xo);
         var rows = new List<PerformanceGraphRow>();
@@ -103,22 +109,25 @@ public static class PerformanceGraphBuilder
                 : $"Graph {i + 1}";
             var series = MatchSeries(archive, ids);
             if (series.Count > 0)
-                rows.Add(MakeGraph(title, series));
+                rows.Add(MakeGraph(title, series, interval));
         }
 
         return rows;
     }
 
-    private static IReadOnlyList<PerformanceGraphRow> BuildHostDefaults(Host host, RrdArchive archive)
+    private static IReadOnlyList<PerformanceGraphRow> BuildHostDefaults(
+        Host host,
+        RrdArchive archive,
+        RrdArchiveInterval interval)
     {
         var rows = new List<PerformanceGraphRow>();
 
         var cpuIds = host.Connection.ResolveAll(host.host_CPUs)
             .Select(cpu => $"host:{host.uuid}:cpu{cpu.number}")
             .ToList();
-        rows.Add(MakeGraph("CPU", MatchSeries(archive, cpuIds)));
+        rows.Add(MakeGraph("CPU", MatchSeries(archive, cpuIds), interval));
 
-        rows.Add(MakeGraph("Memory", MatchSeries(archive, [$"host:{host.uuid}:memory_free_kib"])));
+        rows.Add(MakeGraph("Memory", MatchSeries(archive, [$"host:{host.uuid}:memory_free_kib"]), interval));
 
         var netIds = new List<string>();
         foreach (var pif in host.Connection.ResolveAll(host.PIFs))
@@ -126,20 +135,23 @@ public static class PerformanceGraphBuilder
             netIds.Add($"host:{host.uuid}:pif_{pif.device}_tx");
             netIds.Add($"host:{host.uuid}:pif_{pif.device}_rx");
         }
-        rows.Add(MakeGraph("Network", MatchSeries(archive, netIds)));
+        rows.Add(MakeGraph("Network", MatchSeries(archive, netIds), interval));
 
         return rows.Where(r => r.Series.Count > 0).ToList();
     }
 
-    private static IReadOnlyList<PerformanceGraphRow> BuildVmDefaults(VM vm, RrdArchive archive)
+    private static IReadOnlyList<PerformanceGraphRow> BuildVmDefaults(
+        VM vm,
+        RrdArchive archive,
+        RrdArchiveInterval interval)
     {
         var rows = new List<PerformanceGraphRow>();
 
         var cpuIds = Enumerable.Range(0, (int)Math.Max(1, vm.VCPUs_at_startup))
             .Select(i => $"vm:{vm.uuid}:cpu{i}")
             .ToList();
-        rows.Add(MakeGraph("CPU", MatchSeries(archive, cpuIds)));
-        rows.Add(MakeGraph("Memory", MatchSeries(archive, [$"vm:{vm.uuid}:memory_internal_free"])));
+        rows.Add(MakeGraph("CPU", MatchSeries(archive, cpuIds), interval));
+        rows.Add(MakeGraph("Memory", MatchSeries(archive, [$"vm:{vm.uuid}:memory_internal_free"]), interval));
 
         var netIds = new List<string>();
         foreach (var vif in vm.Connection.ResolveAll(vm.VIFs))
@@ -147,7 +159,7 @@ public static class PerformanceGraphBuilder
             netIds.Add($"vm:{vm.uuid}:vif_{vif.device}_tx");
             netIds.Add($"vm:{vm.uuid}:vif_{vif.device}_rx");
         }
-        rows.Add(MakeGraph("Network", MatchSeries(archive, netIds)));
+        rows.Add(MakeGraph("Network", MatchSeries(archive, netIds), interval));
 
         var diskIds = new List<string>();
         foreach (var vbd in vm.Connection.ResolveAll(vm.VBDs))
@@ -155,7 +167,7 @@ public static class PerformanceGraphBuilder
             diskIds.Add($"vm:{vm.uuid}:vbd_{vbd.device}_read");
             diskIds.Add($"vm:{vm.uuid}:vbd_{vbd.device}_write");
         }
-        rows.Add(MakeGraph("Disk", MatchSeries(archive, diskIds)));
+        rows.Add(MakeGraph("Disk", MatchSeries(archive, diskIds), interval));
 
         return rows.Where(r => r.Series.Count > 0).ToList();
     }
@@ -180,8 +192,8 @@ public static class PerformanceGraphBuilder
         return list;
     }
 
-    private static PerformanceGraphRow MakeGraph(string title, List<PerformanceSeriesView> series)
-        => new(title, series);
+    private static PerformanceGraphRow MakeGraph(string title, List<PerformanceSeriesView> series, RrdArchiveInterval interval)
+        => new(title, series, interval);
 }
 
 public sealed record PerformanceRangeOption(RrdArchiveInterval Interval, string Label, string Hint)
