@@ -375,6 +375,10 @@
             <TextBlock Text="All messages from every connected pool and server, newest first."
                        FontSize="13"
                        Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBlock Text="{Binding PropertyCopyFeedback}"
+                       FontSize="12"
+                       Foreground="{StaticResource Brush.Ok}"
+                       IsVisible="{Binding PropertyCopyFeedback.Length}" />
           </StackPanel>
           <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="8" Margin="0,0,4,0">
@@ -419,6 +423,14 @@
                                         Spacing="8"
                                         Margin="12,0,0,0">
                               <Button Classes="ghost"
+                                      Content="Copy"
+                                      FontSize="11"
+                                      Padding="8,2"
+                                      IsVisible="{Binding CanCopy}"
+                                      Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyPropertyValueCommand}"
+                                      CommandParameter="{Binding CopyText}"
+                                      ToolTip.Tip="Copy alert" />
+                              <Button Classes="ghost"
                                       Content="{Binding FixLinkText}"
                                       FontSize="11"
                                       Padding="8,2"
@@ -441,49 +453,57 @@
           </ScrollViewer>
         </Grid>
 
-        <Grid IsVisible="{Binding ShowInfrastructureDetail}" Margin="28,24,28,16" RowDefinitions="*,Auto">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                        VerticalScrollBarVisibility="Auto"
-                        Padding="12,0,12,0">
-            <StackPanel Spacing="12">
-              <StackPanel Spacing="6">
+        <Grid IsVisible="{Binding ShowInfrastructureDetail}" Margin="28,20,28,12" RowDefinitions="Auto,*,Auto">
+          <!-- Compact object header: kind + name inline; VM power controls top-right. -->
+          <DockPanel Margin="12,0,12,8" LastChildFill="True">
+            <StackPanel DockPanel.Dock="Right"
+                        Orientation="Horizontal"
+                        Spacing="6"
+                        VerticalAlignment="Center"
+                        Margin="16,0,0,0"
+                        IsVisible="{Binding ShowVmActionBar}">
+              <Button Classes="ghost" Content="Start" Padding="10,4" Command="{Binding StartVmCommand}" />
+              <Button Classes="ghost" Content="Shutdown" Padding="10,4" Command="{Binding ShutdownVmCommand}" />
+              <Button Classes="ghost" Content="Reboot" Padding="10,4" Command="{Binding RebootVmCommand}" />
+              <Button Classes="ghost" Content="{Binding SuspendToggleLabel}" Padding="10,4"
+                      Command="{Binding ToggleSuspendVmCommand}"
+                      IsVisible="{Binding ShowSuspendToggle}" />
+              <Button Classes="ghost" Content="{Binding PauseToggleLabel}" Padding="10,4"
+                      Command="{Binding TogglePauseVmCommand}"
+                      IsVisible="{Binding ShowPauseToggle}" />
+            </StackPanel>
+
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="10">
                 <TextBlock Text="{Binding SelectedInfraNode.KindLabel, FallbackValue='Select an object'}"
-                           FontSize="12"
-                           LetterSpacing="1.1"
-                           Foreground="{StaticResource Brush.BrandOrange}" />
-                <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Select a pool, host, or VM'}"
-                           FontSize="28"
+                           FontSize="14"
                            FontWeight="SemiBold"
-                           TextWrapping="Wrap" />
-                <TextBlock Text="{Binding SelectedInfraNode.Subtitle, FallbackValue=''}"
-                           Foreground="{StaticResource Brush.TextMuted}"
-                           FontSize="15" />
-                <TextBlock Text="{Binding ActionStatusMessage}"
-                           FontSize="12"
-                           TextWrapping="Wrap"
-                           Foreground="{StaticResource Brush.TextMuted}"
-                           IsVisible="{Binding ActionStatusMessage.Length}" />
-                <TextBlock Text="Right-click a pool, host, or VM in the tree for actions."
-                           FontSize="12"
-                           Foreground="{StaticResource Brush.TextMuted}"
-                           Opacity="0.85"
-                           IsVisible="{Binding !ShowVmActionBar}" />
+                           LetterSpacing="0.8"
+                           Foreground="{StaticResource Brush.BrandOrange}"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Select a pool, host, or VM'}"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" />
               </StackPanel>
+              <TextBlock Text="{Binding SelectedInfraNode.Subtitle, FallbackValue=''}"
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         FontSize="13" />
+              <TextBlock Text="{Binding ActionStatusMessage}"
+                         FontSize="12"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         IsVisible="{Binding ActionStatusMessage.Length}" />
+              <TextBlock Text="Right-click a pool, host, or VM in the tree for actions."
+                         FontSize="12"
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         Opacity="0.85"
+                         IsVisible="{Binding !ShowVmActionBar}" />
+            </StackPanel>
+          </DockPanel>
 
-              <WrapPanel Orientation="Horizontal"
-                         IsVisible="{Binding ShowVmActionBar}">
-                <Button Classes="ghost" Content="Start" Margin="0,0,8,6" Command="{Binding StartVmCommand}" />
-                <Button Classes="ghost" Content="Shutdown" Margin="0,0,8,6" Command="{Binding ShutdownVmCommand}" />
-                <Button Classes="ghost" Content="Reboot" Margin="0,0,8,6" Command="{Binding RebootVmCommand}" />
-                <Button Classes="ghost" Content="{Binding SuspendToggleLabel}" Margin="0,0,8,6"
-                        Command="{Binding ToggleSuspendVmCommand}"
-                        IsVisible="{Binding ShowSuspendToggle}" />
-                <Button Classes="ghost" Content="{Binding PauseToggleLabel}" Margin="0,0,8,6"
-                        Command="{Binding TogglePauseVmCommand}"
-                        IsVisible="{Binding ShowPauseToggle}" />
-              </WrapPanel>
-
-              <TabControl Margin="0,4,0,0">
+          <TabControl Grid.Row="1" Margin="12,0,12,0">
                 <TabControl.Styles>
                   <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="13" />
@@ -800,67 +820,99 @@
                 </TabItem>
 
                 <TabItem Header="Console">
-                  <StackPanel Margin="0,18,0,8" Spacing="10">
-                    <StackPanel Spacing="6" IsVisible="{Binding ShowConsoleIsoBar}">
+                  <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,*,Auto">
+                    <!-- CD/DVD + console actions on one compact row. -->
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto"
+                          Margin="0,0,4,8"
+                          IsVisible="{Binding ShowConsoleIsoBar}">
                       <TextBlock Text="CD/DVD"
-                                 FontSize="11"
-                                 LetterSpacing="1.1"
-                                 Foreground="{StaticResource Brush.TextMuted}" />
-                      <TextBlock Text="{Binding AttachedIsoLabel}"
                                  FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}" />
-                      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                        <ComboBox ItemsSource="{Binding ConsoleIsoOptions}"
-                                  SelectedItem="{Binding SelectedConsoleIso}"
-                                  PlaceholderText="Select ISO…"
-                                  IsEnabled="{Binding HasConsoleIsoOptions}"
-                                  MinHeight="36">
-                          <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:IsoOption">
-                              <StackPanel Spacing="1">
-                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Subtitle}"
-                                           FontSize="11"
-                                           Foreground="{StaticResource Brush.TextMuted}"
-                                           TextTrimming="CharacterEllipsis" />
-                              </StackPanel>
-                            </DataTemplate>
-                          </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <Button Grid.Column="1" Classes="ghost" Content="Insert"
-                                Margin="8,0,0,0"
-                                Command="{Binding ApplyConsoleIsoCommand}"
-                                ToolTip.Tip="Insert the selected ISO" />
-                        <Button Grid.Column="2" Classes="ghost" Content="Eject"
-                                Margin="8,0,0,0"
-                                Command="{Binding EjectIsoCommand}"
-                                ToolTip.Tip="Eject the current ISO" />
-                        <Button Grid.Column="3" Classes="ghost" Content="Browse…"
-                                Margin="8,0,0,0"
-                                Command="{Binding AttachIsoCommand}"
-                                ToolTip.Tip="Open the full ISO library picker" />
-                      </Grid>
-                    </StackPanel>
-
-                    <WrapPanel Orientation="Horizontal"
-                               IsVisible="{Binding HasConsoleFrame}">
-                      <Button Classes="ghost" Content="Pop Out" Margin="0,0,8,6"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,10,0" />
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding AttachedIsoLabel}"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,10,0" />
+                      <ComboBox Grid.Column="2"
+                                ItemsSource="{Binding ConsoleIsoOptions}"
+                                SelectedItem="{Binding SelectedConsoleIso}"
+                                PlaceholderText="Select ISO…"
+                                IsEnabled="{Binding HasConsoleIsoOptions}"
+                                MinWidth="180"
+                                MaxWidth="280"
+                                MinHeight="32"
+                                VerticalAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate x:DataType="vm:IsoOption">
+                            <StackPanel Spacing="1">
+                              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                              <TextBlock Text="{Binding Subtitle}"
+                                         FontSize="11"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                      <Button Grid.Column="3" Classes="ghost" Content="Insert"
+                              Margin="8,0,0,0" Padding="10,4"
+                              VerticalAlignment="Center"
+                              Command="{Binding ApplyConsoleIsoCommand}"
+                              ToolTip.Tip="Insert the selected ISO" />
+                      <Button Grid.Column="4" Classes="ghost" Content="Eject"
+                              Margin="6,0,0,0" Padding="10,4"
+                              VerticalAlignment="Center"
+                              Command="{Binding EjectIsoCommand}"
+                              ToolTip.Tip="Eject the current ISO" />
+                      <Button Grid.Column="5" Classes="ghost" Content="Browse…"
+                              Margin="6,0,0,0" Padding="10,4"
+                              VerticalAlignment="Center"
+                              Command="{Binding AttachIsoCommand}"
+                              ToolTip.Tip="Open the full ISO library picker" />
+                      <Button Grid.Column="6" Classes="ghost" Content="Pop Out"
+                              Margin="16,0,0,0" Padding="10,4"
+                              VerticalAlignment="Center"
                               Command="{Binding PopOutConsoleCommand}"
                               IsVisible="{Binding !IsConsolePoppedOut}" />
-                      <Button Classes="ghost" Content="Reattach" Margin="0,0,8,6"
+                      <Button Grid.Column="6" Classes="ghost" Content="Reattach"
+                              Margin="16,0,0,0" Padding="10,4"
+                              VerticalAlignment="Center"
                               Command="{Binding ReattachConsoleCommand}"
                               IsVisible="{Binding ShowConsoleReattach}" />
-                      <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,6"
-                              Command="{Binding SendCtrlAltDelCommand}" />
+                      <Button Grid.Column="7" Classes="ghost" Content="Ctrl+Alt+Del"
+                              Margin="6,0,0,0" Padding="10,4"
+                              VerticalAlignment="Center"
+                              Command="{Binding SendCtrlAltDelCommand}"
+                              IsVisible="{Binding HasConsoleFrame}" />
+                    </Grid>
+
+                    <WrapPanel Grid.Row="1"
+                               Orientation="Horizontal"
+                               Margin="0,0,4,8"
+                               IsVisible="{Binding !ShowConsoleIsoBar}">
+                      <Button Classes="ghost" Content="Pop Out" Margin="0,0,8,0" Padding="10,4"
+                              Command="{Binding PopOutConsoleCommand}"
+                              IsVisible="{Binding !IsConsolePoppedOut}" />
+                      <Button Classes="ghost" Content="Reattach" Margin="0,0,8,0" Padding="10,4"
+                              Command="{Binding ReattachConsoleCommand}"
+                              IsVisible="{Binding ShowConsoleReattach}" />
+                      <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,0" Padding="10,4"
+                              Command="{Binding SendCtrlAltDelCommand}"
+                              IsVisible="{Binding HasConsoleFrame}" />
                     </WrapPanel>
 
-                    <Border Background="#33161C22"
+                    <Border Grid.Row="2"
+                            Background="#33161C22"
                             BorderBrush="{StaticResource Brush.StrokeSubtle}"
                             BorderThickness="1"
                             CornerRadius="8"
-                            Padding="8"
-                            Height="560"
-                            MinHeight="560"
+                            Padding="6"
+                            MinHeight="360"
                             ClipToBounds="True">
                       <Grid ClipToBounds="True">
                         <StackPanel Spacing="8"
@@ -904,90 +956,96 @@
                       </Grid>
                     </Border>
 
-                    <StackPanel Spacing="6" Margin="0,4,4,0">
-                      <ItemsControl ItemsSource="{Binding ConsoleTotals}">
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                            <Grid ColumnDefinitions="120,*" Margin="0,0,0,2">
-                              <TextBlock Text="{Binding Label}"
-                                         Foreground="{StaticResource Brush.TextMuted}"
-                                         FontSize="12" />
-                              <TextBlock Grid.Column="1"
-                                         Text="{Binding Value}"
-                                         TextWrapping="Wrap"
-                                         Foreground="{StaticResource Brush.TextPrimary}"
-                                         FontSize="12" />
-                            </Grid>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
-
-                      <TextBlock Text="{Binding ConsoleStatusMessage}"
-                                 TextWrapping="Wrap"
-                                 FontSize="12"
-                                 Foreground="{StaticResource Brush.BrandOrange}"
-                                 IsVisible="{Binding ConsoleStatusMessage.Length}" />
-                      <TextBlock Text="{Binding ConsoleViewerStatus}"
-                                 TextWrapping="Wrap"
-                                 FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}"
-                                 IsVisible="{Binding ConsoleViewerStatus.Length}" />
-                      <TextBlock Text="{Binding ConsoleInputHint}"
-                                 TextWrapping="Wrap"
-                                 FontSize="12"
-                                 Foreground="{StaticResource Brush.BrandOrange}"
-                                 IsVisible="{Binding ConsoleInputHint.Length}" />
-                    </StackPanel>
-
-                    <StackPanel Spacing="8" Margin="0,0,4,0"
-                                IsVisible="{Binding HasConsoleItems}">
-                      <TextBlock Text="Console endpoints"
-                                 FontSize="11"
-                                 LetterSpacing="1.2"
-                                 Foreground="{StaticResource Brush.TextMuted}" />
-                      <ItemsControl ItemsSource="{Binding ConsoleItems}">
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate x:DataType="vm:ConsoleItemRow">
-                            <Border Classes="prop-row"
-                                    Classes.copyable="{Binding CanCopyLocation}"
-                                    Padding="8,6"
-                                    Margin="0,0,0,4"
-                                    CornerRadius="6"
-                                    Background="Transparent">
-                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                                <TextBlock Text="{Binding Primary}"
-                                           FontWeight="SemiBold"
-                                           FontSize="13"
-                                           Margin="0,0,12,0"
-                                           Foreground="{StaticResource Brush.TextPrimary}" />
-                                <Button Grid.Column="1"
-                                        Classes="copy"
-                                        Content="Copy"
-                                        VerticalAlignment="Top"
-                                        IsVisible="{Binding CanCopyLocation}"
-                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
-                                        CommandParameter="{Binding Location}"
-                                        ToolTip.Tip="Copy console location" />
-                                <TextBlock Grid.Row="1"
-                                           Grid.ColumnSpan="2"
-                                           Text="{Binding Location}"
-                                           FontSize="11"
+                    <ScrollViewer Grid.Row="3"
+                                  Margin="0,8,0,0"
+                                  MaxHeight="140"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+                      <StackPanel Spacing="6" Margin="0,0,4,0">
+                        <ItemsControl ItemsSource="{Binding ConsoleTotals}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:GeneralPropertyRow">
+                              <Grid ColumnDefinitions="120,*" Margin="0,0,0,2">
+                                <TextBlock Text="{Binding Label}"
                                            Foreground="{StaticResource Brush.TextMuted}"
-                                           Margin="0,4,0,0"
+                                           FontSize="12" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Value}"
                                            TextWrapping="Wrap"
-                                           TextTrimming="CharacterEllipsis"
-                                           IsVisible="{Binding CanCopyLocation}" />
+                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           FontSize="12" />
                               </Grid>
-                            </Border>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
-                      <TextBlock Text="{Binding ConsoleCopyFeedback}"
-                                 FontSize="12"
-                                 Foreground="{StaticResource Brush.Ok}"
-                                 IsVisible="{Binding ConsoleCopyFeedback.Length}" />
-                    </StackPanel>
-                  </StackPanel>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="{Binding ConsoleStatusMessage}"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{StaticResource Brush.BrandOrange}"
+                                   IsVisible="{Binding ConsoleStatusMessage.Length}" />
+                        <TextBlock Text="{Binding ConsoleViewerStatus}"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   IsVisible="{Binding ConsoleViewerStatus.Length}" />
+                        <TextBlock Text="{Binding ConsoleInputHint}"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{StaticResource Brush.BrandOrange}"
+                                   IsVisible="{Binding ConsoleInputHint.Length}" />
+
+                        <StackPanel Spacing="8"
+                                    IsVisible="{Binding HasConsoleItems}">
+                          <TextBlock Text="Console endpoints"
+                                     FontSize="11"
+                                     LetterSpacing="1.2"
+                                     Foreground="{StaticResource Brush.TextMuted}" />
+                          <ItemsControl ItemsSource="{Binding ConsoleItems}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:ConsoleItemRow">
+                                <Border Classes="prop-row"
+                                        Classes.copyable="{Binding CanCopyLocation}"
+                                        Padding="8,6"
+                                        Margin="0,0,0,4"
+                                        CornerRadius="6"
+                                        Background="Transparent">
+                                  <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                    <TextBlock Text="{Binding Primary}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Margin="0,0,12,0"
+                                               Foreground="{StaticResource Brush.TextPrimary}" />
+                                    <Button Grid.Column="1"
+                                            Classes="copy"
+                                            Content="Copy"
+                                            VerticalAlignment="Top"
+                                            IsVisible="{Binding CanCopyLocation}"
+                                            Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
+                                            CommandParameter="{Binding Location}"
+                                            ToolTip.Tip="Copy console location" />
+                                    <TextBlock Grid.Row="1"
+                                               Grid.ColumnSpan="2"
+                                               Text="{Binding Location}"
+                                               FontSize="11"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               TextTrimming="CharacterEllipsis"
+                                               IsVisible="{Binding CanCopyLocation}" />
+                                  </Grid>
+                                </Border>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <TextBlock Text="{Binding ConsoleCopyFeedback}"
+                                     FontSize="12"
+                                     Foreground="{StaticResource Brush.Ok}"
+                                     IsVisible="{Binding ConsoleCopyFeedback.Length}" />
+                        </StackPanel>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </Grid>
                 </TabItem>
 
                 <TabItem Header="Snapshots">
@@ -1143,10 +1201,17 @@
                 <TabItem Header="Logs">
                   <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
                     <DockPanel Margin="0,0,4,8">
-                      <TextBlock Text="Tasks and actions"
-                                 FontSize="14"
-                                 FontWeight="SemiBold"
-                                 VerticalAlignment="Center" />
+                      <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <TextBlock Text="Tasks and actions"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding PropertyCopyFeedback}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource Brush.Ok}"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding PropertyCopyFeedback.Length}" />
+                      </StackPanel>
                       <Button DockPanel.Dock="Right"
                               Classes="ghost"
                               Content="Dismiss completed"
@@ -1192,6 +1257,14 @@
                                               Spacing="6"
                                               HorizontalAlignment="Right">
                                     <Button Classes="ghost"
+                                            Content="Copy"
+                                            FontSize="11"
+                                            Padding="8,2"
+                                            IsVisible="{Binding CanCopy}"
+                                            Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyPropertyValueCommand}"
+                                            CommandParameter="{Binding CopyText}"
+                                            ToolTip.Tip="Copy log entry" />
+                                    <Button Classes="ghost"
                                             Content="Cancel"
                                             FontSize="11"
                                             Padding="8,2"
@@ -1216,11 +1289,9 @@
                   </Grid>
                 </TabItem>
               </TabControl>
-            </StackPanel>
-          </ScrollViewer>
 
-          <TextBlock Grid.Row="1"
-                     Margin="0,12,0,0"
+          <TextBlock Grid.Row="2"
+                     Margin="12,8,12,0"
                      Text="{Binding StatusMessage}"
                      TextWrapping="Wrap"
                      Foreground="{StaticResource Brush.TextMuted}" />

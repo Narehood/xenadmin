@@ -45,6 +45,29 @@ public partial class ActionLogRow : ObservableObject, IDisposable
     [ObservableProperty]
     private string _startedText = string.Empty;
 
+    public bool CanCopy =>
+        !string.IsNullOrWhiteSpace(Title)
+        || !string.IsNullOrWhiteSpace(Description)
+        || !string.IsNullOrWhiteSpace(Status);
+
+    /// <summary>Clipboard payload matching the visible log fields.</summary>
+    public string CopyText
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Title))
+                parts.Add(Title);
+            if (!string.IsNullOrWhiteSpace(Status))
+                parts.Add($"Status: {Status}");
+            if (!string.IsNullOrWhiteSpace(Description))
+                parts.Add(Description);
+            if (!string.IsNullOrWhiteSpace(StartedText))
+                parts.Add($"Started: {StartedText}");
+            return string.Join(Environment.NewLine, parts);
+        }
+    }
+
     private void OnActionChanged(ActionBase _)
     {
         if (Action is AsyncAction async)
