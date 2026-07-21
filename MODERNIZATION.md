@@ -26,11 +26,11 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**Shipped on `development` (Phase 1–2 via PR `#20`):** Avalonia `XcpNgCenter.Shell` with connect/TOFU/tree/General/Storage/Network/Console, Phase 1–2 actions (Snapshots disk-only, full VM Properties, Clone/Copy/Migrate/Cross-pool with per-disk/VIF maps/Move/Delete), New SR (iSCSI + GFS2 + SMB/CIFS + HBA/FCoE).
+**On `development` (PR `#20`):** Phase 1–2 shell — connect/TOFU/tree/General/Storage/Network/Console, Snapshots (disk-only), full VM Properties, Clone/Copy/Migrate/Cross-pool/Move/Delete, New SR (iSCSI/GFS2/SMB/HBA/FCoE).
 
-**Follow-up (PR `#21`):** Linux soak notes + migrate/move WinForms parity (intra-pool Move → `VMMoveAction`, CBT/license guards, `CanFitDisks`, start-failure CPU check) + VM chrome (power toggles, status icons, snapshot tree, ISO, UX polish).
+**PR `#21` (ready to merge after soak):** Linux soak notes; migrate/move WinForms parity; VM chrome (power toggles, status icons, snapshot tree, ISO, denser tree/General, splash); Import/Export XVA; UX polish. Cursor draft-review items (intra-pool `VMMoveAction`, empty-host fallback, CBT/license, `CanFitDisks`, resume CPU check) are addressed on the branch.
 
-**Next:** merge `#21` after soak → continue Linux desktop soak → optional multi-LUN HBA → later alerts/graphs/HA/AD/DR. RDP stays WinForms-only.
+**Next after `#21`:** Linux desktop soak of `drop-shell-linux-x64` → optional multi-LUN HBA → later alerts/graphs/HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 
@@ -38,6 +38,7 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 - Memory/quiesced snapshot types (disk-only shipped first; `System.Drawing.Common` is Windows-only on .NET 8).
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
 - HA/AD/DR wizards, alerts, graphs.
+- OVF/OVA appliance import/export (XVA path shipped in `#21`).
 
 ## Non-goals
 

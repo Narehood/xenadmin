@@ -10,10 +10,10 @@ rewrite reaches feature parity for your environment.
 |------|--------|
 | Integration branch | `development` |
 | Merged | `#20` — Phase 1–2 parity |
-| Follow-up | `#21` — Linux soak + migrate harden + VM chrome |
+| Active PR | `#21` — Linux soak + migrate harden + VM chrome + Import/Export (**ready for soak / merge**) |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
 
-**Phase status:** Phase 1 + Phase 2 on `development`. PR `#21` hardens Move/migrate edge cases (WinForms parity) and VM chrome; Linux desktop soak next.
+**Phase status:** Phase 1–2 on `development`. PR `#21` is feature-complete for this pass (Cursor draft-review migrate gaps closed). Soak `drop-shell-linux-x64`, then merge.
 
 ## Branch basis
 
@@ -28,45 +28,55 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 | `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`, Windows + Linux publish) |
 | `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`, buffer callbacks) |
 
-## Done in this track (through PR #20 + follow-ups)
+## Done in this track (through PR `#21`)
 
-- Brand-first welcome (form column + banner no longer overlap)
-- Live connect + TOFU, tree, General/Storage/Network/Console (RFB fit/input/cursor/pop-out/CAD)
-- Logs/Tasks via `ConnectionsManager.History` + `ShellActionRunner` (UI-thread marshaling; event unsubscribe on dismiss)
-- New VM wizard (primary disk honors Storage-step size); ISO attach/eject; Snapshots (disk-only)
+- Brand-first welcome; modern launch **splash**
+- Live connect + TOFU, tree, General/Storage/Network/Console (RFB fit/input/cursor/pop-out/`Ctrl+Alt+Del`)
+- Logs/Tasks via `ConnectionsManager.History` + `ShellActionRunner`
+- New VM wizard (OS template icons + filter + type labels; primary disk size from Storage step); ISO attach/eject; Snapshots (disk-only tree)
 - **Full VM Properties** — General/tags, CPU/memory, boot, HA/startup, home server, GPU, USB
 - **Clone / Copy / Migrate / Cross-pool / Move / Delete**
   - Intra-pool live migrate: `VMMigrateAction`
-  - Storage / cross-pool: `VMCrossPoolMigrateAction` with **per-disk SR** and **per-VIF network** maps (+ apply-to-all); empty VIF map for intra-pool
-  - Halted Move: prefers migrate_send **Move** dialog when licensed + CBT-clear + eligible hosts; **intra-pool** finish uses `VMMoveAction` (copy+destroy) like WinForms; else simple Move SR picker
-  - CBT / `RestrictCrossPoolMigrate` guards; `CanFitDisks` on SR pickers; reject no-op disk maps
-  - SR pickers label shared vs host-local, filter by target-host visibility, skip current location / non-migratable SRs
-- **New SR wizard** — NFS ISO, SMB/CIFS ISO, NFS VHD, SMB, iSCSI (+ optional GFS2), **HBA (`lvmohba`)** / **FCoE (`lvmofcoe`)** with LUN probe (+ GFS2 on HBA)
-- HA start/resume prompts; richer **start-failure host table** (per-host assert_can_boot_here + resume CPU vendor check; session logout)
-- **VM chrome (WinForms-aligned):** power bar above tabs; Force* in context menu; Properties on General; Console ISO selector (and compact pop-out toolbar); WinForms status icons for pool/host/VM/SR (running/halted/suspended/paused/migrating/lifecycle); snapshot **tree**; storage nodes under hosts (local) and pool (shared)
-- Layout polish: wrap actions, scrollable detail, denser General rows + infra tree; copyable row orange border on hover only; console metadata below RFB; Pop Out / Add Server casing; modern splash on launch
-- New VM template step: OS icons + type labels + filter (pulled from WinForms Images)
-- Sidebar **Import / Export** (replaces Disconnect button; Disconnect stays in tree context menu) → XVA import (`ImportVmAction`) / export (`ExportVmAction`)
+  - Storage / cross-pool: `VMCrossPoolMigrateAction` with per-disk SR + per-VIF maps; empty VIF map for intra-pool
+  - Halted Move: migrate_send **Move** dialog when licensed + CBT-clear + eligible hosts; **intra-pool finish → `VMMoveAction`**; else simple Move SR picker
+  - CBT / `RestrictCrossPoolMigrate` / `CanFitDisks` / no-op disk-map rejection
+- **Import / Export XVA** — sidebar chooser → `ImportVmAction` / `ExportVmAction` (Disconnect remains on tree context menu)
+- **New SR wizard** — NFS ISO, SMB/CIFS ISO, NFS VHD, SMB, iSCSI (+ GFS2), HBA/FCoE (+ GFS2)
+- HA prompts; start-failure host table (assert_can_boot_here + resume CPU check + session logout)
+- VM chrome: power toggles, Force* in context menu, Console ISO, status icons, storage under hosts/pool
+- UX: denser infra tree + General rows; copyable orange border on **hover**; Pop Out / Add Server casing
+
+### Cursor draft-review (`#21`) — verified addressed
+
+| Item | Status |
+|------|--------|
+| Intra-pool halted Move → `VMMoveAction` | Done (`ShellMigrateWizardMode.Move`) |
+| Empty-host migrate_send → fall back to `VmMoveWindow` | Done (`CanPreferMigrateSendMove`) |
+| Resume CPU incompatibility in start-failure table | Done |
+| Session logout after diagnosis | Done |
+| `CanFitDisks` on SR pickers | Done |
+| CBT / license guards on Move / Cross-pool | Done |
+| Move dialog title / hide transfer network for intra-pool Move | Done |
+| Reject all-disk no-op maps | Done |
 
 ### Key shell layout
 
 ```
 XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
-  Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner, HA prompts, ShellStoragePicker
+  Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner, HA prompts, ShellStoragePicker, ShellTemplateIcons
   ViewModels/        MainViewModel (+ Actions), wizards/dialogs, ActionLogRow
-  Views/             MainWindow + Properties/Clone/Copy/Migrate/CrossPool/Move/Delete/NewVm/NewSr/…
+  Views/             MainWindow + splash + Import/Export + Properties/Clone/Copy/Migrate/CrossPool/Move/Delete/NewVm/NewSr/…
 ```
 
 Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).
 
 ## Next (priority order for following agents)
 
-1. **Merge PR `#21`** after soak feedback is clean and CI is green.
-2. **Linux desktop soak** — run `drop-shell-linux-x64` (Drawing.Common is Windows-only; disk snapshots OK; TOFU/RFB/multi-server).
-3. Harden further migrate edge cases if soak finds more.
-4. Optional: multi-LUN HBA create in one pass.
-5. Alerts, performance graphs, HA/AD/DR wizards (later). RDP + plugins stay WinForms-only.
+1. **Soak + merge PR `#21`** — run `drop-shell-linux-x64`; merge when soak is clean and CI is green.
+2. Harden further migrate / import-export edge cases if soak finds more.
+3. Optional: multi-LUN HBA create in one pass; OVF/OVA appliance wizards.
+4. Alerts, performance graphs, HA/AD/DR wizards (later). RDP + plugins stay WinForms-only.
 
 **RDP strategy (decided):** keep RDP on WinForms/`XenAdmin` only.
 

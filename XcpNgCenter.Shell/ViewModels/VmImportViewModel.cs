@@ -89,6 +89,8 @@ public partial class VmImportViewModel : ViewModelBase
             : Hosts.FirstOrDefault();
 
         SelectedNetwork = Networks.FirstOrDefault();
+        // Default off: remapping only device 0 would destroy other imported VIFs.
+        RemapNetwork = false;
         Hint = "Imports an XVA backup into the selected SR (WinForms Import XVA). Network remap is optional.";
     }
 
@@ -138,6 +140,12 @@ public partial class VmImportViewModel : ViewModelBase
         if (SelectedStorage == null)
         {
             StatusMessage = "Select a destination SR.";
+            return;
+        }
+
+        if (SelectedStorage.Sr.FreeSpace() <= 0)
+        {
+            StatusMessage = "That SR has no free space.";
             return;
         }
 
