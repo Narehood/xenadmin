@@ -1,7 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
-        xmlns:xena="clr-namespace:XenAPI;assembly=XenModel"
         x:Class="XcpNgCenter.Shell.Views.VmMoveWindow"
         x:DataType="vm:VmMoveViewModel"
         Title="Move VM"
@@ -26,8 +25,8 @@
                 SelectedItem="{Binding SelectedStorage}"
                 PlaceholderText="Destination SR">
         <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="xena:SR">
-            <TextBlock Text="{Binding name_label}" />
+          <DataTemplate x:DataType="vm:MoveSrOption">
+            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>

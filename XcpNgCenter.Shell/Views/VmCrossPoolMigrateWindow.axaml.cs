@@ -12,9 +12,14 @@ public partial class VmCrossPoolMigrateWindow : Window
         InitializeComponent();
     }
 
-    public VmCrossPoolMigrateWindow(VM vm, Action<string>? status = null) : this()
+    public VmCrossPoolMigrateWindow(
+        VM vm,
+        Action<string>? status = null,
+        ShellMigrateWizardMode mode = ShellMigrateWizardMode.Migrate) : this()
     {
-        DataContext = new VmCrossPoolMigrateViewModel(vm, Close, status);
+        var vmModel = new VmCrossPoolMigrateViewModel(vm, Close, status, mode);
+        DataContext = vmModel;
+        Title = vmModel.WindowTitle;
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close();

@@ -46,7 +46,7 @@ public sealed class IscsiLunOption
     public override string ToString() => Label;
 }
 
-public sealed class FibreChannelLunOption
+public partial class FibreChannelLunOption : ObservableObject
 {
     public FibreChannelLunOption(FibreChannelDevice device)
     {
@@ -60,6 +60,10 @@ public sealed class FibreChannelLunOption
 
     public FibreChannelDevice Device { get; }
     public string Label { get; }
+
+    [ObservableProperty]
+    private bool _isSelected;
+
     public override string ToString() => Label;
 }
 
@@ -137,6 +141,8 @@ public partial class NewSrWizardViewModel : ViewModelBase
     public bool HasIscsiIqns => IscsiIqns.Count > 0;
     public bool HasIscsiLuns => IscsiLuns.Count > 0;
     public bool HasFibreChannelLuns => FibreChannelLuns.Count > 0;
+    public bool HasSelectedFibreChannelLuns => FibreChannelLuns.Any(l => l.IsSelected);
+    public int SelectedFibreChannelCount => FibreChannelLuns.Count(l => l.IsSelected);
     public bool IsFcoeType => SelectedType?.Id == "fcoe";
 
     partial void OnSelectedTypeChanged(SrTypeOption? value) => UpdateTypeFlags();
@@ -354,19 +360,52 @@ public partial class NewSrWizardViewModel : ViewModelBase
 
                 var devices = ((FibreChannelProbeAction)a).FibreChannelDevices ?? new List<FibreChannelDevice>();
                 foreach (var device in devices.OrderBy(d => d.Serial, StringComparer.OrdinalIgnoreCase))
-                    FibreChannelLuns.Add(new FibreChannelLunOption(device));
+                {
+                    var option = new FibreChannelLunOption(device) { IsSelected = devices.Count == 1 };
+                    option.PropertyChanged += (_, e) =>
+                    {
+                        if (e.PropertyName == nameof(FibreChannelLunOption.IsSelected))
+                            NotifyFibreChannelSelectionChanged();
+                    };
+                    FibreChannelLuns.Add(option);
+                }
 
                 SelectedFibreChannelLun = FibreChannelLuns.FirstOrDefault();
                 OnPropertyChanged(nameof(HasFibreChannelLuns));
+                NotifyFibreChannelSelectionChanged();
                 StatusMessage = FibreChannelLuns.Count == 0
                     ? Messages.FIBRECHANNEL_NO_RESULTS
-                    : $"Found {FibreChannelLuns.Count} LUN(s). Select one and create the SR.";
+                    : $"Found {FibreChannelLuns.Count} LUN(s). Select one or more and create.";
                 ProbeFibreChannelCommand.NotifyCanExecuteChanged();
+                SelectAllFibreChannelCommand.NotifyCanExecuteChanged();
+                ClearFibreChannelSelectionCommand.NotifyCanExecuteChanged();
             });
         };
 
         action.RunAsync();
         ProbeFibreChannelCommand.NotifyCanExecuteChanged();
+    }
+
+    private void NotifyFibreChannelSelectionChanged()
+    {
+        OnPropertyChanged(nameof(SelectedFibreChannelCount));
+        OnPropertyChanged(nameof(HasSelectedFibreChannelLuns));
+    }
+
+    [RelayCommand(CanExecute = nameof(HasFibreChannelLuns))]
+    private void SelectAllFibreChannel()
+    {
+        foreach (var lun in FibreChannelLuns)
+            lun.IsSelected = true;
+        NotifyFibreChannelSelectionChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasFibreChannelLuns))]
+    private void ClearFibreChannelSelection()
+    {
+        foreach (var lun in FibreChannelLuns)
+            lun.IsSelected = false;
+        NotifyFibreChannelSelectionChanged();
     }
 
     private void SetProbing(bool probing, string message)
@@ -532,52 +571,8 @@ public partial class NewSrWizardViewModel : ViewModelBase
             case "hba":
             case "fcoe":
             {
-                if (SelectedFibreChannelLun == null)
-                {
-                    StatusMessage = "Scan for LUNs and select one.";
-                    return;
-                }
-
-                var device = SelectedFibreChannelLun.Device;
-                if (string.IsNullOrWhiteSpace(device.SCSIid))
-                {
-                    StatusMessage = "Selected LUN has no SCSI ID.";
-                    return;
-                }
-
-                contentType = "user";
-                var isFcoe = SelectedType.Id == "fcoe";
-                if (UseGfs2)
-                {
-                    type = SR.SRTypes.gfs2;
-                    dconf = new Dictionary<string, string>
-                    {
-                        ["provider"] = isFcoe ? "fcoe" : "hba",
-                        ["SCSIid"] = device.SCSIid
-                    };
-                    if (isFcoe && !string.IsNullOrEmpty(device.Path))
-                        dconf["path"] = device.Path;
-                }
-                else if (isFcoe)
-                {
-                    type = SR.SRTypes.lvmofcoe;
-                    dconf = new Dictionary<string, string>
-                    {
-                        ["SCSIid"] = device.SCSIid
-                    };
-                    if (!string.IsNullOrEmpty(device.Path))
-                        dconf["path"] = device.Path;
-                }
-                else
-                {
-                    type = SR.SRTypes.lvmohba;
-                    dconf = new Dictionary<string, string>
-                    {
-                        ["SCSIid"] = device.SCSIid
-                    };
-                }
-
-                break;
+                CreateFibreChannelSrs();
+                return;
             }
 
             default:
@@ -599,6 +594,102 @@ public partial class NewSrWizardViewModel : ViewModelBase
         _close();
     }
 
+    private void CreateFibreChannelSrs()
+    {
+        var selected = FibreChannelLuns.Where(l => l.IsSelected).ToList();
+        if (selected.Count == 0 && SelectedFibreChannelLun != null)
+            selected.Add(SelectedFibreChannelLun);
+
+        if (selected.Count == 0)
+        {
+            StatusMessage = "Scan for LUNs and select one or more.";
+            return;
+        }
+
+        if (selected.Any(l => string.IsNullOrWhiteSpace(l.Device.SCSIid)))
+        {
+            StatusMessage = "One or more selected LUNs have no SCSI ID.";
+            return;
+        }
+
+        var isFcoe = SelectedType?.Id == "fcoe";
+        var baseName = NameLabel.Trim();
+        var existingNames = _connection.Cache.SRs.Select(sr => sr.Name()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var actions = new List<AsyncAction>();
+
+        for (var i = 0; i < selected.Count; i++)
+        {
+            var device = selected[i].Device;
+            var name = selected.Count == 1
+                ? UniqueSrName(baseName, existingNames)
+                : UniqueSrName($"{baseName} ({device.Serial})", existingNames);
+            existingNames.Add(name);
+
+            Dictionary<string, string> dconf;
+            SR.SRTypes type;
+            if (UseGfs2)
+            {
+                type = SR.SRTypes.gfs2;
+                dconf = new Dictionary<string, string>
+                {
+                    ["provider"] = isFcoe ? "fcoe" : "hba",
+                    ["SCSIid"] = device.SCSIid
+                };
+                if (isFcoe && !string.IsNullOrEmpty(device.Path))
+                    dconf["path"] = device.Path;
+            }
+            else if (isFcoe)
+            {
+                type = SR.SRTypes.lvmofcoe;
+                dconf = new Dictionary<string, string> { ["SCSIid"] = device.SCSIid };
+                if (!string.IsNullOrEmpty(device.Path))
+                    dconf["path"] = device.Path;
+            }
+            else
+            {
+                type = SR.SRTypes.lvmohba;
+                dconf = new Dictionary<string, string> { ["SCSIid"] = device.SCSIid };
+            }
+
+            actions.Add(new SrCreateAction(
+                _connection,
+                _host,
+                name,
+                Description.Trim(),
+                type,
+                "user",
+                dconf,
+                smconf: new Dictionary<string, string>()));
+        }
+
+        AsyncAction run = actions.Count == 1
+            ? actions[0]
+            : new ParallelAction(
+                $"Create {actions.Count} storage repositories",
+                "Creating storage…",
+                "Storage create finished.",
+                actions,
+                _connection,
+                showSubActionsDetails: true);
+
+        ShellActionRunner.Run(run);
+        _close();
+    }
+
+    private static string UniqueSrName(string potential, HashSet<string> existing)
+    {
+        if (!existing.Contains(potential))
+            return potential;
+        for (var i = 1; i < 1000; i++)
+        {
+            var candidate = $"{potential} ({i})";
+            if (!existing.Contains(candidate))
+                return candidate;
+        }
+
+        return $"{potential}-{Guid.NewGuid():N}"[..Math.Min(40, potential.Length + 20)];
+    }
+
     private static string NormalizeCifsLocation(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -608,8 +699,7 @@ public partial class NewSrWizardViewModel : ViewModelBase
         if (s.StartsWith("//", StringComparison.Ordinal))
             return s;
         if (s.StartsWith("/", StringComparison.Ordinal))
-            return "/" + s; // unlikely; keep as-is after slash normalize
-        // server/share → //server/share
+            return "/" + s;
         return "//" + s.TrimStart('/');
     }
 }

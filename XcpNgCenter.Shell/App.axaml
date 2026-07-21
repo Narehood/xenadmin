@@ -35,7 +35,57 @@
   </Application.Resources>
 
   <Application.Styles>
-    <FluentTheme />
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <!-- Brand orange accent so Fluent chrome (tab underlines, focus) matches the shell. -->
+        <ColorPaletteResources x:Key="Dark" Accent="#F07318" />
+        <ColorPaletteResources x:Key="Light" Accent="#F07318" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Button.alert-badge">
+      <Setter Property="Background" Value="#3A4550" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="MinWidth" Value="28" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.alert-badge:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Foreground" Value="#141414" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrangeDeep}" />
+    </Style>
+    <Style Selector="Border.alert-count">
+      <Setter Property="Background" Value="#3A4550" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="MinWidth" Value="28" />
+    </Style>
+    <Style Selector="Border.alert-count.has-alerts">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Button.alert-badge TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts TextBlock">
+      <Setter Property="Foreground" Value="#141414" />
+    </Style>
+    <Style Selector="Border.alert-count TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+    </Style>
+    <Style Selector="Border.alert-count.has-alerts TextBlock">
+      <Setter Property="Foreground" Value="#141414" />
+    </Style>
     <Style Selector="Window">
       <Setter Property="FontFamily" Value="{StaticResource Font.Outfit}" />
       <Setter Property="Background" Value="{StaticResource Brush.BgDeep}" />
@@ -77,6 +127,10 @@
       <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
       <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
     </Style>
+    <Style Selector="Button.sidebar-action">
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="MinHeight" Value="36" />
+    </Style>
     <Style Selector="Button.copy">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
@@ -87,13 +141,29 @@
       <Setter Property="Opacity" Value="0" />
       <Setter Property="IsHitTestVisible" Value="False" />
     </Style>
-    <Style Selector="Border.prop-row:pointerover Button.copy">
-      <Setter Property="Opacity" Value="1" />
-      <Setter Property="IsHitTestVisible" Value="True" />
+    <!-- Reserve 1px so hover border does not shift layout; chrome only on hover/focus. -->
+    <Style Selector="Border.prop-row.copyable">
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="Transparent" />
     </Style>
-    <Style Selector="Border.prop-row:focus-within Button.copy">
+    <Style Selector="Border.prop-row.copyable:pointerover">
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Background" Value="#14F07318" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:focus-within">
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Background" Value="#14F07318" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:pointerover Button.copy">
       <Setter Property="Opacity" Value="1" />
       <Setter Property="IsHitTestVisible" Value="True" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:focus-within Button.copy">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="IsHitTestVisible" Value="True" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
     </Style>
     <Style Selector="Button.copy:pointerover /template/ ContentPresenter">
       <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />

@@ -15,7 +15,13 @@ XCP-ng Center is modernized **only on the `development` branch**.
 | CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net8.0` |
 | XenAdmin (WinForms app) | `net8.0-windows` |
 
+**Versioning:** `year.month.day.revision` from `Directory.Build.props` (UTC date; `BuildRevision` defaults to `0`, CI sets `-p:BuildRevision=$GITHUB_RUN_NUMBER`).
+
 Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownloader`.
+
+### Client updates (Avalonia shell)
+
+`XcpNgCenter.Shell` checks GitHub Releases (`Narehood/xenadmin` by default; override with `XCPNG_UPDATE_GITHUB_REPO=owner/name`) a few seconds after launch. When a newer tag/version is found, a bottom-right banner offers **View release** / **Dismiss** (dismiss is remembered per version).
 
 ### Plugins (opt-in, IE WebBrowser)
 
@@ -26,17 +32,20 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**Shipped so far (on `development` / open PRs):** Avalonia `XcpNgCenter.Shell` with connect/TOFU/tree/General/Storage/Network/Console, Phase 1–2 actions (Snapshots, full VM Properties, Clone/Copy/Migrate/Cross-pool with per-disk/VIF maps/Move/Delete), New SR (iSCSI + GFS2 + SMB/CIFS + HBA/FCoE) — PR `#20` (`cursor/shell-phase1-parity-abb3`).
+**On `development` (PR `#20`):** Phase 1–2 shell — connect/TOFU/tree/General/Storage/Network/Console, Snapshots (disk-only), full VM Properties, Clone/Copy/Migrate/Cross-pool/Move/Delete, New SR (iSCSI/GFS2/SMB/HBA/FCoE).
 
-**Next:** merge `#20` after soak → Linux desktop soak → alerts/graphs/HA/AD/DR. RDP stays WinForms-only. Details in `UI_REWRITE.md`.
+**PR `#21` (ready to merge after soak):** Linux soak notes; migrate/move WinForms parity; VM chrome (power toggles, status icons, snapshot tree, ISO, denser tree/General, splash); Import/Export XVA; UX polish. Cursor draft-review items (intra-pool `VMMoveAction`, empty-host fallback, CBT/license, `CanFitDisks`, resume CPU check) are addressed on the branch.
+
+**Follow-on (`cursor/shell-alerts-graphs-704a` / PR `#22`):** Alerts tab + badge + fix-links (repair SR / HA deferral); Performance tab with time-range picker, `gui_config` layout load/save; multi-LUN HBA/FCoE create; OVF/OVA import/export.
+
+**Next after `#21`:** Linux desktop soak of `drop-shell-linux-x64` → merge `#21` then `#22` → later HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 
 - Broader async cleanup / installer CI automation.
-- Linux desktop soak for the Avalonia shell.
+- Memory/quiesced snapshot types (disk-only shipped first; `System.Drawing.Common` is Windows-only on .NET 8).
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
-- HA/AD/DR wizards, alerts, graphs.
-- Memory/quiesced snapshot types (disk-only shipped first).
+- HA/AD/DR wizards (alert fix-link for HA still points users to WinForms).
 
 ## Non-goals
 
@@ -55,7 +64,7 @@ Policy implemented in `XenAdmin/Network/SSL.cs` (WinForms) and `XcpNgCenter.Shel
 - **Trust on first use (TOFU):** first connection to a host pins the certificate hash after acceptance.
 - **Later connections:** require the pinned hash; changes prompt before re-pinning.
 - **No accept-all:** low-level HTTP paths without the app TOFU callback reject untrusted chains instead of returning `true`.
-- **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json`.
+- **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (Windows) or `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux).
 
 ## Public IP connection warning
 

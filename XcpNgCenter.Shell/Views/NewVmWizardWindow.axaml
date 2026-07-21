@@ -25,10 +25,32 @@
       <Panel Grid.Row="1" Margin="0,16,0,16">
         <StackPanel IsVisible="{Binding ShowTemplateStep}" Spacing="8">
           <TextBlock Text="Select a template" Foreground="{StaticResource Brush.TextMuted}" />
-          <ListBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" MaxHeight="320">
+          <TextBox Watermark="Filter templates…" Text="{Binding TemplateFilter}" />
+          <ListBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" MaxHeight="280">
             <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="xena:VM">
-                <TextBlock Text="{Binding name_label}" Margin="4" />
+              <DataTemplate x:DataType="views:TemplateOption">
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,6">
+                  <Image Width="16" Height="16"
+                         VerticalAlignment="Center"
+                         Margin="0,0,10,0"
+                         Source="{Binding Icon}" />
+                  <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Description}"
+                               FontSize="11"
+                               Foreground="{StaticResource Brush.TextMuted}"
+                               TextTrimming="CharacterEllipsis"
+                               MaxHeight="28" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2"
+                             Text="{Binding TypeLabel}"
+                             FontSize="11"
+                             Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             Foreground="{StaticResource Brush.BrandOrange}" />
+                </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>

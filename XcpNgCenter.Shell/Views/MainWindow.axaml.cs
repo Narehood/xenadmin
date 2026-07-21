@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using XcpNgCenter.Shell.Controls;
 using XcpNgCenter.Shell.ViewModels;
@@ -9,9 +10,62 @@ namespace XcpNgCenter.Shell.Views;
 
 public partial class MainWindow : Window
 {
+    private MainViewModel? _boundVm;
+    private double _savedInfraScrollOffset;
+    private bool _hasSavedInfraScroll;
+
     public MainWindow()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_boundVm != null)
+        {
+            _boundVm.TreeLayoutChanging -= OnTreeLayoutChanging;
+            _boundVm.TreeLayoutChanged -= OnTreeLayoutChanged;
+        }
+
+        _boundVm = DataContext as MainViewModel;
+        if (_boundVm == null)
+            return;
+
+        _boundVm.TreeLayoutChanging += OnTreeLayoutChanging;
+        _boundVm.TreeLayoutChanged += OnTreeLayoutChanged;
+    }
+
+    private void OnTreeLayoutChanging()
+    {
+        var scroll = FindInfraScrollViewer();
+        if (scroll == null)
+            return;
+        _savedInfraScrollOffset = scroll.Offset.Y;
+        _hasSavedInfraScroll = true;
+    }
+
+    private void OnTreeLayoutChanged()
+    {
+        if (!_hasSavedInfraScroll)
+            return;
+
+        var offset = _savedInfraScrollOffset;
+        _hasSavedInfraScroll = false;
+        Dispatcher.UIThread.Post(() =>
+        {
+            var scroll = FindInfraScrollViewer();
+            if (scroll == null)
+                return;
+            scroll.Offset = scroll.Offset.WithY(offset);
+        }, DispatcherPriority.Loaded);
+    }
+
+    private ScrollViewer? FindInfraScrollViewer()
+    {
+        if (InfraTree == null)
+            return null;
+        return InfraTree.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
     }
 
     private void OnConsoleFocusCaptureChanged(object? sender, RoutedEventArgs e)

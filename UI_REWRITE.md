@@ -9,72 +9,57 @@ rewrite reaches feature parity for your environment.
 | Item | State |
 |------|--------|
 | Integration branch | `development` |
-| Active PR | `#20` — `cursor/shell-phase1-parity-abb3` → `development` |
+| Active PRs | `#21` soak-ready; `#22` (+ UX follow-up) alerts/graphs → `development` |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
-
-**Phase status:** Phase 1 + Phase 2 action/Properties/SR + richer cross-pool maps + HBA/FCoE on PR `#20`. Soak-test that build, then merge to `development`.
-
-## Branch basis
-
-Lives on `development` with the modernization stack (CI, security, `HttpClient`, Import Wizard
-fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 
 ## Projects
 
 | Project | Role |
 |---------|------|
 | `XenAdmin` | Current supported WinForms client (`net8.0-windows`) |
-| `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`, Windows-first; Linux later) |
-| `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`, buffer callbacks) |
+| `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`) |
+| `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`) |
 
-## Done in this track (through PR #20)
+## Done through PR #22
 
-- Brand-first welcome (form column + banner no longer overlap)
-- Live connect + TOFU, tree, General/Storage/Network/Console (RFB fit/input/cursor/pop-out/CAD)
-- Logs/Tasks via `ConnectionsManager.History` + `ShellActionRunner` (UI-thread marshaling; event unsubscribe on dismiss)
-- New VM wizard (primary disk honors Storage-step size); ISO attach/eject; Snapshots (disk-only)
-- **Full VM Properties** — General/tags, CPU/memory, boot, HA/startup, home server, GPU, USB
-- **Clone / Copy / Migrate / Cross-pool / Move / Delete**
-  - Intra-pool live migrate: `VMMigrateAction`
-  - Cross-pool / storage migrate or copy: `VMCrossPoolMigrateAction` with **per-disk SR** and **per-VIF network** maps (+ apply-to-all)
-  - Halted move-to-SR: `VMMoveAction`
-- **New SR wizard** — NFS ISO, SMB/CIFS ISO, NFS VHD, SMB, iSCSI (+ optional GFS2), **HBA (`lvmohba`)** / **FCoE (`lvmofcoe`)** with LUN probe (+ GFS2 on HBA)
-- HA start/resume prompts (invalid config + NTOL / no-hosts diagnosis) via Avalonia dialogs
-- Layout polish: wrap actions, scrollable detail, console Height=520, Properties scroll padding
+- Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM; Snapshots (disk-only)
+- Full VM Properties; Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA
+- **Alerts** — clickable sidebar badge opens an **app-global** alerts pane (all connected pools/servers); dismiss; fix-links (Repair SR via `SrRepairAction`; HA deferred to WinForms; multipath → Logs hint)
+- **Performance** — RRD poller + Avalonia charts with hover crosshair/tooltips and time-axis labels by range; time-range picker (10m / 2h / 1w / 1y); load/save `pool.gui_config` layouts
+- **Tab chrome** — Fluent accent + selected tab underline use brand orange (`#F07318`)
+- **Versioning** — `year.month.day.revision` (CI sets revision from `GITHUB_RUN_NUMBER`)
+- **Update banner** — checks GitHub Releases on launch; bottom-right notice with View release / Dismiss
+- **Multi-LUN HBA/FCoE** — select many LUNs → `ParallelAction` of `SrCreateAction`
+- **OVF/OVA** — appliance import/export wizards alongside XVA
 
 ### Key shell layout
 
 ```
-XcpNgCenter.Rfb/     RfbClient (from VNCStream), IRfbFramebuffer, RfbStream
 XcpNgCenter.Shell/
-  Services/          Bootstrap, TOFU, vault, builders, HostedConsoleSession, ShellActionRunner, HA prompts
-  ViewModels/        MainViewModel (+ Actions), wizards/dialogs, ActionLogRow
-  Views/             MainWindow + Properties/Clone/Copy/Migrate/CrossPool/Move/Delete/NewVm/NewSr/…
+  Alerts/            ShellMessageAlert, ShellAlarmMessageAlert, ShellAlertFixActions
+  Actions/           DismissAlertsAction, SaveShellGraphLayoutAction
+  Services/          ShellAlertHub, Performance/*
+  ViewModels/        … OvfImport/Export, NewSr multi-LUN, MainViewModel.AlertsGraphs
+  Views/             … OvfImport/Export windows
+  Controls/          RfbConsoleView, PerformanceChart
 ```
 
-Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).
+Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).
 
-## Next (priority order for following agents)
+## Next
 
-1. **Merge PR #20** after soak feedback is clean and CI is green.
-2. **Linux desktop soak** — run `drop-shell-linux-x64`.
-3. Alerts, performance graphs, HA/AD/DR wizards (later). RDP + plugins stay WinForms-only.
-4. Optional: multi-LUN HBA create in one pass; richer start-failure host table UI.
+1. **Soak + merge PR `#21`**, then **`#22`** (alerts/graphs + hover tooltips + global alerts pane).
+2. Later: HA/AD/DR wizards (enables richer HA alert fix-links); graph editor UI beyond save-current-defaults.
+3. RDP stays WinForms-only.
 
-**RDP strategy (decided):** keep RDP on WinForms/`XenAdmin` only.
-
-## How to try the preview
-
-**Preferred:** CI artifact `drop-shell-win-x64` / `drop-shell-linux-x64` from Test Builds on the PR branch or `development`.
-
-**From source:**
+## How to try
 
 ```bash
 dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -o artifacts/shell-win-x64
 dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -o artifacts/shell-linux-x64
 ```
 
-Pins / saved servers: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` (Windows) or `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux).
+Pins: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-ng Center Shell/`.
 
 ## Non-goals
 

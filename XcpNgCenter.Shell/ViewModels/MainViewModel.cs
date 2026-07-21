@@ -66,14 +66,24 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowWelcome))]
     [NotifyPropertyChangedFor(nameof(ShowInfrastructure))]
+    [NotifyPropertyChangedFor(nameof(ShowInfrastructureDetail))]
     private bool _hasServers;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowWelcome))]
+    [NotifyPropertyChangedFor(nameof(ShowInfrastructureDetail))]
+    private bool _showGlobalAlerts;
 
     [ObservableProperty]
     private bool _isBusy;
 
-    public bool ShowWelcome => !HasServers;
+    public bool ShowWelcome => !HasServers && !ShowGlobalAlerts;
 
+    /// <summary>Sidebar tree and actions when any server is connected.</summary>
     public bool ShowInfrastructure => HasServers;
+
+    /// <summary>Object detail pane (hidden while the global alerts pane is open).</summary>
+    public bool ShowInfrastructureDetail => HasServers && !ShowGlobalAlerts;
 
     public ObservableCollection<ServerNode> Servers { get; } = new();
 
@@ -175,6 +185,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool _restoreSelectionQueued;
     private string? _activeConsoleKey;
 
+    /// <summary>Raised around infrastructure tree rebuilds/selection restores so the view can keep scroll position.</summary>
+    public event Action? TreeLayoutChanging;
+
+    public event Action? TreeLayoutChanged;
+
     public MainViewModel()
     {
         RememberPassword = CanPersistPasswords;
@@ -184,6 +199,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         LoadSavedServers();
         RefreshTrustUi();
         InitializeActionHistoryUi();
+        InitializeAlertsAndGraphsUi();
+        InitializeUpdateCheck();
     }
 
     public void Dispose()
@@ -192,6 +209,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         _disposed = true;
 
+        DisposeUpdateCheck();
+        DisposeAlertsAndGraphsUi();
         DisposeActionHistoryUi();
         _consoleSession.StateChanged -= OnConsoleSessionStateChanged;
         try
@@ -209,6 +228,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 continue;
             try
             {
+                DetachAlertsForConnection(server.Connection);
                 server.Connection.EndConnect();
             }
             catch
@@ -258,6 +278,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedInfraNodeChanged(InfraTreeNode? value)
     {
+        if (value != null && ShowGlobalAlerts)
+            ShowGlobalAlerts = false;
+
         if (value == null)
         {
             if (_suppressSelectionClear || _pinnedInfraNode == null || !HasServers)
@@ -405,6 +428,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         StopConsoleIfBoundTo(server);
 
         var conn = server.Connection;
+        DetachAlertsForConnection(conn);
         try
         {
             conn.EndConnect();
@@ -526,6 +550,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         conn.ConnectionClosed += _ => Dispatcher.UIThread.Post(() => OnConnectionClosed(node));
         conn.ConnectionLost += _ => Dispatcher.UIThread.Post(() =>
         {
+            DetachAlertsForConnection(node.Connection);
             node.IsConnected = false;
             node.IsConnecting = false;
             node.Status = "Connection lost";
@@ -594,6 +619,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         node.Summary = $"{hosts} host(s), {vms} VM(s)";
         StatusMessage = $"Connected to {conn.HostnameWithPort}.";
 
+        AttachAlertsForConnection(conn);
         RebuildTreeForServer(node, conn, selectRoot: true);
     }
 
@@ -602,6 +628,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (node.IsConnecting)
             return;
 
+        DetachAlertsForConnection(node.Connection);
         node.IsConnected = false;
         node.IsConnecting = false;
         if (node.Status == "Connected")
@@ -623,6 +650,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         var root = InfrastructureTreeBuilder.Build(server, conn);
 
+        TreeLayoutChanging?.Invoke();
         _suppressSelectionClear = true;
         try
         {
@@ -646,6 +674,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         finally
         {
             _suppressSelectionClear = false;
+            Dispatcher.UIThread.Post(() => TreeLayoutChanged?.Invoke(), DispatcherPriority.Loaded);
         }
 
         RefreshDetailPanes();
@@ -660,6 +689,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         RefreshNetworkProperties(node);
         RefreshConsoleProperties(node);
         RefreshSnapshotProperties();
+        RefreshPerformanceProperties(node);
     }
 
     private void RefreshGeneralProperties(InfraTreeNode? node)
@@ -728,9 +758,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         foreach (var row in SnapshotSummaryBuilder.Build(SelectedVm))
             SnapshotItems.Add(row);
-        HasSnapshotItems = SnapshotItems.Count > 0;
+
+        HasSnapshotItems = SelectedVm!.snapshots is { Count: > 0 };
         if (!HasSnapshotItems)
-            SnapshotStatusMessage = "No snapshots yet.";
+            SnapshotStatusMessage = "No snapshots yet — take one to start a tree.";
     }
 
     private void SyncLiveConsole(LiveRfbTarget? target)
@@ -904,15 +935,24 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (SelectedInfraNode != null || _pinnedInfraNode == null || !HasServers)
                 return;
 
-            var pinned = _pinnedInfraNode;
-            var live = pinned.Server != null
-                ? InfrastructureRoots.FirstOrDefault(r => r.Server == pinned.Server)
-                : null;
-            var restored = live != null
-                ? FindByOpaqueRef(live, pinned.OpaqueRef) ?? live
-                : pinned;
+            // Keep scroll when re-asserting the pin after Avalonia clears SelectedItem.
+            TreeLayoutChanging?.Invoke();
+            try
+            {
+                var pinned = _pinnedInfraNode;
+                var live = pinned.Server != null
+                    ? InfrastructureRoots.FirstOrDefault(r => r.Server == pinned.Server)
+                    : null;
+                var restored = live != null
+                    ? FindByOpaqueRef(live, pinned.OpaqueRef) ?? live
+                    : pinned;
 
-            SelectInfraNode(restored);
+                SelectInfraNode(restored);
+            }
+            finally
+            {
+                Dispatcher.UIThread.Post(() => TreeLayoutChanged?.Invoke(), DispatcherPriority.Loaded);
+            }
         });
     }
 

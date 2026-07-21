@@ -26,8 +26,9 @@
     </Style>
     <Style Selector="TreeViewItem" x:DataType="vm:InfraTreeNode" x:CompileBindings="True">
       <Setter Property="IsExpanded" Value="{Binding IsExpanded}" />
-      <Setter Property="Padding" Value="4,3" />
-      <Setter Property="Margin" Value="0,1" />
+      <Setter Property="Padding" Value="2,1" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
       <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
     </Style>
     <Style Selector="TreeViewItem:selected /template/ Border#SelectionBorder">
@@ -69,20 +70,34 @@
                            FontSize="12"
                            Foreground="{StaticResource Brush.BrandOrange}" />
               </StackPanel>
+              <Button Classes="alert-badge"
+                      Classes.has-alerts="{Binding HasAlertsBadge}"
+                      VerticalAlignment="Top"
+                      Margin="0,2,0,0"
+                      ToolTip.Tip="Open all alerts"
+                      Command="{Binding OpenGlobalAlertsCommand}">
+                <TextBlock Text="{Binding AlertsBadgeText}"
+                           FontSize="11"
+                           FontWeight="SemiBold" />
+              </Button>
             </StackPanel>
 
-            <WrapPanel Orientation="Horizontal" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
-              <Button Classes="ghost" Content="New VM" Margin="0,0,8,6"
+            <UniformGrid Columns="2" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
+              <Button Classes="ghost sidebar-action" Content="New VM"
+                      HorizontalAlignment="Stretch" Margin="0,0,4,6"
                       Command="{Binding NewVmCommand}" />
-              <Button Classes="ghost" Content="New SR" Margin="0,0,8,6"
+              <Button Classes="ghost sidebar-action" Content="New SR"
+                      HorizontalAlignment="Stretch" Margin="4,0,0,6"
                       Command="{Binding NewSrCommand}"
-                      IsVisible="{Binding ShowPoolStorageActions}" />
-              <Button Classes="ghost" Content="Add server" Margin="0,0,8,6"
+                      IsEnabled="{Binding ShowPoolStorageActions}" />
+              <Button Classes="ghost sidebar-action" Content="Add Server"
+                      HorizontalAlignment="Stretch" Margin="0,0,4,0"
                       Command="{Binding AddServerCommand}" />
-              <Button Classes="ghost" Content="Disconnect" Margin="0,0,8,6"
-                      Command="{Binding DisconnectSelectedCommand}"
-                      IsEnabled="{Binding CanDisconnectSelected}" />
-            </WrapPanel>
+              <Button Classes="ghost sidebar-action" Content="Import / Export"
+                      HorizontalAlignment="Stretch" Margin="4,0,0,0"
+                      Command="{Binding ImportExportVmCommand}"
+                      IsEnabled="{Binding CanImportExportVm}" />
+            </UniformGrid>
           </StackPanel>
 
           <Grid Grid.Row="1" RowDefinitions="Auto,*">
@@ -93,6 +108,7 @@
                        Margin="4,0,0,8" />
 
             <TreeView Grid.Row="1"
+                      x:Name="InfraTree"
                       IsVisible="{Binding ShowInfrastructure}"
                       ItemsSource="{Binding InfrastructureRoots}"
                       SelectedItem="{Binding SelectedInfraNode, Mode=TwoWay}"
@@ -122,34 +138,43 @@
                   <MenuItem Header="Reboot" Command="{Binding RebootVmCommand}" IsVisible="{Binding CanRebootVm}" />
                   <MenuItem Header="Suspend" Command="{Binding SuspendVmCommand}" IsVisible="{Binding CanSuspendVm}" />
                   <MenuItem Header="Resume" Command="{Binding ResumeVmCommand}" IsVisible="{Binding CanResumeVm}" />
+                  <MenuItem Header="Pause" Command="{Binding PauseVmCommand}" IsVisible="{Binding CanPauseVm}" />
+                  <MenuItem Header="Unpause" Command="{Binding UnpauseVmCommand}" IsVisible="{Binding CanUnpauseVm}" />
                   <MenuItem Header="Force shutdown" Command="{Binding ForceShutdownVmCommand}" IsVisible="{Binding CanForceShutdownVm}" />
                   <MenuItem Header="Force reboot" Command="{Binding ForceRebootVmCommand}" IsVisible="{Binding CanForceRebootVm}" />
                   <Separator IsVisible="{Binding ShowVmContextActions}" />
-                  <MenuItem Header="Properties…" Command="{Binding EditVmCommand}" IsVisible="{Binding CanEditVm}" />
+                  <MenuItem Header="Properties" Command="{Binding EditVmCommand}" IsVisible="{Binding CanEditVm}" />
                   <MenuItem Header="Clone…" Command="{Binding CloneVmCommand}" IsVisible="{Binding CanCloneVm}" />
                   <MenuItem Header="Copy…" Command="{Binding CopyVmCommand}" IsVisible="{Binding CanCopyVm}" />
+                  <MenuItem Header="Export…" Command="{Binding ExportVmCommand}" IsVisible="{Binding CanExportVm}" />
                   <MenuItem Header="Migrate…" Command="{Binding MigrateVmCommand}" IsVisible="{Binding CanMigrateVm}" />
                   <MenuItem Header="Cross-pool…" Command="{Binding CrossPoolMigrateVmCommand}" IsVisible="{Binding CanCrossPoolMigrateVm}" />
                   <MenuItem Header="Move…" Command="{Binding MoveVmCommand}" IsVisible="{Binding CanMoveVm}" />
                   <MenuItem Header="Delete…" Command="{Binding DeleteVmCommand}" IsVisible="{Binding CanDeleteVm}" />
-                  <Separator IsVisible="{Binding ShowVmContextActions}" />
-                  <MenuItem Header="Attach ISO…" Command="{Binding AttachIsoCommand}" IsVisible="{Binding CanAttachIso}" />
-                  <MenuItem Header="Eject ISO" Command="{Binding EjectIsoCommand}" IsVisible="{Binding CanAttachIso}" />
                 </ContextMenu>
               </TreeView.ContextMenu>
               <TreeView.ItemTemplate>
                 <TreeDataTemplate ItemsSource="{Binding Children}"
                                   DataType="vm:InfraTreeNode">
-                  <StackPanel Spacing="1" Margin="0,2">
-                    <TextBlock Text="{Binding Title}"
-                               FontWeight="SemiBold"
-                               FontSize="13"
-                               Foreground="{StaticResource Brush.TextPrimary}"
-                               TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding Subtitle}"
-                               FontSize="11"
-                               Foreground="{StaticResource Brush.TextMuted}"
-                               TextTrimming="CharacterEllipsis" />
+                  <StackPanel Orientation="Horizontal" Spacing="5" Margin="0">
+                    <Image Width="14" Height="14"
+                           VerticalAlignment="Center"
+                           Source="{Binding StatusIcon}"
+                           IsVisible="{Binding ShowStatusIcon}"
+                           ToolTip.Tip="{Binding StatusTooltip}" />
+                    <StackPanel Spacing="0">
+                      <TextBlock Text="{Binding Title}"
+                                 FontWeight="SemiBold"
+                                 FontSize="12"
+                                 LineHeight="16"
+                                 Foreground="{StaticResource Brush.TextPrimary}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Subtitle}"
+                                 FontSize="10"
+                                 LineHeight="13"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
                   </StackPanel>
                 </TreeDataTemplate>
               </TreeView.ItemTemplate>
@@ -314,7 +339,109 @@
           </Border>
         </Grid>
 
-        <Grid IsVisible="{Binding ShowInfrastructure}" Margin="28,24,28,16" RowDefinitions="*,Auto">
+
+        <Grid IsVisible="{Binding ShowGlobalAlerts}" Margin="28,24,28,16" RowDefinitions="Auto,*">
+          <StackPanel Spacing="8" Margin="0,0,0,12">
+            <DockPanel>
+              <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="Alerts"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <Border Classes="alert-count"
+                        Classes.has-alerts="{Binding HasAlertsBadge}"
+                        VerticalAlignment="Center">
+                  <TextBlock Text="{Binding AlertsBadgeText}"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             HorizontalAlignment="Center" />
+                </Border>
+              </StackPanel>
+              <StackPanel DockPanel.Dock="Right"
+                          Orientation="Horizontal"
+                          Spacing="8"
+                          HorizontalAlignment="Right">
+                <Button Classes="ghost"
+                        Content="Dismiss selected"
+                        Command="{Binding DismissSelectedAlertsCommand}" />
+                <Button Classes="ghost"
+                        Content="Dismiss all"
+                        Command="{Binding DismissAllAlertsCommand}" />
+                <Button Classes="ghost"
+                        Content="Back"
+                        Command="{Binding CloseGlobalAlertsCommand}" />
+              </StackPanel>
+            </DockPanel>
+            <TextBlock Text="All messages from every connected pool and server, newest first."
+                       FontSize="13"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+          <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="8" Margin="0,0,4,0">
+              <TextBlock Text="No alerts. Messages from all connected pools appear here."
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         IsVisible="{Binding !HasAlertItems}" />
+              <ItemsControl ItemsSource="{Binding AlertItems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:AlertItemRow">
+                    <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                            BorderThickness="0,0,0,1"
+                            Padding="0,0,0,10"
+                            Margin="0,0,0,6">
+                      <Grid ColumnDefinitions="Auto,*">
+                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                  VerticalAlignment="Top"
+                                  Margin="0,2,10,0"
+                                  IsEnabled="{Binding CanDismiss}" />
+                        <StackPanel Grid.Column="1" Spacing="2">
+                          <DockPanel>
+                            <TextBlock Text="{Binding Title}"
+                                       FontWeight="SemiBold"
+                                       FontSize="13"
+                                       TextWrapping="Wrap" />
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding PriorityLabel}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource Brush.BrandOrange}"
+                                       Margin="12,0,0,0" />
+                          </DockPanel>
+                          <TextBlock Text="{Binding Description}"
+                                     FontSize="12"
+                                     TextWrapping="Wrap"
+                                     Foreground="{StaticResource Brush.TextMuted}" />
+                          <DockPanel Margin="0,2,0,0">
+                            <TextBlock Text="{Binding SourceLabel}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource Brush.TextMuted}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <StackPanel DockPanel.Dock="Right"
+                                        Orientation="Horizontal"
+                                        Spacing="8"
+                                        Margin="12,0,0,0">
+                              <Button Classes="ghost"
+                                      Content="{Binding FixLinkText}"
+                                      FontSize="11"
+                                      Padding="8,2"
+                                      IsVisible="{Binding HasFixLink}"
+                                      Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RunAlertFixCommand}"
+                                      CommandParameter="{Binding}" />
+                              <TextBlock Text="{Binding TimestampText}"
+                                         FontSize="11"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         VerticalAlignment="Center" />
+                            </StackPanel>
+                          </DockPanel>
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+
+        <Grid IsVisible="{Binding ShowInfrastructureDetail}" Margin="28,24,28,16" RowDefinitions="*,Auto">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                         VerticalScrollBarVisibility="Auto"
                         Padding="12,0,12,0">
@@ -348,19 +475,12 @@
                 <Button Classes="ghost" Content="Start" Margin="0,0,8,6" Command="{Binding StartVmCommand}" />
                 <Button Classes="ghost" Content="Shutdown" Margin="0,0,8,6" Command="{Binding ShutdownVmCommand}" />
                 <Button Classes="ghost" Content="Reboot" Margin="0,0,8,6" Command="{Binding RebootVmCommand}" />
-                <Button Classes="ghost" Content="Suspend" Margin="0,0,8,6" Command="{Binding SuspendVmCommand}" />
-                <Button Classes="ghost" Content="Resume" Margin="0,0,8,6" Command="{Binding ResumeVmCommand}" />
-                <Button Classes="ghost" Content="Force shutdown" Margin="0,0,8,6" Command="{Binding ForceShutdownVmCommand}" />
-                <Button Classes="ghost" Content="Force reboot" Margin="0,0,8,6" Command="{Binding ForceRebootVmCommand}" />
-                <Button Classes="ghost" Content="Properties…" Margin="0,0,8,6" Command="{Binding EditVmCommand}" />
-                <Button Classes="ghost" Content="Clone…" Margin="0,0,8,6" Command="{Binding CloneVmCommand}" />
-                <Button Classes="ghost" Content="Copy…" Margin="0,0,8,6" Command="{Binding CopyVmCommand}" />
-                <Button Classes="ghost" Content="Migrate…" Margin="0,0,8,6" Command="{Binding MigrateVmCommand}" />
-                <Button Classes="ghost" Content="Cross-pool…" Margin="0,0,8,6" Command="{Binding CrossPoolMigrateVmCommand}" />
-                <Button Classes="ghost" Content="Move…" Margin="0,0,8,6" Command="{Binding MoveVmCommand}" />
-                <Button Classes="ghost" Content="Delete…" Margin="0,0,8,6" Command="{Binding DeleteVmCommand}" />
-                <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6" Command="{Binding AttachIsoCommand}" />
-                <Button Classes="ghost" Content="Eject ISO" Margin="0,0,8,6" Command="{Binding EjectIsoCommand}" />
+                <Button Classes="ghost" Content="{Binding SuspendToggleLabel}" Margin="0,0,8,6"
+                        Command="{Binding ToggleSuspendVmCommand}"
+                        IsVisible="{Binding ShowSuspendToggle}" />
+                <Button Classes="ghost" Content="{Binding PauseToggleLabel}" Margin="0,0,8,6"
+                        Command="{Binding TogglePauseVmCommand}"
+                        IsVisible="{Binding ShowPauseToggle}" />
               </WrapPanel>
 
               <TabControl Margin="0,4,0,0">
@@ -374,6 +494,10 @@
                   <Style Selector="TabItem:selected">
                     <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
                   </Style>
+                  <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+                    <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+                    <Setter Property="Height" Value="3" />
+                  </Style>
                   <!-- Keep tab content clear of the vertical scrollbar thumb. -->
                   <Style Selector="TabItem ScrollViewer">
                     <Setter Property="Padding" Value="0,0,20,0" />
@@ -382,30 +506,37 @@
 
                 <TabItem Header="General">
                   <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Spacing="4" Margin="0,0,4,0">
+                    <StackPanel Spacing="12" Margin="0,0,4,0">
+                      <Button Classes="ghost"
+                              Content="Properties"
+                              HorizontalAlignment="Left"
+                              Command="{Binding EditVmCommand}"
+                              IsVisible="{Binding CanEditVm}" />
                       <ItemsControl ItemsSource="{Binding GeneralProperties}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                            <Border Classes="prop-row"
-                                    Padding="0,2,0,10"
+                            <Border Classes="prop-row prop-row-dense"
+                                    Classes.copyable="{Binding CanCopy}"
+                                    Padding="6,2"
+                                    Margin="0,0,0,1"
+                                    CornerRadius="4"
                                     Background="Transparent">
                               <Grid ColumnDefinitions="160,*,Auto">
                                 <TextBlock Text="{Binding Label}"
                                            Foreground="{StaticResource Brush.TextMuted}"
-                                           FontSize="13"
-                                           VerticalAlignment="Top"
-                                           Margin="0,2,0,0" />
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Value}"
                                            TextWrapping="Wrap"
                                            Foreground="{StaticResource Brush.TextPrimary}"
-                                           FontSize="13"
-                                           VerticalAlignment="Top"
-                                           Margin="0,2,8,0" />
+                                           FontSize="12"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0" />
                                 <Button Grid.Column="2"
                                         Classes="copy"
                                         Content="Copy"
-                                        VerticalAlignment="Top"
+                                        VerticalAlignment="Center"
                                         IsVisible="{Binding CanCopy}"
                                         Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyPropertyValueCommand}"
                                         CommandParameter="{Binding Value}"
@@ -431,7 +562,10 @@
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
                             <Border Classes="prop-row"
-                                    Padding="0,2,0,10"
+                                    Classes.copyable="{Binding CanCopy}"
+                                    Padding="8,6"
+                                    Margin="0,0,0,4"
+                                    CornerRadius="6"
                                     Background="Transparent">
                               <Grid ColumnDefinitions="160,*,Auto">
                                 <TextBlock Text="{Binding Label}"
@@ -525,7 +659,10 @@
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
                             <Border Classes="prop-row"
-                                    Padding="0,2,0,10"
+                                    Classes.copyable="{Binding CanCopy}"
+                                    Padding="8,6"
+                                    Margin="0,0,0,4"
+                                    CornerRadius="6"
                                     Background="Transparent">
                               <Grid ColumnDefinitions="180,*,Auto">
                                 <TextBlock Text="{Binding Label}"
@@ -663,62 +800,67 @@
                 </TabItem>
 
                 <TabItem Header="Console">
-                  <StackPanel Margin="0,18,0,8" Spacing="12">
-                    <StackPanel Spacing="8" Margin="0,0,4,0">
-                      <ItemsControl ItemsSource="{Binding ConsoleTotals}">
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                            <Grid ColumnDefinitions="180,*" Margin="0,0,0,6">
-                              <TextBlock Text="{Binding Label}"
-                                         Foreground="{StaticResource Brush.TextMuted}"
-                                         FontSize="13" />
-                              <TextBlock Grid.Column="1"
-                                         Text="{Binding Value}"
-                                         TextWrapping="Wrap"
-                                         Foreground="{StaticResource Brush.TextPrimary}"
-                                         FontSize="13" />
-                            </Grid>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
-
-                      <TextBlock Text="{Binding ConsoleStatusMessage}"
-                                 TextWrapping="Wrap"
-                                 FontSize="13"
-                                 Foreground="{StaticResource Brush.BrandOrange}" />
-                      <TextBlock Text="{Binding ConsoleViewerStatus}"
-                                 TextWrapping="Wrap"
+                  <StackPanel Margin="0,18,0,8" Spacing="10">
+                    <StackPanel Spacing="6" IsVisible="{Binding ShowConsoleIsoBar}">
+                      <TextBlock Text="CD/DVD"
+                                 FontSize="11"
+                                 LetterSpacing="1.1"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <TextBlock Text="{Binding AttachedIsoLabel}"
                                  FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}"
-                                 IsVisible="{Binding ConsoleViewerStatus.Length}" />
-                      <TextBlock Text="{Binding ConsoleInputHint}"
-                                 TextWrapping="Wrap"
-                                 FontSize="12"
-                                 Foreground="{StaticResource Brush.BrandOrange}"
-                                 IsVisible="{Binding ConsoleInputHint.Length}" />
-                      <WrapPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                 IsVisible="{Binding HasConsoleFrame}">
-                        <Button Classes="ghost" Content="Pop out" Margin="0,0,8,6"
-                                Command="{Binding PopOutConsoleCommand}"
-                                IsVisible="{Binding !IsConsolePoppedOut}" />
-                        <Button Classes="ghost" Content="Reattach" Margin="0,0,8,6"
-                                Command="{Binding ReattachConsoleCommand}"
-                                IsVisible="{Binding ShowConsoleReattach}" />
-                        <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,6"
-                                Command="{Binding SendCtrlAltDelCommand}" />
-                        <Button Classes="ghost" Content="Attach ISO…" Margin="0,0,8,6"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                        <ComboBox ItemsSource="{Binding ConsoleIsoOptions}"
+                                  SelectedItem="{Binding SelectedConsoleIso}"
+                                  PlaceholderText="Select ISO…"
+                                  IsEnabled="{Binding HasConsoleIsoOptions}"
+                                  MinHeight="36">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:IsoOption">
+                              <StackPanel Spacing="1">
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Subtitle}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           TextTrimming="CharacterEllipsis" />
+                              </StackPanel>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Grid.Column="1" Classes="ghost" Content="Insert"
+                                Margin="8,0,0,0"
+                                Command="{Binding ApplyConsoleIsoCommand}"
+                                ToolTip.Tip="Insert the selected ISO" />
+                        <Button Grid.Column="2" Classes="ghost" Content="Eject"
+                                Margin="8,0,0,0"
+                                Command="{Binding EjectIsoCommand}"
+                                ToolTip.Tip="Eject the current ISO" />
+                        <Button Grid.Column="3" Classes="ghost" Content="Browse…"
+                                Margin="8,0,0,0"
                                 Command="{Binding AttachIsoCommand}"
-                                IsVisible="{Binding CanAttachIso}" />
-                      </WrapPanel>
+                                ToolTip.Tip="Open the full ISO library picker" />
+                      </Grid>
                     </StackPanel>
+
+                    <WrapPanel Orientation="Horizontal"
+                               IsVisible="{Binding HasConsoleFrame}">
+                      <Button Classes="ghost" Content="Pop Out" Margin="0,0,8,6"
+                              Command="{Binding PopOutConsoleCommand}"
+                              IsVisible="{Binding !IsConsolePoppedOut}" />
+                      <Button Classes="ghost" Content="Reattach" Margin="0,0,8,6"
+                              Command="{Binding ReattachConsoleCommand}"
+                              IsVisible="{Binding ShowConsoleReattach}" />
+                      <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,6"
+                              Command="{Binding SendCtrlAltDelCommand}" />
+                    </WrapPanel>
 
                     <Border Background="#33161C22"
                             BorderBrush="{StaticResource Brush.StrokeSubtle}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="8"
-                            Height="520"
-                            MinHeight="520"
+                            Height="560"
+                            MinHeight="560"
                             ClipToBounds="True">
                       <Grid ClipToBounds="True">
                         <StackPanel Spacing="8"
@@ -762,7 +904,42 @@
                       </Grid>
                     </Border>
 
-                    <StackPanel Spacing="10" Margin="0,0,4,0"
+                    <StackPanel Spacing="6" Margin="0,4,4,0">
+                      <ItemsControl ItemsSource="{Binding ConsoleTotals}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:GeneralPropertyRow">
+                            <Grid ColumnDefinitions="120,*" Margin="0,0,0,2">
+                              <TextBlock Text="{Binding Label}"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         FontSize="12" />
+                              <TextBlock Grid.Column="1"
+                                         Text="{Binding Value}"
+                                         TextWrapping="Wrap"
+                                         Foreground="{StaticResource Brush.TextPrimary}"
+                                         FontSize="12" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="{Binding ConsoleStatusMessage}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.BrandOrange}"
+                                 IsVisible="{Binding ConsoleStatusMessage.Length}" />
+                      <TextBlock Text="{Binding ConsoleViewerStatus}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 IsVisible="{Binding ConsoleViewerStatus.Length}" />
+                      <TextBlock Text="{Binding ConsoleInputHint}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.BrandOrange}"
+                                 IsVisible="{Binding ConsoleInputHint.Length}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8" Margin="0,0,4,0"
                                 IsVisible="{Binding HasConsoleItems}">
                       <TextBlock Text="Console endpoints"
                                  FontSize="11"
@@ -771,10 +948,12 @@
                       <ItemsControl ItemsSource="{Binding ConsoleItems}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:ConsoleItemRow">
-                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                                    BorderThickness="0,0,0,1"
-                                    Padding="0,0,8,8"
-                                    Margin="0,0,0,4">
+                            <Border Classes="prop-row"
+                                    Classes.copyable="{Binding CanCopyLocation}"
+                                    Padding="8,6"
+                                    Margin="0,0,0,4"
+                                    CornerRadius="6"
+                                    Background="Transparent">
                               <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                                 <TextBlock Text="{Binding Primary}"
                                            FontWeight="SemiBold"
@@ -782,10 +961,9 @@
                                            Margin="0,0,12,0"
                                            Foreground="{StaticResource Brush.TextPrimary}" />
                                 <Button Grid.Column="1"
-                                        Classes="ghost"
+                                        Classes="copy"
                                         Content="Copy"
-                                        Padding="10,4"
-                                        FontSize="12"
+                                        VerticalAlignment="Top"
                                         IsVisible="{Binding CanCopyLocation}"
                                         Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
                                         CommandParameter="{Binding Location}"
@@ -815,7 +993,7 @@
                 <TabItem Header="Snapshots">
                   <Panel Margin="0,18,0,8">
                     <StackPanel Spacing="14" IsVisible="{Binding CanManageSnapshots}">
-                      <TextBlock Text="Create a disk snapshot of the selected VM. Memory checkpoints and quiesced snapshots come later."
+                      <TextBlock Text="Disk snapshots form a tree from the VM base. NOW marks the current branch tip. Memory checkpoints come later."
                                  TextWrapping="Wrap"
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.TextMuted}" />
@@ -831,64 +1009,135 @@
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  IsVisible="{Binding SnapshotStatusMessage.Length}" />
 
-                      <TextBlock Text="Existing snapshots"
+                      <TextBlock Text="Snapshot tree"
                                  FontSize="11"
                                  LetterSpacing="1.2"
                                  Foreground="{StaticResource Brush.TextMuted}"
                                  Margin="0,8,0,0" />
-                      <TextBlock Text="No snapshots yet."
-                                 IsVisible="{Binding !HasSnapshotItems}"
-                                 Foreground="{StaticResource Brush.TextMuted}" />
-                      <ItemsControl ItemsSource="{Binding SnapshotItems}">
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate x:DataType="vm:SnapshotItemRow">
-                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                                    BorderThickness="0,0,0,1"
-                                    Padding="0,0,0,12"
-                                    Margin="0,0,0,10">
-                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                      <TreeView ItemsSource="{Binding SnapshotItems}"
+                                MinHeight="160">
+                        <TreeView.Styles>
+                          <Style Selector="TreeViewItem" x:DataType="vm:SnapshotItemRow" x:CompileBindings="True">
+                            <Setter Property="IsExpanded" Value="True" />
+                            <Setter Property="Padding" Value="4,3" />
+                          </Style>
+                        </TreeView.Styles>
+                        <TreeView.ItemTemplate>
+                          <TreeDataTemplate ItemsSource="{Binding Children}"
+                                            DataType="vm:SnapshotItemRow">
+                            <Grid ColumnDefinitions="Auto,*,Auto" MinWidth="280">
+                              <Image Width="16" Height="16"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,8,0"
+                                     Source="{Binding Icon}" />
+                              <StackPanel Grid.Column="1" Spacing="1" Margin="0,0,8,0">
                                 <TextBlock Text="{Binding Name}"
                                            FontWeight="SemiBold"
-                                           FontSize="14"
-                                           TextWrapping="Wrap" />
-                                <StackPanel Grid.Column="1"
-                                            Orientation="Horizontal"
-                                            Spacing="6"
-                                            HorizontalAlignment="Right">
-                                  <Button Classes="ghost"
-                                          Content="Revert"
-                                          FontSize="12"
-                                          Padding="10,4"
-                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RevertSnapshotCommand}"
-                                          CommandParameter="{Binding}" />
-                                  <Button Classes="ghost"
-                                          Content="Delete"
-                                          FontSize="12"
-                                          Padding="10,4"
-                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).DeleteSnapshotCommand}"
-                                          CommandParameter="{Binding}" />
-                                </StackPanel>
-                                <TextBlock Grid.Row="1"
-                                           Text="{Binding Description}"
-                                           FontSize="12"
-                                           Foreground="{StaticResource Brush.TextMuted}"
-                                           Margin="0,4,0,0"
-                                           TextWrapping="Wrap" />
-                                <TextBlock Grid.Row="2"
-                                           Text="{Binding Created}"
+                                           FontSize="13"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Description}"
                                            FontSize="11"
                                            Foreground="{StaticResource Brush.TextMuted}"
-                                           Margin="0,4,0,0" />
-                              </Grid>
-                            </Border>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding Description.Length}" />
+                                <TextBlock Text="{Binding Created}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           IsVisible="{Binding Created.Length}" />
+                              </StackPanel>
+                              <StackPanel Grid.Column="2"
+                                          Orientation="Horizontal"
+                                          Spacing="6"
+                                          VerticalAlignment="Center">
+                                <Button Classes="ghost"
+                                        Content="Revert"
+                                        FontSize="12"
+                                        Padding="10,4"
+                                        IsVisible="{Binding CanRevert}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RevertSnapshotCommand}"
+                                        CommandParameter="{Binding}" />
+                                <Button Classes="ghost"
+                                        Content="Delete"
+                                        FontSize="12"
+                                        Padding="10,4"
+                                        IsVisible="{Binding CanDelete}"
+                                        Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).DeleteSnapshotCommand}"
+                                        CommandParameter="{Binding}" />
+                              </StackPanel>
+                            </Grid>
+                          </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                      </TreeView>
                     </StackPanel>
                     <TextBlock Text="Select a VM to manage snapshots."
                                IsVisible="{Binding !CanManageSnapshots}"
                                Foreground="{StaticResource Brush.TextMuted}" />
                   </Panel>
+                </TabItem>
+
+                <TabItem Header="Performance">
+                  <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
+                    <StackPanel Spacing="8" Margin="0,0,4,8">
+                      <DockPanel>
+                        <TextBlock Text="Performance"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <StackPanel DockPanel.Dock="Right"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    HorizontalAlignment="Right">
+                          <ComboBox Width="180"
+                                    ItemsSource="{Binding PerformanceRangeOptions}"
+                                    SelectedItem="{Binding SelectedPerformanceRange}"
+                                    IsEnabled="{Binding CanShowPerformance}" />
+                          <Button Classes="ghost"
+                                  Content="Save layout"
+                                  Command="{Binding SavePerformanceLayoutCommand}"
+                                  IsEnabled="{Binding CanSavePerformanceLayout}" />
+                        </StackPanel>
+                      </DockPanel>
+                      <TextBlock Text="{Binding PerformanceStatusMessage}"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                      <StackPanel Spacing="16" Margin="0,0,4,0">
+                        <TextBlock Text="Select a host or running VM to load RRD graphs."
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   IsVisible="{Binding !CanShowPerformance}" />
+                        <TextBlock Text="Waiting for graph series…"
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   IsVisible="{Binding ShowPerformanceWaiting}" />
+                        <ItemsControl ItemsSource="{Binding PerformanceGraphs}"
+                                      IsVisible="{Binding HasPerformanceGraphs}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PerformanceGraphRow">
+                              <StackPanel Spacing="6" Margin="0,0,0,8">
+                                <DockPanel>
+                                  <TextBlock Text="{Binding Title}"
+                                             FontWeight="SemiBold"
+                                             FontSize="13" />
+                                  <TextBlock DockPanel.Dock="Right"
+                                             Text="{Binding LatestSummary}"
+                                             FontSize="11"
+                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             TextTrimming="CharacterEllipsis"
+                                             Margin="12,0,0,0"
+                                             MaxWidth="420"
+                                             HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <controls:PerformanceChart Height="180"
+                                                           Series="{Binding Series}"
+                                                           Interval="{Binding Interval}" />
+                              </StackPanel>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </Grid>
                 </TabItem>
 
                 <TabItem Header="Logs">
@@ -978,5 +1227,39 @@
         </Grid>
       </Grid>
     </Grid>
+
+    <!-- GitHub Releases update notice (bottom-right). -->
+    <Border HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            Margin="24"
+            MaxWidth="360"
+            Padding="16"
+            CornerRadius="10"
+            BorderBrush="{StaticResource Brush.BrandOrange}"
+            BorderThickness="1"
+            Background="#F0161C22"
+            IsVisible="{Binding ShowUpdateBanner}"
+            ZIndex="100">
+      <StackPanel Spacing="10">
+        <TextBlock Text="{Binding UpdateBannerTitle}"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextPrimary}" />
+        <TextBlock Text="{Binding UpdateBannerMessage}"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}" />
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+          <Button Classes="ghost"
+                  Content="Dismiss"
+                  Command="{Binding DismissUpdateBannerCommand}" />
+          <Button Classes="cta"
+                  Content="View release"
+                  Padding="14,8"
+                  Command="{Binding OpenUpdateReleaseCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>

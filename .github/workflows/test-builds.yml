@@ -29,13 +29,13 @@ jobs:
         run: msbuild XenAdmin.sln -t:restore
 
       - name: Build Release
-        run: msbuild XenAdmin.sln -property:Configuration=Release -verbosity:minimal
+        run: msbuild XenAdmin.sln -property:Configuration=Release -property:BuildRevision=${{ github.run_number }} -verbosity:minimal
 
       - name: Build Debug
-        run: msbuild XenAdmin.sln -property:Configuration=Debug -verbosity:minimal
+        run: msbuild XenAdmin.sln -property:Configuration=Debug -property:BuildRevision=${{ github.run_number }} -verbosity:minimal
 
       - name: Build Avalonia UI preview shell
-        run: dotnet build XcpNgCenter.Shell/XcpNgCenter.Shell.csproj -c Release --nologo
+        run: dotnet build XcpNgCenter.Shell/XcpNgCenter.Shell.csproj -c Release -p:BuildRevision=${{ github.run_number }} --nologo
 
       - name: Publish Avalonia UI preview shell (self-contained win-x64)
         run: >
@@ -44,6 +44,7 @@ jobs:
           -r win-x64
           --self-contained true
           -p:PublishSingleFile=false
+          -p:BuildRevision=${{ github.run_number }}
           -o artifacts/shell-win-x64
           --nologo
 
@@ -54,6 +55,7 @@ jobs:
           -r linux-x64
           --self-contained true
           -p:PublishSingleFile=false
+          -p:BuildRevision=${{ github.run_number }}
           -o artifacts/shell-linux-x64
           --nologo
 

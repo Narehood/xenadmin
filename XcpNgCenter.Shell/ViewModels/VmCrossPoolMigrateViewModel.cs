@@ -5,11 +5,20 @@ using XenAdmin;
 using XenAdmin.Actions.VMActions;
 using XenAdmin.Core;
 using XenAdmin.Mappings;
-using XenAdmin.Network;
 using XenAPI;
 using XcpNgCenter.Shell.Services;
 
 namespace XcpNgCenter.Shell.ViewModels;
+
+/// <summary>
+/// Mirrors WinForms <c>WizardMode</c> for the migrate_send dialog.
+/// Move = halted storage relocate; Migrate = live / suspended storage motion.
+/// </summary>
+public enum ShellMigrateWizardMode
+{
+    Migrate,
+    Move
+}
 
 public sealed class CrossPoolHostOption
 {
@@ -26,7 +35,7 @@ public sealed class CrossPoolHostOption
 
 public partial class CrossPoolDiskMapRow : ObservableObject
 {
-    public CrossPoolDiskMapRow(VDI vdi, string label, IReadOnlyList<SR> storageOptions, SR? selected)
+    public CrossPoolDiskMapRow(VDI vdi, string label, IReadOnlyList<MigrateSrOption> storageOptions, MigrateSrOption? selected)
     {
         Vdi = vdi;
         Label = label;
@@ -36,10 +45,10 @@ public partial class CrossPoolDiskMapRow : ObservableObject
 
     public VDI Vdi { get; }
     public string Label { get; }
-    public IReadOnlyList<SR> StorageOptions { get; }
+    public IReadOnlyList<MigrateSrOption> StorageOptions { get; }
 
     [ObservableProperty]
-    private SR? _selectedStorage;
+    private MigrateSrOption? _selectedStorage;
 }
 
 public partial class CrossPoolVifMapRow : ObservableObject
@@ -65,30 +74,42 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
     private readonly VM _vm;
     private readonly Action _close;
     private readonly Action<string>? _status;
+    private readonly IReadOnlyList<VDI> _movableDisks;
+    private readonly ShellMigrateWizardMode _mode;
 
-    public VmCrossPoolMigrateViewModel(VM vm, Action close, Action<string>? status = null)
+    public VmCrossPoolMigrateViewModel(
+        VM vm,
+        Action close,
+        Action<string>? status = null,
+        ShellMigrateWizardMode mode = ShellMigrateWizardMode.Migrate)
     {
         _vm = vm;
         _close = close;
         _status = status;
+        _mode = mode;
+        _movableDisks = ShellStoragePicker.GetMovableDisks(vm);
 
-        var resident = vm.Connection.Resolve(vm.resident_on);
-        foreach (var conn in ConnectionsManager.XenConnectionsCopy.Where(c => c is { IsConnected: true }))
+        WindowTitle = mode == ShellMigrateWizardMode.Move ? "Move VM" : "Cross-pool migrate";
+        Heading = mode == ShellMigrateWizardMode.Move ? "Move VM" : "Cross-pool migrate";
+        ShowCopyOption = mode == ShellMigrateWizardMode.Migrate;
+
+        foreach (var host in ShellStoragePicker.EnumerateEligibleMigrateSendHosts(vm)
+                     .OrderBy(h =>
+                     {
+                         var pool = Helpers.GetPool(h.Connection);
+                         return pool?.Name() ?? h.Connection.Name;
+                     }, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(h => h.name_label, StringComparer.OrdinalIgnoreCase))
         {
-            var pool = Helpers.GetPool(conn);
-            var poolLabel = pool?.Name() ?? conn.Name;
-            foreach (var host in conn.Cache.Hosts
-                         .Where(h => h.enabled && h.IsLive())
-                         .OrderBy(h => h.name_label, StringComparer.OrdinalIgnoreCase))
-            {
-                if (resident != null && host.opaque_ref == resident.opaque_ref)
-                    continue;
-                Hosts.Add(new CrossPoolHostOption(host, $"{host.Name()} · {poolLabel}"));
-            }
+            var pool = Helpers.GetPool(host.Connection);
+            var poolLabel = pool?.Name() ?? host.Connection.Name;
+            Hosts.Add(new CrossPoolHostOption(host, $"{host.Name()} · {poolLabel}"));
         }
 
         SelectedHost = Hosts.FirstOrDefault();
-        Hint = "Uses VM.migrate_send. For same-pool storage migrate, VIFs stay on their networks. Cross-pool requires per-disk SR and per-VIF network maps.";
+        Hint = mode == ShellMigrateWizardMode.Move
+            ? "Halted move. Same-pool targets use VDI copy + destroy (like WinForms Move). Cross-pool uses migrate_send with per-disk SR maps."
+            : "Uses VM.migrate_send. For same-pool storage migrate, VIFs stay on their networks. Cross-pool requires per-disk SR and per-VIF network maps.";
         RefreshDestinationOptions();
     }
 
@@ -97,13 +118,23 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
     public ObservableCollection<CrossPoolVifMapRow> VifMaps { get; } = new();
     public ObservableCollection<XenAPI.Network> TransferNetworks { get; } = new();
 
+    public string WindowTitle { get; }
+    public string Heading { get; }
     public string Hint { get; }
+    public bool ShowCopyOption { get; }
 
     public bool HasDiskMaps => DiskMaps.Count > 0;
     public bool HasVifMaps => VifMaps.Count > 0;
     public bool IsIntraPoolTarget =>
         SelectedHost?.Host.Connection != null
         && ReferenceEquals(_vm.Connection, SelectedHost.Host.Connection);
+
+    /// <summary>
+    /// Intra-pool halted Move uses <see cref="VMMoveAction"/> and does not need a transfer network.
+    /// </summary>
+    public bool ShowTransferNetwork =>
+        SelectedHost != null
+        && !(_mode == ShellMigrateWizardMode.Move && IsIntraPoolTarget && _vm.CanBeMoved());
 
     [ObservableProperty]
     private CrossPoolHostOption? _selectedHost;
@@ -118,12 +149,12 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
-    private SR? _applyAllStorage;
+    private MigrateSrOption? _applyAllStorage;
 
     [ObservableProperty]
     private XenAPI.Network? _applyAllNetwork;
 
-    public ObservableCollection<SR> StorageRepositories { get; } = new();
+    public ObservableCollection<MigrateSrOption> StorageRepositories { get; } = new();
     public ObservableCollection<XenAPI.Network> GuestNetworks { get; } = new();
 
     partial void OnSelectedHostChanged(CrossPoolHostOption? value) => RefreshDestinationOptions();
@@ -140,25 +171,43 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
         ApplyAllNetwork = null;
         OnPropertyChanged(nameof(HasDiskMaps));
         OnPropertyChanged(nameof(HasVifMaps));
+        OnPropertyChanged(nameof(IsIntraPoolTarget));
+        OnPropertyChanged(nameof(ShowTransferNetwork));
 
         var host = SelectedHost?.Host;
         var conn = host?.Connection;
-        if (conn is not { IsConnected: true })
+        if (conn is not { IsConnected: true } || host == null)
             return;
 
-        var srs = conn.Cache.SRs
+        // Intra-pool Move (VMMoveAction) only needs SupportsVdiCreate, not SupportsStorageMigration.
+        var requireStorageMigration = !(_mode == ShellMigrateWizardMode.Move
+                                        && ReferenceEquals(_vm.Connection, conn)
+                                        && _vm.CanBeMoved());
+
+        var srOptions = conn.Cache.SRs
             .Where(sr => sr != null
                          && !sr.IsToolsSR()
                          && sr.SupportsVdiCreate()
+                         && (!requireStorageMigration || sr.SupportsStorageMigration())
                          && sr.PBDs.Count > 0
-                         && !sr.IsBroken())
-            .OrderBy(sr => Helpers.GetName(sr), StringComparer.OrdinalIgnoreCase)
+                         && !sr.IsBroken()
+                         && !sr.IsDetached()
+                         && ShellStoragePicker.SrVisibleToHost(sr, host)
+                         && ShellStoragePicker.CanFitDisks(sr, _movableDisks))
+            .OrderByDescending(sr => sr.shared)
+            .ThenBy(sr => Helpers.GetName(sr), StringComparer.OrdinalIgnoreCase)
+            .Select(sr => new MigrateSrOption(sr, ShellStoragePicker.FormatSrLabel(sr)))
             .ToList();
 
-        foreach (var sr in srs)
-            StorageRepositories.Add(sr);
+        foreach (var option in srOptions)
+            StorageRepositories.Add(option);
 
-        ApplyAllStorage = StorageRepositories.FirstOrDefault();
+        // Prefer shared destination that is not already the sole location of every disk.
+        ApplyAllStorage = StorageRepositories.FirstOrDefault(o => o.Sr.shared
+                                                                  && !ShellStoragePicker.IsCurrentLocation(o.Sr, _movableDisks))
+                          ?? StorageRepositories.FirstOrDefault(o =>
+                              !ShellStoragePicker.IsCurrentLocation(o.Sr, _movableDisks))
+                          ?? StorageRepositories.FirstOrDefault();
 
         var networks = conn.Cache.Networks
             .Where(n => n != null && n.Show(true) && !n.IsGuestInstallerNetwork())
@@ -170,30 +219,42 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
 
         ApplyAllNetwork = GuestNetworks.FirstOrDefault();
 
-        foreach (var network in conn.Cache.Networks.OrderBy(n => n.Name(), StringComparer.OrdinalIgnoreCase))
+        if (ShowTransferNetwork)
         {
-            var pifs = conn.ResolveAll(network.PIFs);
-            if (pifs.Any(p => p.IsManagementInterface(false) || !string.IsNullOrEmpty(p.IP)))
-                TransferNetworks.Add(network);
+            foreach (var network in conn.Cache.Networks.OrderBy(n => n.Name(), StringComparer.OrdinalIgnoreCase))
+            {
+                var pifs = conn.ResolveAll(network.PIFs);
+                if (pifs.Any(p => p.IsManagementInterface(false) || !string.IsNullOrEmpty(p.IP)))
+                    TransferNetworks.Add(network);
+            }
+
+            SelectedTransferNetwork = TransferNetworks.FirstOrDefault(n =>
+            {
+                var pifs = conn.ResolveAll(n.PIFs);
+                return pifs.Any(p => p.management);
+            }) ?? TransferNetworks.FirstOrDefault();
         }
 
-        SelectedTransferNetwork = TransferNetworks.FirstOrDefault(n =>
-        {
-            var pifs = conn.ResolveAll(n.PIFs);
-            return pifs.Any(p => p.management);
-        }) ?? TransferNetworks.FirstOrDefault();
-
         foreach (var vbd in _vm.Connection.ResolveAll(_vm.VBDs)
-                     .Where(v => v.type != vbd_type.CD)
+                     .Where(v => v.type != vbd_type.CD && v.GetIsOwner())
                      .OrderBy(v => v.userdevice, StringComparer.OrdinalIgnoreCase))
         {
             var vdi = _vm.Connection.Resolve(vbd.VDI);
             if (vdi == null || vdi.IsToolsIso())
                 continue;
 
+            // Per-disk options: SRs that can fit this VDI (not necessarily all disks).
+            var perDiskOptions = srOptions
+                .Where(o => ShellStoragePicker.CanFitDisk(o.Sr, vdi))
+                .ToList();
+            var preferred = perDiskOptions.FirstOrDefault(o => o.Sr.shared
+                                                               && o.Sr.opaque_ref != vdi.SR.opaque_ref)
+                            ?? perDiskOptions.FirstOrDefault(o => o.Sr.opaque_ref != vdi.SR.opaque_ref)
+                            ?? perDiskOptions.FirstOrDefault();
+
             var size = Util.DiskSizeString(vdi.virtual_size);
             var label = $"[{vbd.userdevice}] {Helpers.GetName(vdi)} ({size})";
-            DiskMaps.Add(new CrossPoolDiskMapRow(vdi, label, srs, ApplyAllStorage));
+            DiskMaps.Add(new CrossPoolDiskMapRow(vdi, label, perDiskOptions, preferred));
         }
 
         // Intra-pool migrate_send rejects VIF maps — only collect them for true cross-pool moves.
@@ -214,6 +275,7 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasDiskMaps));
         OnPropertyChanged(nameof(HasVifMaps));
         OnPropertyChanged(nameof(IsIntraPoolTarget));
+        OnPropertyChanged(nameof(ShowTransferNetwork));
     }
 
     [RelayCommand]
@@ -243,12 +305,6 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
             return;
         }
 
-        if (SelectedTransferNetwork == null)
-        {
-            StatusMessage = "Select a transfer network on the destination.";
-            return;
-        }
-
         if (DiskMaps.Count == 0)
         {
             StatusMessage = "No movable disks found on this VM.";
@@ -261,6 +317,49 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
             return;
         }
 
+        // Reject maps where nothing actually moves (all disks already on chosen SRs).
+        var anyMove = DiskMaps.Any(d => d.Vdi.SR.opaque_ref != d.SelectedStorage!.Sr.opaque_ref);
+        if (!anyMove)
+        {
+            StatusMessage = "Choose different destination SRs — disks are already on the selected storage.";
+            return;
+        }
+
+        foreach (var row in DiskMaps)
+        {
+            if (!ShellStoragePicker.CanFitDisk(row.SelectedStorage!.Sr, row.Vdi))
+            {
+                StatusMessage = $"Not enough free space on {Helpers.GetName(row.SelectedStorage.Sr)} for {Helpers.GetName(row.Vdi)}.";
+                return;
+            }
+        }
+
+        var intraPool = ReferenceEquals(_vm.Connection, SelectedHost.Host.Connection);
+
+        // WinForms CrossPoolMigrateWizard: WizardMode.Move + intra-pool → VMMoveAction (copy+destroy).
+        if (_mode == ShellMigrateWizardMode.Move && intraPool && _vm.CanBeMoved())
+        {
+            var storage = new Dictionary<string, SR>();
+            foreach (var row in DiskMaps)
+                storage[row.Vdi.opaque_ref] = row.SelectedStorage!.Sr;
+
+            var moveAction = new VMMoveAction(_vm, storage, SelectedHost.Host);
+            ShellActionRunner.Run(moveAction, msg =>
+            {
+                StatusMessage = msg;
+                _status?.Invoke(msg);
+            });
+            StatusMessage = "Move queued — see Logs.";
+            _close();
+            return;
+        }
+
+        if (SelectedTransferNetwork == null)
+        {
+            StatusMessage = "Select a transfer network on the destination.";
+            return;
+        }
+
         var mapping = new VmMapping(_vm.opaque_ref)
         {
             VmNameLabel = _vm.name_label ?? string.Empty,
@@ -269,10 +368,9 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
         };
 
         foreach (var row in DiskMaps)
-            mapping.Storage[row.Vdi.opaque_ref] = row.SelectedStorage!;
+            mapping.Storage[row.Vdi.opaque_ref] = row.SelectedStorage!.Sr;
 
         // Intra-pool migrate_send forbids a non-empty VIF map.
-        var intraPool = ReferenceEquals(_vm.Connection, SelectedHost.Host.Connection);
         if (!intraPool)
         {
             if (VifMaps.Any(v => v.SelectedNetwork == null))
@@ -285,12 +383,13 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
                 mapping.VIFs[row.Vif.MAC] = row.SelectedNetwork!;
         }
 
+        var copy = ShowCopyOption && CopyInsteadOfMigrate;
         var action = new VMCrossPoolMigrateAction(
             _vm,
             SelectedHost.Host,
             SelectedTransferNetwork,
             mapping,
-            CopyInsteadOfMigrate);
+            copy);
 
         ShellActionRunner.Run(action, msg =>
         {
@@ -298,9 +397,11 @@ public partial class VmCrossPoolMigrateViewModel : ViewModelBase
             _status?.Invoke(msg);
         });
 
-        StatusMessage = CopyInsteadOfMigrate
+        StatusMessage = copy
             ? "Cross-pool copy queued — see Logs."
-            : "Cross-pool migrate queued — see Logs.";
+            : _mode == ShellMigrateWizardMode.Move
+                ? "Move queued — see Logs."
+                : "Cross-pool migrate queued — see Logs.";
         _close();
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using XenAdmin;
 using XenAdmin.Core;
 using XenAdmin.Network;
 using XenAPI;
@@ -25,6 +26,7 @@ public static class InfrastructureTreeBuilder
             .OrderBy(vm => Helpers.GetName(vm), StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var (poolIcon, poolTip) = ShellStatusIcons.ForPool(conn);
         var root = new InfraTreeNode
         {
             Kind = InfraNodeKind.Pool,
@@ -33,10 +35,15 @@ public static class InfrastructureTreeBuilder
             Detail = $"{hosts.Count} host(s), {vms.Count} VM(s)",
             Server = server,
             OpaqueRef = pool?.opaque_ref,
-            IsExpanded = true
+            IsExpanded = true,
+            ShowStatusIcon = true,
+            StatusIcon = poolIcon,
+            StatusTooltip = poolTip
         };
 
         var placed = new HashSet<string>(StringComparer.Ordinal);
+        var allSrs = VisibleSrs(conn).ToList();
+        var placedSrs = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var host in hosts)
         {
@@ -47,6 +54,7 @@ public static class InfrastructureTreeBuilder
             foreach (var vm in hostVms)
                 placed.Add(vm.opaque_ref);
 
+            var (hostIcon, hostTip) = ShellStatusIcons.ForHost(host);
             var isCoordinator = Helpers.HostIsCoordinator(host);
             var hostNode = new InfraTreeNode
             {
@@ -58,11 +66,21 @@ public static class InfrastructureTreeBuilder
                     : $"{hostVms.Count} VM(s)",
                 Server = server,
                 OpaqueRef = host.opaque_ref,
-                IsExpanded = true
+                IsExpanded = true,
+                ShowStatusIcon = true,
+                StatusIcon = hostIcon,
+                StatusTooltip = hostTip
             };
 
             foreach (var vm in hostVms)
                 hostNode.Children.Add(CreateVmNode(server, vm));
+
+            // Local / single-PBD storage under this host.
+            foreach (var sr in allSrs.Where(sr => SameHost(sr.Home(), host)))
+            {
+                placedSrs.Add(sr.opaque_ref);
+                hostNode.Children.Add(CreateSrNode(server, sr));
+            }
 
             root.Children.Add(hostNode);
         }
@@ -86,24 +104,59 @@ public static class InfrastructureTreeBuilder
             root.Children.Add(group);
         }
 
+        // Shared / pool-level storage under the cluster root.
+        foreach (var sr in allSrs.Where(sr => !placedSrs.Contains(sr.opaque_ref)))
+            root.Children.Add(CreateSrNode(server, sr));
+
         return root;
     }
 
+    private static IEnumerable<SR> VisibleSrs(IXenConnection conn) =>
+        (conn.Cache.SRs ?? Array.Empty<SR>())
+            .Where(sr => sr != null
+                         && !sr.IsToolsSR()
+                         && sr.Show(true)
+                         && sr.HasPBDs())
+            .OrderBy(sr => sr.IsLocalSR() ? 0 : 1)
+            .ThenBy(sr => sr.NameWithoutHost(), StringComparer.OrdinalIgnoreCase);
+
     private static InfraTreeNode CreateVmNode(ServerNode server, VM vm)
     {
-        var power = vm.power_state.ToString();
+        var (icon, tip) = ShellStatusIcons.ForVm(vm);
         var home = vm.Home();
         return new InfraTreeNode
         {
             Kind = InfraNodeKind.Vm,
             Title = Helpers.GetName(vm),
-            Subtitle = power,
-            Detail = home != null
-                ? $"{power} · {Helpers.GetName(home)}"
-                : power,
+            Subtitle = tip,
+            Detail = home != null ? $"{tip} · {Helpers.GetName(home)}" : tip,
             Server = server,
             OpaqueRef = vm.opaque_ref,
-            IsExpanded = false
+            IsExpanded = false,
+            ShowStatusIcon = true,
+            StatusIcon = icon,
+            StatusTooltip = tip
+        };
+    }
+
+    private static InfraTreeNode CreateSrNode(ServerNode server, SR sr)
+    {
+        var (icon, tip) = ShellStatusIcons.ForSr(sr);
+        var free = Util.DiskSizeString(sr.FreeSpace(), 1);
+        var total = Util.DiskSizeString(sr.physical_size, 1);
+        var kind = sr.IsLocalSR() ? "Local" : "Shared";
+        return new InfraTreeNode
+        {
+            Kind = InfraNodeKind.Storage,
+            Title = sr.NameWithoutHost(),
+            Subtitle = $"{kind} · {free} free of {total}",
+            Detail = tip,
+            Server = server,
+            OpaqueRef = sr.opaque_ref,
+            IsExpanded = false,
+            ShowStatusIcon = true,
+            StatusIcon = icon,
+            StatusTooltip = tip
         };
     }
 

@@ -123,18 +123,30 @@
             <CheckBox Content="Create as GFS2 (clustered) instead of LVM"
                       IsChecked="{Binding UseGfs2}"
                       IsVisible="{Binding !IsFcoeType}" />
-            <TextBlock Text="LUN" FontSize="12" Foreground="{StaticResource Brush.TextMuted}"
+            <TextBlock Text="LUNs" FontSize="12" Foreground="{StaticResource Brush.TextMuted}"
                        IsVisible="{Binding HasFibreChannelLuns}" />
-            <ComboBox ItemsSource="{Binding FibreChannelLuns}"
-                      SelectedItem="{Binding SelectedFibreChannelLun}"
-                      IsVisible="{Binding HasFibreChannelLuns}">
-              <ComboBox.ItemTemplate>
+            <WrapPanel IsVisible="{Binding HasFibreChannelLuns}">
+              <Button Classes="ghost" Content="Select all" Margin="0,0,8,6"
+                      Command="{Binding SelectAllFibreChannelCommand}" />
+              <Button Classes="ghost" Content="Clear" Margin="0,0,8,6"
+                      Command="{Binding ClearFibreChannelSelectionCommand}" />
+              <TextBlock Text="{Binding SelectedFibreChannelCount, StringFormat={}{0} selected}"
+                         VerticalAlignment="Center"
+                         FontSize="11"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </WrapPanel>
+            <ItemsControl ItemsSource="{Binding FibreChannelLuns}"
+                          IsVisible="{Binding HasFibreChannelLuns}"
+                          MaxHeight="180">
+              <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:FibreChannelLunOption">
-                  <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                  <CheckBox IsChecked="{Binding IsSelected}"
+                            Content="{Binding Label}"
+                            Margin="0,0,0,4" />
                 </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-            <TextBlock Text="Requires visible Fibre Channel or FCoE LUNs on the selected host. Destructive if the LUN already has an SR."
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Requires visible Fibre Channel or FCoE LUNs on the selected host. Destructive if a LUN already has an SR. Multiple selections create one SR per LUN."
                        FontSize="11" TextWrapping="Wrap"
                        Foreground="{StaticResource Brush.TextMuted}" />
           </StackPanel>

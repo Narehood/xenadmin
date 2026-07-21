@@ -48,7 +48,7 @@
                 </DataTemplate>
               </ComboBox.ItemTemplate>
             </ComboBox>
-            <TextBlock Text="Labels show shared vs host-local. Optional when disks are already on shared storage — leave empty for live pool migrate."
+            <TextBlock Text="Labels show shared vs host-local with free space. Required when disks are on local storage — leave empty for live pool migrate on shared disks."
                        FontSize="11"
                        TextWrapping="Wrap"
                        Foreground="{StaticResource Brush.TextMuted}" />

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace XcpNgCenter.Shell.ViewModels;
@@ -8,7 +9,8 @@ public enum InfraNodeKind
     Pool,
     Host,
     Vm,
-    Group
+    Group,
+    Storage
 }
 
 public partial class InfraTreeNode : ObservableObject
@@ -25,6 +27,15 @@ public partial class InfraTreeNode : ObservableObject
     [ObservableProperty]
     private bool _isExpanded = true;
 
+    [ObservableProperty]
+    private bool _showStatusIcon;
+
+    [ObservableProperty]
+    private Bitmap? _statusIcon;
+
+    [ObservableProperty]
+    private string _statusTooltip = string.Empty;
+
     public InfraNodeKind Kind { get; init; }
 
     public string KindLabel => Kind switch
@@ -33,6 +44,7 @@ public partial class InfraTreeNode : ObservableObject
         InfraNodeKind.Host => "Host",
         InfraNodeKind.Vm => "VM",
         InfraNodeKind.Group => "Group",
+        InfraNodeKind.Storage => "Storage",
         _ => string.Empty
     };
 

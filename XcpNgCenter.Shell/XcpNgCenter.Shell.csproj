@@ -21,6 +21,7 @@
     <ProjectReference Include="..\XcpNgCenter.Rfb\XcpNgCenter.Rfb.csproj" />
     <ProjectReference Include="..\XenCenterLib\XenCenterLib.csproj" />
     <ProjectReference Include="..\XenModel\XenModel.csproj" />
+    <ProjectReference Include="..\XenOvfApi\XenOvfApi.csproj" />
   </ItemGroup>
 
   <ItemGroup>

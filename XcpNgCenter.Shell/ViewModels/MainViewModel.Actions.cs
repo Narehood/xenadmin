@@ -37,17 +37,27 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanRebootVm))]
     [NotifyPropertyChangedFor(nameof(CanSuspendVm))]
     [NotifyPropertyChangedFor(nameof(CanResumeVm))]
+    [NotifyPropertyChangedFor(nameof(CanPauseVm))]
+    [NotifyPropertyChangedFor(nameof(CanUnpauseVm))]
+    [NotifyPropertyChangedFor(nameof(ShowSuspendToggle))]
+    [NotifyPropertyChangedFor(nameof(SuspendToggleLabel))]
+    [NotifyPropertyChangedFor(nameof(ShowPauseToggle))]
+    [NotifyPropertyChangedFor(nameof(PauseToggleLabel))]
     [NotifyPropertyChangedFor(nameof(CanForceShutdownVm))]
     [NotifyPropertyChangedFor(nameof(CanForceRebootVm))]
     [NotifyPropertyChangedFor(nameof(CanEditVm))]
     [NotifyPropertyChangedFor(nameof(CanCloneVm))]
     [NotifyPropertyChangedFor(nameof(CanCopyVm))]
+    [NotifyPropertyChangedFor(nameof(CanExportVm))]
     [NotifyPropertyChangedFor(nameof(CanMigrateVm))]
     [NotifyPropertyChangedFor(nameof(CanCrossPoolMigrateVm))]
     [NotifyPropertyChangedFor(nameof(CanMoveVm))]
     [NotifyPropertyChangedFor(nameof(CanDeleteVm))]
     [NotifyPropertyChangedFor(nameof(CanAttachIso))]
+    [NotifyPropertyChangedFor(nameof(CanEjectIso))]
+    [NotifyPropertyChangedFor(nameof(ShowConsoleIsoBar))]
     [NotifyPropertyChangedFor(nameof(ShowPoolStorageActions))]
+    [NotifyPropertyChangedFor(nameof(CanImportExportVm))]
     [NotifyCanExecuteChangedFor(nameof(StartVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShutdownVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(ForceShutdownVmCommand))]
@@ -55,20 +65,44 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(ForceRebootVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(SuspendVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(ResumeVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PauseVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UnpauseVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleSuspendVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TogglePauseVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(EditVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloneVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CopyVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(MigrateVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CrossPoolMigrateVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(MoveVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(AttachIsoCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EjectIsoCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyConsoleIsoCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ImportExportVmCommand))]
     private VM? _selectedVm;
 
     [ObservableProperty]
     private bool _isConsolePoppedOut;
 
+    private bool _suppressConsoleIsoSelection;
+
+    public ObservableCollection<IsoOption> ConsoleIsoOptions { get; } = new();
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyConsoleIsoCommand))]
+    private IsoOption? _selectedConsoleIso;
+
+    [ObservableProperty]
+    private string _attachedIsoLabel = "Empty — no ISO inserted";
+
+    [ObservableProperty]
+    private bool _hasConsoleIsoOptions;
+
     public bool ShowVmActionBar => SelectedVm != null;
+
+    public bool ShowConsoleIsoBar => SelectedVm != null;
 
     public bool ShowPoolStorageActions => SelectedConnection is { IsConnected: true };
 
@@ -81,6 +115,20 @@ public partial class MainViewModel
     public bool CanSuspendVm => SelectedVm?.power_state == vm_power_state.Running;
 
     public bool CanResumeVm => SelectedVm?.power_state == vm_power_state.Suspended;
+
+    public bool CanPauseVm => SelectedVm?.power_state == vm_power_state.Running;
+
+    public bool CanUnpauseVm => SelectedVm?.power_state == vm_power_state.Paused;
+
+    /// <summary>Single toolbar control that Suspends when running or Resumes when suspended.</summary>
+    public bool ShowSuspendToggle => CanSuspendVm || CanResumeVm;
+
+    public string SuspendToggleLabel => CanResumeVm ? "Resume" : "Suspend";
+
+    /// <summary>Single toolbar control that Pauses when running or Unpauses when paused.</summary>
+    public bool ShowPauseToggle => CanPauseVm || CanUnpauseVm;
+
+    public string PauseToggleLabel => CanUnpauseVm ? "Unpause" : "Pause";
 
     public bool CanForceShutdownVm =>
         SelectedVm?.power_state is vm_power_state.Running or vm_power_state.Paused or vm_power_state.Suspended;
@@ -98,6 +146,11 @@ public partial class MainViewModel
         SelectedVm is { is_a_template: false, Locked: false, power_state: not vm_power_state.Suspended, allowed_operations: { } ops }
         && (ops.Contains(vm_operations.copy) || ops.Contains(vm_operations.clone));
 
+    public bool CanExportVm =>
+        SelectedVm != null && VmExportViewModel.CanExport(SelectedVm);
+
+    public bool CanImportExportVm => SelectedConnection is { IsConnected: true };
+
     public bool CanMigrateVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Running, allowed_operations: { } ops } vm
         && (
@@ -105,6 +158,8 @@ public partial class MainViewModel
              && vm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()) > 1)
             || (ops.Contains(vm_operations.migrate_send)
                 && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI())
+                && !ShellStoragePicker.HasCbtEnabledDisks(vm)
+                && !Helpers.FeatureForbidden(vm.Connection, Host.RestrictCrossPoolMigrate)
                 && vm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()
                                                        && (vm.resident_on == null
                                                            || h.opaque_ref != vm.resident_on.opaque_ref)) > 0)
@@ -114,22 +169,44 @@ public partial class MainViewModel
         SelectedVm is { is_a_template: false, Locked: false, allowed_operations: { } ops } vm
         && ops.Contains(vm_operations.migrate_send)
         && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI())
+        && !ShellStoragePicker.HasCbtEnabledDisks(vm)
+        && !Helpers.FeatureForbidden(vm.Connection, Host.RestrictCrossPoolMigrate)
         && ConnectionsManager.XenConnectionsCopy.Count(c => c is { IsConnected: true }) >= 1
-        && ConnectionsManager.XenConnectionsCopy
-            .Where(c => c is { IsConnected: true })
-            .SelectMany(c => c.Cache.Hosts)
-            .Count(h => h.enabled && h.IsLive()
-                        && (vm.resident_on == null || h.opaque_ref != vm.resident_on.opaque_ref)) > 0;
+        && ShellStoragePicker.HasEligibleMigrateSendHosts(vm);
 
     public bool CanMoveVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted } vm
-        && vm.CanBeMoved();
+        && !ShellStoragePicker.HasCbtEnabledDisks(vm)
+        && (vm.CanBeMoved() || CanPreferMigrateSendMove(vm));
 
     public bool CanDeleteVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted, allowed_operations: { } ops }
         && ops.Contains(vm_operations.destroy);
 
+    /// <summary>
+    /// Matches WinForms <c>CrossPoolMigrateCommand.CanRun</c> (migrate_send + non–LUN-per-VDI SRs).
+    /// </summary>
+    private static bool CanUseMigrateSend(VM vm) =>
+        vm.allowed_operations?.Contains(vm_operations.migrate_send) == true
+        && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI());
+
+    /// <summary>
+    /// WinForms <c>MoveVMCommand</c>: open migrate_send Move wizard when licensed, CBT-clear,
+    /// and at least one eligible destination host exists; else fall back to simple Move dialog.
+    /// </summary>
+    private static bool CanPreferMigrateSendMove(VM vm) =>
+        CanUseMigrateSend(vm)
+        && !Helpers.FeatureForbidden(vm.Connection, Host.RestrictCrossPoolMigrate)
+        && ShellStoragePicker.HasEligibleMigrateSendHosts(vm);
+
     public bool CanAttachIso => SelectedVm != null;
+
+    public bool CanEjectIso => SelectedVm != null && ShellIsoLibrary.GetAttachedIso(SelectedVm) != null;
+
+    public bool CanApplyConsoleIso =>
+        SelectedVm != null
+        && SelectedConsoleIso != null
+        && (ShellIsoLibrary.GetAttachedIso(SelectedVm)?.opaque_ref != SelectedConsoleIso.Vdi.opaque_ref);
 
     public bool ShowVmContextActions => SelectedVm != null;
 
@@ -223,6 +300,7 @@ public partial class MainViewModel
         var vm = ResolveVm(node);
         // Cache updates mutate the same VM instance in place — always re-notify Can*.
         SelectedVm = vm;
+        RefreshConsoleIsoOptions();
         NotifyVmPowerCanExecuteChanged();
         OnPropertyChanged(nameof(ShowPoolStorageActions));
         OnPropertyChanged(nameof(ShowVmContextActions));
@@ -232,6 +310,42 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(ShowConsoleReattach));
     }
 
+    private void RefreshConsoleIsoOptions()
+    {
+        _suppressConsoleIsoSelection = true;
+        try
+        {
+            ConsoleIsoOptions.Clear();
+            SelectedConsoleIso = null;
+            AttachedIsoLabel = ShellIsoLibrary.FormatAttachedLabel(SelectedVm);
+            if (SelectedVm == null)
+            {
+                HasConsoleIsoOptions = false;
+                return;
+            }
+
+            foreach (var iso in ShellIsoLibrary.Enumerate(SelectedVm))
+                ConsoleIsoOptions.Add(iso);
+
+            HasConsoleIsoOptions = ConsoleIsoOptions.Count > 0;
+            var attached = ShellIsoLibrary.GetAttachedIso(SelectedVm);
+            if (attached != null)
+            {
+                SelectedConsoleIso = ConsoleIsoOptions.FirstOrDefault(o =>
+                    o.Vdi.opaque_ref == attached.opaque_ref);
+            }
+        }
+        finally
+        {
+            _suppressConsoleIsoSelection = false;
+        }
+
+        OnPropertyChanged(nameof(CanEjectIso));
+        OnPropertyChanged(nameof(CanApplyConsoleIso));
+        ApplyConsoleIsoCommand.NotifyCanExecuteChanged();
+        EjectIsoCommand.NotifyCanExecuteChanged();
+    }
+
     private void NotifyVmPowerCanExecuteChanged()
     {
         OnPropertyChanged(nameof(CanStartVm));
@@ -239,21 +353,32 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanRebootVm));
         OnPropertyChanged(nameof(CanSuspendVm));
         OnPropertyChanged(nameof(CanResumeVm));
+        OnPropertyChanged(nameof(CanPauseVm));
+        OnPropertyChanged(nameof(CanUnpauseVm));
+        OnPropertyChanged(nameof(ShowSuspendToggle));
+        OnPropertyChanged(nameof(SuspendToggleLabel));
+        OnPropertyChanged(nameof(ShowPauseToggle));
+        OnPropertyChanged(nameof(PauseToggleLabel));
         OnPropertyChanged(nameof(CanForceShutdownVm));
         OnPropertyChanged(nameof(CanForceRebootVm));
         OnPropertyChanged(nameof(CanEditVm));
         OnPropertyChanged(nameof(CanCloneVm));
         OnPropertyChanged(nameof(CanCopyVm));
+        OnPropertyChanged(nameof(CanExportVm));
         OnPropertyChanged(nameof(CanMigrateVm));
         OnPropertyChanged(nameof(CanCrossPoolMigrateVm));
         OnPropertyChanged(nameof(CanMoveVm));
         OnPropertyChanged(nameof(CanDeleteVm));
         OnPropertyChanged(nameof(CanAttachIso));
+        OnPropertyChanged(nameof(CanEjectIso));
+        OnPropertyChanged(nameof(CanApplyConsoleIso));
         OnPropertyChanged(nameof(ShowVmActionBar));
+        OnPropertyChanged(nameof(ShowConsoleIsoBar));
         OnPropertyChanged(nameof(ShowVmContextActions));
         OnPropertyChanged(nameof(ShowPoolContextActions));
         OnPropertyChanged(nameof(ShowPoolStorageActions));
         OnPropertyChanged(nameof(CanDisconnectSelected));
+        OnPropertyChanged(nameof(CanImportExportVm));
         StartVmCommand.NotifyCanExecuteChanged();
         ShutdownVmCommand.NotifyCanExecuteChanged();
         ForceShutdownVmCommand.NotifyCanExecuteChanged();
@@ -261,15 +386,23 @@ public partial class MainViewModel
         ForceRebootVmCommand.NotifyCanExecuteChanged();
         SuspendVmCommand.NotifyCanExecuteChanged();
         ResumeVmCommand.NotifyCanExecuteChanged();
+        PauseVmCommand.NotifyCanExecuteChanged();
+        UnpauseVmCommand.NotifyCanExecuteChanged();
+        ToggleSuspendVmCommand.NotifyCanExecuteChanged();
+        TogglePauseVmCommand.NotifyCanExecuteChanged();
         EditVmCommand.NotifyCanExecuteChanged();
         CloneVmCommand.NotifyCanExecuteChanged();
         CopyVmCommand.NotifyCanExecuteChanged();
+        ExportVmCommand.NotifyCanExecuteChanged();
         MigrateVmCommand.NotifyCanExecuteChanged();
         CrossPoolMigrateVmCommand.NotifyCanExecuteChanged();
         MoveVmCommand.NotifyCanExecuteChanged();
         DeleteVmCommand.NotifyCanExecuteChanged();
         AttachIsoCommand.NotifyCanExecuteChanged();
+        EjectIsoCommand.NotifyCanExecuteChanged();
+        ApplyConsoleIsoCommand.NotifyCanExecuteChanged();
         DisconnectSelectedCommand.NotifyCanExecuteChanged();
+        ImportExportVmCommand.NotifyCanExecuteChanged();
     }
 
     private static VM? ResolveVm(InfraTreeNode? node)
@@ -385,6 +518,40 @@ public partial class MainViewModel
         RunAction(new VMResumeAction(SelectedVm, ShellVmHaPrompt.WarningDialogHAInvalidConfig, ShellVmHaPrompt.StartDiagnosisForm));
     }
 
+    [RelayCommand(CanExecute = nameof(CanPauseVm))]
+    private void PauseVm()
+    {
+        if (SelectedVm == null)
+            return;
+        RunAction(new VMPause(SelectedVm));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUnpauseVm))]
+    private void UnpauseVm()
+    {
+        if (SelectedVm == null)
+            return;
+        RunAction(new VMUnPause(SelectedVm));
+    }
+
+    [RelayCommand(CanExecute = nameof(ShowSuspendToggle))]
+    private void ToggleSuspendVm()
+    {
+        if (CanResumeVm)
+            ResumeVm();
+        else if (CanSuspendVm)
+            SuspendVm();
+    }
+
+    [RelayCommand(CanExecute = nameof(ShowPauseToggle))]
+    private void TogglePauseVm()
+    {
+        if (CanUnpauseVm)
+            UnpauseVm();
+        else if (CanPauseVm)
+            PauseVm();
+    }
+
     [RelayCommand]
     private async Task NewVmAsync()
     {
@@ -408,6 +575,104 @@ public partial class MainViewModel
     {
         var owner = GetMainWindow();
         var dialog = new AddServerWindow(this);
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanImportExportVm))]
+    private async Task ImportExportVmAsync()
+    {
+        var conn = SelectedConnection;
+        if (conn is not { IsConnected: true })
+        {
+            StatusMessage = "Connect to a server before importing or exporting.";
+            return;
+        }
+
+        var owner = GetMainWindow();
+        var choice = new ImportExportChoiceWindow();
+        if (owner != null)
+            await choice.ShowDialog(owner);
+        else
+        {
+            choice.Show();
+            return;
+        }
+
+        switch (choice.ResultChoice)
+        {
+            case ImportExportChoice.Import:
+                await ShowImportDialogAsync(conn, owner);
+                break;
+            case ImportExportChoice.Export:
+                await ShowExportDialogAsync(conn, owner);
+                break;
+            case ImportExportChoice.ImportOvf:
+                await ShowOvfImportDialogAsync(conn, owner);
+                break;
+            case ImportExportChoice.ExportOvf:
+                await ShowOvfExportDialogAsync(conn, owner);
+                break;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanExportVm))]
+    private async Task ExportVmAsync()
+    {
+        var conn = SelectedConnection;
+        if (conn is not { IsConnected: true })
+            return;
+        await ShowExportDialogAsync(conn, GetMainWindow());
+    }
+
+    private async Task ShowExportDialogAsync(IXenConnection conn, Window? owner)
+    {
+        var dialog = new VmExportWindow(conn, SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    private async Task ShowImportDialogAsync(IXenConnection conn, Window? owner)
+    {
+        var dialog = new VmImportWindow(conn, ResolveSelectedHost(), msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    private async Task ShowOvfImportDialogAsync(IXenConnection conn, Window? owner)
+    {
+        var dialog = new OvfImportWindow(conn, ResolveSelectedHost(), msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    private async Task ShowOvfExportDialogAsync(IXenConnection conn, Window? owner)
+    {
+        var dialog = new OvfExportWindow(conn, SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
         if (owner != null)
             await dialog.ShowDialog(owner);
         else
@@ -511,11 +776,20 @@ public partial class MainViewModel
             return;
 
         var owner = GetMainWindow();
-        var dialog = new VmMoveWindow(SelectedVm, msg =>
-        {
-            ActionStatusMessage = msg;
-            StatusMessage = msg;
-        });
+        // WinForms MoveVMCommand: prefer migrate_send Move wizard when available; else VDI copy Move.
+        // Prefer only when eligible hosts exist so single-host / restricted pools use VmMoveWindow.
+        Window dialog = CanPreferMigrateSendMove(SelectedVm)
+            ? new VmCrossPoolMigrateWindow(SelectedVm, msg =>
+            {
+                ActionStatusMessage = msg;
+                StatusMessage = msg;
+            }, ShellMigrateWizardMode.Move)
+            : new VmMoveWindow(SelectedVm, msg =>
+            {
+                ActionStatusMessage = msg;
+                StatusMessage = msg;
+            });
+
         if (owner != null)
             await dialog.ShowDialog(owner);
         else
@@ -552,9 +826,10 @@ public partial class MainViewModel
             await dialog.ShowDialog(owner);
         else
             dialog.Show();
+        RefreshConsoleIsoOptions();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEjectIso))]
     private void EjectIso()
     {
         if (SelectedVm == null)
@@ -568,6 +843,48 @@ public partial class MainViewModel
         }
 
         RunAction(new ChangeVMISOAction(SelectedVm.Connection, SelectedVm, vdi: null, cdrom));
+        AttachedIsoLabel = "Empty — no ISO inserted";
+        OnPropertyChanged(nameof(CanEjectIso));
+        OnPropertyChanged(nameof(CanApplyConsoleIso));
+        EjectIsoCommand.NotifyCanExecuteChanged();
+        ApplyConsoleIsoCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanApplyConsoleIso))]
+    private void ApplyConsoleIso()
+    {
+        if (SelectedVm == null || SelectedConsoleIso == null || _suppressConsoleIsoSelection)
+            return;
+
+        ChangeVmIso(SelectedVm, SelectedConsoleIso.Vdi);
+        AttachedIsoLabel = SelectedConsoleIso.Name;
+        OnPropertyChanged(nameof(CanEjectIso));
+        OnPropertyChanged(nameof(CanApplyConsoleIso));
+        EjectIsoCommand.NotifyCanExecuteChanged();
+        ApplyConsoleIsoCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ChangeVmIso(VM vm, VDI? vdi)
+    {
+        var cdrom = vm.FindVMCDROM();
+        if (cdrom == null)
+        {
+            var create = new CreateCdDriveAction(vm);
+            create.Completed += a =>
+            {
+                if (!a.Succeeded)
+                    return;
+                var refreshed = vm.Connection.Resolve(new XenRef<VM>(vm.opaque_ref)) ?? vm;
+                var drive = refreshed.FindVMCDROM();
+                if (drive != null)
+                    ShellActionRunner.Run(new ChangeVMISOAction(refreshed.Connection, refreshed, vdi, drive));
+                Dispatcher.UIThread.Post(RefreshConsoleIsoOptions);
+            };
+            RunAction(create);
+            return;
+        }
+
+        RunAction(new ChangeVMISOAction(vm.Connection, vm, vdi, cdrom));
     }
 
     [RelayCommand]

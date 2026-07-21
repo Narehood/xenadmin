@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.VmExportWindow"
+        x:DataType="vm:VmExportViewModel"
+        Title="Export VM"
+        Width="520" Height="400"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <Grid RowDefinitions="*,Auto">
+      <StackPanel Spacing="12">
+        <TextBlock Text="Export VM" FontSize="20" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding Hint}"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}" />
+        <TextBlock Text="{Binding StatusMessage}"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   IsVisible="{Binding StatusMessage.Length}" />
+
+        <TextBlock Text="VM" Foreground="{StaticResource Brush.TextMuted}" />
+        <ComboBox ItemsSource="{Binding Vms}" SelectedItem="{Binding SelectedVm}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ExportVmOption">
+              <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <TextBlock Text="Destination .xva" Foreground="{StaticResource Brush.TextMuted}" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Text="{Binding FilePath}" Watermark="/path/to/backup.xva" />
+          <Button Grid.Column="1" Classes="ghost" Content="Browse…"
+                  Margin="8,0,0,0" Command="{Binding BrowseCommand}" />
+        </Grid>
+
+        <CheckBox Content="Verify export after writing"
+                  IsChecked="{Binding VerifyAfterExport}" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10"
+                  HorizontalAlignment="Right" Margin="0,16,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Export" IsDefault="True" Command="{Binding ExportCommand}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
