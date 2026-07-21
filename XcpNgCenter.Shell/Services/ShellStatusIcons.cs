@@ -28,7 +28,7 @@ public static class ShellStatusIcons
     public static Bitmap HostEvacuate => Load("000_ServerMaintenance_h32bit_16.png");
     public static Bitmap Host => Load("000_Server_h32bit_16.png");
 
-    public static Bitmap PoolConnected => Load("000_PoolConnected_h32bit_16.png");
+    public static Bitmap PoolConnected => Load("pool_up_16.png");
 
     public static Bitmap Storage => Load("000_Storage_h32bit_16.png");
     public static Bitmap StorageLocal => Load("000_VirtualStorage_h32bit_16.png");
@@ -89,10 +89,15 @@ public static class ShellStatusIcons
 
     public static (Bitmap Icon, string Tooltip) ForPool(IXenConnection conn)
     {
+        // InProgress can remain true after a live session is up — only show the
+        // yellow "connecting" glyph while we are actually disconnected.
         if (!conn.IsConnected)
+        {
+            if (conn.InProgress)
+                return (HostConnecting, "Connecting…");
             return (HostDisconnected, "Disconnected");
-        if (conn.InProgress)
-            return (HostConnecting, "Connecting…");
+        }
+
         return (PoolConnected, "Connected");
     }
 

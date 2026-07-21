@@ -39,6 +39,10 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanResumeVm))]
     [NotifyPropertyChangedFor(nameof(CanPauseVm))]
     [NotifyPropertyChangedFor(nameof(CanUnpauseVm))]
+    [NotifyPropertyChangedFor(nameof(ShowSuspendToggle))]
+    [NotifyPropertyChangedFor(nameof(SuspendToggleLabel))]
+    [NotifyPropertyChangedFor(nameof(ShowPauseToggle))]
+    [NotifyPropertyChangedFor(nameof(PauseToggleLabel))]
     [NotifyPropertyChangedFor(nameof(CanForceShutdownVm))]
     [NotifyPropertyChangedFor(nameof(CanForceRebootVm))]
     [NotifyPropertyChangedFor(nameof(CanEditVm))]
@@ -61,6 +65,8 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(ResumeVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(PauseVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(UnpauseVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleSuspendVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TogglePauseVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(EditVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloneVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CopyVmCommand))]
@@ -109,6 +115,16 @@ public partial class MainViewModel
     public bool CanPauseVm => SelectedVm?.power_state == vm_power_state.Running;
 
     public bool CanUnpauseVm => SelectedVm?.power_state == vm_power_state.Paused;
+
+    /// <summary>Single toolbar control that Suspends when running or Resumes when suspended.</summary>
+    public bool ShowSuspendToggle => CanSuspendVm || CanResumeVm;
+
+    public string SuspendToggleLabel => CanResumeVm ? "Resume" : "Suspend";
+
+    /// <summary>Single toolbar control that Pauses when running or Unpauses when paused.</summary>
+    public bool ShowPauseToggle => CanPauseVm || CanUnpauseVm;
+
+    public string PauseToggleLabel => CanUnpauseVm ? "Unpause" : "Pause";
 
     public bool CanForceShutdownVm =>
         SelectedVm?.power_state is vm_power_state.Running or vm_power_state.Paused or vm_power_state.Suspended;
@@ -320,6 +336,10 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanResumeVm));
         OnPropertyChanged(nameof(CanPauseVm));
         OnPropertyChanged(nameof(CanUnpauseVm));
+        OnPropertyChanged(nameof(ShowSuspendToggle));
+        OnPropertyChanged(nameof(SuspendToggleLabel));
+        OnPropertyChanged(nameof(ShowPauseToggle));
+        OnPropertyChanged(nameof(PauseToggleLabel));
         OnPropertyChanged(nameof(CanForceShutdownVm));
         OnPropertyChanged(nameof(CanForceRebootVm));
         OnPropertyChanged(nameof(CanEditVm));
@@ -347,6 +367,8 @@ public partial class MainViewModel
         ResumeVmCommand.NotifyCanExecuteChanged();
         PauseVmCommand.NotifyCanExecuteChanged();
         UnpauseVmCommand.NotifyCanExecuteChanged();
+        ToggleSuspendVmCommand.NotifyCanExecuteChanged();
+        TogglePauseVmCommand.NotifyCanExecuteChanged();
         EditVmCommand.NotifyCanExecuteChanged();
         CloneVmCommand.NotifyCanExecuteChanged();
         CopyVmCommand.NotifyCanExecuteChanged();
@@ -487,6 +509,24 @@ public partial class MainViewModel
         if (SelectedVm == null)
             return;
         RunAction(new VMUnPause(SelectedVm));
+    }
+
+    [RelayCommand(CanExecute = nameof(ShowSuspendToggle))]
+    private void ToggleSuspendVm()
+    {
+        if (CanResumeVm)
+            ResumeVm();
+        else if (CanSuspendVm)
+            SuspendVm();
+    }
+
+    [RelayCommand(CanExecute = nameof(ShowPauseToggle))]
+    private void TogglePauseVm()
+    {
+        if (CanUnpauseVm)
+            UnpauseVm();
+        else if (CanPauseVm)
+            PauseVm();
     }
 
     [RelayCommand]

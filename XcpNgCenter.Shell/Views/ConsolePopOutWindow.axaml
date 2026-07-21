@@ -9,22 +9,24 @@
         MinWidth="640" MinHeight="480"
         Background="{StaticResource Brush.BgDeep}">
   <Grid RowDefinitions="Auto,*" Margin="12">
-    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,10">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,10">
       <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Console'}"
                  FontSize="14"
                  FontWeight="SemiBold"
                  VerticalAlignment="Center"
                  Margin="0,0,12,0"
                  TextTrimming="CharacterEllipsis"
-                 MaxWidth="160" />
+                 MaxWidth="140" />
 
       <ComboBox Grid.Column="1"
                 ItemsSource="{Binding ConsoleIsoOptions}"
                 SelectedItem="{Binding SelectedConsoleIso}"
-                PlaceholderText="ISO…"
+                PlaceholderText="Select ISO…"
                 IsEnabled="{Binding HasConsoleIsoOptions}"
                 IsVisible="{Binding ShowConsoleIsoBar}"
                 MinHeight="32"
+                MinWidth="280"
+                HorizontalAlignment="Stretch"
                 VerticalAlignment="Center"
                 ToolTip.Tip="{Binding AttachedIsoLabel}">
         <ComboBox.ItemTemplate>
@@ -42,15 +44,10 @@
               Margin="6,0,0,0" Padding="10,6"
               IsVisible="{Binding ShowConsoleIsoBar}"
               Command="{Binding EjectIsoCommand}" />
-      <Button Grid.Column="4" Classes="ghost" Content="Browse"
+      <Button Grid.Column="4" Classes="ghost" Content="Control Alt Delete"
               Margin="6,0,0,0" Padding="10,6"
-              IsVisible="{Binding ShowConsoleIsoBar}"
-              Command="{Binding AttachIsoCommand}" />
-      <Button Grid.Column="5" Classes="ghost" Content="CAD"
-              Margin="6,0,0,0" Padding="10,6"
-              ToolTip.Tip="Ctrl+Alt+Del"
               Command="{Binding SendCtrlAltDelCommand}" />
-      <Button Grid.Column="6" Classes="ghost" Content="Reattach"
+      <Button Grid.Column="5" Classes="ghost" Content="Reattach"
               Margin="6,0,0,0" Padding="10,6"
               Command="{Binding ReattachConsoleCommand}" />
     </Grid>

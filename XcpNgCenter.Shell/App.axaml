@@ -77,6 +77,10 @@
       <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
       <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
     </Style>
+    <Style Selector="Button.sidebar-action">
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="MinHeight" Value="36" />
+    </Style>
     <Style Selector="Button.copy">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
@@ -86,6 +90,16 @@
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="Opacity" Value="0" />
       <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable">
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="#14F07318" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable Button.copy">
+      <Setter Property="Opacity" Value="0.7" />
+      <Setter Property="IsHitTestVisible" Value="True" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
     </Style>
     <Style Selector="Border.prop-row:pointerover Button.copy">
       <Setter Property="Opacity" Value="1" />

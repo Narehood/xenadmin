@@ -71,18 +71,22 @@
               </StackPanel>
             </StackPanel>
 
-            <WrapPanel Orientation="Horizontal" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
-              <Button Classes="ghost" Content="New VM" Margin="0,0,8,6"
+            <UniformGrid Columns="2" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
+              <Button Classes="ghost sidebar-action" Content="New VM"
+                      HorizontalAlignment="Stretch" Margin="0,0,4,6"
                       Command="{Binding NewVmCommand}" />
-              <Button Classes="ghost" Content="New SR" Margin="0,0,8,6"
+              <Button Classes="ghost sidebar-action" Content="New SR"
+                      HorizontalAlignment="Stretch" Margin="4,0,0,6"
                       Command="{Binding NewSrCommand}"
-                      IsVisible="{Binding ShowPoolStorageActions}" />
-              <Button Classes="ghost" Content="Add server" Margin="0,0,8,6"
+                      IsEnabled="{Binding ShowPoolStorageActions}" />
+              <Button Classes="ghost sidebar-action" Content="Add server"
+                      HorizontalAlignment="Stretch" Margin="0,0,4,0"
                       Command="{Binding AddServerCommand}" />
-              <Button Classes="ghost" Content="Disconnect" Margin="0,0,8,6"
+              <Button Classes="ghost sidebar-action" Content="Disconnect"
+                      HorizontalAlignment="Stretch" Margin="4,0,0,0"
                       Command="{Binding DisconnectSelectedCommand}"
                       IsEnabled="{Binding CanDisconnectSelected}" />
-            </WrapPanel>
+            </UniformGrid>
           </StackPanel>
 
           <Grid Grid.Row="1" RowDefinitions="Auto,*">
@@ -93,6 +97,7 @@
                        Margin="4,0,0,8" />
 
             <TreeView Grid.Row="1"
+                      x:Name="InfraTree"
                       IsVisible="{Binding ShowInfrastructure}"
                       ItemsSource="{Binding InfrastructureRoots}"
                       SelectedItem="{Binding SelectedInfraNode, Mode=TwoWay}"
@@ -354,10 +359,12 @@
                 <Button Classes="ghost" Content="Start" Margin="0,0,8,6" Command="{Binding StartVmCommand}" />
                 <Button Classes="ghost" Content="Shutdown" Margin="0,0,8,6" Command="{Binding ShutdownVmCommand}" />
                 <Button Classes="ghost" Content="Reboot" Margin="0,0,8,6" Command="{Binding RebootVmCommand}" />
-                <Button Classes="ghost" Content="Suspend" Margin="0,0,8,6" Command="{Binding SuspendVmCommand}" />
-                <Button Classes="ghost" Content="Resume" Margin="0,0,8,6" Command="{Binding ResumeVmCommand}" />
-                <Button Classes="ghost" Content="Pause" Margin="0,0,8,6" Command="{Binding PauseVmCommand}" />
-                <Button Classes="ghost" Content="Unpause" Margin="0,0,8,6" Command="{Binding UnpauseVmCommand}" />
+                <Button Classes="ghost" Content="{Binding SuspendToggleLabel}" Margin="0,0,8,6"
+                        Command="{Binding ToggleSuspendVmCommand}"
+                        IsVisible="{Binding ShowSuspendToggle}" />
+                <Button Classes="ghost" Content="{Binding PauseToggleLabel}" Margin="0,0,8,6"
+                        Command="{Binding TogglePauseVmCommand}"
+                        IsVisible="{Binding ShowPauseToggle}" />
               </WrapPanel>
 
               <TabControl Margin="0,4,0,0">
@@ -389,7 +396,10 @@
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
                             <Border Classes="prop-row"
-                                    Padding="0,2,0,10"
+                                    Classes.copyable="{Binding CanCopy}"
+                                    Padding="8,6"
+                                    Margin="0,0,0,4"
+                                    CornerRadius="6"
                                     Background="Transparent">
                               <Grid ColumnDefinitions="160,*,Auto">
                                 <TextBlock Text="{Binding Label}"
@@ -433,7 +443,10 @@
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
                             <Border Classes="prop-row"
-                                    Padding="0,2,0,10"
+                                    Classes.copyable="{Binding CanCopy}"
+                                    Padding="8,6"
+                                    Margin="0,0,0,4"
+                                    CornerRadius="6"
                                     Background="Transparent">
                               <Grid ColumnDefinitions="160,*,Auto">
                                 <TextBlock Text="{Binding Label}"
@@ -527,7 +540,10 @@
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
                             <Border Classes="prop-row"
-                                    Padding="0,2,0,10"
+                                    Classes.copyable="{Binding CanCopy}"
+                                    Padding="8,6"
+                                    Margin="0,0,0,4"
+                                    CornerRadius="6"
                                     Background="Transparent">
                               <Grid ColumnDefinitions="180,*,Auto">
                                 <TextBlock Text="{Binding Label}"
@@ -812,10 +828,12 @@
                       <ItemsControl ItemsSource="{Binding ConsoleItems}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:ConsoleItemRow">
-                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
-                                    BorderThickness="0,0,0,1"
-                                    Padding="0,0,8,8"
-                                    Margin="0,0,0,4">
+                            <Border Classes="prop-row"
+                                    Classes.copyable="{Binding CanCopyLocation}"
+                                    Padding="8,6"
+                                    Margin="0,0,0,4"
+                                    CornerRadius="6"
+                                    Background="Transparent">
                               <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                                 <TextBlock Text="{Binding Primary}"
                                            FontWeight="SemiBold"
@@ -823,10 +841,9 @@
                                            Margin="0,0,12,0"
                                            Foreground="{StaticResource Brush.TextPrimary}" />
                                 <Button Grid.Column="1"
-                                        Classes="ghost"
+                                        Classes="copy"
                                         Content="Copy"
-                                        Padding="10,4"
-                                        FontSize="12"
+                                        VerticalAlignment="Top"
                                         IsVisible="{Binding CanCopyLocation}"
                                         Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyConsoleLocationCommand}"
                                         CommandParameter="{Binding Location}"

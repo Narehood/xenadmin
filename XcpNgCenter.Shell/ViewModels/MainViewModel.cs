@@ -175,6 +175,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool _restoreSelectionQueued;
     private string? _activeConsoleKey;
 
+    /// <summary>Raised around infrastructure tree rebuilds/selection restores so the view can keep scroll position.</summary>
+    public event Action? TreeLayoutChanging;
+
+    public event Action? TreeLayoutChanged;
+
     public MainViewModel()
     {
         RememberPassword = CanPersistPasswords;
@@ -623,6 +628,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         var root = InfrastructureTreeBuilder.Build(server, conn);
 
+        TreeLayoutChanging?.Invoke();
         _suppressSelectionClear = true;
         try
         {
@@ -646,6 +652,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         finally
         {
             _suppressSelectionClear = false;
+            Dispatcher.UIThread.Post(() => TreeLayoutChanged?.Invoke(), DispatcherPriority.Loaded);
         }
 
         RefreshDetailPanes();
@@ -905,15 +912,24 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (SelectedInfraNode != null || _pinnedInfraNode == null || !HasServers)
                 return;
 
-            var pinned = _pinnedInfraNode;
-            var live = pinned.Server != null
-                ? InfrastructureRoots.FirstOrDefault(r => r.Server == pinned.Server)
-                : null;
-            var restored = live != null
-                ? FindByOpaqueRef(live, pinned.OpaqueRef) ?? live
-                : pinned;
+            // Keep scroll when re-asserting the pin after Avalonia clears SelectedItem.
+            TreeLayoutChanging?.Invoke();
+            try
+            {
+                var pinned = _pinnedInfraNode;
+                var live = pinned.Server != null
+                    ? InfrastructureRoots.FirstOrDefault(r => r.Server == pinned.Server)
+                    : null;
+                var restored = live != null
+                    ? FindByOpaqueRef(live, pinned.OpaqueRef) ?? live
+                    : pinned;
 
-            SelectInfraNode(restored);
+                SelectInfraNode(restored);
+            }
+            finally
+            {
+                Dispatcher.UIThread.Post(() => TreeLayoutChanged?.Invoke(), DispatcherPriority.Loaded);
+            }
         });
     }
 
