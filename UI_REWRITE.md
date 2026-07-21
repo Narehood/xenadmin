@@ -8,9 +8,10 @@ rewrite reaches feature parity for your environment.
 
 | Item | State |
 |------|--------|
-| Integration branch | `development` (tip includes merged `#20`–`#23`) |
-| Open Cursor PRs / branches | **none** |
+| Integration branch | `development` |
+| Milestone | Preview shell soak + Settings/auto-reconnect + compact VM chrome |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
+| GitHub Releases | Calendar tags `vYYYY.M.D.N` (codename **Emberlane**) |
 
 ## Projects
 
@@ -20,38 +21,25 @@ rewrite reaches feature parity for your environment.
 | `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`) |
 | `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`) |
 
-## Done on `development` (through PR `#23`)
+## Done
 
 - Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM; Snapshots (disk-only)
 - Full VM Properties; Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA + OVF/OVA
-- VM chrome: power toggles, status icons, snapshot tree, Console ISO, denser tree/General
-- **Alerts** — always-visible sidebar badge (gray `0` / orange count) opens an **app-global** alerts pane
-- **Performance** — RRD charts with hover tooltips + time-axis labels; ranges 10m / 2h / 1w / 1y; layout save
-- **Splash** — paints before bootstrap; shows `year.month.day.revision`; held ~2.8s
-- **Versioning** — `year.month.day.revision` (CI `-p:BuildRevision=${{ github.run_number }}`)
-- **Update banner** — GitHub Releases check; bottom-right View release / Dismiss
-- Brand-orange Fluent tab underline; multi-LUN HBA/FCoE
-
-### Key shell layout
-
-```
-XcpNgCenter.Shell/
-  Alerts/            ShellMessageAlert, ShellAlarmMessageAlert, ShellAlertFixActions
-  Actions/           DismissAlertsAction, SaveShellGraphLayoutAction
-  Services/          ShellAlertHub, Performance/*, ShellGitHubUpdateChecker, ShellVersionInfo
-  ViewModels/        … OvfImport/Export, NewSr multi-LUN, MainViewModel.AlertsGraphs/Updates
-  Views/             … Splash, OvfImport/Export, global alerts overlay
-  Controls/          RfbConsoleView, PerformanceChart
-```
+- VM chrome: power toggles top-right, kind+name header, compact CD/DVD row, console-first layout
+- **Alerts** — always-visible sidebar badge; Copy on alert rows
+- **Performance** — RRD charts with hover + time axis; layout save
+- **Splash** / calendar **versioning** / GitHub **update banner**
+- **Settings** (beside alerts): General (auto-reconnect), About (version/build/**Emberlane**), Check for updates
+- **Auto-reconnect** saved servers with stored passwords (DPAPI on Windows; AES key file on Linux)
+- Linux soak hardening: RFB cursor alpha, `xdg-open`, GTK file pickers, XDG config paths
 
 Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`** (not WinForms `XenAdmin`).
 
 ## Next
 
-1. **Linux desktop soak** of `drop-shell-linux-x64` from `development` (TOFU, RFB, multi-server, migrate/move, import/export, alerts, graphs).
-2. Publish a GitHub Release tagged `vYYYY.M.D.N` so the update banner can be verified end-to-end.
-3. Later: HA/AD/DR wizards (richer HA alert fix-links); graph editor beyond save-current-defaults; memory/quiesced snapshots.
-4. RDP stays WinForms-only.
+1. Continue desktop soak against real pools (multi-server, migrate/move, import/export, RFB, alerts, graphs).
+2. Later: HA/AD/DR wizards; graph editor beyond save-current-defaults; memory/quiesced snapshots.
+3. RDP stays WinForms-only.
 
 ## How to try
 
@@ -66,4 +54,4 @@ Pins / prefs: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-n
 
 - Feature parity with every WinForms wizard in one go
 - Reviving `origin/avalonia` as-is
-- Dropping WinForms before soak testing
+- Dropping WinForms before soak testing is clean

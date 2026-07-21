@@ -37,3 +37,8 @@ XenCenter Alumni
 * Tom Wilkie
 * Usha Mandya
 * Victor Rodriguez
+
+XCP-ng Center (modernization)
+=============================
+
+* Michael Manley (Narehood) — michael@narehood.net
