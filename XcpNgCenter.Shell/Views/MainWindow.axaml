@@ -70,6 +70,18 @@
                            FontSize="12"
                            Foreground="{StaticResource Brush.BrandOrange}" />
               </StackPanel>
+              <Border IsVisible="{Binding HasAlertsBadge}"
+                      Background="{StaticResource Brush.BrandOrange}"
+                      CornerRadius="10"
+                      Padding="8,2"
+                      VerticalAlignment="Top"
+                      Margin="0,2,0,0"
+                      ToolTip.Tip="Open Alerts tab">
+                <TextBlock Text="{Binding AlertsBadgeText}"
+                           FontSize="11"
+                           FontWeight="SemiBold"
+                           Foreground="#141414" />
+              </Border>
             </StackPanel>
 
             <UniformGrid Columns="2" Margin="0,8,0,0" IsVisible="{Binding ShowInfrastructure}">
@@ -957,6 +969,134 @@
                                IsVisible="{Binding !CanManageSnapshots}"
                                Foreground="{StaticResource Brush.TextMuted}" />
                   </Panel>
+                </TabItem>
+
+                <TabItem Header="Alerts">
+                  <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
+                    <DockPanel Margin="0,0,4,8">
+                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Alerts"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding AlertCount}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource Brush.BrandOrange}"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding HasAlertsBadge}" />
+                      </StackPanel>
+                      <StackPanel DockPanel.Dock="Right"
+                                  Orientation="Horizontal"
+                                  Spacing="8"
+                                  HorizontalAlignment="Right">
+                        <Button Classes="ghost"
+                                Content="Dismiss selected"
+                                Command="{Binding DismissSelectedAlertsCommand}" />
+                        <Button Classes="ghost"
+                                Content="Dismiss all"
+                                Command="{Binding DismissAllAlertsCommand}" />
+                      </StackPanel>
+                    </DockPanel>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                      <StackPanel Spacing="8" Margin="0,0,4,0">
+                        <TextBlock Text="No alerts. Messages from connected pools appear here."
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   IsVisible="{Binding !HasAlertItems}" />
+                        <ItemsControl ItemsSource="{Binding AlertItems}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:AlertItemRow">
+                              <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                                      BorderThickness="0,0,0,1"
+                                      Padding="0,0,0,10"
+                                      Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                                  <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                            VerticalAlignment="Top"
+                                            Margin="0,2,10,0"
+                                            IsEnabled="{Binding CanDismiss}" />
+                                  <StackPanel Grid.Column="1" Spacing="2">
+                                    <DockPanel>
+                                      <TextBlock Text="{Binding Title}"
+                                                 FontWeight="SemiBold"
+                                                 FontSize="13"
+                                                 TextWrapping="Wrap" />
+                                      <TextBlock DockPanel.Dock="Right"
+                                                 Text="{Binding PriorityLabel}"
+                                                 FontSize="11"
+                                                 Foreground="{StaticResource Brush.BrandOrange}"
+                                                 Margin="12,0,0,0" />
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding Description}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Foreground="{StaticResource Brush.TextMuted}" />
+                                    <DockPanel Margin="0,2,0,0">
+                                      <TextBlock Text="{Binding AppliesTo}"
+                                                 FontSize="11"
+                                                 Foreground="{StaticResource Brush.TextMuted}" />
+                                      <TextBlock DockPanel.Dock="Right"
+                                                 Text="{Binding TimestampText}"
+                                                 FontSize="11"
+                                                 Foreground="{StaticResource Brush.TextMuted}"
+                                                 Margin="12,0,0,0" />
+                                    </DockPanel>
+                                  </StackPanel>
+                                </Grid>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </Grid>
+                </TabItem>
+
+                <TabItem Header="Performance">
+                  <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
+                    <StackPanel Spacing="4" Margin="0,0,4,8">
+                      <TextBlock Text="Performance"
+                                 FontSize="14"
+                                 FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding PerformanceStatusMessage}"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                      <StackPanel Spacing="16" Margin="0,0,4,0">
+                        <TextBlock Text="Select a host or running VM to load RRD graphs."
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   IsVisible="{Binding !CanShowPerformance}" />
+                        <TextBlock Text="Waiting for graph series…"
+                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   IsVisible="{Binding ShowPerformanceWaiting}" />
+                        <ItemsControl ItemsSource="{Binding PerformanceGraphs}"
+                                      IsVisible="{Binding HasPerformanceGraphs}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PerformanceGraphRow">
+                              <StackPanel Spacing="6" Margin="0,0,0,8">
+                                <DockPanel>
+                                  <TextBlock Text="{Binding Title}"
+                                             FontWeight="SemiBold"
+                                             FontSize="13" />
+                                  <TextBlock DockPanel.Dock="Right"
+                                             Text="{Binding LatestSummary}"
+                                             FontSize="11"
+                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             TextTrimming="CharacterEllipsis"
+                                             Margin="12,0,0,0"
+                                             MaxWidth="420"
+                                             HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <controls:PerformanceChart Height="160"
+                                                           Series="{Binding Series}" />
+                              </StackPanel>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </Grid>
                 </TabItem>
 
                 <TabItem Header="Logs">

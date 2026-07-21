@@ -189,6 +189,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         LoadSavedServers();
         RefreshTrustUi();
         InitializeActionHistoryUi();
+        InitializeAlertsAndGraphsUi();
     }
 
     public void Dispose()
@@ -197,6 +198,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         _disposed = true;
 
+        DisposeAlertsAndGraphsUi();
         DisposeActionHistoryUi();
         _consoleSession.StateChanged -= OnConsoleSessionStateChanged;
         try
@@ -214,6 +216,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 continue;
             try
             {
+                DetachAlertsForConnection(server.Connection);
                 server.Connection.EndConnect();
             }
             catch
@@ -410,6 +413,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         StopConsoleIfBoundTo(server);
 
         var conn = server.Connection;
+        DetachAlertsForConnection(conn);
         try
         {
             conn.EndConnect();
@@ -531,6 +535,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         conn.ConnectionClosed += _ => Dispatcher.UIThread.Post(() => OnConnectionClosed(node));
         conn.ConnectionLost += _ => Dispatcher.UIThread.Post(() =>
         {
+            DetachAlertsForConnection(node.Connection);
             node.IsConnected = false;
             node.IsConnecting = false;
             node.Status = "Connection lost";
@@ -599,6 +604,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         node.Summary = $"{hosts} host(s), {vms} VM(s)";
         StatusMessage = $"Connected to {conn.HostnameWithPort}.";
 
+        AttachAlertsForConnection(conn);
         RebuildTreeForServer(node, conn, selectRoot: true);
     }
 
@@ -607,6 +613,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (node.IsConnecting)
             return;
 
+        DetachAlertsForConnection(node.Connection);
         node.IsConnected = false;
         node.IsConnecting = false;
         if (node.Status == "Connected")
@@ -667,6 +674,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         RefreshNetworkProperties(node);
         RefreshConsoleProperties(node);
         RefreshSnapshotProperties();
+        RefreshPerformanceProperties(node);
     }
 
     private void RefreshGeneralProperties(InfraTreeNode? node)
