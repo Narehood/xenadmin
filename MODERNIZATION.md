@@ -21,7 +21,7 @@ Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownl
 
 ### Client updates (Avalonia shell)
 
-`XcpNgCenter.Shell` checks GitHub Releases (`Narehood/xenadmin` by default; override with `XCPNG_UPDATE_GITHUB_REPO=owner/name`) a few seconds after launch. When a newer tag/version is found, a bottom-right banner offers **View release** / **Dismiss** (dismiss is remembered per version).
+`XcpNgCenter.Shell` checks GitHub Releases (`Narehood/xenadmin` by default; override with `XCPNG_UPDATE_GITHUB_REPO=owner/name`) a few seconds after launch. When a newer tag/version is found, a bottom-right banner offers **View release** / **Dismiss** (dismiss is remembered per version). Draft and prerelease tags are ignored. Publish with the manual workflow **Publish Shell Release** (`.github/workflows/publish-shell-release.yml`) or `gh release create vYYYY.M.D.N`. The soak/CI binary must stamp a **lower** `year.month.day.revision` than the release tag for the banner to appear. On Linux, **View release** uses `xdg-open`.
 
 ### Plugins (opt-in, IE WebBrowser)
 
@@ -32,9 +32,9 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**On `development`:** Phase 1–2 parity + migrate/move harden + VM chrome + Import/Export (XVA/OVF) + global Alerts + Performance graphs + calendar versioning + GitHub update banner + Settings/About (**Emberlane**) + auto-reconnect + Linux soak hardening. Production remains WinForms until soak is clean.
+**On `development`:** Phase 1–2 parity + migrate/move harden + VM chrome + Import/Export (XVA/OVF) + global Alerts + Performance graphs + calendar versioning + GitHub update banner + Settings/About (**Emberlane**) + auto-reconnect + Linux soak hardening (RFB cursor alpha, file pickers, XDG paths, `xdg-open`, Publish Shell Release). Production remains WinForms until soak is clean.
 
-**Next:** Continue Linux/Windows desktop soak against real pools → later HA/AD/DR. RDP stays WinForms-only.
+**Next:** Continue Linux/Windows desktop soak against real pools → exercise update banner against published `vYYYY.M.D.N` → later HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 

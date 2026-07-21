@@ -13,12 +13,7 @@ public sealed class ShellUpdatePreferences
 
     public ShellUpdatePreferences(string? path = null)
     {
-        var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "XCP-ng",
-            "XCP-ng Center Shell");
-        Directory.CreateDirectory(root);
-        _path = path ?? Path.Combine(root, "update-preferences.json");
+        _path = path ?? Path.Combine(ShellPaths.GetConfigRoot(), "update-preferences.json");
     }
 
     public string? GetDismissedVersion()

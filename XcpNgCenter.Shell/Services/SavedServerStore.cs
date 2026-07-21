@@ -35,13 +35,11 @@ public sealed class SavedServerStore
         OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
 
     private readonly string _path;
-    private readonly string _keyPath;
 
     public SavedServerStore(string? path = null)
     {
-        var root = GetConfigRoot();
-        _path = path ?? Path.Combine(root, "saved-servers.json");
-        _keyPath = Path.Combine(root, "device.key");
+        // Defer directory creation to Save / device-key persistence.
+        _path = path ?? Path.Combine(ShellPaths.GetConfigRoot(ensureExists: false), "saved-servers.json");
     }
 
     public IReadOnlyList<SavedServerEntry> Load()
@@ -135,26 +133,6 @@ public sealed class SavedServerStore
         }
     }
 
-    private static string GetConfigRoot()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appData, "XCP-ng", "XCP-ng Center Shell");
-        }
-
-        var xdg = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-        if (string.IsNullOrWhiteSpace(xdg))
-        {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (string.IsNullOrWhiteSpace(home))
-                home = Environment.GetEnvironmentVariable("HOME") ?? ".";
-            xdg = Path.Combine(home, ".config");
-        }
-
-        return Path.Combine(xdg!, "XCP-ng", "XCP-ng Center Shell");
-    }
-
     private static string ProtectWithDeviceKey(string password)
     {
         var key = LoadOrCreateDeviceKey();
@@ -191,8 +169,7 @@ public sealed class SavedServerStore
 
     private static byte[] LoadOrCreateDeviceKey()
     {
-        var root = GetConfigRoot();
-        Directory.CreateDirectory(root);
+        var root = ShellPaths.GetConfigRoot(ensureExists: true);
         var keyPath = Path.Combine(root, "device.key");
         if (File.Exists(keyPath))
         {

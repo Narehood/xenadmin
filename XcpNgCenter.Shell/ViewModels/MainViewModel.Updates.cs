@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -69,14 +68,8 @@ public partial class MainViewModel
     private void OpenUpdateRelease()
     {
         var url = _pendingUpdate?.HtmlUrl ?? _updateChecker.ReleasesPageUrl;
-        try
-        {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Could not open release page: {ex.Message}";
-        }
+        if (!ShellExternalOpener.TryOpenUrl(url, out var error))
+            StatusMessage = $"Could not open release page: {error}";
     }
 
     /// <summary>Manual update check used by Settings → About.</summary>

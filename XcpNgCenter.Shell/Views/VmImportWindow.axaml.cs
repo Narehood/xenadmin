@@ -28,11 +28,11 @@ public partial class VmImportWindow : Window
             FileTypeFilter =
             [
                 new FilePickerFileType("XVA backup") { Patterns = ["*.xva", "*.ova"] },
-                new FilePickerFileType("All files") { Patterns = ["*.*"] }
+                ShellFilePicker.AllFiles
             ]
         });
 
-        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        return files.Count > 0 ? ShellFilePicker.LocalPathOrNull(files[0]) : null;
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close();

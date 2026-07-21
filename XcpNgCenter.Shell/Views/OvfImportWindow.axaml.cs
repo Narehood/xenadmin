@@ -28,11 +28,11 @@ public partial class OvfImportWindow : Window
             FileTypeFilter =
             [
                 new FilePickerFileType("OVF / OVA") { Patterns = ["*.ovf", "*.ova", "*.ova.gz"] },
-                new FilePickerFileType("All files") { Patterns = ["*.*"] }
+                ShellFilePicker.AllFiles
             ]
         });
 
-        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        return files.Count > 0 ? ShellFilePicker.LocalPathOrNull(files[0]) : null;
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close();

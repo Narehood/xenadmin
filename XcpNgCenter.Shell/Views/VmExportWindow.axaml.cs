@@ -30,10 +30,10 @@ public partial class VmExportWindow : Window
             FileTypeChoices =
             [
                 new FilePickerFileType("XVA backup") { Patterns = ["*.xva"] },
-                new FilePickerFileType("All files") { Patterns = ["*.*"] }
+                ShellFilePicker.AllFiles
             ]
         });
-        return files?.TryGetLocalPath();
+        return ShellFilePicker.LocalPathOrNull(files);
     }
 
     private static string SanitizeFileName(string name)

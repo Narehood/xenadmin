@@ -27,7 +27,7 @@ public partial class OvfExportWindow : Window
             AllowMultiple = false
         });
 
-        return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+        return folders.Count > 0 ? ShellFilePicker.LocalPathOrNull(folders[0]) : null;
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close();

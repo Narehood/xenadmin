@@ -14,8 +14,8 @@ public sealed class ShellAppSettings
 
     public ShellAppSettings(string? path = null)
     {
-        var root = GetConfigRoot();
-        _path = path ?? Path.Combine(root, "app-settings.json");
+        // Defer directory creation to SaveUnlocked().
+        _path = path ?? Path.Combine(ShellPaths.GetConfigRoot(ensureExists: false), "app-settings.json");
         _state = Load();
     }
 
@@ -68,26 +68,6 @@ public sealed class ShellAppSettings
         {
             // Best-effort.
         }
-    }
-
-    private static string GetConfigRoot()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appData, "XCP-ng", "XCP-ng Center Shell");
-        }
-
-        var xdg = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-        if (string.IsNullOrWhiteSpace(xdg))
-        {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (string.IsNullOrWhiteSpace(home))
-                home = Environment.GetEnvironmentVariable("HOME") ?? ".";
-            xdg = Path.Combine(home, ".config");
-        }
-
-        return Path.Combine(xdg!, "XCP-ng", "XCP-ng Center Shell");
     }
 
     private sealed class State
