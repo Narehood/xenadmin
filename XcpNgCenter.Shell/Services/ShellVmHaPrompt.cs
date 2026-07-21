@@ -123,31 +123,72 @@ public static class ShellVmHaPrompt
             return;
         }
 
-        var rows = new List<HostBootReasonRow>();
-        foreach (Host host in connection.Cache.Hosts.OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
+        try
         {
-            string reason;
-            var canBoot = false;
+            var rows = new List<HostBootReasonRow>();
+            foreach (Host host in connection.Cache.Hosts.OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
+            {
+                string reason;
+                var canBoot = false;
+
+                // WinForms resume path: CPU vendor mismatch is reported before assert_can_boot_here.
+                if (!isStart && VmCpuIncompatibleWithHost(host, vm))
+                {
+                    rows.Add(new HostBootReasonRow(
+                        Helpers.GetName(host),
+                        FriendlyErrorNames.VM_INCOMPATIBLE_WITH_THIS_HOST,
+                        canBoot: false));
+                    continue;
+                }
+
+                try
+                {
+                    VM.assert_can_boot_here(session, vm.opaque_ref, host.opaque_ref);
+                    reason = isStart ? "Host can start this VM." : "Host can resume this VM.";
+                    canBoot = true;
+                }
+                catch (Failure failure)
+                {
+                    reason = failure.Message;
+                }
+                catch (Exception e)
+                {
+                    reason = e.Message;
+                }
+
+                rows.Add(new HostBootReasonRow(Helpers.GetName(host), reason, canBoot));
+            }
+
+            var summary = string.Format(Messages.ERROR_DIALOG_START_VM_TEXT, Helpers.GetName(vm));
+            ShowStartFailureTable(Messages.ERROR_DIALOG_START_VM_TITLE, summary, rows);
+        }
+        finally
+        {
             try
             {
-                VM.assert_can_boot_here(session, vm.opaque_ref, host.opaque_ref);
-                reason = isStart ? "Host can start this VM." : "Host can resume this VM.";
-                canBoot = true;
+                session.logout();
             }
-            catch (Failure failure)
+            catch
             {
-                reason = failure.Message;
+                // Best-effort — diagnosis must not throw after the UI is shown.
             }
-            catch (Exception e)
-            {
-                reason = e.Message;
-            }
-
-            rows.Add(new HostBootReasonRow(Helpers.GetName(host), reason, canBoot));
         }
+    }
 
-        var summary = string.Format(Messages.ERROR_DIALOG_START_VM_TEXT, Helpers.GetName(vm));
-        ShowStartFailureTable(Messages.ERROR_DIALOG_START_VM_TITLE, summary, rows);
+    /// <summary>
+    /// Mirrors WinForms <c>VMOperationHostCommand.VmCpuIncompatibleWithHost</c>
+    /// (running/suspended VMs only; CPU vendor mismatch).
+    /// </summary>
+    public static bool VmCpuIncompatibleWithHost(Host targetHost, VM vm)
+    {
+        if (vm.power_state is not (vm_power_state.Running or vm_power_state.Suspended))
+            return false;
+
+        if (vm.last_boot_CPU_flags == null || !vm.last_boot_CPU_flags.ContainsKey("vendor")
+            || targetHost.cpu_info == null || !targetHost.cpu_info.ContainsKey("vendor"))
+            return false;
+
+        return vm.last_boot_CPU_flags["vendor"] != targetHost.cpu_info["vendor"];
     }
 
     private static void ShowStartFailureTable(string title, string summary, IReadOnlyList<HostBootReasonRow> rows)

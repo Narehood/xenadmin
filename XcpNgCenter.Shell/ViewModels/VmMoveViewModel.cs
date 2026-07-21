@@ -45,7 +45,7 @@ public partial class VmMoveViewModel : ViewModelBase
 
         SelectedStorage = StorageRepositories.FirstOrDefault(o => o.Sr.shared)
                           ?? StorageRepositories.FirstOrDefault();
-        Hint = "Moves owned disks with VDI copy + destroy (VM must be shut down). Prefer Cross-pool / migrate_send when available for live storage motion. Local SRs are labeled with their host.";
+        Hint = "Moves owned disks with VDI copy + destroy (VM must be shut down). Used when migrate_send Move is unavailable (single host, license, or CBT). Local SRs are labeled with their host.";
     }
 
     public ObservableCollection<MoveSrOption> StorageRepositories { get; } = new();
@@ -70,6 +70,12 @@ public partial class VmMoveViewModel : ViewModelBase
         if (ShellStoragePicker.IsCurrentLocation(SelectedStorage.Sr, _movableDisks))
         {
             StatusMessage = "Choose a different SR — disks are already on that storage.";
+            return;
+        }
+
+        if (!ShellStoragePicker.CanFitDisks(SelectedStorage.Sr, _movableDisks))
+        {
+            StatusMessage = "Not enough free space on that SR for the VM disks.";
             return;
         }
 

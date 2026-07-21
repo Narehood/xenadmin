@@ -10,10 +10,10 @@ rewrite reaches feature parity for your environment.
 |------|--------|
 | Integration branch | `development` |
 | Merged | `#20` — Phase 1–2 parity |
-| Follow-up | Linux soak + migrate harden (this track) |
+| Follow-up | `#21` — Linux soak + migrate harden + VM chrome |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
 
-**Phase status:** Phase 1 + Phase 2 on `development`. Linux desktop soak next; migrate edge cases hardened as soak finds them.
+**Phase status:** Phase 1 + Phase 2 on `development`. PR `#21` hardens Move/migrate edge cases (WinForms parity) and VM chrome; Linux desktop soak next.
 
 ## Branch basis
 
@@ -38,10 +38,11 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - **Clone / Copy / Migrate / Cross-pool / Move / Delete**
   - Intra-pool live migrate: `VMMigrateAction`
   - Storage / cross-pool: `VMCrossPoolMigrateAction` with **per-disk SR** and **per-VIF network** maps (+ apply-to-all); empty VIF map for intra-pool
-  - Halted Move: prefers `migrate_send` (Cross-pool dialog) when available; else `VMMoveAction` (copy + destroy)
+  - Halted Move: prefers migrate_send **Move** dialog when licensed + CBT-clear + eligible hosts; **intra-pool** finish uses `VMMoveAction` (copy+destroy) like WinForms; else simple Move SR picker
+  - CBT / `RestrictCrossPoolMigrate` guards; `CanFitDisks` on SR pickers; reject no-op disk maps
   - SR pickers label shared vs host-local, filter by target-host visibility, skip current location / non-migratable SRs
 - **New SR wizard** — NFS ISO, SMB/CIFS ISO, NFS VHD, SMB, iSCSI (+ optional GFS2), **HBA (`lvmohba`)** / **FCoE (`lvmofcoe`)** with LUN probe (+ GFS2 on HBA)
-- HA start/resume prompts; richer **start-failure host table** (per-host assert_can_boot_here)
+- HA start/resume prompts; richer **start-failure host table** (per-host assert_can_boot_here + resume CPU vendor check; session logout)
 - **VM chrome (WinForms-aligned):** power bar above tabs; Force* in context menu; Properties on General; Console ISO selector (and compact pop-out toolbar); WinForms status icons for pool/host/VM/SR (running/halted/suspended/paused/migrating/lifecycle); snapshot **tree**; storage nodes under hosts (local) and pool (shared)
 - Layout polish: wrap actions, scrollable detail, console Height=520, Properties scroll padding
 
@@ -59,10 +60,11 @@ Shell references **`XenModel` + `XenCenterLib` + `XcpNgCenter.Rfb`** (not WinFor
 
 ## Next (priority order for following agents)
 
-1. **Linux desktop soak** — run `drop-shell-linux-x64` (Drawing.Common is Windows-only; disk snapshots OK; TOFU/RFB/multi-server).
-2. Harden further migrate edge cases if soak finds more.
-3. Optional: multi-LUN HBA create in one pass.
-4. Alerts, performance graphs, HA/AD/DR wizards (later). RDP + plugins stay WinForms-only.
+1. **Merge PR `#21`** after soak feedback is clean and CI is green.
+2. **Linux desktop soak** — run `drop-shell-linux-x64` (Drawing.Common is Windows-only; disk snapshots OK; TOFU/RFB/multi-server).
+3. Harden further migrate edge cases if soak finds more.
+4. Optional: multi-LUN HBA create in one pass.
+5. Alerts, performance graphs, HA/AD/DR wizards (later). RDP + plugins stay WinForms-only.
 
 **RDP strategy (decided):** keep RDP on WinForms/`XenAdmin` only.
 

@@ -163,6 +163,12 @@ public partial class VmMigrateViewModel : ViewModelBase
                 return;
             }
 
+            if (!ShellStoragePicker.CanFitDisks(SelectedStorage.Sr, _movableDisks))
+            {
+                StatusMessage = "Not enough free space on that SR for the VM disks.";
+                return;
+            }
+
             StartStorageMigrate(SelectedHost, SelectedStorage.Sr);
             return;
         }

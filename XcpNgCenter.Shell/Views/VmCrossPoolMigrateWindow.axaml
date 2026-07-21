@@ -4,7 +4,7 @@
         xmlns:xena="clr-namespace:XenAPI;assembly=XenModel"
         x:Class="XcpNgCenter.Shell.Views.VmCrossPoolMigrateWindow"
         x:DataType="vm:VmCrossPoolMigrateViewModel"
-        Title="Cross-pool migrate"
+        Title="{Binding WindowTitle}"
         Width="640" Height="640"
         MinWidth="520" MinHeight="480"
         WindowStartupLocation="CenterOwner"
@@ -17,7 +17,7 @@
     <Grid RowDefinitions="*,Auto">
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="12" Margin="0,0,8,16">
-          <TextBlock Text="Cross-pool migrate" FontSize="20" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Heading}" FontSize="20" FontWeight="SemiBold" />
           <TextBlock Text="{Binding Hint}"
                      TextWrapping="Wrap"
                      Foreground="{StaticResource Brush.TextMuted}" />
@@ -35,14 +35,16 @@
             </ComboBox.ItemTemplate>
           </ComboBox>
 
-          <TextBlock Text="Transfer network" Foreground="{StaticResource Brush.TextMuted}" />
-          <ComboBox ItemsSource="{Binding TransferNetworks}" SelectedItem="{Binding SelectedTransferNetwork}">
-            <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="xena:Network">
-                <TextBlock Text="{Binding name_label}" />
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
+          <StackPanel Spacing="8" IsVisible="{Binding ShowTransferNetwork}">
+            <TextBlock Text="Transfer network" Foreground="{StaticResource Brush.TextMuted}" />
+            <ComboBox ItemsSource="{Binding TransferNetworks}" SelectedItem="{Binding SelectedTransferNetwork}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="xena:Network">
+                  <TextBlock Text="{Binding name_label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
 
           <StackPanel Spacing="8" IsVisible="{Binding HasDiskMaps}">
             <TextBlock Text="Disk → destination SR" FontWeight="SemiBold" />
@@ -119,7 +121,8 @@
           </StackPanel>
 
           <CheckBox Content="Copy instead of migrate (leave source VM)"
-                    IsChecked="{Binding CopyInsteadOfMigrate}" />
+                    IsChecked="{Binding CopyInsteadOfMigrate}"
+                    IsVisible="{Binding ShowCopyOption}" />
         </StackPanel>
       </ScrollViewer>
 

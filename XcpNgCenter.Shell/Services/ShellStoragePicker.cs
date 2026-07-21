@@ -1,5 +1,6 @@
 using XenAdmin;
 using XenAdmin.Core;
+using XenAdmin.Network;
 using XenAPI;
 
 namespace XcpNgCenter.Shell.Services;
@@ -26,8 +27,20 @@ public static class ShellStoragePicker
         return disks;
     }
 
+    /// <summary>
+    /// WinForms <c>MoveVMCommand</c> refuses Move when any owned disk has CBT enabled.
+    /// </summary>
+    public static bool HasCbtEnabledDisks(VM vm) =>
+        GetMovableDisks(vm).Any(vdi => vdi.cbt_enabled);
+
     public static bool IsCurrentLocation(SR sr, IReadOnlyList<VDI> disks) =>
         disks.Count > 0 && disks.All(vdi => vdi.SR.opaque_ref == sr.opaque_ref);
+
+    public static bool CanFitDisks(SR sr, IReadOnlyList<VDI> disks) =>
+        disks.Count == 0 || sr.CanFitDisks(out _, disks.ToArray());
+
+    public static bool CanFitDisk(SR sr, VDI disk) =>
+        sr.CanFitDisks(out _, new[] { disk });
 
     public static bool IsUsableDestination(SR sr, IReadOnlyList<VDI> disks, bool requireStorageMigration)
     {
@@ -38,6 +51,8 @@ public static class ShellStoragePicker
         if (IsCurrentLocation(sr, disks))
             return false;
         if (requireStorageMigration && !sr.SupportsStorageMigration())
+            return false;
+        if (!CanFitDisks(sr, disks))
             return false;
         return true;
     }
@@ -75,4 +90,26 @@ public static class ShellStoragePicker
         ?? vm.GetStorageHost(false)
         ?? Helpers.GetCoordinator(vm.Connection)
         ?? vm.Connection.Cache.Hosts.FirstOrDefault();
+
+    /// <summary>
+    /// Live enabled hosts that are valid migrate_send destinations (not the VM's current resident).
+    /// </summary>
+    public static IEnumerable<Host> EnumerateEligibleMigrateSendHosts(VM vm)
+    {
+        var resident = vm.Connection.Resolve(vm.resident_on);
+        foreach (var conn in ConnectionsManager.XenConnectionsCopy.Where(c => c is { IsConnected: true }))
+        {
+            foreach (var host in conn.Cache.Hosts)
+            {
+                if (!host.enabled || !host.IsLive())
+                    continue;
+                if (resident != null && host.opaque_ref == resident.opaque_ref)
+                    continue;
+                yield return host;
+            }
+        }
+    }
+
+    public static bool HasEligibleMigrateSendHosts(VM vm) =>
+        EnumerateEligibleMigrateSendHosts(vm).Any();
 }

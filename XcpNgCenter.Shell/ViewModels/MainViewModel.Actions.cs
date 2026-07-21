@@ -149,6 +149,8 @@ public partial class MainViewModel
              && vm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()) > 1)
             || (ops.Contains(vm_operations.migrate_send)
                 && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI())
+                && !ShellStoragePicker.HasCbtEnabledDisks(vm)
+                && !Helpers.FeatureForbidden(vm.Connection, Host.RestrictCrossPoolMigrate)
                 && vm.Connection.Cache.Hosts.Count(h => h.enabled && h.IsLive()
                                                        && (vm.resident_on == null
                                                            || h.opaque_ref != vm.resident_on.opaque_ref)) > 0)
@@ -158,16 +160,15 @@ public partial class MainViewModel
         SelectedVm is { is_a_template: false, Locked: false, allowed_operations: { } ops } vm
         && ops.Contains(vm_operations.migrate_send)
         && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI())
+        && !ShellStoragePicker.HasCbtEnabledDisks(vm)
+        && !Helpers.FeatureForbidden(vm.Connection, Host.RestrictCrossPoolMigrate)
         && ConnectionsManager.XenConnectionsCopy.Count(c => c is { IsConnected: true }) >= 1
-        && ConnectionsManager.XenConnectionsCopy
-            .Where(c => c is { IsConnected: true })
-            .SelectMany(c => c.Cache.Hosts)
-            .Count(h => h.enabled && h.IsLive()
-                        && (vm.resident_on == null || h.opaque_ref != vm.resident_on.opaque_ref)) > 0;
+        && ShellStoragePicker.HasEligibleMigrateSendHosts(vm);
 
     public bool CanMoveVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted } vm
-        && (vm.CanBeMoved() || CanUseMigrateSend(vm));
+        && !ShellStoragePicker.HasCbtEnabledDisks(vm)
+        && (vm.CanBeMoved() || CanPreferMigrateSendMove(vm));
 
     public bool CanDeleteVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Halted, allowed_operations: { } ops }
@@ -179,6 +180,15 @@ public partial class MainViewModel
     private static bool CanUseMigrateSend(VM vm) =>
         vm.allowed_operations?.Contains(vm_operations.migrate_send) == true
         && vm.SRs().All(sr => sr != null && !sr.HBALunPerVDI());
+
+    /// <summary>
+    /// WinForms <c>MoveVMCommand</c>: open migrate_send Move wizard when licensed, CBT-clear,
+    /// and at least one eligible destination host exists; else fall back to simple Move dialog.
+    /// </summary>
+    private static bool CanPreferMigrateSendMove(VM vm) =>
+        CanUseMigrateSend(vm)
+        && !Helpers.FeatureForbidden(vm.Connection, Host.RestrictCrossPoolMigrate)
+        && ShellStoragePicker.HasEligibleMigrateSendHosts(vm);
 
     public bool CanAttachIso => SelectedVm != null;
 
@@ -655,13 +665,14 @@ public partial class MainViewModel
             return;
 
         var owner = GetMainWindow();
-        // WinForms MoveVMCommand: prefer migrate_send wizard when available; else VDI copy Move.
-        Window dialog = CanUseMigrateSend(SelectedVm)
+        // WinForms MoveVMCommand: prefer migrate_send Move wizard when available; else VDI copy Move.
+        // Prefer only when eligible hosts exist so single-host / restricted pools use VmMoveWindow.
+        Window dialog = CanPreferMigrateSendMove(SelectedVm)
             ? new VmCrossPoolMigrateWindow(SelectedVm, msg =>
             {
                 ActionStatusMessage = msg;
                 StatusMessage = msg;
-            })
+            }, ShellMigrateWizardMode.Move)
             : new VmMoveWindow(SelectedVm, msg =>
             {
                 ActionStatusMessage = msg;
