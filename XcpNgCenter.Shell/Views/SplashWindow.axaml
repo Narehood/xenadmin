@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="XcpNgCenter.Shell.Views.SplashWindow"
+        Title="XCP-ng Center"
+        Width="420" Height="228"
+        CanResize="False"
+        SystemDecorations="None"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="False"
+        Topmost="True"
+        TransparencyLevelHint="None"
+        Background="Transparent">
+  <Border CornerRadius="12"
+          ClipToBounds="True"
+          BorderBrush="#66F07318"
+          BorderThickness="1"
+          BoxShadow="0 12 40 0 #66000000">
+    <Border.Background>
+      <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#12181E" />
+        <GradientStop Offset="0.55" Color="#161C22" />
+        <GradientStop Offset="1" Color="#24160E" />
+      </LinearGradientBrush>
+    </Border.Background>
+    <Grid Margin="28">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+        <Image Source="avares://XcpNgCenter.Shell/Assets/Images/xcp-ng-logo.png"
+               Width="64" Height="64"
+               VerticalAlignment="Center" />
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock Text="XCP-ng Center"
+                     FontSize="26"
+                     FontWeight="Bold"
+                     Foreground="{StaticResource Brush.TextPrimary}" />
+          <TextBlock Text="Preview shell"
+                     FontSize="13"
+                     Foreground="{StaticResource Brush.BrandOrange}" />
+        </StackPanel>
+      </StackPanel>
+
+      <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,18,0,0">
+        <TextBlock Text="Starting…"
+                   FontSize="12"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   VerticalAlignment="Center" />
+        <TextBlock x:Name="VersionText"
+                   Grid.Column="1"
+                   FontSize="12"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   VerticalAlignment="Center" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

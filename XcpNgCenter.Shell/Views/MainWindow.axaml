@@ -80,7 +80,7 @@
                       HorizontalAlignment="Stretch" Margin="4,0,0,6"
                       Command="{Binding NewSrCommand}"
                       IsEnabled="{Binding ShowPoolStorageActions}" />
-              <Button Classes="ghost sidebar-action" Content="Add server"
+              <Button Classes="ghost sidebar-action" Content="Add Server"
                       HorizontalAlignment="Stretch" Margin="0,0,4,0"
                       Command="{Binding AddServerCommand}" />
               <Button Classes="ghost sidebar-action" Content="Disconnect"
@@ -398,29 +398,28 @@
                       <ItemsControl ItemsSource="{Binding GeneralProperties}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                            <Border Classes="prop-row"
+                            <Border Classes="prop-row prop-row-dense"
                                     Classes.copyable="{Binding CanCopy}"
-                                    Padding="8,6"
-                                    Margin="0,0,0,4"
-                                    CornerRadius="6"
+                                    Padding="6,2"
+                                    Margin="0,0,0,1"
+                                    CornerRadius="4"
                                     Background="Transparent">
                               <Grid ColumnDefinitions="160,*,Auto">
                                 <TextBlock Text="{Binding Label}"
                                            Foreground="{StaticResource Brush.TextMuted}"
-                                           FontSize="13"
-                                           VerticalAlignment="Top"
-                                           Margin="0,2,0,0" />
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Value}"
                                            TextWrapping="Wrap"
                                            Foreground="{StaticResource Brush.TextPrimary}"
-                                           FontSize="13"
-                                           VerticalAlignment="Top"
-                                           Margin="0,2,8,0" />
+                                           FontSize="12"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0" />
                                 <Button Grid.Column="2"
                                         Classes="copy"
                                         Content="Copy"
-                                        VerticalAlignment="Top"
+                                        VerticalAlignment="Center"
                                         IsVisible="{Binding CanCopy}"
                                         Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).CopyPropertyValueCommand}"
                                         CommandParameter="{Binding Value}"
@@ -684,101 +683,67 @@
                 </TabItem>
 
                 <TabItem Header="Console">
-                  <StackPanel Margin="0,18,0,8" Spacing="12">
-                    <StackPanel Spacing="8" Margin="0,0,4,0">
-                      <ItemsControl ItemsSource="{Binding ConsoleTotals}">
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate x:DataType="vm:GeneralPropertyRow">
-                            <Grid ColumnDefinitions="180,*" Margin="0,0,0,6">
-                              <TextBlock Text="{Binding Label}"
-                                         Foreground="{StaticResource Brush.TextMuted}"
-                                         FontSize="13" />
-                              <TextBlock Grid.Column="1"
-                                         Text="{Binding Value}"
-                                         TextWrapping="Wrap"
-                                         Foreground="{StaticResource Brush.TextPrimary}"
-                                         FontSize="13" />
-                            </Grid>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
-
-                      <TextBlock Text="{Binding ConsoleStatusMessage}"
-                                 TextWrapping="Wrap"
-                                 FontSize="13"
-                                 Foreground="{StaticResource Brush.BrandOrange}" />
-                      <TextBlock Text="{Binding ConsoleViewerStatus}"
-                                 TextWrapping="Wrap"
+                  <StackPanel Margin="0,18,0,8" Spacing="10">
+                    <StackPanel Spacing="6" IsVisible="{Binding ShowConsoleIsoBar}">
+                      <TextBlock Text="CD/DVD"
+                                 FontSize="11"
+                                 LetterSpacing="1.1"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <TextBlock Text="{Binding AttachedIsoLabel}"
                                  FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}"
-                                 IsVisible="{Binding ConsoleViewerStatus.Length}" />
-                      <TextBlock Text="{Binding ConsoleInputHint}"
-                                 TextWrapping="Wrap"
-                                 FontSize="12"
-                                 Foreground="{StaticResource Brush.BrandOrange}"
-                                 IsVisible="{Binding ConsoleInputHint.Length}" />
-
-                      <StackPanel Spacing="6" IsVisible="{Binding ShowConsoleIsoBar}">
-                        <TextBlock Text="CD/DVD"
-                                   FontSize="11"
-                                   LetterSpacing="1.1"
-                                   Foreground="{StaticResource Brush.TextMuted}" />
-                        <TextBlock Text="{Binding AttachedIsoLabel}"
-                                   FontSize="12"
-                                   Foreground="{StaticResource Brush.TextMuted}" />
-                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                          <ComboBox ItemsSource="{Binding ConsoleIsoOptions}"
-                                    SelectedItem="{Binding SelectedConsoleIso}"
-                                    PlaceholderText="Select ISO…"
-                                    IsEnabled="{Binding HasConsoleIsoOptions}"
-                                    MinHeight="36">
-                            <ComboBox.ItemTemplate>
-                              <DataTemplate x:DataType="vm:IsoOption">
-                                <StackPanel Spacing="1">
-                                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                  <TextBlock Text="{Binding Subtitle}"
-                                             FontSize="11"
-                                             Foreground="{StaticResource Brush.TextMuted}"
-                                             TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                              </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                          </ComboBox>
-                          <Button Grid.Column="1" Classes="ghost" Content="Insert"
-                                  Margin="8,0,0,0"
-                                  Command="{Binding ApplyConsoleIsoCommand}"
-                                  ToolTip.Tip="Insert the selected ISO" />
-                          <Button Grid.Column="2" Classes="ghost" Content="Eject"
-                                  Margin="8,0,0,0"
-                                  Command="{Binding EjectIsoCommand}"
-                                  ToolTip.Tip="Eject the current ISO" />
-                          <Button Grid.Column="3" Classes="ghost" Content="Browse…"
-                                  Margin="8,0,0,0"
-                                  Command="{Binding AttachIsoCommand}"
-                                  ToolTip.Tip="Open the full ISO library picker" />
-                        </Grid>
-                      </StackPanel>
-
-                      <WrapPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                 IsVisible="{Binding HasConsoleFrame}">
-                        <Button Classes="ghost" Content="Pop out" Margin="0,0,8,6"
-                                Command="{Binding PopOutConsoleCommand}"
-                                IsVisible="{Binding !IsConsolePoppedOut}" />
-                        <Button Classes="ghost" Content="Reattach" Margin="0,0,8,6"
-                                Command="{Binding ReattachConsoleCommand}"
-                                IsVisible="{Binding ShowConsoleReattach}" />
-                        <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,6"
-                                Command="{Binding SendCtrlAltDelCommand}" />
-                      </WrapPanel>
+                                 Foreground="{StaticResource Brush.TextMuted}" />
+                      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                        <ComboBox ItemsSource="{Binding ConsoleIsoOptions}"
+                                  SelectedItem="{Binding SelectedConsoleIso}"
+                                  PlaceholderText="Select ISO…"
+                                  IsEnabled="{Binding HasConsoleIsoOptions}"
+                                  MinHeight="36">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:IsoOption">
+                              <StackPanel Spacing="1">
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Subtitle}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           TextTrimming="CharacterEllipsis" />
+                              </StackPanel>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Grid.Column="1" Classes="ghost" Content="Insert"
+                                Margin="8,0,0,0"
+                                Command="{Binding ApplyConsoleIsoCommand}"
+                                ToolTip.Tip="Insert the selected ISO" />
+                        <Button Grid.Column="2" Classes="ghost" Content="Eject"
+                                Margin="8,0,0,0"
+                                Command="{Binding EjectIsoCommand}"
+                                ToolTip.Tip="Eject the current ISO" />
+                        <Button Grid.Column="3" Classes="ghost" Content="Browse…"
+                                Margin="8,0,0,0"
+                                Command="{Binding AttachIsoCommand}"
+                                ToolTip.Tip="Open the full ISO library picker" />
+                      </Grid>
                     </StackPanel>
+
+                    <WrapPanel Orientation="Horizontal"
+                               IsVisible="{Binding HasConsoleFrame}">
+                      <Button Classes="ghost" Content="Pop Out" Margin="0,0,8,6"
+                              Command="{Binding PopOutConsoleCommand}"
+                              IsVisible="{Binding !IsConsolePoppedOut}" />
+                      <Button Classes="ghost" Content="Reattach" Margin="0,0,8,6"
+                              Command="{Binding ReattachConsoleCommand}"
+                              IsVisible="{Binding ShowConsoleReattach}" />
+                      <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,6"
+                              Command="{Binding SendCtrlAltDelCommand}" />
+                    </WrapPanel>
 
                     <Border Background="#33161C22"
                             BorderBrush="{StaticResource Brush.StrokeSubtle}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="8"
-                            Height="520"
-                            MinHeight="520"
+                            Height="560"
+                            MinHeight="560"
                             ClipToBounds="True">
                       <Grid ClipToBounds="True">
                         <StackPanel Spacing="8"
@@ -822,7 +787,42 @@
                       </Grid>
                     </Border>
 
-                    <StackPanel Spacing="10" Margin="0,0,4,0"
+                    <StackPanel Spacing="6" Margin="0,4,4,0">
+                      <ItemsControl ItemsSource="{Binding ConsoleTotals}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:GeneralPropertyRow">
+                            <Grid ColumnDefinitions="120,*" Margin="0,0,0,2">
+                              <TextBlock Text="{Binding Label}"
+                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         FontSize="12" />
+                              <TextBlock Grid.Column="1"
+                                         Text="{Binding Value}"
+                                         TextWrapping="Wrap"
+                                         Foreground="{StaticResource Brush.TextPrimary}"
+                                         FontSize="12" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="{Binding ConsoleStatusMessage}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.BrandOrange}"
+                                 IsVisible="{Binding ConsoleStatusMessage.Length}" />
+                      <TextBlock Text="{Binding ConsoleViewerStatus}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 IsVisible="{Binding ConsoleViewerStatus.Length}" />
+                      <TextBlock Text="{Binding ConsoleInputHint}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.BrandOrange}"
+                                 IsVisible="{Binding ConsoleInputHint.Length}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8" Margin="0,0,4,0"
                                 IsVisible="{Binding HasConsoleItems}">
                       <TextBlock Text="Console endpoints"
                                  FontSize="11"

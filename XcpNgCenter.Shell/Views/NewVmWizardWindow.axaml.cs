@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Xml;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using XenAdmin;
@@ -9,10 +10,35 @@ using XenAdmin.Actions.VMActions;
 using XenAdmin.Core;
 using XenAdmin.Network;
 using XenAPI;
+using XenCenterLib;
 using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.ViewModels;
 
 namespace XcpNgCenter.Shell.Views;
+
+public sealed class TemplateOption
+{
+    public TemplateOption(VM template)
+    {
+        Template = template;
+        Name = Helpers.GetName(template);
+        var type = template.TemplateType();
+        TypeLabel = ShellTemplateIcons.TypeLabel(type);
+        Icon = ShellTemplateIcons.ForType(type);
+        var description = template.DescriptionType() == VM.VmDescriptionType.None
+            ? string.Empty
+            : template.Description();
+        Description = string.IsNullOrWhiteSpace(description) ? "No description" : description;
+        SortOrder = (int)type + (template.IsHidden() ? (int)VM.VmTemplateType.Count : 0);
+    }
+
+    public VM Template { get; }
+    public string Name { get; }
+    public string TypeLabel { get; }
+    public string Description { get; }
+    public Bitmap Icon { get; }
+    public int SortOrder { get; }
+}
 
 public partial class NewVmWizardWindow : Window
 {
@@ -33,6 +59,7 @@ public partial class NewVmWizardViewModel : ViewModelBase
 {
     private readonly IXenConnection _connection;
     private readonly Action _close;
+    private readonly List<TemplateOption> _allTemplates = new();
 
     public NewVmWizardViewModel(IXenConnection connection, Action close)
     {
@@ -40,11 +67,28 @@ public partial class NewVmWizardViewModel : ViewModelBase
         _close = close;
 
         foreach (var template in connection.Cache.VMs
-                     .Where(vm => vm.is_a_template && !vm.is_a_snapshot && vm.Show(XenAdminConfigManager.Provider.ShowHiddenVMs))
-                     .OrderBy(vm => Helpers.GetName(vm), StringComparer.OrdinalIgnoreCase))
+                     .Where(vm => vm.is_a_template && !vm.is_a_snapshot && vm.Show(XenAdminConfigManager.Provider.ShowHiddenVMs)))
         {
-            Templates.Add(template);
+            if (connection.Cache.Hosts.Any(Host.RestrictVtpm)
+                && template.platform.TryGetValue("vtpm", out var vtpm)
+                && string.Equals(vtpm, "true", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            _allTemplates.Add(new TemplateOption(template));
         }
+
+        _allTemplates.Sort((a, b) =>
+        {
+            var byType = a.SortOrder.CompareTo(b.SortOrder);
+            if (byType != 0)
+                return byType;
+            var byName = -StringUtility.NaturalCompare(a.Name, b.Name);
+            return byName != 0
+                ? byName
+                : string.Compare(a.Template.opaque_ref, b.Template.opaque_ref, StringComparison.Ordinal);
+        });
+
+        ApplyTemplateFilter();
 
         foreach (var host in connection.Cache.Hosts.OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
             Hosts.Add(host);
@@ -75,7 +119,7 @@ public partial class NewVmWizardViewModel : ViewModelBase
         UpdateStepVisibility();
     }
 
-    public ObservableCollection<VM> Templates { get; } = new();
+    public ObservableCollection<TemplateOption> Templates { get; } = new();
     public ObservableCollection<Host> Hosts { get; } = new();
     public ObservableCollection<SR> StorageRepositories { get; } = new();
     public ObservableCollection<XenAPI.Network> Networks { get; } = new();
@@ -92,7 +136,8 @@ public partial class NewVmWizardViewModel : ViewModelBase
     [ObservableProperty] private string _stepTitle = string.Empty;
     [ObservableProperty] private string _statusMessage = string.Empty;
 
-    [ObservableProperty] private VM? _selectedTemplate;
+    [ObservableProperty] private string _templateFilter = string.Empty;
+    [ObservableProperty] private TemplateOption? _selectedTemplate;
     [ObservableProperty] private string _vmName = string.Empty;
     [ObservableProperty] private string _vmDescription = string.Empty;
     [ObservableProperty] private Host? _selectedHost;
@@ -104,15 +149,38 @@ public partial class NewVmWizardViewModel : ViewModelBase
     [ObservableProperty] private bool _startAfter = true;
     [ObservableProperty] private string _summaryText = string.Empty;
 
-    partial void OnSelectedTemplateChanged(VM? value)
+    partial void OnTemplateFilterChanged(string value) => ApplyTemplateFilter();
+
+    private void ApplyTemplateFilter()
     {
-        if (value == null)
+        var keep = SelectedTemplate;
+        Templates.Clear();
+        var filter = TemplateFilter?.Trim() ?? string.Empty;
+        foreach (var option in _allTemplates)
+        {
+            if (filter.Length > 0
+                && option.Name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0
+                && option.TypeLabel.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+            Templates.Add(option);
+        }
+
+        if (keep != null && Templates.Contains(keep))
+            SelectedTemplate = keep;
+        else
+            SelectedTemplate = Templates.FirstOrDefault();
+    }
+
+    partial void OnSelectedTemplateChanged(TemplateOption? value)
+    {
+        var template = value?.Template;
+        if (template == null)
             return;
         if (string.IsNullOrWhiteSpace(VmName))
-            VmName = Helpers.DefaultVMName(Helpers.GetName(value), _connection);
-        VcpusText = Math.Max(1, value.VCPUs_at_startup).ToString();
-        MemoryMibText = Math.Max(1, value.memory_dynamic_max / (1024 * 1024)).ToString();
-        var provisionSize = TryGetProvisionSize(value);
+            VmName = Helpers.DefaultVMName(Helpers.GetName(template), _connection);
+        VcpusText = Math.Max(1, template.VCPUs_at_startup).ToString();
+        MemoryMibText = Math.Max(1, template.memory_dynamic_max / (1024 * 1024)).ToString();
+        var provisionSize = TryGetProvisionSize(template);
         if (provisionSize > 0)
             DiskGibText = Math.Max(1, provisionSize / (1024L * 1024L * 1024L)).ToString();
     }
@@ -174,14 +242,15 @@ public partial class NewVmWizardViewModel : ViewModelBase
 
     private void Finish()
     {
-        if (SelectedTemplate == null || SelectedStorage == null || SelectedNetwork == null)
+        var template = SelectedTemplate?.Template;
+        if (template == null || SelectedStorage == null || SelectedNetwork == null)
             return;
         if (!long.TryParse(VcpusText, out var vcpus) || !long.TryParse(MemoryMibText, out var mib)
             || !long.TryParse(DiskGibText, out var gib))
             return;
 
         var memory = mib * 1024L * 1024L;
-        var disks = BuildDisks(SelectedTemplate, SelectedStorage, VmName.Trim(), gib * 1024L * 1024L * 1024L);
+        var disks = BuildDisks(template, SelectedStorage, VmName.Trim(), gib * 1024L * 1024L * 1024L);
         var vifs = new List<VIF>
         {
             new()
@@ -193,19 +262,19 @@ public partial class NewVmWizardViewModel : ViewModelBase
 
         var action = new CreateVMAction(
             _connection,
-            SelectedTemplate,
+            template,
             copyBiosStringsFrom: null,
             VmName.Trim(),
             VmDescription.Trim(),
             InstallMethod.None,
-            pvArgs: SelectedTemplate.PV_args ?? string.Empty,
+            pvArgs: template.PV_args ?? string.Empty,
             cd: null,
             url: string.Empty,
             VmBootMode.Bios,
             SelectedHost,
-            vcpusMax: Math.Max(vcpus, SelectedTemplate.VCPUs_max),
+            vcpusMax: Math.Max(vcpus, template.VCPUs_max),
             vcpusAtStartup: vcpus,
-            memoryDynamicMin: Math.Min(SelectedTemplate.memory_dynamic_min, memory),
+            memoryDynamicMin: Math.Min(template.memory_dynamic_min, memory),
             memoryDynamicMax: memory,
             memoryStaticMax: memory,
             disks,
@@ -247,7 +316,7 @@ public partial class NewVmWizardViewModel : ViewModelBase
         if (ShowConfirmStep)
         {
             SummaryText =
-                $"Create VM '{VmName}' from '{Helpers.GetName(SelectedTemplate)}'\n" +
+                $"Create VM '{VmName}' from '{SelectedTemplate?.Name}'\n" +
                 $"Home: {Helpers.GetName(SelectedHost) ?? "(pool default)"}\n" +
                 $"{VcpusText} vCPU · {MemoryMibText} MiB\n" +
                 $"Disk {DiskGibText} GiB on {Helpers.GetName(SelectedStorage)}\n" +
@@ -300,7 +369,6 @@ public partial class NewVmWizardViewModel : ViewModelBase
                         mode = vbd_mode.RW
                     };
 
-                    // Honor Storage-step size for the primary (first) disk; keep template sizes for extras.
                     long size;
                     if (isPrimary && preferredSize > 0)
                     {

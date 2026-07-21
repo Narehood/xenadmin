@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.ViewModels;
 using XcpNgCenter.Shell.Views;
@@ -20,12 +21,22 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var viewModel = new MainViewModel();
-            desktop.MainWindow = new MainWindow
+            var splash = new SplashWindow();
+            desktop.MainWindow = splash;
+            splash.Show();
+
+            // Mirror WinForms SplashScreenContext: brief splash, then main window.
+            Dispatcher.UIThread.Post(async () =>
             {
-                DataContext = viewModel
-            };
-            desktop.ShutdownRequested += (_, _) => viewModel.Dispose();
+                await splash.WaitVisibleAsync();
+
+                var viewModel = new MainViewModel();
+                var main = new MainWindow { DataContext = viewModel };
+                desktop.MainWindow = main;
+                desktop.ShutdownRequested += (_, _) => viewModel.Dispose();
+                main.Show();
+                splash.Close();
+            }, DispatcherPriority.Background);
         }
 
         base.OnFrameworkInitializationCompleted();

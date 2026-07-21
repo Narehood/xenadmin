@@ -144,7 +144,7 @@ public static class ConsoleSummaryBuilder
         if (rfb == null)
             return "No RFB (VNC) console is registered for this VM.";
         if (canLive)
-            return "RFB console available — live preview below (click to focus for input).";
+            return "RFB console available — live preview above (click to focus for input).";
         return "RFB console location ready (copy below).";
     }
 

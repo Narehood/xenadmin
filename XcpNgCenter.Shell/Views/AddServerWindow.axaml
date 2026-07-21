@@ -3,7 +3,7 @@
         xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
         x:Class="XcpNgCenter.Shell.Views.AddServerWindow"
         x:DataType="vm:AddServerViewModel"
-        Title="Add server"
+        Title="Add Server"
         Width="440"
         SizeToContent="Height"
         CanResize="False"
@@ -15,7 +15,7 @@
           BorderThickness="1"
           CornerRadius="10">
     <StackPanel Spacing="12">
-      <TextBlock Text="Add server / pool" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="Add Server / Pool" FontSize="20" FontWeight="SemiBold" />
       <TextBlock Text="Connect another host or pool. Existing connections stay open."
                  TextWrapping="Wrap"
                  Foreground="{StaticResource Brush.TextMuted}" />
