@@ -1,0 +1,37 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="XcpNgCenter.Shell.Views.ImportExportChoiceWindow"
+        Title="Import / Export"
+        Width="440"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <StackPanel Spacing="14">
+      <TextBlock Text="Import / Export"
+                 FontSize="20"
+                 FontWeight="SemiBold" />
+      <TextBlock Text="Choose whether to import an XVA into this pool, or export a VM as an XVA backup."
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <StackPanel Spacing="8" Margin="0,4,0,0">
+        <Button Classes="cta" Content="Import VM…"
+                HorizontalAlignment="Stretch"
+                Click="OnImportClick" />
+        <Button Classes="ghost" Content="Export VM…"
+                HorizontalAlignment="Stretch"
+                Click="OnExportClick" />
+      </StackPanel>
+      <Button Classes="ghost" Content="Cancel"
+              HorizontalAlignment="Right"
+              Margin="0,4,0,0"
+              IsCancel="True"
+              Click="OnCancelClick" />
+    </StackPanel>
+  </Border>
+</Window>

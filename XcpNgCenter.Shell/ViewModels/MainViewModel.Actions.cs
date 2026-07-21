@@ -48,6 +48,7 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanEditVm))]
     [NotifyPropertyChangedFor(nameof(CanCloneVm))]
     [NotifyPropertyChangedFor(nameof(CanCopyVm))]
+    [NotifyPropertyChangedFor(nameof(CanExportVm))]
     [NotifyPropertyChangedFor(nameof(CanMigrateVm))]
     [NotifyPropertyChangedFor(nameof(CanCrossPoolMigrateVm))]
     [NotifyPropertyChangedFor(nameof(CanMoveVm))]
@@ -56,6 +57,7 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanEjectIso))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleIsoBar))]
     [NotifyPropertyChangedFor(nameof(ShowPoolStorageActions))]
+    [NotifyPropertyChangedFor(nameof(CanImportExportVm))]
     [NotifyCanExecuteChangedFor(nameof(StartVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShutdownVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(ForceShutdownVmCommand))]
@@ -70,6 +72,7 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(EditVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloneVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CopyVmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(MigrateVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CrossPoolMigrateVmCommand))]
     [NotifyCanExecuteChangedFor(nameof(MoveVmCommand))]
@@ -77,6 +80,7 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(AttachIsoCommand))]
     [NotifyCanExecuteChangedFor(nameof(EjectIsoCommand))]
     [NotifyCanExecuteChangedFor(nameof(ApplyConsoleIsoCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ImportExportVmCommand))]
     private VM? _selectedVm;
 
     [ObservableProperty]
@@ -141,6 +145,11 @@ public partial class MainViewModel
     public bool CanCopyVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: not vm_power_state.Suspended, allowed_operations: { } ops }
         && (ops.Contains(vm_operations.copy) || ops.Contains(vm_operations.clone));
+
+    public bool CanExportVm =>
+        SelectedVm != null && VmExportViewModel.CanExport(SelectedVm);
+
+    public bool CanImportExportVm => SelectedConnection is { IsConnected: true };
 
     public bool CanMigrateVm =>
         SelectedVm is { is_a_template: false, Locked: false, power_state: vm_power_state.Running, allowed_operations: { } ops } vm
@@ -355,6 +364,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanEditVm));
         OnPropertyChanged(nameof(CanCloneVm));
         OnPropertyChanged(nameof(CanCopyVm));
+        OnPropertyChanged(nameof(CanExportVm));
         OnPropertyChanged(nameof(CanMigrateVm));
         OnPropertyChanged(nameof(CanCrossPoolMigrateVm));
         OnPropertyChanged(nameof(CanMoveVm));
@@ -368,6 +378,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(ShowPoolContextActions));
         OnPropertyChanged(nameof(ShowPoolStorageActions));
         OnPropertyChanged(nameof(CanDisconnectSelected));
+        OnPropertyChanged(nameof(CanImportExportVm));
         StartVmCommand.NotifyCanExecuteChanged();
         ShutdownVmCommand.NotifyCanExecuteChanged();
         ForceShutdownVmCommand.NotifyCanExecuteChanged();
@@ -382,6 +393,7 @@ public partial class MainViewModel
         EditVmCommand.NotifyCanExecuteChanged();
         CloneVmCommand.NotifyCanExecuteChanged();
         CopyVmCommand.NotifyCanExecuteChanged();
+        ExportVmCommand.NotifyCanExecuteChanged();
         MigrateVmCommand.NotifyCanExecuteChanged();
         CrossPoolMigrateVmCommand.NotifyCanExecuteChanged();
         MoveVmCommand.NotifyCanExecuteChanged();
@@ -390,6 +402,7 @@ public partial class MainViewModel
         EjectIsoCommand.NotifyCanExecuteChanged();
         ApplyConsoleIsoCommand.NotifyCanExecuteChanged();
         DisconnectSelectedCommand.NotifyCanExecuteChanged();
+        ImportExportVmCommand.NotifyCanExecuteChanged();
     }
 
     private static VM? ResolveVm(InfraTreeNode? node)
@@ -562,6 +575,72 @@ public partial class MainViewModel
     {
         var owner = GetMainWindow();
         var dialog = new AddServerWindow(this);
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanImportExportVm))]
+    private async Task ImportExportVmAsync()
+    {
+        var conn = SelectedConnection;
+        if (conn is not { IsConnected: true })
+        {
+            StatusMessage = "Connect to a server before importing or exporting.";
+            return;
+        }
+
+        var owner = GetMainWindow();
+        var choice = new ImportExportChoiceWindow();
+        if (owner != null)
+            await choice.ShowDialog(owner);
+        else
+        {
+            choice.Show();
+            return;
+        }
+
+        switch (choice.ResultChoice)
+        {
+            case ImportExportChoice.Import:
+                await ShowImportDialogAsync(conn, owner);
+                break;
+            case ImportExportChoice.Export:
+                await ShowExportDialogAsync(conn, owner);
+                break;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanExportVm))]
+    private async Task ExportVmAsync()
+    {
+        var conn = SelectedConnection;
+        if (conn is not { IsConnected: true })
+            return;
+        await ShowExportDialogAsync(conn, GetMainWindow());
+    }
+
+    private async Task ShowExportDialogAsync(IXenConnection conn, Window? owner)
+    {
+        var dialog = new VmExportWindow(conn, SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    private async Task ShowImportDialogAsync(IXenConnection conn, Window? owner)
+    {
+        var dialog = new VmImportWindow(conn, ResolveSelectedHost(), msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
         if (owner != null)
             await dialog.ShowDialog(owner);
         else

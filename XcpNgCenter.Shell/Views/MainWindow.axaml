@@ -83,10 +83,10 @@
               <Button Classes="ghost sidebar-action" Content="Add Server"
                       HorizontalAlignment="Stretch" Margin="0,0,4,0"
                       Command="{Binding AddServerCommand}" />
-              <Button Classes="ghost sidebar-action" Content="Disconnect"
+              <Button Classes="ghost sidebar-action" Content="Import / Export"
                       HorizontalAlignment="Stretch" Margin="4,0,0,0"
-                      Command="{Binding DisconnectSelectedCommand}"
-                      IsEnabled="{Binding CanDisconnectSelected}" />
+                      Command="{Binding ImportExportVmCommand}"
+                      IsEnabled="{Binding CanImportExportVm}" />
             </UniformGrid>
           </StackPanel>
 
@@ -136,6 +136,7 @@
                   <MenuItem Header="Properties" Command="{Binding EditVmCommand}" IsVisible="{Binding CanEditVm}" />
                   <MenuItem Header="Clone…" Command="{Binding CloneVmCommand}" IsVisible="{Binding CanCloneVm}" />
                   <MenuItem Header="Copy…" Command="{Binding CopyVmCommand}" IsVisible="{Binding CanCopyVm}" />
+                  <MenuItem Header="Export…" Command="{Binding ExportVmCommand}" IsVisible="{Binding CanExportVm}" />
                   <MenuItem Header="Migrate…" Command="{Binding MigrateVmCommand}" IsVisible="{Binding CanMigrateVm}" />
                   <MenuItem Header="Cross-pool…" Command="{Binding CrossPoolMigrateVmCommand}" IsVisible="{Binding CanCrossPoolMigrateVm}" />
                   <MenuItem Header="Move…" Command="{Binding MoveVmCommand}" IsVisible="{Binding CanMoveVm}" />

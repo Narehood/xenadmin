@@ -46,6 +46,7 @@ fixes, plugin DoEvents removal, and `XenAdmin` → `net8.0-windows`).
 - **VM chrome (WinForms-aligned):** power bar above tabs; Force* in context menu; Properties on General; Console ISO selector (and compact pop-out toolbar); WinForms status icons for pool/host/VM/SR (running/halted/suspended/paused/migrating/lifecycle); snapshot **tree**; storage nodes under hosts (local) and pool (shared)
 - Layout polish: wrap actions, scrollable detail, denser General rows + infra tree; copyable row orange border on hover only; console metadata below RFB; Pop Out / Add Server casing; modern splash on launch
 - New VM template step: OS icons + type labels + filter (pulled from WinForms Images)
+- Sidebar **Import / Export** (replaces Disconnect button; Disconnect stays in tree context menu) → XVA import (`ImportVmAction`) / export (`ExportVmAction`)
 
 ### Key shell layout
 
