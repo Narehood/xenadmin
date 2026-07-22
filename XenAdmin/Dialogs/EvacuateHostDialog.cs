@@ -37,10 +37,8 @@ using System.Windows.Forms;
 using XenAPI;
 using XenAdmin.Actions;
 using XenAdmin.Core;
-using XenAdmin.Wlb;
 using XenAdmin.Commands;
 using XenAdmin.Actions.VMActions;
-using XenAdmin.Actions.Wlb;
 using XenCenterLib;
 
 namespace XenAdmin.Dialogs
@@ -48,11 +46,9 @@ namespace XenAdmin.Dialogs
     public partial class EvacuateHostDialog : XenDialogBase
     {
         #region Private fields
-        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-
         private readonly Host _host;
         private readonly Pool _pool;
-        private WlbEvacuateRecommendationsAction vmErrorsAction;
+        private AsyncAction vmErrorsAction;
         private EvacuateHostAction hostAction;
         private ToStringWrapper<Host> hostSelection;
         private Dictionary<string, AsyncAction> solveActionsByVmUuid;
@@ -78,6 +74,8 @@ namespace XenAdmin.Dialogs
             "vbd.async_insert",
             "vbd.eject",
             "vbd.insert",
+
+            "host.get_vms_which_prevent_evacuation",
         };
 
         #endregion
@@ -100,8 +98,7 @@ namespace XenAdmin.Dialogs
             else
                 tableLayoutPanelPSr.Visible = false;
 
-            tableLayoutPanelWlb.Visible = _pool.IsVisible() && Helpers.WlbEnabled(_host.Connection) &&
-                                          WlbServerState.GetState(_pool) == WlbServerState.ServerState.Enabled;
+            tableLayoutPanelWlb.Visible = false;
 
             tableLayoutPanelSpinner.Visible = false;
             tableLayoutPanelStatus.Visible = false;
@@ -152,23 +149,25 @@ namespace XenAdmin.Dialogs
             
             saveVMsAction.RunAsync(GetSudoElevationResult());
 
-            vmErrorsAction = new WlbEvacuateRecommendationsAction(_host);
+            vmErrorsAction = new DelegatedAsyncAction(connection,
+                Messages.SCANNING_VMS, Messages.SCANNING_VMS, Messages.COMPLETED,
+                session => reasons = Host.get_vms_which_prevent_evacuation(session, _host.opaque_ref),
+                true, "host.get_vms_which_prevent_evacuation");
             vmErrorsAction.Completed += VmErrorsAction_Completed;
             vmErrorsAction.RunAsync(GetSudoElevationResult());
         }
 
         private void VmErrorsAction_Completed(ActionBase obj)
         {
-            if (!(obj is WlbEvacuateRecommendationsAction action))
+            if (obj != vmErrorsAction)
                 return;
 
             try
             {
                 Program.Invoke(this, () =>
                 {
-                    if (action.Succeeded)
+                    if (vmErrorsAction.Succeeded)
                     {
-                        reasons = action.CantEvacuateReasons;
                         tableLayoutPanelSpinner.Visible = false;
                         spinnerIcon1.StopSpinning();
                         PopulateVMs();
@@ -178,7 +177,7 @@ namespace XenAdmin.Dialogs
                     else
                     {
                         spinnerIcon1.ShowFailureImage();
-                        labelSpinner.Text = action.Exception.Message;
+                        labelSpinner.Text = vmErrorsAction.Exception.Message;
                     }
                 });
             }
@@ -295,10 +294,7 @@ namespace XenAdmin.Dialogs
                 }
 
                 foreach (KeyValuePair<XenRef<VM>, string[]> kvp in reasons)
-                {
-                    if (kvp.Value[0].Trim().ToLower() != "wlb")
-                        UpdateVMWithError(kvp.Value, kvp.Key.opaque_ref);
-                }
+                    UpdateVMWithError(kvp.Value, kvp.Key.opaque_ref);
             }
             finally
             {
@@ -342,30 +338,6 @@ namespace XenAdmin.Dialogs
 
                         if (hostSelection != null && host.opaque_ref == hostSelection.item.opaque_ref)
                             NewCoordinatorComboBox.SelectedItem = item;
-                    }
-                }
-
-                //Update NewCoordinatorComboBox for host power on recommendation
-                foreach (KeyValuePair<XenRef<VM>, string[]> kvp in reasons)
-                {
-                    var vm = connection.Resolve(kvp.Key);
-                    if (vm != null && vm.is_control_domain)
-                    {
-                        Host powerOnHost = connection.Cache.Hosts.FirstOrDefault(h =>
-                            h.uuid == kvp.Value[(int)RecProperties.ToHost]);
-
-                        if (powerOnHost != null)
-                        {
-                            var hostToAdd = new ToStringWrapper<Host>(powerOnHost, powerOnHost.Name());
-
-                            if (NewCoordinatorComboBox.Items.Cast<ToStringWrapper<Host>>().FirstOrDefault(i =>
-                                i.item.opaque_ref == powerOnHost.opaque_ref) == null)
-                            {
-                                powerOnHost.PropertyChanged -= host_PropertyChanged;
-                                powerOnHost.PropertyChanged += host_PropertyChanged;
-                                NewCoordinatorComboBox.Items.Add(hostToAdd);
-                            }
-                        }
                     }
                 }
 
@@ -607,7 +579,6 @@ namespace XenAdmin.Dialogs
                 : null;
 
             hostAction = new EvacuateHostAction(_host, newCoordinator?.item,
-                reasons ?? new Dictionary<XenRef<VM>, string[]>(),
                 AddHostToPoolCommand.NtolDialog, AddHostToPoolCommand.EnableNtolDialog);
 
             hostAction.Completed += Program.MainWindow.action_Completed;

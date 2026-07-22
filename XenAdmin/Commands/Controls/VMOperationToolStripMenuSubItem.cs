@@ -77,7 +77,7 @@ namespace XenAdmin.Commands
             }
         }
 
-        public VMOperationCommand Command
+        public new VMOperationCommand Command
         {
             get
             {

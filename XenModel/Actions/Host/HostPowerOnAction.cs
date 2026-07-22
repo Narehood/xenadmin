@@ -29,9 +29,7 @@
  */
 
 using System;
-using XenAdmin.Actions.Wlb;
 using XenAdmin.Core;
-using XenAdmin.Wlb;
 using XenAPI;
 
 
@@ -39,21 +37,17 @@ namespace XenAdmin.Actions.HostActions
 {
     public class HostPowerOnAction : AsyncAction
     {
-        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-
         public HostPowerOnAction(Host host)
             : base(host.Connection, Messages.HOST_POWER_ON)
         {
             Host = host;
             AddCommonAPIMethodsToRoleCheck();
 
-            ApiMethodsToRoleCheck.Add("pool.send_wlb_configuration");
             ApiMethodsToRoleCheck.Add("host.power_on");
         }
 
         protected override void Run()
         {
-            bool succeeded = false;
             string name = Helpers.GetName(Host);
             Host coordinator = Helpers.GetCoordinator(Connection);
             AppliesTo.Add(coordinator.opaque_ref);
@@ -64,7 +58,6 @@ namespace XenAdmin.Actions.HostActions
             {
                 Host.power_on(Session, Host.opaque_ref);
                 Description = Messages.ACTION_HOST_STARTED;
-                succeeded = true;
             }
             catch (Exception e)
             {
@@ -88,44 +81,6 @@ namespace XenAdmin.Actions.HostActions
                     throw new Exception(string.Format(Messages.POWER_ON_REQUEST_FAILED, Host));
                 }
                 throw;
-            }
-            finally
-            {
-                if (Helpers.WlbConfigured(Connection) && Helpers.WlbEnabledAndConfigured(Connection))
-                {
-                    UpdateHostLastPowerOnSucceeded(succeeded, Host);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Attempts to set the LastPowerOnSucceeded flag in the WLB Host configuration
-        /// </summary>
-        private void UpdateHostLastPowerOnSucceeded(bool succeeded, Host host)
-        {
-            try
-            {
-                WlbHostConfiguration hostConfig = new WlbHostConfiguration(host.uuid);
-                hostConfig.LastPowerOnSucceeded = succeeded;
-                if (!succeeded)
-                {
-                    hostConfig.ParticipatesInPowerManagement = false;
-                }
-
-                Pool pool = Helpers.GetPoolOfOne(host.Connection);
-                if (null != pool)
-                {
-                    SendWlbConfigurationAction action = new SendWlbConfigurationAction(pool, hostConfig.ToDictionary(), SendWlbConfigurationKind.SetHostConfiguration);
-                    action.RunSync(Session);
-                }
-                else
-                {
-                    throw new Failure(Failure.INTERNAL_ERROR, string.Format(Messages.POOL_GONE, BrandManager.BrandConsole));
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Error("Unable to set the host's LastPowerOnSucceeded status.", ex);
             }
         }
     }

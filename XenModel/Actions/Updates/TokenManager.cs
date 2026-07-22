@@ -32,7 +32,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Text;
-using System.Web.Script.Serialization;
+using Newtonsoft.Json;
 
 namespace XenAdmin.Actions.Updates
 {
@@ -83,7 +83,9 @@ namespace XenAdmin.Actions.Updates
             var clientId = configProvider.FileServiceClientId;
             var credential = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{clientId}"));
 
+#pragma warning disable SYSLIB0014 // Token endpoint still uses HttpWebRequest; migrate with broader HttpClient work
             var httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
+#pragma warning restore SYSLIB0014
             httpWebRequest.Headers.Add("Authorization", $"Basic {credential}");
             httpWebRequest.ContentType = "application/json";
             httpWebRequest.Method = "POST";
@@ -110,7 +112,27 @@ namespace XenAdmin.Actions.Updates
                         using (var streamReader = new StreamReader(responseStream))
                         {
                             var json = streamReader.ReadToEnd();
-                            _token = new JavaScriptSerializer().Deserialize(json, typeof(FileServiceToken)) as FileServiceToken;
+                            if (string.IsNullOrWhiteSpace(json))
+                                throw new WebException(Messages.FILESERVICE_AUTHENTICATE_ERROR);
+
+                            try
+                            {
+                                _token = JsonConvert.DeserializeObject<FileServiceToken>(json);
+                            }
+                            catch (JsonException ex)
+                            {
+                                log.Error("Could not authenticate account. Invalid token response.", ex);
+                                _token = null;
+                                throw new WebException(Messages.FILESERVICE_AUTHENTICATE_ERROR);
+                            }
+
+                            if (_token == null ||
+                                string.IsNullOrEmpty(_token.token) ||
+                                string.IsNullOrEmpty(_token.session_id))
+                            {
+                                _token = null;
+                                throw new WebException(Messages.FILESERVICE_AUTHENTICATE_ERROR);
+                            }
                         }
                     }
                 }
@@ -164,7 +186,9 @@ namespace XenAdmin.Actions.Updates
             var url = configProvider.GetCustomTokenUrl() ?? InvisibleMessages.TOKEN_API_URL;
             var credential = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{clientId}"));
 
+#pragma warning disable SYSLIB0014 // Token endpoint still uses HttpWebRequest; migrate with broader HttpClient work
             var httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
+#pragma warning restore SYSLIB0014
             httpWebRequest.Headers.Add("Authorization", $"Basic {credential}");
             httpWebRequest.ContentType = "application/json";
             httpWebRequest.Method = "DELETE";

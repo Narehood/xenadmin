@@ -2,15 +2,8 @@ namespace XenAdmin.TabPages
 {
     partial class HomePage
     {
-        /// <summary> 
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary> 
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -20,40 +13,79 @@ namespace XenAdmin.TabPages
             base.Dispose(disposing);
         }
 
-        #region Component Designer generated code
-
-        /// <summary> 
-        /// Required method for Designer support - do not modify 
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(HomePage));
-            this.webBrowser = new XenAdmin.Core.WebBrowser2();
+            this.layoutPanel = new System.Windows.Forms.TableLayoutPanel();
+            this.labelTitle = new System.Windows.Forms.Label();
+            this.labelBlurb = new System.Windows.Forms.Label();
+            this.buttonAddServer = new System.Windows.Forms.Button();
+            this.layoutPanel.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // webBrowser
-            // 
-            this.webBrowser.AllowWebBrowserDrop = false;
-            resources.ApplyResources(this.webBrowser, "webBrowser");
-            this.webBrowser.IsWebBrowserContextMenuEnabled = false;
-            this.webBrowser.Name = "webBrowser";
-            this.webBrowser.ScriptErrorsSuppressed = true;
-            this.webBrowser.WebBrowserShortcutsEnabled = false;
-            this.webBrowser.Navigating += new System.Windows.Forms.WebBrowserNavigatingEventHandler(this.webBrowser_Navigating);
-            // 
+            //
+            // layoutPanel
+            //
+            this.layoutPanel.ColumnCount = 1;
+            this.layoutPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.layoutPanel.Controls.Add(this.labelTitle, 0, 0);
+            this.layoutPanel.Controls.Add(this.labelBlurb, 0, 1);
+            this.layoutPanel.Controls.Add(this.buttonAddServer, 0, 2);
+            this.layoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.layoutPanel.Location = new System.Drawing.Point(0, 0);
+            this.layoutPanel.Name = "layoutPanel";
+            this.layoutPanel.Padding = new System.Windows.Forms.Padding(40);
+            this.layoutPanel.RowCount = 4;
+            this.layoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.layoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.layoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.layoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.layoutPanel.Size = new System.Drawing.Size(800, 600);
+            this.layoutPanel.TabIndex = 0;
+            //
+            // labelTitle
+            //
+            this.labelTitle.AutoSize = true;
+            this.labelTitle.Font = new System.Drawing.Font("Segoe UI", 20F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.labelTitle.Location = new System.Drawing.Point(43, 40);
+            this.labelTitle.Margin = new System.Windows.Forms.Padding(3, 0, 3, 16);
+            this.labelTitle.Name = "labelTitle";
+            this.labelTitle.Size = new System.Drawing.Size(200, 37);
+            this.labelTitle.TabIndex = 0;
+            this.labelTitle.Text = "XCP-ng Center";
+            //
+            // labelBlurb
+            //
+            this.labelBlurb.AutoSize = true;
+            this.labelBlurb.MaximumSize = new System.Drawing.Size(560, 0);
+            this.labelBlurb.Name = "labelBlurb";
+            this.labelBlurb.Margin = new System.Windows.Forms.Padding(3, 0, 3, 24);
+            this.labelBlurb.Size = new System.Drawing.Size(300, 15);
+            this.labelBlurb.TabIndex = 1;
+            this.labelBlurb.Text = "Connect to a host or pool to get started.";
+            //
+            // buttonAddServer
+            //
+            this.buttonAddServer.AutoSize = true;
+            this.buttonAddServer.Name = "buttonAddServer";
+            this.buttonAddServer.Size = new System.Drawing.Size(140, 30);
+            this.buttonAddServer.TabIndex = 2;
+            this.buttonAddServer.Text = "Add New Server";
+            this.buttonAddServer.UseVisualStyleBackColor = true;
+            this.buttonAddServer.Click += new System.EventHandler(this.buttonAddServer_Click);
+            //
             // HomePage
-            // 
+            //
             this.BackColor = System.Drawing.Color.White;
-            this.Controls.Add(this.webBrowser);
-            resources.ApplyResources(this, "$this");
+            this.Controls.Add(this.layoutPanel);
+            this.Name = "HomePage";
+            this.Size = new System.Drawing.Size(800, 600);
+            this.layoutPanel.ResumeLayout(false);
+            this.layoutPanel.PerformLayout();
             this.ResumeLayout(false);
-
         }
 
-        #endregion
-
-        private Core.WebBrowser2 webBrowser;
-
+        private System.Windows.Forms.TableLayoutPanel layoutPanel;
+        private System.Windows.Forms.Label labelTitle;
+        private System.Windows.Forms.Label labelBlurb;
+        private System.Windows.Forms.Button buttonAddServer;
     }
 }

@@ -1065,19 +1065,7 @@
   <data name="errorIconBottom.TabIndex" type="System.Int32, mscorlib">
     <value>0</value>
   </data>
-  <data name="&gt;&gt;errorIconBottom.Name" xml:space="preserve">
-    <value>errorIconBottom</value>
-  </data>
-  <data name="&gt;&gt;errorIconBottom.Type" xml:space="preserve">
-    <value>System.Windows.Forms.PictureBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;errorIconBottom.Parent" xml:space="preserve">
-    <value>tableLayoutPanelError</value>
-  </data>
-  <data name="&gt;&gt;errorIconBottom.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="errorLabelBottom.Anchor" type="System.Windows.Forms.AnchorStyles, System.Windows.Forms">
+          <data name="errorLabelBottom.Anchor" type="System.Windows.Forms.AnchorStyles, System.Windows.Forms">
     <value>Left, Right</value>
   </data>
   <data name="errorLabelBottom.AutoSize" type="System.Boolean, mscorlib">
@@ -1095,19 +1083,7 @@
   <data name="errorLabelBottom.Text" xml:space="preserve">
     <value>label1</value>
   </data>
-  <data name="&gt;&gt;errorLabelBottom.Name" xml:space="preserve">
-    <value>errorLabelBottom</value>
-  </data>
-  <data name="&gt;&gt;errorLabelBottom.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;errorLabelBottom.Parent" xml:space="preserve">
-    <value>tableLayoutPanelError</value>
-  </data>
-  <data name="&gt;&gt;errorLabelBottom.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+          <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>
   </metadata>
   <data name="$this.AccessibleDescription" xml:space="preserve">

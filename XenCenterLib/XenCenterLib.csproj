@@ -1,18 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net481</TargetFramework>
+		<TargetFrameworks>net481;net8.0</TargetFrameworks>
 		<Title>XenCenterLib</Title>
 		<Description>XCP-ng Center library</Description>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="ICSharpCode.SharpZipLib.dll" Version="0.85.4.369" />
-		<PackageReference Include="log4net" Version="2.0.15" />
+		<PackageReference Include="SharpZipLib" />
+		<PackageReference Include="log4net" />
 	</ItemGroup>
 
-	<ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
 		<Reference Include="System.IO.Compression" />
 		<Reference Include="System.Management" />
 		<Reference Include="System.Security" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PackageReference Include="System.Management" />
+		<PackageReference Include="System.Security.Cryptography.ProtectedData" />
 	</ItemGroup>
 </Project>

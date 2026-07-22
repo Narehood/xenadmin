@@ -1,0 +1,172 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="XcpNgCenter.Shell.App"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceDictionary>
+      <!-- XCP-ng Center rewrite tokens: graphite infrastructure + brand orange -->
+      <Color x:Key="BgDeep">#0E1216</Color>
+      <Color x:Key="BgPanel">#161C22</Color>
+      <Color x:Key="BgElevated">#1E262E</Color>
+      <Color x:Key="BgHover">#273139</Color>
+      <Color x:Key="StrokeSubtle">#2E3943</Color>
+      <Color x:Key="TextPrimary">#F2F4F6</Color>
+      <Color x:Key="TextMuted">#9AA6B2</Color>
+      <Color x:Key="BrandOrange">#F07318</Color>
+      <Color x:Key="BrandOrangeDeep">#C45A0E</Color>
+      <Color x:Key="BrandGlow">#40F07318</Color>
+      <Color x:Key="Danger">#E35D5D</Color>
+      <Color x:Key="Ok">#3DBE7A</Color>
+
+      <SolidColorBrush x:Key="Brush.BgDeep" Color="{StaticResource BgDeep}" />
+      <SolidColorBrush x:Key="Brush.BgPanel" Color="{StaticResource BgPanel}" />
+      <SolidColorBrush x:Key="Brush.BgElevated" Color="{StaticResource BgElevated}" />
+      <SolidColorBrush x:Key="Brush.BgHover" Color="{StaticResource BgHover}" />
+      <SolidColorBrush x:Key="Brush.StrokeSubtle" Color="{StaticResource StrokeSubtle}" />
+      <SolidColorBrush x:Key="Brush.TextPrimary" Color="{StaticResource TextPrimary}" />
+      <SolidColorBrush x:Key="Brush.TextMuted" Color="{StaticResource TextMuted}" />
+      <SolidColorBrush x:Key="Brush.BrandOrange" Color="{StaticResource BrandOrange}" />
+      <SolidColorBrush x:Key="Brush.BrandOrangeDeep" Color="{StaticResource BrandOrangeDeep}" />
+      <SolidColorBrush x:Key="Brush.Danger" Color="{StaticResource Danger}" />
+      <SolidColorBrush x:Key="Brush.Ok" Color="{StaticResource Ok}" />
+
+      <FontFamily x:Key="Font.Outfit">avares://XcpNgCenter.Shell/Assets/Fonts/Outfit-Regular.ttf#Outfit,avares://XcpNgCenter.Shell/Assets/Fonts/Outfit-SemiBold.ttf#Outfit,avares://XcpNgCenter.Shell/Assets/Fonts/Outfit-Bold.ttf#Outfit</FontFamily>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <!-- Brand orange accent so Fluent chrome (tab underlines, focus) matches the shell. -->
+        <ColorPaletteResources x:Key="Dark" Accent="#F07318" />
+        <ColorPaletteResources x:Key="Light" Accent="#F07318" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Button.alert-badge">
+      <Setter Property="Background" Value="#3A4550" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="MinWidth" Value="28" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.alert-badge:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Foreground" Value="#141414" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrangeDeep}" />
+    </Style>
+    <Style Selector="Border.alert-count">
+      <Setter Property="Background" Value="#3A4550" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="MinWidth" Value="28" />
+    </Style>
+    <Style Selector="Border.alert-count.has-alerts">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Button.alert-badge TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+    </Style>
+    <Style Selector="Button.alert-badge.has-alerts TextBlock">
+      <Setter Property="Foreground" Value="#141414" />
+    </Style>
+    <Style Selector="Border.alert-count TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+    </Style>
+    <Style Selector="Border.alert-count.has-alerts TextBlock">
+      <Setter Property="Foreground" Value="#141414" />
+    </Style>
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="{StaticResource Font.Outfit}" />
+      <Setter Property="Background" Value="{StaticResource Brush.BgDeep}" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+    </Style>
+    <Style Selector="TextBlock">
+      <Setter Property="FontFamily" Value="{StaticResource Font.Outfit}" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FontFamily" Value="{StaticResource Font.Outfit}" />
+      <Setter Property="Background" Value="{StaticResource Brush.BgElevated}" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.StrokeSubtle}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,10" />
+    </Style>
+    <Style Selector="Button.cta">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Foreground" Value="#141414" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="18,12" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.cta:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Brush.BrandOrangeDeep}" />
+    </Style>
+    <Style Selector="Button.ghost">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.StrokeSubtle}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+    </Style>
+    <Style Selector="Button.sidebar-action">
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="MinHeight" Value="36" />
+    </Style>
+    <Style Selector="Button.copy">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <!-- Reserve 1px so hover border does not shift layout; chrome only on hover/focus. -->
+    <Style Selector="Border.prop-row.copyable">
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:pointerover">
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Background" Value="#14F07318" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:focus-within">
+      <Setter Property="BorderBrush" Value="{StaticResource Brush.BrandOrange}" />
+      <Setter Property="Background" Value="#14F07318" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:pointerover Button.copy">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="IsHitTestVisible" Value="True" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Border.prop-row.copyable:focus-within Button.copy">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="IsHitTestVisible" Value="True" />
+      <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+    <Style Selector="Button.copy:pointerover /template/ ContentPresenter">
+      <Setter Property="Foreground" Value="{StaticResource Brush.BrandOrange}" />
+    </Style>
+  </Application.Styles>
+</Application>

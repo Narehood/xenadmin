@@ -81,7 +81,7 @@ namespace XenOvf
         public string Name { get; }
 
         /// <summary>
-        /// Name of the algorithm to compute the digest. It must be recognized by HashAlgorithm.Create().
+        /// Name of the algorithm to compute the digest (e.g. SHA1, SHA256).
         /// </summary>
         public string AlgorithmName { get; }
 

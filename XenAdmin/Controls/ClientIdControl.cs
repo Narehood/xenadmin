@@ -31,8 +31,8 @@
 using System;
 using System.Drawing;
 using System.IO;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
+using Newtonsoft.Json;
 using XenAdmin.Actions.Updates;
 using XenAdmin.Core;
 
@@ -90,7 +90,7 @@ namespace XenAdmin.Controls
             try
             {
                 var json = File.ReadAllText(textBoxClientIdFile.Text);
-                var jsonObject = new JavaScriptSerializer().Deserialize(json, typeof(FileServiceClientId)) as FileServiceClientId;
+                var jsonObject = JsonConvert.DeserializeObject<FileServiceClientId>(json);
                 FileServiceUsername = jsonObject?.username;
                 FileServiceClientId = jsonObject?.apikey;
             }

@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Images\AppIcon.ico</ApplicationIcon>
+    <RootNamespace>XcpNgCenter.Shell</RootNamespace>
+    <AssemblyName>XcpNgCenter.Shell</AssemblyName>
+    <Title>XCP-ng Center (Preview)</Title>
+    <Description>Avalonia UI rewrite preview for XCP-ng Center</Description>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XcpNgCenter.Rfb\XcpNgCenter.Rfb.csproj" />
+    <ProjectReference Include="..\XenCenterLib\XenCenterLib.csproj" />
+    <ProjectReference Include="..\XenModel\XenModel.csproj" />
+    <ProjectReference Include="..\XenOvfApi\XenOvfApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+</Project>

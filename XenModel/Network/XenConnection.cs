@@ -914,10 +914,6 @@ namespace XenAdmin.Network
                 }
                 return error.Message;
             }
-            else if (error is NullReferenceException && error.Source.StartsWith("CookComputing"))
-            {
-                return string.Format(Messages.CONNCET_CONNECTION_FAILURE, this.Hostname);
-            }
             else if (error != null && !string.IsNullOrEmpty(error.Message))
             {
                 return error.Message;

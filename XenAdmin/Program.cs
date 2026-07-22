@@ -117,6 +117,8 @@ namespace XenAdmin
         [STAThread]
         public static void Main(string[] args)
         {
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+
             if(args.Length > 0 && args[0].Equals("/datapath", StringComparison.InvariantCultureIgnoreCase))
             {
                 if (args.Length < 2)
@@ -154,7 +156,7 @@ namespace XenAdmin
 
             VersionText = Version.Major == 0 && Version.Minor == 0 && Version.Build == 0
                 ? "vNext"
-                : $"{Version.Major}.{Version.Minor}.{Version.Build}";
+                : Version.ToString(4);
 
             var logFolder = Path.Combine(
                 Properties.Settings.SettingsPath,
@@ -207,7 +209,7 @@ namespace XenAdmin
 
             ServicePointManager.DefaultConnectionLimit = 20;
             ServicePointManager.ServerCertificateValidationCallback = SSL.ValidateServerCertificate;
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+            ServicePointManager.SecurityProtocol = XenCenterLib.TlsPolicy.AllowedSecurityProtocols;
             Session.UserAgent = $"{BrandManager.BrandConsole} {Version}";
 
             LogSystemDetails();

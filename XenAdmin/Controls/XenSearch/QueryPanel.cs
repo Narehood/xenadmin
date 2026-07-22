@@ -315,31 +315,8 @@ namespace XenAdmin.Controls.XenSearch
 
         public override void OpenChooseColumnsMenu(Point point)
         {
-            ContextMenu contextMenu = new ContextMenu();
-
-            foreach (String column in Columns.Keys)
-            {
-                if (!IsMovableColumn(column))
-                    continue;
-
-                if (column == "ha" && !Columns[column] && !HelpersGUI.HAEnabledOnAtLeastOnePool)  // it's off, and we can't turn it on
-                    continue;
-
-                String columnCopy = column;
-                MenuItem item = new MenuItem(GetI18nColumnName(column).Ellipsise(30));
-                item.Checked = Columns[column];
-                item.Enabled = IsMovableColumn(column);
-
-                item.Click += delegate(object sender, EventArgs e)
-                {
-                    item.Checked = !item.Checked;
-                    ToggleColumn(columnCopy);
-                    Refresh();
-                };
-
-                contextMenu.MenuItems.Add(item);
-            }
-
+            ContextMenuStrip contextMenu = new ContextMenuStrip();
+            contextMenu.Items.AddRange(GetChooseColumnsMenu().ToArray());
             contextMenu.Show(this, point);
         }
 

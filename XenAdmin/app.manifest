@@ -23,4 +23,5 @@
 
     </application>
   </compatibility>
+  <!-- High DPI is configured via ApplicationHighDpiMode / Application.SetHighDpiMode (WFAC010). -->
 </assembly>

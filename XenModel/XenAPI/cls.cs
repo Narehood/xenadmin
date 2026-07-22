@@ -32,6 +32,8 @@ using Newtonsoft.Json;
 
 namespace XenAPI
 {
+    // XenAPI wire name; renaming would break JSON/XAPI compatibility.
+#pragma warning disable CS8981 // lowercase type name is part of the XAPI schema
     [JsonConverter(typeof(clsConverter))]
     public enum cls
     {
@@ -111,6 +113,7 @@ namespace XenAPI
             }
         }
     }
+#pragma warning restore CS8981
 
     internal class clsConverter : XenEnumConverter
     {

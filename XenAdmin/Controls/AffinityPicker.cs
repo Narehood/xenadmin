@@ -68,7 +68,7 @@ namespace XenAdmin.Controls
             Connection = connection;
             Affinity = affinity;
             SrHost = srhost;
-            tableLayoutPanelWlbWarning.Visible = Helpers.WlbEnabledAndConfigured(connection);
+            tableLayoutPanelWlbWarning.Visible = false;
             LoadServers();
             UpdateControl();
             SelectRadioButtons();

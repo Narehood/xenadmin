@@ -1,0 +1,66 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:xena="clr-namespace:XenAPI;assembly=XenModel"
+        x:Class="XcpNgCenter.Shell.Views.VmMigrateWindow"
+        x:DataType="vm:VmMigrateViewModel"
+        Title="Migrate VM"
+        Width="500" Height="460"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <Grid RowDefinitions="*,Auto">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="12" Margin="0,0,8,12">
+          <TextBlock Text="Migrate VM" FontSize="20" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Hint}"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="{Binding StatusMessage}"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}"
+                     IsVisible="{Binding StatusMessage.Length}" />
+
+          <TextBlock Text="Destination host" Foreground="{StaticResource Brush.TextMuted}" />
+          <ComboBox ItemsSource="{Binding Hosts}"
+                    SelectedItem="{Binding SelectedHost}"
+                    PlaceholderText="Destination host">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="xena:Host">
+                <TextBlock Text="{Binding name_label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <StackPanel Spacing="8" IsVisible="{Binding ShowStoragePicker}">
+            <TextBlock Text="Destination storage"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <ComboBox ItemsSource="{Binding StorageRepositories}"
+                      SelectedItem="{Binding SelectedStorage}"
+                      PlaceholderText="Destination SR">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:MigrateSrOption">
+                  <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="Labels show shared vs host-local with free space. Required when disks are on local storage — leave empty for live pool migrate on shared disks."
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10"
+                  HorizontalAlignment="Right" Margin="0,8,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Migrate" IsDefault="True" Command="{Binding MigrateCommand}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.OvfExportWindow"
+        x:DataType="vm:OvfExportViewModel"
+        Title="Export OVF / OVA"
+        Width="560" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <Grid RowDefinitions="*,Auto">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="12" Margin="0,0,8,0">
+          <TextBlock Text="Export OVF / OVA" FontSize="20" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Hint}" TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}"
+                     IsVisible="{Binding StatusMessage.Length}" />
+
+          <TextBlock Text="VMs" Foreground="{StaticResource Brush.TextMuted}" />
+          <ItemsControl ItemsSource="{Binding Vms}" MaxHeight="180">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ExportVmPickRow">
+                <CheckBox IsChecked="{Binding IsSelected}" Content="{Binding Label}" Margin="0,0,0,4" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="{Binding SelectedCount, StringFormat={}{0} selected}"
+                     FontSize="11" Foreground="{StaticResource Brush.TextMuted}" />
+
+          <TextBlock Text="Destination folder" Foreground="{StaticResource Brush.TextMuted}" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBox Text="{Binding DirectoryPath}" />
+            <Button Grid.Column="1" Classes="ghost" Content="Browse…"
+                    Margin="8,0,0,0" Command="{Binding BrowseDirectoryCommand}" />
+          </Grid>
+
+          <TextBlock Text="Appliance name" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBox Text="{Binding ApplianceName}" />
+
+          <CheckBox Content="Create OVA package (otherwise OVF folder)" IsChecked="{Binding CreateOva}" />
+          <CheckBox Content="Compress disk files" IsChecked="{Binding CompressFiles}" />
+          <CheckBox Content="Include manifest" IsChecked="{Binding CreateManifest}" />
+        </StackPanel>
+      </ScrollViewer>
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10"
+                  HorizontalAlignment="Right" Margin="0,12,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Export" IsDefault="True" Command="{Binding ExportCommand}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.IsoAttachWindow"
+        x:DataType="vm:IsoAttachViewModel"
+        Title="Attach ISO"
+        Width="520" Height="480"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="16"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+      <StackPanel Spacing="6">
+        <TextBlock Text="Attach ISO"
+                   FontSize="20"
+                   FontWeight="SemiBold" />
+        <TextBlock Text="{Binding StatusMessage}"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   IsVisible="{Binding StatusMessage.Length}" />
+      </StackPanel>
+
+      <ListBox Grid.Row="1"
+               Margin="0,12,0,12"
+               ItemsSource="{Binding Isos}"
+               SelectedItem="{Binding SelectedIso}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:IsoOption">
+            <StackPanel Spacing="2" Margin="4">
+              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{StaticResource Brush.TextMuted}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <TextBlock Grid.Row="2"
+                 Text="No ISO libraries found. Create an ISO SR first."
+                 IsVisible="{Binding !HasIsos}"
+                 Foreground="{StaticResource Brush.TextMuted}"
+                 Margin="0,0,0,12" />
+
+      <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="ghost" Content="Eject" Command="{Binding EjectCommand}" />
+        <Button Classes="cta" Content="Attach" IsDefault="True" Command="{Binding AttachCommand}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>

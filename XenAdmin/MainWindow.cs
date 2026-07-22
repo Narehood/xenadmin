@@ -37,7 +37,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -63,7 +62,6 @@ using XenAdmin.Controls.GradientPanel;
 
 namespace XenAdmin
 {
-    [PermissionSet(SecurityAction.Demand, Name = "FullTrust")]
     [ComVisibleAttribute(true)]
     public partial class MainWindow : Form, ISynchronizeInvoke, IMainWindow
     {
@@ -89,7 +87,6 @@ namespace XenAdmin
         internal readonly SearchPage SearchPage = new SearchPage();
         internal readonly NetworkPage NetworkPage = new NetworkPage();
         internal readonly NICPage NICPage = new NICPage();
-        internal readonly WlbPage WlbPage = new WlbPage();
         internal readonly SrStoragePage SrStoragePage = new SrStoragePage();
         internal readonly PhysicalStoragePage PhysicalStoragePage = new PhysicalStoragePage();
         internal readonly VMStoragePage VMStoragePage = new VMStoragePage();
@@ -168,7 +165,6 @@ namespace XenAdmin
             components.Add(NetworkPage);
             components.Add(HAPage);
             components.Add(HomePage);
-            components.Add(WlbPage);
             components.Add(AdPage);
             components.Add(GpuPage);
             components.Add(SearchPage);
@@ -188,7 +184,6 @@ namespace XenAdmin
             AddTabContents(NetworkPage, TabPageNetwork);
             AddTabContents(HAPage, TabPageHA);
             AddTabContents(HomePage, TabPageHome);
-            AddTabContents(WlbPage, TabPageWLB);
             AddTabContents(PhysicalStoragePage, TabPagePhysicalStorage);
             AddTabContents(AdPage, TabPageAD);
             AddTabContents(GpuPage, TabPageGPU);
@@ -1592,7 +1587,6 @@ namespace XenAdmin
             localStorageToolStripMenuItem.Checked = Properties.Settings.Default.LocalSRsVisible;
             ShowHiddenObjectsToolStripMenuItem.Checked = Properties.Settings.Default.ShowHiddenVMs;
             connectDisconnectToolStripMenuItem.Enabled = ConnectionsManager.XenConnectionsCopy.Count > 0;
-            conversionToolStripMenuItem.Available = conn != null && conn.Cache.VMs.Any(v => v.IsConversionVM());
             installToolsToolStripMenuItem.Available = SelectionManager.Selection.Any(v => !Helpers.StockholmOrGreater(v.Connection));
             toolStripMenuItemInstallCertificate.Available = Helpers.StockholmOrGreater(conn);
 
@@ -1809,10 +1803,6 @@ namespace XenAdmin
                 else if (t == TabPageHA)
                 {
                     HAPage.XenObject = SelectionManager.Selection.FirstAsXenObject;
-                }
-                else if (t == TabPageWLB)
-                {
-                    WlbPage.Pool = SelectionManager.Selection.First as Pool;
                 }
                 else if (t == TabPageSnapshots)
                 {

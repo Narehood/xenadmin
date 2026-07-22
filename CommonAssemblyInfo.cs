@@ -34,12 +34,15 @@ using System.Reflection;
 [assembly: AssemblyCopyright("Copyright © XCP-ng")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-[assembly: AssemblyVersion("99.99.99.99")]
-[assembly: AssemblyFileVersion("99.99.99.99")]
+// Legacy placeholders — SDK projects take Version from Directory.Build.props (year.month.day.revision).
+[assembly: AssemblyVersion("0.0.0.0")]
+[assembly: AssemblyFileVersion("0.0.0.0")]
 
 /*
  * .NET Framework 4.8 docs: All components of the version must be integers greater
  * than or equal to 0. Metadata restricts the major, minor, build, and revision
  * components for an assembly to a maximum value of UInt16.MaxValue - 1.
  * If a component exceeds this value, a compilation error occurs.
+ *
+ * Active versioning: Directory.Build.props → yyyy.M.d.BuildRevision
  */

@@ -325,6 +325,17 @@ namespace XenAdmin.Wizards
             wizardProgress.NextStep();
         }
 
+        /// <summary>
+        /// Re-evaluates navigation and clicks Next when enabled.
+        /// Used by pages that finish a background prep step and then want to continue forward.
+        /// </summary>
+        public void RequestAdvance()
+        {
+            UpdateWizard();
+            if (buttonNext.Enabled)
+                buttonNext.PerformClick();
+        }
+
         protected void PreviousStep()
         {
             wizardProgress.PreviousStep();

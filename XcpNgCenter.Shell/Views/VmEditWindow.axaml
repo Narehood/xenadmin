@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.VmEditWindow"
+        x:DataType="vm:VmEditViewModel"
+        Title="Edit VM"
+        Width="420" Height="360"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="20" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <StackPanel Spacing="12">
+      <TextBlock Text="Basic settings"
+                 FontSize="20"
+                 FontWeight="SemiBold" />
+      <TextBlock Text="{Binding StatusMessage}"
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}"
+                 IsVisible="{Binding StatusMessage.Length}" />
+      <TextBox Watermark="Name" Text="{Binding NameLabel}" />
+      <TextBox Watermark="vCPUs" Text="{Binding VcpusText}" />
+      <TextBox Watermark="Memory (MiB)" Text="{Binding MemoryMibText}" />
+      <TextBlock Text="CPU/memory changes on a running VM may require a reboot to fully apply."
+                 FontSize="11"
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,8,0,0">
+        <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        <Button Classes="cta" Content="Apply" IsDefault="True" Command="{Binding ApplyCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

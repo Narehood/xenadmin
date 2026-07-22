@@ -1,0 +1,71 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:controls="using:XcpNgCenter.Shell.Controls"
+        x:Class="XcpNgCenter.Shell.Views.ConsolePopOutWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Console"
+        Width="1024" Height="768"
+        MinWidth="640" MinHeight="480"
+        Background="{StaticResource Brush.BgDeep}">
+  <Grid RowDefinitions="Auto,*" Margin="12">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,10">
+      <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Console'}"
+                 FontSize="14"
+                 FontWeight="SemiBold"
+                 VerticalAlignment="Center"
+                 Margin="0,0,12,0"
+                 TextTrimming="CharacterEllipsis"
+                 MaxWidth="140" />
+
+      <ComboBox Grid.Column="1"
+                ItemsSource="{Binding ConsoleIsoOptions}"
+                SelectedItem="{Binding SelectedConsoleIso}"
+                PlaceholderText="Select ISO…"
+                IsEnabled="{Binding HasConsoleIsoOptions}"
+                IsVisible="{Binding ShowConsoleIsoBar}"
+                MinHeight="32"
+                MinWidth="280"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center"
+                ToolTip.Tip="{Binding AttachedIsoLabel}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:IsoOption">
+            <TextBlock Text="{Binding DisplayLabel}" TextTrimming="CharacterEllipsis" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <Button Grid.Column="2" Classes="ghost" Content="Insert"
+              Margin="8,0,0,0" Padding="10,6"
+              IsVisible="{Binding ShowConsoleIsoBar}"
+              Command="{Binding ApplyConsoleIsoCommand}" />
+      <Button Grid.Column="3" Classes="ghost" Content="Eject"
+              Margin="6,0,0,0" Padding="10,6"
+              IsVisible="{Binding ShowConsoleIsoBar}"
+              Command="{Binding EjectIsoCommand}" />
+      <Button Grid.Column="4" Classes="ghost" Content="Ctrl+Alt+Del"
+              Margin="6,0,0,0" Padding="10,6"
+              Command="{Binding SendCtrlAltDelCommand}" />
+      <Button Grid.Column="5" Classes="ghost" Content="Reattach"
+              Margin="6,0,0,0" Padding="10,6"
+              Command="{Binding ReattachConsoleCommand}" />
+    </Grid>
+
+    <Border Grid.Row="1"
+            Background="#0B0F12"
+            BorderBrush="{StaticResource Brush.StrokeSubtle}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="8"
+            ClipToBounds="True">
+      <controls:RfbConsoleView Frame="{Binding ConsoleBitmap}"
+                               Session="{Binding ConsoleSession}"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"
+                               ClipToBounds="True"
+                               Margin="2"
+                               ToolTip.Tip="Keyboard and mouse are sent to the guest" />
+    </Border>
+  </Grid>
+</Window>

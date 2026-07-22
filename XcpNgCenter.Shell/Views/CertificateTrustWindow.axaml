@@ -1,0 +1,118 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:XcpNgCenter.Shell.Services"
+        x:Class="XcpNgCenter.Shell.Views.CertificateTrustWindow"
+        x:DataType="svc:CertificateTrustRequest"
+        Title="{Binding Title}"
+        Width="520"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgPanel}"
+        TransparencyLevelHint="None">
+
+  <Border Padding="28" Background="{StaticResource Brush.BgPanel}">
+    <StackPanel Spacing="16">
+      <TextBlock Text="{Binding Title}"
+                 FontSize="22"
+                 FontWeight="SemiBold"
+                 Foreground="{StaticResource Brush.TextPrimary}" />
+
+      <TextBlock Text="{Binding Summary}"
+                 TextWrapping="Wrap"
+                 FontSize="14"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+
+      <Border Background="#33161C22"
+              BorderBrush="{StaticResource Brush.StrokeSubtle}"
+              BorderThickness="1"
+              CornerRadius="8"
+              Padding="14">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="110,*">
+            <TextBlock Text="Host"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="12" />
+            <TextBlock Grid.Column="1"
+                       Text="{Binding Hostname}"
+                       TextWrapping="Wrap"
+                       FontSize="13"
+                       Foreground="{StaticResource Brush.TextPrimary}" />
+          </Grid>
+          <Grid ColumnDefinitions="110,*">
+            <TextBlock Text="Subject"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="12" />
+            <TextBlock Grid.Column="1"
+                       Text="{Binding Subject}"
+                       TextWrapping="Wrap"
+                       FontSize="13"
+                       Foreground="{StaticResource Brush.TextPrimary}" />
+          </Grid>
+          <Grid ColumnDefinitions="110,*">
+            <TextBlock Text="Issuer"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="12" />
+            <TextBlock Grid.Column="1"
+                       Text="{Binding Issuer}"
+                       TextWrapping="Wrap"
+                       FontSize="13"
+                       Foreground="{StaticResource Brush.TextPrimary}" />
+          </Grid>
+          <Grid ColumnDefinitions="110,*">
+            <TextBlock Text="Valid"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="12" />
+            <TextBlock Grid.Column="1"
+                       Text="{Binding ValidityRange}"
+                       FontSize="13"
+                       Foreground="{StaticResource Brush.TextPrimary}" />
+          </Grid>
+          <Grid ColumnDefinitions="110,*" IsVisible="{Binding HasPreviousPin}">
+            <TextBlock Text="Previous pin"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="12" />
+            <TextBlock Grid.Column="1"
+                       Text="{Binding PreviousFingerprint}"
+                       TextWrapping="Wrap"
+                       FontFamily="Consolas,Cascadia Mono,monospace"
+                       FontSize="12"
+                       Foreground="{StaticResource Brush.Danger}" />
+          </Grid>
+          <Grid ColumnDefinitions="110,*">
+            <TextBlock Text="Fingerprint"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       FontSize="12" />
+            <TextBlock Grid.Column="1"
+                       Text="{Binding Fingerprint}"
+                       TextWrapping="Wrap"
+                       FontFamily="Consolas,Cascadia Mono,monospace"
+                       FontSize="12"
+                       Foreground="{StaticResource Brush.BrandOrange}" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <TextBlock Text="Only trust this certificate if you expected this host and fingerprint."
+                 TextWrapping="Wrap"
+                 FontSize="12"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+
+      <StackPanel Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Spacing="10"
+                  Margin="0,8,0,0">
+        <Button Classes="ghost"
+                Content="Cancel"
+                MinWidth="100"
+                IsCancel="True"
+                Click="OnCancelClick" />
+        <Button Classes="cta"
+                Content="{Binding AcceptLabel}"
+                MinWidth="160"
+                IsDefault="True"
+                Click="OnAcceptClick" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

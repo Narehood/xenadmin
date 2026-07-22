@@ -1,28 +1,33 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net481</TargetFramework>
+		<TargetFrameworks>net481;net8.0</TargetFrameworks>
 		<Title>XenModel</Title>
 		<Description>XCP-ng Center library</Description>
 		<RootNamespace>XenAdmin</RootNamespace>
+		<!-- Legacy Exception BinaryFormatter serialization retained for remoting compatibility. -->
+		<NoWarn>$(NoWarn);SYSLIB0051;CS0672</NoWarn>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="CookComputing.XmlRPCv2" Version="2.5.0" />
-		<PackageReference Include="DiscUtils.Vhd" Version="0.16.13" />
-		<PackageReference Include="DiscUtils.Vhdx" Version="0.16.13" />
-		<PackageReference Include="DiscUtils.Vmdk" Version="0.16.13" />
-		<PackageReference Include="DiscUtils.Wim" Version="0.16.13" />
-		<PackageReference Include="DiscUtils.Iso9660" Version="0.16.13" />
-		<PackageReference Include="lzfse-net" Version="1.0.15" />
-		<PackageReference Include="lzo.net" Version="0.0.3" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="DiscUtils.Vhd" />
+		<PackageReference Include="DiscUtils.Vhdx" />
+		<PackageReference Include="DiscUtils.Vmdk" />
+		<PackageReference Include="DiscUtils.Wim" />
+		<PackageReference Include="DiscUtils.Iso9660" />
+		<PackageReference Include="lzfse-net" />
+		<PackageReference Include="lzo.net" />
+		<PackageReference Include="Newtonsoft.Json" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\CommandLib\CommandLib.csproj" />
 		<ProjectReference Include="..\XenOvfApi\XenOvfApi.csproj" />
+		<ProjectReference Include="..\XenCenterLib\XenCenterLib.csproj" />
 	</ItemGroup>
-	<ItemGroup>
-		<Reference Include="System.Web" />
-		<Reference Include="System.Web.Extensions" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+		<Reference Include="System.Drawing" />
+		<Reference Include="System.Net.Http" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PackageReference Include="System.Drawing.Common" />
 	</ItemGroup>
 	<ItemGroup>
 	  <Compile Update="FriendlyNames.Designer.cs">

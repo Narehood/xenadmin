@@ -35,7 +35,6 @@ using System.Linq;
 using System.Management;
 using System.Reflection;
 using System.Resources;
-using System.Security.Permissions;
 using System.Text;
 using System.Text.RegularExpressions;
 using XenCenterLib.Compression;
@@ -4652,7 +4651,6 @@ namespace XenOvf
         /// </summary>
         /// <param name="ovfEnv">EnvelopeType object</param>
         /// <returns>string (xml)</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static string ToXml(EnvelopeType ovfEnv)
         {
             if (ovfEnv == null)
@@ -4666,7 +4664,6 @@ namespace XenOvf
         /// </summary>
         /// <param name="ovf">OVF Object (EnvelopeType)</param>
         /// <returns>XML String</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static string Serialize(object ovf)
         {
             if (ovf != null)

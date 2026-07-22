@@ -255,19 +255,7 @@
   <data name="radioButtonMixture.Text" xml:space="preserve">
     <value>Mi&amp;xed: different settings for different GPU groups</value>
   </data>
-  <data name="&gt;&gt;radioButtonMixture.Name" xml:space="preserve">
-    <value>radioButtonMixture</value>
-  </data>
-  <data name="&gt;&gt;radioButtonMixture.Type" xml:space="preserve">
-    <value>System.Windows.Forms.RadioButton, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;radioButtonMixture.Parent" xml:space="preserve">
-    <value>tableLayoutPanel1</value>
-  </data>
-  <data name="&gt;&gt;radioButtonMixture.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="radioButtonDepth.Anchor" type="System.Windows.Forms.AnchorStyles, System.Windows.Forms">
+          <data name="radioButtonDepth.Anchor" type="System.Windows.Forms.AnchorStyles, System.Windows.Forms">
     <value>Top, Left, Right</value>
   </data>
   <data name="radioButtonDepth.AutoSize" type="System.Boolean, mscorlib">
@@ -285,19 +273,7 @@
   <data name="radioButtonDepth.Text" xml:space="preserve">
     <value>Maximum &amp;density: put as many VMs as possible on the same GPU</value>
   </data>
-  <data name="&gt;&gt;radioButtonDepth.Name" xml:space="preserve">
-    <value>radioButtonDepth</value>
-  </data>
-  <data name="&gt;&gt;radioButtonDepth.Type" xml:space="preserve">
-    <value>System.Windows.Forms.RadioButton, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;radioButtonDepth.Parent" xml:space="preserve">
-    <value>tableLayoutPanel1</value>
-  </data>
-  <data name="&gt;&gt;radioButtonDepth.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="radioButtonBreadth.Anchor" type="System.Windows.Forms.AnchorStyles, System.Windows.Forms">
+          <data name="radioButtonBreadth.Anchor" type="System.Windows.Forms.AnchorStyles, System.Windows.Forms">
     <value>Top, Left, Right</value>
   </data>
   <data name="radioButtonBreadth.AutoSize" type="System.Boolean, mscorlib">
@@ -315,19 +291,7 @@
   <data name="radioButtonBreadth.Text" xml:space="preserve">
     <value>Maximum &amp;performance: put VMs on as many GPUs as possible</value>
   </data>
-  <data name="&gt;&gt;radioButtonBreadth.Name" xml:space="preserve">
-    <value>radioButtonBreadth</value>
-  </data>
-  <data name="&gt;&gt;radioButtonBreadth.Type" xml:space="preserve">
-    <value>System.Windows.Forms.RadioButton, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;radioButtonBreadth.Parent" xml:space="preserve">
-    <value>tableLayoutPanel1</value>
-  </data>
-  <data name="&gt;&gt;radioButtonBreadth.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="tableLayoutPanelMain.ColumnCount" type="System.Int32, mscorlib">
+          <data name="tableLayoutPanelMain.ColumnCount" type="System.Int32, mscorlib">
     <value>1</value>
   </data>
   <data name="groupBoxPlacementPolicy.AutoSize" type="System.Boolean, mscorlib">

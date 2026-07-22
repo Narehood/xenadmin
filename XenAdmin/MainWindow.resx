@@ -555,30 +555,6 @@
   <data name="&gt;&gt;TabPageSnapshots.ZOrder" xml:space="preserve">
     <value>12</value>
   </data>
-  <data name="TabPageWLB.Location" type="System.Drawing.Point, System.Drawing">
-    <value>4, 23</value>
-  </data>
-  <data name="TabPageWLB.Size" type="System.Drawing.Size, System.Drawing">
-    <value>753, 593</value>
-  </data>
-  <data name="TabPageWLB.TabIndex" type="System.Int32, mscorlib">
-    <value>14</value>
-  </data>
-  <data name="TabPageWLB.Text" xml:space="preserve">
-    <value>WLB</value>
-  </data>
-  <data name="&gt;&gt;TabPageWLB.Name" xml:space="preserve">
-    <value>TabPageWLB</value>
-  </data>
-  <data name="&gt;&gt;TabPageWLB.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TabPage, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;TabPageWLB.Parent" xml:space="preserve">
-    <value>TheTabControl</value>
-  </data>
-  <data name="&gt;&gt;TabPageWLB.ZOrder" xml:space="preserve">
-    <value>13</value>
-  </data>
   <data name="TabPageAD.Location" type="System.Drawing.Point, System.Drawing">
     <value>4, 23</value>
   </data>
@@ -1857,33 +1833,6 @@
   <data name="VMSnapshotScheduleToolStripMenuItem.Text" xml:space="preserve">
     <value>VM Snapshot Schedule Policies...</value>
   </data>
-  <data name="exportResourceReportPoolToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>247, 22</value>
-  </data>
-  <data name="wlbReportsToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>277, 22</value>
-  </data>
-  <data name="wlbReportsToolStripMenuItem.Text" xml:space="preserve">
-    <value>View Wor&amp;kload Reports...</value>
-  </data>
-  <data name="wlbDisconnectToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>277, 22</value>
-  </data>
-  <data name="wlbDisconnectToolStripMenuItem.Text" xml:space="preserve">
-    <value>Disconnect Workload &amp;Balancing Server</value>
-  </data>
-  <data name="toolStripMenuItemWlb.Size" type="System.Drawing.Size, System.Drawing">
-    <value>247, 22</value>
-  </data>
-  <data name="toolStripMenuItemWlb.Text" xml:space="preserve">
-    <value>Workload &amp;Balancing</value>
-  </data>
-  <data name="conversionToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>247, 22</value>
-  </data>
-  <data name="conversionToolStripMenuItem.Text" xml:space="preserve">
-    <value>Conv&amp;ersion Manager...</value>
-  </data>
   <data name="toolStripSeparator9.Size" type="System.Drawing.Size, System.Drawing">
     <value>244, 6</value>
   </data>
@@ -3112,36 +3061,6 @@
     <value>VMSnapshotScheduleToolStripMenuItem</value>
   </data>
   <data name="&gt;&gt;VMSnapshotScheduleToolStripMenuItem.Type" xml:space="preserve">
-    <value>XenAdmin.Commands.CommandToolStripMenuItem, XCP-ng Center, Version=0.0.0.24039, Culture=neutral, PublicKeyToken=null</value>
-  </data>
-  <data name="&gt;&gt;exportResourceReportPoolToolStripMenuItem.Name" xml:space="preserve">
-    <value>exportResourceReportPoolToolStripMenuItem</value>
-  </data>
-  <data name="&gt;&gt;exportResourceReportPoolToolStripMenuItem.Type" xml:space="preserve">
-    <value>XenAdmin.Commands.CommandToolStripMenuItem, XCP-ng Center, Version=0.0.0.24039, Culture=neutral, PublicKeyToken=null</value>
-  </data>
-  <data name="&gt;&gt;toolStripMenuItemWlb.Name" xml:space="preserve">
-    <value>toolStripMenuItemWlb</value>
-  </data>
-  <data name="&gt;&gt;toolStripMenuItemWlb.Type" xml:space="preserve">
-    <value>XenAdmin.Commands.CommandToolStripMenuItem, XCP-ng Center, Version=0.0.0.24039, Culture=neutral, PublicKeyToken=null</value>
-  </data>
-  <data name="&gt;&gt;wlbReportsToolStripMenuItem.Name" xml:space="preserve">
-    <value>wlbReportsToolStripMenuItem</value>
-  </data>
-  <data name="&gt;&gt;wlbReportsToolStripMenuItem.Type" xml:space="preserve">
-    <value>XenAdmin.Commands.CommandToolStripMenuItem, XCP-ng Center, Version=0.0.0.24039, Culture=neutral, PublicKeyToken=null</value>
-  </data>
-  <data name="&gt;&gt;wlbDisconnectToolStripMenuItem.Name" xml:space="preserve">
-    <value>wlbDisconnectToolStripMenuItem</value>
-  </data>
-  <data name="&gt;&gt;wlbDisconnectToolStripMenuItem.Type" xml:space="preserve">
-    <value>XenAdmin.Commands.CommandToolStripMenuItem, XCP-ng Center, Version=0.0.0.24039, Culture=neutral, PublicKeyToken=null</value>
-  </data>
-  <data name="&gt;&gt;conversionToolStripMenuItem.Name" xml:space="preserve">
-    <value>conversionToolStripMenuItem</value>
-  </data>
-  <data name="&gt;&gt;conversionToolStripMenuItem.Type" xml:space="preserve">
     <value>XenAdmin.Commands.CommandToolStripMenuItem, XCP-ng Center, Version=0.0.0.24039, Culture=neutral, PublicKeyToken=null</value>
   </data>
   <data name="&gt;&gt;toolStripSeparator9.Name" xml:space="preserve">

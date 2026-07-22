@@ -68,7 +68,7 @@ namespace XenAdmin.Commands
         /// </summary>
         [DefaultValue(null)]
         [Editor(typeof(CommandEditor<Command>), typeof(UITypeEditor))]
-        public Command Command
+        public new Command Command
         {
             get
             {

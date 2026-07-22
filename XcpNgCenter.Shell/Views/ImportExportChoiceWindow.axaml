@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="XcpNgCenter.Shell.Views.ImportExportChoiceWindow"
+        Title="Import / Export"
+        Width="460"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <StackPanel Spacing="14">
+      <TextBlock Text="Import / Export"
+                 FontSize="20"
+                 FontWeight="SemiBold" />
+      <TextBlock Text="Choose XVA for a single-VM backup, or OVF/OVA for appliance packages."
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.TextMuted}" />
+      <StackPanel Spacing="8" Margin="0,4,0,0">
+        <Button Classes="cta" Content="Import XVA…"
+                HorizontalAlignment="Stretch"
+                Click="OnImportClick" />
+        <Button Classes="ghost" Content="Export XVA…"
+                HorizontalAlignment="Stretch"
+                Click="OnExportClick" />
+        <Button Classes="ghost" Content="Import OVF / OVA…"
+                HorizontalAlignment="Stretch"
+                Click="OnImportOvfClick" />
+        <Button Classes="ghost" Content="Export OVF / OVA…"
+                HorizontalAlignment="Stretch"
+                Click="OnExportOvfClick" />
+      </StackPanel>
+      <Button Classes="ghost" Content="Cancel"
+              HorizontalAlignment="Right"
+              Margin="0,4,0,0"
+              IsCancel="True"
+              Click="OnCancelClick" />
+    </StackPanel>
+  </Border>
+</Window>

@@ -33,7 +33,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using XenAdmin.Actions;
-using XenAdmin.Actions.Wlb;
 using XenAdmin.Controls;
 using XenAdmin.Core;
 using XenAdmin.Network;
@@ -89,16 +88,8 @@ namespace XenAdmin.Commands
             VisualMenuItemAlignData.ParentStrip = this;
             var selection = Command.GetSelection();
             IXenConnection connection = selection[0].Connection;
-            bool wlb = Helpers.WlbEnabled(connection);
 
-            if (wlb)
-            {
-                base.DropDownItems.Add(new VMOperationToolStripMenuSubItem(Messages.WLB_OPT_MENU_OPTIMAL_SERVER, Images.StaticImages._000_ServerWlb_h32bit_16));
-            }
-            else
-            {
-                base.DropDownItems.Add(new VMOperationToolStripMenuSubItem(Messages.HOME_SERVER_MENU_ITEM, Images.StaticImages._000_ServerHome_h32bit_16));
-            }
+            base.DropDownItems.Add(new VMOperationToolStripMenuSubItem(Messages.HOME_SERVER_MENU_ITEM, Images.StaticImages._000_ServerHome_h32bit_16));
 
             List<Host> hosts = new List<Host>(connection.Cache.Hosts);
             hosts.Sort();
@@ -156,85 +147,7 @@ namespace XenAdmin.Commands
         {
             Stopped = false;
 
-            var selection = Command.GetSelection();
-            var connection = selection[0].Connection;
-
-            if (Helpers.WlbEnabled(connection))
-            {
-                var vms = selection.AsXenObjects<VM>();
-                if (vms == null || vms.Count == 0) 
-                    return;
-
-                var retrieveVmRecommendationsAction = new WlbRetrieveVmRecommendationsAction(connection, vms);
-                retrieveVmRecommendationsAction.Completed += delegate
-                {
-                    if (Stopped || retrieveVmRecommendationsAction.Cancelled || !retrieveVmRecommendationsAction.Succeeded)
-                        return;
-
-                    var recommendations = new WlbRecommendations(vms, retrieveVmRecommendationsAction.Recommendations);
-
-                    Program.Invoke(Program.MainWindow, delegate
-                    {
-                        if (recommendations.IsError)
-                            EnableAppropriateHostsNoWlb();
-                        else
-                            EnableAppropriateHostsWlb(recommendations);
-                    });
-                };
-                retrieveVmRecommendationsAction.RunAsync();
-            }
-            else
-            {
-                EnableAppropriateHostsNoWlb();
-            }
-        }
-
-        private void EnableAppropriateHostsWlb(WlbRecommendations recommendations)
-        {
-            if (Stopped || DropDownItems.Count == 0)
-                return;
-
-            // set the first menu item to be the WLB optimal server menu item
-            var firstItem = DropDownItems[0] as VMOperationToolStripMenuSubItem;
-            if (firstItem == null)
-                return;
-
-            var selection = Command.GetSelection();
-
-            var firstItemCmd = new VMOperationWlbOptimalServerCommand(Command.MainWindowCommandInterface,
-                selection, _operation, recommendations);
-
-            firstItem.Command = firstItemCmd;
-            firstItem.Enabled = firstItemCmd.CanRun();
-
-            var hostMenuItems = new List<VMOperationToolStripMenuSubItem>();
-            foreach (var item in DropDownItems)
-            {
-                var hostMenuItem = item as VMOperationToolStripMenuSubItem;
-                if (hostMenuItem == null)
-                    continue;
-
-                var host = hostMenuItem.Tag as Host;
-                if (host != null)
-                {
-                    var cmd = new VMOperationWlbHostCommand(Command.MainWindowCommandInterface, selection, host,
-                        _operation, recommendations.GetStarRating(host));
-
-                    hostMenuItem.Command = cmd;
-                    hostMenuItem.Enabled = cmd.CanRun();
-
-                    hostMenuItems.Add(hostMenuItem);
-                }
-            }
-
-            // sort the hostMenuItems by star rating
-            hostMenuItems.Sort(new WlbHostStarCompare());
-
-            // refresh the drop-down-items from the menuItems.
-            foreach (VMOperationToolStripMenuSubItem menuItem in hostMenuItems)
-            {
-                DropDownItems.Insert(hostMenuItems.IndexOf(menuItem) + 1, menuItem);
-            }
+            EnableAppropriateHostsNoWlb();
         }
 
         private void EnableAppropriateHostsNoWlb()
@@ -325,34 +238,5 @@ namespace XenAdmin.Commands
 
         #endregion
 
-        /// <summary>
-        /// This class is an implementation of the 'IComparer' interface 
-        /// for sorting vm placement menuItem List when wlb is enabled 
-        /// </summary>
-        private class WlbHostStarCompare : IComparer<VMOperationToolStripMenuSubItem>
-        {
-            public int Compare(VMOperationToolStripMenuSubItem x, VMOperationToolStripMenuSubItem y)
-            {
-                int result = 0;
-
-                // if x and y are enabled, compare their start rating
-                if (x.Enabled && y.Enabled)
-                    result = y.StarRating.CompareTo(x.StarRating);
-
-                // if x and y are disabled, they are equal
-                else if (!x.Enabled && !y.Enabled)
-                    result = 0;
-
-                // if x is disabled, y is greater
-                else if (!x.Enabled)
-                    result = 1;
-
-                // if y is disabled, x is greater
-                else if (!y.Enabled)
-                    result = -1;
-
-                return result;
-            }
-        }
     }
 }

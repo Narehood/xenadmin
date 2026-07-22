@@ -47,12 +47,20 @@ namespace XenAdmin.Network
 
         private static readonly object CertificateValidationLock = new object();
 
+        /// <summary>
+        /// Certificate policy for XCP-ng / XenServer connections.
+        /// Fresh XCP-ng installs use self-signed certificates, so we do NOT require a public CA.
+        /// Instead we use trust-on-first-use (TOFU): pin the cert hash per hostname after the
+        /// user accepts (or after silent accept when warnings are disabled), then require that
+        /// same pin on later connections. Never blindly accept an arbitrary cert with no pin.
+        /// </summary>
         internal static bool ValidateServerCertificate(
               object sender,
               X509Certificate certificate,
               X509Chain chain,
               SslPolicyErrors sslPolicyErrors)
         {
+            // Clean public-CA chains are fine; self-signed hosts fall through to TOFU below.
             if (sslPolicyErrors == SslPolicyErrors.None)
             {
                 log.Debug("SslPolicyErrors is set to None, exiting validation");
@@ -61,14 +69,22 @@ namespace XenAdmin.Network
             lock (CertificateValidationLock)
             {
                 bool AcceptCertificate = false;
-                HttpWebRequest webreq = (HttpWebRequest)sender;
+                string hostname = null;
+                if (sender is HttpWebRequest webreq)
+                    hostname = webreq.Address?.Host;
+                else if (sender is string host)
+                    hostname = host;
 
-                //This allows to run tests without MainWindow
-                if (Program.MainWindow == null) return true;
+                if (string.IsNullOrEmpty(hostname))
+                    return false;
+
+                // No UI means we cannot complete TOFU prompting; do not accept-all.
+                if (Program.MainWindow == null)
+                    return false;
 
                 foreach (KeyValuePair<string, string> kvp in Settings.KnownServers)
                 {
-                    if (kvp.Key != webreq.Address.Host)
+                    if (kvp.Key != hostname)
                         continue;
 
                     if (kvp.Value == certificate.GetCertHashString())
@@ -85,7 +101,7 @@ namespace XenAdmin.Network
                     {
                         Program.Invoke(Program.MainWindow, () =>
                         {
-                            using (var dialog = new CertificateChangedDialog(certificate, webreq.Address.Host))
+                            using (var dialog = new CertificateChangedDialog(certificate, hostname))
                                 AcceptCertificate = dialog.ShowDialog(Program.MainWindow) == DialogResult.OK;
                         });
 
@@ -97,17 +113,18 @@ namespace XenAdmin.Network
                     }
                 }
 
+                // First sight of this host (typical for self-signed XCP-ng): pin after
+                // optional warning. Default settings silently pin; Security options can require a prompt.
                 if (!Properties.Settings.Default.WarnUnrecognizedCertificate && Registry.SSLCertificateTypes != SSLCertificateTypes.All)
                 {
-                    // user has chosen to ignore new certificates
-                    Settings.AddCertificate(certificate.GetCertHashString(), webreq.Address.Host);
-                    log.Debug("Adding new cert silently");
+                    Settings.AddCertificate(certificate.GetCertHashString(), hostname);
+                    log.Debug("Adding new cert silently (TOFU pin for unrecognized/self-signed certificate)");
                     return true;
                 }
 
                 Program.Invoke(Program.MainWindow, () =>
                 {
-                    using (var dialog = new UnknownCertificateDialog(certificate, webreq.Address.Host))
+                    using (var dialog = new UnknownCertificateDialog(certificate, hostname))
                         AcceptCertificate = dialog.ShowDialog(Program.MainWindow) == DialogResult.OK;
                 });
 

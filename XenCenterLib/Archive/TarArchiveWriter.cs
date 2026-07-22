@@ -53,13 +53,13 @@ namespace XenCenterLib.Archive
 
         public TarArchiveWriter(Stream outputStream)
         {
-            tar = new TarOutputStream(outputStream);
+            tar = new TarOutputStream(outputStream, Encoding.UTF8);
             disposed = false;
         }
 
         public override void SetBaseStream(Stream outputStream)
         {
-            tar = new TarOutputStream(outputStream);
+            tar = new TarOutputStream(outputStream, Encoding.UTF8);
             disposed = false;
         }
 

@@ -33,7 +33,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using System.Security.Permissions;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
@@ -90,7 +89,6 @@ namespace XenOvf.Utilities
         /// Can be overridden in app.config:  KnownNamespaces
         /// </summary>
         /// <returns>Collection: XmlSerializerNamespces</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static XmlSerializerNamespaces LoadNamespaces()
         {
             var ns = new XmlSerializerNamespaces();
@@ -107,7 +105,6 @@ namespace XenOvf.Utilities
         /// </summary>
         /// <param name="filename">fullpath/filename</param>
         /// <returns>string containing file contents</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static string LoadFile(string filename)
         {
             using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -122,7 +119,6 @@ namespace XenOvf.Utilities
         /// </summary>
         /// <param name="xmlString">xml string content</param>
         /// <returns>an object of Type T</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static T Deserialize<T>(string xmlString)
         {
             using (var ms = new MemoryStream())
@@ -147,7 +143,6 @@ namespace XenOvf.Utilities
         /// <param name="objectType">Object T value</param>
         /// <param name="ns">Namespace definitions.</param>
         /// <returns>xml string</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static string Serialize(object tbs, Type objectType, XmlSerializerNamespaces ns = null)
         {
             using (var ms = new MemoryStream())
@@ -184,7 +179,6 @@ namespace XenOvf.Utilities
         /// </summary>
         /// <param name="filename">pathto\\ova.xml</param>
         /// <returns>XenXva Data Structure</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         internal static XenXva LoadOvaXml(string filename)
         {
             return DeserializeOvaXml(LoadFile(filename));
@@ -195,7 +189,6 @@ namespace XenOvf.Utilities
         /// </summary>
         /// <param name="filename">fullpath/filename</param>
         /// <returns>object of type XcAppliance</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         internal static XcAppliance LoadOldOvaXml(string filename)
         {
             return Deserialize<XcAppliance>(LoadFile(filename));
@@ -206,7 +199,6 @@ namespace XenOvf.Utilities
         /// <param name="filename">fullpath/filename</param>
         /// <returns>object EnvelopeType or NULL</returns>
 
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static EnvelopeType DeserializeOvfXml(string ovfxml)
         {
             EnvelopeType ovfEnv = null;
@@ -251,7 +243,6 @@ namespace XenOvf.Utilities
         }
 
         /// <exception>Thrown if invalid OVF xml</exception>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static void ValidateXmlToSchema(string ovfContent)
         {
             var settings = new XmlReaderSettings
@@ -285,7 +276,6 @@ namespace XenOvf.Utilities
         /// <param name="name">Name of property to test</param>
         /// <param name="target">object containing property</param>
         /// <returns>true: appears valid, false: something failed</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static bool ValidateProperty(string name, object target)
         {
             bool isValid = true;
@@ -370,7 +360,6 @@ namespace XenOvf.Utilities
         /// </summary>
         /// <param name="ovaxml">xml string</param>
         /// <returns>XenXva object</returns>
-        [SecurityPermission(SecurityAction.LinkDemand)]
         public static XenXva DeserializeOvaXml(string ovaxml)
         {
             XenXva xenobj = Deserialize<XenXva>(ovaxml);

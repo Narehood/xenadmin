@@ -32,6 +32,7 @@ using System;
 using System.IO;
 using System.Linq;
 using XenAdmin.Core;
+using XenAdmin.Dialogs.Network;
 using XenAdmin.Network;
 using XenCenterLib;
 
@@ -146,13 +147,19 @@ namespace XenAdmin.Dialogs
             if (servers.Length == 1)
                 conn = connection;
 
+            var anyStarted = false;
             foreach (var server in servers)
-                ConnectToServer(conn, server, username, password);
+            {
+                if (ConnectToServer(conn, server, username, password))
+                    anyStarted = true;
+            }
 
-            Close();
+            if (anyStarted)
+                Close();
         }
 
-        private void ConnectToServer(IXenConnection conn, string server, string username, string password)
+        /// <returns>true if a connection attempt was started</returns>
+        private bool ConnectToServer(IXenConnection conn, string server, string username, string password)
         {
             if (conn == null)
             {
@@ -173,18 +180,25 @@ namespace XenAdmin.Dialogs
                 conn.Hostname = server;
                 conn.Port = ConnectionsManager.DEFAULT_XEN_PORT;
                 XenConnectionUI.ConnectToXapiDatabase(conn, Owner);
+                return true;
             }
-            else if (!_changedPass)
-            {
-                StringUtility.ParseHostnamePort(server, out var hostname, out var port);
 
-                if (port == 0)
-                    port = ConnectionsManager.DEFAULT_XEN_PORT;
-                
-                conn.Hostname = hostname;
-                conn.Port = port;
-                XenConnectionUI.BeginConnect(conn, true, Owner, false);
-            }
+            if (_changedPass)
+                return false;
+
+            if (!HostnameAddressClassifier.TryParseHostPort(server, out var hostname, out var port))
+                StringUtility.ParseHostnamePort(server, out hostname, out port);
+
+            if (port == 0)
+                port = ConnectionsManager.DEFAULT_XEN_PORT;
+
+            if (!PublicIpWarningDialog.ConfirmConnect(this, hostname))
+                return false;
+
+            conn.Hostname = hostname;
+            conn.Port = port;
+            XenConnectionUI.BeginConnect(conn, true, Owner, false);
+            return true;
         }
 
         private void conn_CachePopulated(IXenConnection conn)
