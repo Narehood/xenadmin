@@ -22,6 +22,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool _disposed;
     private CancellationTokenSource? _autoReconnectCts;
 
+    /// <summary>In-session main-password hash (for EncryptString) when unlocked.</summary>
+    private byte[]? _sessionMainPasswordHash;
+
+    /// <summary>In-session plaintext main password (for DecryptString) when unlocked.</summary>
+    private string? _sessionMainPasswordPlain;
+
     public string BrandName => "XCP-ng Center";
 
     public string Tagline => "Manage pools, hosts, and VMs with a calmer console.";
@@ -194,6 +200,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public MainViewModel()
     {
         // Opt-in: do not default RememberPassword just because the platform can persist.
+        IdentifierPrivacy.Bind(_appSettings);
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
         SavedServers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSavedServers));
         _consoleSession.StateChanged += OnConsoleSessionStateChanged;
@@ -202,7 +209,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         InitializeActionHistoryUi();
         InitializeAlertsAndGraphsUi();
         InitializeUpdateCheck();
-        QueueAutoReconnectSavedServers();
+        _ = UnlockMainPasswordThenAutoReconnectAsync();
     }
 
     public void Dispose()
@@ -382,7 +389,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (!string.IsNullOrWhiteSpace(entry.Username))
             Username = entry.Username;
 
-        var restored = SavedServerStore.UnprotectPassword(entry.EncryptedPassword);
+        var restored = TryUnprotectSavedPassword(entry.EncryptedPassword);
         if (!string.IsNullOrEmpty(restored))
         {
             Password = restored;
@@ -393,11 +400,239 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (error == null)
                 Password = string.Empty;
         }
+        else if (SavedServerStore.IsMainPasswordProtected(entry.EncryptedPassword)
+                 && string.IsNullOrEmpty(_sessionMainPasswordPlain))
+        {
+            Password = string.Empty;
+            StatusMessage = "Main password required to unlock this saved password.";
+        }
         else
         {
             Password = string.Empty;
             StatusMessage = "Saved server loaded — enter password and Connect.";
         }
+    }
+
+    private async Task UnlockMainPasswordThenAutoReconnectAsync()
+    {
+        if (_appSettings.RequireMainPassword)
+        {
+            var hash = _appSettings.GetMainPasswordHash();
+            if (hash != null)
+            {
+                var unlocked = await PromptEnterMainPasswordAsync(
+                    hash,
+                    title: "Unlock saved credentials",
+                    message: "Enter the main password to reconnect your servers.").ConfigureAwait(true);
+
+                if (!unlocked)
+                {
+                    StatusMessage = "Main password not entered — saved passwords were not unlocked.";
+                    return;
+                }
+            }
+        }
+
+        QueueAutoReconnectSavedServers();
+    }
+
+    private static Avalonia.Controls.Window? GetDesktopMainWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            return desktop.MainWindow;
+        return null;
+    }
+
+    public void NotifyPrivacyChanged()
+    {
+        // Refresh saved-server display bindings (DisplayAddress).
+        var snapshot = SavedServers.ToList();
+        SavedServers.Clear();
+        foreach (var entry in snapshot)
+            SavedServers.Add(entry);
+
+        foreach (var root in InfrastructureRoots.ToList())
+        {
+            if (root.Server?.Connection is { IsConnected: true } conn)
+                RebuildTreeForServer(root.Server, conn);
+        }
+
+        RefreshDetailPanes();
+    }
+
+    public void SetSessionMainPassword(byte[] hash, string? plain = null)
+    {
+        _sessionMainPasswordHash = hash;
+        if (plain != null)
+            _sessionMainPasswordPlain = plain;
+    }
+
+    public void ClearSessionMainPassword()
+    {
+        _sessionMainPasswordHash = null;
+        _sessionMainPasswordPlain = null;
+    }
+
+    private string? TryUnprotectSavedPassword(string? encrypted)
+    {
+        if (string.IsNullOrWhiteSpace(encrypted))
+            return null;
+
+        if (SavedServerStore.IsMainPasswordProtected(encrypted))
+        {
+            if (string.IsNullOrEmpty(_sessionMainPasswordPlain))
+                return null;
+            return SavedServerStore.UnprotectPasswordWithMainPassword(encrypted, _sessionMainPasswordPlain);
+        }
+
+        return SavedServerStore.UnprotectPassword(encrypted);
+    }
+
+    private string? ProtectSavedPassword(string password)
+    {
+        if (_appSettings.RequireMainPassword)
+        {
+            if (_sessionMainPasswordHash == null)
+                return null;
+            return SavedServerStore.ProtectPasswordWithMainPassword(password, _sessionMainPasswordHash);
+        }
+
+        return SavedServerStore.ProtectPassword(password);
+    }
+
+    public async Task<bool> PromptEnterMainPasswordAsync(
+        byte[] expectedHash,
+        string? title = null,
+        string? message = null)
+    {
+        var owner = await WaitForMainWindowAsync().ConfigureAwait(true);
+        var dialog = new EnterMainPasswordWindow(expectedHash, title, message);
+        if (owner == null)
+            return false;
+
+        var result = await dialog.ShowDialog<bool>(owner).ConfigureAwait(true);
+        if (!result)
+            return false;
+
+        _sessionMainPasswordHash = expectedHash;
+        _sessionMainPasswordPlain = dialog.Password;
+        return true;
+    }
+
+    public async Task<(byte[] Hash, string Plain)?> PromptSetMainPasswordAsync()
+    {
+        var owner = await WaitForMainWindowAsync().ConfigureAwait(true);
+        if (owner == null)
+            return null;
+
+        var dialog = new SetMainPasswordWindow();
+        var result = await dialog.ShowDialog<bool>(owner).ConfigureAwait(true);
+        if (!result || dialog.NewPasswordHash == null || string.IsNullOrEmpty(dialog.PasswordPlain))
+            return null;
+        return (dialog.NewPasswordHash, dialog.PasswordPlain);
+    }
+
+    public async Task<(byte[] Hash, string CurrentPlain, string NewPlain)?> PromptChangeMainPasswordAsync(byte[] currentHash)
+    {
+        var owner = await WaitForMainWindowAsync().ConfigureAwait(true);
+        if (owner == null)
+            return null;
+
+        var dialog = new ChangeMainPasswordWindow(currentHash);
+        var result = await dialog.ShowDialog<bool>(owner).ConfigureAwait(true);
+        if (!result
+            || dialog.NewPasswordHash == null
+            || string.IsNullOrEmpty(dialog.CurrentPasswordPlain)
+            || string.IsNullOrEmpty(dialog.NewPasswordPlain))
+            return null;
+        return (dialog.NewPasswordHash, dialog.CurrentPasswordPlain, dialog.NewPasswordPlain);
+    }
+
+    private static async Task<Avalonia.Controls.Window?> WaitForMainWindowAsync()
+    {
+        for (var i = 0; i < 80; i++)
+        {
+            var window = GetDesktopMainWindow();
+            // Prefer MainWindow once splash has been replaced.
+            if (window is MainWindow)
+                return window;
+            await Task.Delay(100).ConfigureAwait(true);
+        }
+
+        return GetDesktopMainWindow();
+    }
+
+    public Task MigrateSavedPasswordsToMainPasswordAsync(byte[] hash)
+    {
+        for (var i = 0; i < SavedServers.Count; i++)
+        {
+            var entry = SavedServers[i];
+            if (!entry.HasSavedPassword)
+                continue;
+
+            var plain = TryUnprotectSavedPassword(entry.EncryptedPassword);
+            if (string.IsNullOrEmpty(plain))
+                continue;
+
+            var wrapped = SavedServerStore.ProtectPasswordWithMainPassword(plain, hash);
+            if (wrapped == null)
+                continue;
+
+            SavedServers[i] = entry with { EncryptedPassword = wrapped };
+        }
+
+        PersistSavedServers();
+        return Task.CompletedTask;
+    }
+
+    public Task MigrateSavedPasswordsFromMainPasswordAsync()
+    {
+        for (var i = 0; i < SavedServers.Count; i++)
+        {
+            var entry = SavedServers[i];
+            if (!entry.HasSavedPassword)
+                continue;
+
+            var plain = TryUnprotectSavedPassword(entry.EncryptedPassword);
+            if (string.IsNullOrEmpty(plain))
+                continue;
+
+            var device = SavedServerStore.ProtectPassword(plain);
+            SavedServers[i] = entry with { EncryptedPassword = device };
+        }
+
+        PersistSavedServers();
+        return Task.CompletedTask;
+    }
+
+    public Task ReencryptSavedPasswordsForMainPasswordChangeAsync(
+        string currentPlain,
+        byte[] newHash)
+    {
+        for (var i = 0; i < SavedServers.Count; i++)
+        {
+            var entry = SavedServers[i];
+            if (!entry.HasSavedPassword)
+                continue;
+
+            string? plain = null;
+            if (SavedServerStore.IsMainPasswordProtected(entry.EncryptedPassword))
+                plain = SavedServerStore.UnprotectPasswordWithMainPassword(entry.EncryptedPassword, currentPlain);
+            else
+                plain = SavedServerStore.UnprotectPassword(entry.EncryptedPassword);
+
+            if (string.IsNullOrEmpty(plain))
+                continue;
+
+            var wrapped = SavedServerStore.ProtectPasswordWithMainPassword(plain, newHash);
+            if (wrapped == null)
+                continue;
+
+            SavedServers[i] = entry with { EncryptedPassword = wrapped };
+        }
+
+        PersistSavedServers();
+        return Task.CompletedTask;
     }
 
     private void QueueAutoReconnectSavedServers()
@@ -442,7 +677,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         var started = 0;
         foreach (var entry in candidates)
         {
-            var password = SavedServerStore.UnprotectPassword(entry.EncryptedPassword);
+            var password = TryUnprotectSavedPassword(entry.EncryptedPassword);
             if (string.IsNullOrEmpty(password))
                 continue;
 
@@ -586,7 +821,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         string? encrypted = null;
         if (!string.IsNullOrEmpty(password))
-            encrypted = SavedServerStore.ProtectPassword(password);
+            encrypted = ProtectSavedPassword(password);
         else if (RememberPassword)
             encrypted = previousSecret;
 
@@ -737,13 +972,18 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 ? SelectedInfraNode.OpaqueRef
                 : null;
 
+        var existing = InfrastructureRoots.FirstOrDefault(r => r.Server == server);
+        var expandState = existing != null
+            ? CaptureExpandState(existing)
+            : new Dictionary<string, bool>(StringComparer.Ordinal);
+
         var root = InfrastructureTreeBuilder.Build(server, conn);
+        ApplyExpandState(root, expandState);
 
         TreeLayoutChanging?.Invoke();
         _suppressSelectionClear = true;
         try
         {
-            var existing = InfrastructureRoots.FirstOrDefault(r => r.Server == server);
             if (existing != null)
             {
                 var index = InfrastructureRoots.IndexOf(existing);
@@ -757,6 +997,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (selectRoot || _pinnedInfraNode?.Server == server || SelectedInfraNode?.Server == server)
             {
                 var next = FindByOpaqueRef(root, selectedRef) ?? root;
+                ExpandAncestors(root, next);
                 SelectInfraNode(next);
             }
         }
@@ -767,6 +1008,80 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         RefreshDetailPanes();
+    }
+
+    private static Dictionary<string, bool> CaptureExpandState(InfraTreeNode root)
+    {
+        var map = new Dictionary<string, bool>(StringComparer.Ordinal);
+        CaptureExpandStateRecursive(root, map);
+        return map;
+    }
+
+    private static void CaptureExpandStateRecursive(InfraTreeNode node, Dictionary<string, bool> map)
+    {
+        var key = ExpandStateKey(node);
+        if (key != null)
+            map[key] = node.IsExpanded;
+
+        foreach (var child in node.Children)
+            CaptureExpandStateRecursive(child, map);
+    }
+
+    private static void ApplyExpandState(InfraTreeNode root, IReadOnlyDictionary<string, bool> map)
+    {
+        ApplyExpandStateRecursive(root, map);
+    }
+
+    private static void ApplyExpandStateRecursive(InfraTreeNode node, IReadOnlyDictionary<string, bool> map)
+    {
+        var key = ExpandStateKey(node);
+        if (key != null && map.TryGetValue(key, out var expanded))
+            node.IsExpanded = expanded;
+
+        foreach (var child in node.Children)
+            ApplyExpandStateRecursive(child, map);
+    }
+
+    private static string? ExpandStateKey(InfraTreeNode node)
+    {
+        if (!string.IsNullOrEmpty(node.OpaqueRef))
+            return $"{(int)node.Kind}:{node.OpaqueRef}";
+
+        // Group nodes (e.g. "Other VMs") have no opaque ref — key by kind + title.
+        if (node.Kind == InfraNodeKind.Group)
+            return $"group:{node.Title}";
+
+        return null;
+    }
+
+    private static void ExpandAncestors(InfraTreeNode root, InfraTreeNode target)
+    {
+        if (ReferenceEquals(root, target))
+            return;
+
+        var path = new List<InfraTreeNode>();
+        if (!TryFindPath(root, target, path))
+            return;
+
+        // path includes root..target; expand every ancestor of the target.
+        for (var i = 0; i < path.Count - 1; i++)
+            path[i].IsExpanded = true;
+    }
+
+    private static bool TryFindPath(InfraTreeNode current, InfraTreeNode target, List<InfraTreeNode> path)
+    {
+        path.Add(current);
+        if (ReferenceEquals(current, target))
+            return true;
+
+        foreach (var child in current.Children)
+        {
+            if (TryFindPath(child, target, path))
+                return true;
+        }
+
+        path.RemoveAt(path.Count - 1);
+        return false;
     }
 
     private void RefreshDetailPanes()

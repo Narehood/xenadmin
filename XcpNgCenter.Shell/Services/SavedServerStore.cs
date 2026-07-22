@@ -16,6 +16,9 @@ public sealed record SavedServerEntry(
     public bool HasSavedPassword => !string.IsNullOrWhiteSpace(EncryptedPassword);
 
     [JsonIgnore]
+    public string DisplayAddress => IdentifierPrivacy.Address(Address);
+
+    [JsonIgnore]
     public string Subtitle => HasSavedPassword
         ? $"{Username} · password saved"
         : Username;
@@ -121,6 +124,9 @@ public sealed class SavedServerStore
 
         try
         {
+            if (IsMainPasswordProtected(encrypted))
+                return null; // Requires UnprotectPasswordWithMainPassword.
+
             if (OperatingSystem.IsWindows())
                 return EncryptionUtils.Unprotect(encrypted);
 
@@ -129,6 +135,44 @@ public sealed class SavedServerStore
         catch
         {
             // Legacy / corrupt blobs fail closed.
+            return null;
+        }
+    }
+
+    private const string MainPasswordPrefix = "mp1:";
+
+    public static bool IsMainPasswordProtected(string? encrypted)
+        => !string.IsNullOrWhiteSpace(encrypted)
+           && encrypted.StartsWith(MainPasswordPrefix, StringComparison.Ordinal);
+
+    /// <summary>Encrypt a server password with the session main-password hash (AES).</summary>
+    public static string? ProtectPasswordWithMainPassword(string? password, byte[] mainPasswordHash)
+    {
+        if (string.IsNullOrEmpty(password) || mainPasswordHash.Length == 0)
+            return null;
+
+        try
+        {
+            return MainPasswordPrefix + EncryptionUtils.EncryptString(password, mainPasswordHash);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Decrypt a main-password blob using the plaintext main password from unlock.</summary>
+    public static string? UnprotectPasswordWithMainPassword(string? encrypted, string mainPasswordPlain)
+    {
+        if (!IsMainPasswordProtected(encrypted) || string.IsNullOrEmpty(mainPasswordPlain))
+            return null;
+
+        try
+        {
+            return EncryptionUtils.DecryptString(encrypted![MainPasswordPrefix.Length..], mainPasswordPlain);
+        }
+        catch
+        {
             return null;
         }
     }

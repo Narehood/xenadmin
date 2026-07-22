@@ -4,10 +4,10 @@
         x:Class="XcpNgCenter.Shell.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="Settings"
-        Width="520"
-        Height="460"
-        MinWidth="420"
-        MinHeight="360"
+        Width="560"
+        Height="540"
+        MinWidth="440"
+        MinHeight="400"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource Brush.BgDeep}">
 
@@ -27,6 +27,23 @@
                      TextWrapping="Wrap"
                      Foreground="{StaticResource Brush.TextMuted}" />
 
+          <TextBlock Text="Main password"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     Margin="0,12,0,0" />
+          <CheckBox Content="Require a main password"
+                    IsChecked="{Binding RequireMainPassword, Mode=OneWay}"
+                    Command="{Binding ToggleRequireMainPasswordCommand}" />
+          <TextBlock Text="{Binding MainPasswordStatus}"
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+          <Button Classes="ghost"
+                  Content="Change main password…"
+                  HorizontalAlignment="Left"
+                  IsVisible="{Binding CanChangeMainPassword}"
+                  Command="{Binding ChangeMainPasswordCommand}" />
+
           <TextBlock Text="{Binding PasswordStorageNote}"
                      FontSize="12"
                      TextWrapping="Wrap"
@@ -38,6 +55,28 @@
                   HorizontalAlignment="Left"
                   Margin="0,12,0,0"
                   Command="{Binding ClearTrustedCertificatesCommand}" />
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Privacy">
+        <StackPanel Spacing="12" Margin="0,16,0,0">
+          <TextBlock Text="Hide in-app identifiers"
+                     FontSize="14"
+                     FontWeight="SemiBold" />
+          <TextBlock Text="Useful for screenshots and demos. Raw values stay available for connections; only displayed text is masked."
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+          <CheckBox Content="Hide IP addresses / hostnames"
+                    IsChecked="{Binding HideIpAddresses}" />
+          <CheckBox Content="Hide UUIDs"
+                    IsChecked="{Binding HideUuids}" />
+          <CheckBox Content="Hide VM names"
+                    IsChecked="{Binding HideVmNames}" />
+          <CheckBox Content="Hide server names"
+                    IsChecked="{Binding HideServerNames}" />
+          <CheckBox Content="Hide cluster names"
+                    IsChecked="{Binding HideClusterNames}" />
         </StackPanel>
       </TabItem>
 

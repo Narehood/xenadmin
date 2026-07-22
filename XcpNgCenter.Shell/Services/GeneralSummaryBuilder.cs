@@ -34,9 +34,9 @@ public static class GeneralSummaryBuilder
 
         var rows = new List<GeneralPropertyRow>
         {
-            new("Name", pool != null ? Helpers.GetName(pool) : node.Title),
-            new("Address", conn.HostnameWithPort),
-            new("Coordinator", coordinator != null ? Helpers.GetName(coordinator) : "—"),
+            new("Name", IdentifierPrivacy.ClusterName(pool != null ? Helpers.GetName(pool) : node.Title)),
+            new("Address", IdentifierPrivacy.Address(conn.HostnameWithPort)),
+            new("Coordinator", coordinator != null ? IdentifierPrivacy.ServerName(Helpers.GetName(coordinator)) : "—"),
             new("Hosts", hosts.ToString()),
             new("VMs", vms.ToString()),
             new("Storage repositories", srs.ToString()),
@@ -49,7 +49,7 @@ public static class GeneralSummaryBuilder
             if (pool.ha_enabled && pool.ha_host_failures_to_tolerate > 0)
                 rows.Add(new("HA host failures to tolerate", pool.ha_host_failures_to_tolerate.ToString()));
 
-            rows.Add(new("UUID", pool.uuid));
+            rows.Add(new("UUID", IdentifierPrivacy.Uuid(pool.uuid)));
             AddTags(rows, pool);
 
             if (!string.IsNullOrWhiteSpace(pool.name_description))
@@ -63,12 +63,12 @@ public static class GeneralSummaryBuilder
     {
         var host = FindHost(conn, node.OpaqueRef);
         if (host == null)
-            return new[] { new GeneralPropertyRow("Name", node.Title) };
+            return new[] { new GeneralPropertyRow("Name", IdentifierPrivacy.ServerName(node.Title)) };
 
         var rows = new List<GeneralPropertyRow>
         {
-            new("Name", Helpers.GetName(host)),
-            new("Address", string.IsNullOrWhiteSpace(host.address) ? host.hostname : host.address),
+            new("Name", IdentifierPrivacy.ServerName(Helpers.GetName(host))),
+            new("Address", IdentifierPrivacy.Address(string.IsNullOrWhiteSpace(host.address) ? host.hostname : host.address)),
             new("Role", Helpers.HostIsCoordinator(host) ? "Coordinator" : "Member"),
             new("Product", FormatHostProduct(host)),
             new("Enabled", FormatHostEnabled(host)),
@@ -102,7 +102,7 @@ public static class GeneralSummaryBuilder
             rows.Add(new("AD domain", host.external_auth_service_name));
         }
 
-        rows.Add(new("UUID", host.uuid));
+        rows.Add(new("UUID", IdentifierPrivacy.Uuid(host.uuid)));
         AddTags(rows, host);
 
         var description = host.Description();
@@ -116,14 +116,14 @@ public static class GeneralSummaryBuilder
     {
         var vm = FindVm(conn, node.OpaqueRef);
         if (vm == null)
-            return new[] { new GeneralPropertyRow("Name", node.Title) };
+            return new[] { new GeneralPropertyRow("Name", IdentifierPrivacy.VmName(node.Title)) };
 
         var home = vm.Home();
         var rows = new List<GeneralPropertyRow>
         {
-            new("Name", Helpers.GetName(vm)),
+            new("Name", IdentifierPrivacy.VmName(Helpers.GetName(vm))),
             new("Power state", FormatPowerState(vm.power_state)),
-            new("Home server", home != null ? Helpers.GetName(home) : "—"),
+            new("Home server", home != null ? IdentifierPrivacy.ServerName(Helpers.GetName(home)) : "—"),
             new("OS", string.IsNullOrWhiteSpace(vm.GetOSName()) ? "—" : vm.GetOSName()),
             new("Virtualization mode", vm.IsHVM() ? "HVM" : "PV"),
             new("vCPUs", FormatVcpus(vm)),
@@ -140,7 +140,12 @@ public static class GeneralSummaryBuilder
 
         var ips = CollectVmIps(conn, vm);
         if (ips.Count > 0)
-            rows.Add(new("IP addresses", string.Join(", ", ips)));
+        {
+            var display = IdentifierPrivacy.HideIpAddresses
+                ? IdentifierPrivacy.Placeholder
+                : string.Join(", ", ips);
+            rows.Add(new("IP addresses", display));
+        }
 
         var runningTime = vm.RunningTime();
         if (runningTime != null)
@@ -154,7 +159,7 @@ public static class GeneralSummaryBuilder
             rows.Add(new("Affinity", vm.AffinityServerString()));
         }
 
-        rows.Add(new("UUID", vm.uuid));
+        rows.Add(new("UUID", IdentifierPrivacy.Uuid(vm.uuid)));
         AddTags(rows, vm);
 
         var description = vm.Description();
