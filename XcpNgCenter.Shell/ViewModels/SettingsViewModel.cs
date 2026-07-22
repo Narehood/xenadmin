@@ -15,8 +15,9 @@ public partial class SettingsViewModel : ViewModelBase
         _main = main;
         _settings = settings;
         _close = close;
-        // Assign the backing field so OnAutoReconnectSavedServersChanged does not rewrite settings on open.
+        // Assign backing fields so On*Changed does not rewrite settings on open.
         _autoReconnectSavedServers = settings.AutoReconnectSavedServers;
+        _autoRetryLostConnections = settings.AutoRetryLostConnections;
         VersionText = ShellVersionInfo.Display;
         BuildDateText = ShellVersionInfo.BuildDateDisplay;
         CodenameText = ShellVersionInfo.Codename;
@@ -27,6 +28,9 @@ public partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _autoReconnectSavedServers;
+
+    [ObservableProperty]
+    private bool _autoRetryLostConnections;
 
     [ObservableProperty]
     private string _versionText = string.Empty;
@@ -52,6 +56,11 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnAutoReconnectSavedServersChanged(bool value)
     {
         _settings.AutoReconnectSavedServers = value;
+    }
+
+    partial void OnAutoRetryLostConnectionsChanged(bool value)
+    {
+        _settings.AutoRetryLostConnections = value;
     }
 
     [RelayCommand]

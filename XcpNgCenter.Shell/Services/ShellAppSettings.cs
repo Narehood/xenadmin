@@ -38,6 +38,29 @@ public sealed class ShellAppSettings
         }
     }
 
+    /// <summary>
+    /// When true, lost connections stay registered so XenConnection may retry.
+    /// When false (default), a lost connection stays in the tree as disconnected until the user reconnects.
+    /// </summary>
+    public bool AutoRetryLostConnections
+    {
+        get
+        {
+            lock (_gate)
+                return _state.AutoRetryLostConnections;
+        }
+        set
+        {
+            lock (_gate)
+            {
+                if (_state.AutoRetryLostConnections == value)
+                    return;
+                _state.AutoRetryLostConnections = value;
+                SaveUnlocked();
+            }
+        }
+    }
+
     private State Load()
     {
         try
@@ -74,5 +97,8 @@ public sealed class ShellAppSettings
     {
         [JsonPropertyName("autoReconnectSavedServers")]
         public bool AutoReconnectSavedServers { get; set; } = true;
+
+        [JsonPropertyName("autoRetryLostConnections")]
+        public bool AutoRetryLostConnections { get; set; }
     }
 }

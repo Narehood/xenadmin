@@ -5,9 +5,9 @@
         x:DataType="vm:SettingsViewModel"
         Title="Settings"
         Width="520"
-        Height="460"
+        Height="520"
         MinWidth="420"
-        MinHeight="360"
+        MinHeight="400"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource Brush.BgDeep}">
 
@@ -23,6 +23,14 @@
           <CheckBox Content="Reconnect saved servers on startup"
                     IsChecked="{Binding AutoReconnectSavedServers}" />
           <TextBlock Text="When enabled, the shell signs into every saved server that has a stored password."
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+
+          <CheckBox Content="Automatically retry lost connections"
+                    IsChecked="{Binding AutoRetryLostConnections}"
+                    Margin="0,8,0,0" />
+          <TextBlock Text="When disabled (default), a server that drops offline stays in the list as disconnected until you reconnect. A failed first-time add never auto-retries."
                      FontSize="12"
                      TextWrapping="Wrap"
                      Foreground="{StaticResource Brush.TextMuted}" />

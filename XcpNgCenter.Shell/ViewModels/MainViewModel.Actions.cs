@@ -215,8 +215,41 @@ public partial class MainViewModel
 
     public bool CanAddServer => true;
 
-    public bool CanDisconnectSelected =>
-        (SelectedInfraNode?.Server ?? SelectedServer)?.Connection != null;
+    public bool CanDisconnectSelected
+    {
+        get
+        {
+            var server = SelectedInfraNode?.Server ?? SelectedServer;
+            return server is { IsConnected: true, Connection: not null };
+        }
+    }
+
+    public bool CanCancelConnectSelected
+    {
+        get
+        {
+            var server = SelectedInfraNode?.Server ?? SelectedServer;
+            return server is { IsConnecting: true };
+        }
+    }
+
+    public bool CanReconnectSelected
+    {
+        get
+        {
+            var server = SelectedInfraNode?.Server ?? SelectedServer;
+            return server is { IsDisconnected: true };
+        }
+    }
+
+    public bool CanRemoveSelected
+    {
+        get
+        {
+            var server = SelectedInfraNode?.Server ?? SelectedServer;
+            return server != null;
+        }
+    }
 
     public bool ShowEmbeddedConsole => HasConsoleFrame && !IsConsolePoppedOut;
 
@@ -306,6 +339,9 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(ShowVmContextActions));
         OnPropertyChanged(nameof(ShowPoolContextActions));
         OnPropertyChanged(nameof(CanDisconnectSelected));
+        OnPropertyChanged(nameof(CanCancelConnectSelected));
+        OnPropertyChanged(nameof(CanReconnectSelected));
+        OnPropertyChanged(nameof(CanRemoveSelected));
         OnPropertyChanged(nameof(ShowEmbeddedConsole));
         OnPropertyChanged(nameof(ShowConsoleReattach));
     }
@@ -378,6 +414,9 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(ShowPoolContextActions));
         OnPropertyChanged(nameof(ShowPoolStorageActions));
         OnPropertyChanged(nameof(CanDisconnectSelected));
+        OnPropertyChanged(nameof(CanCancelConnectSelected));
+        OnPropertyChanged(nameof(CanReconnectSelected));
+        OnPropertyChanged(nameof(CanRemoveSelected));
         OnPropertyChanged(nameof(CanImportExportVm));
         StartVmCommand.NotifyCanExecuteChanged();
         ShutdownVmCommand.NotifyCanExecuteChanged();
@@ -402,6 +441,9 @@ public partial class MainViewModel
         EjectIsoCommand.NotifyCanExecuteChanged();
         ApplyConsoleIsoCommand.NotifyCanExecuteChanged();
         DisconnectSelectedCommand.NotifyCanExecuteChanged();
+        CancelConnectSelectedCommand.NotifyCanExecuteChanged();
+        ReconnectSelectedCommand.NotifyCanExecuteChanged();
+        RemoveSelectedCommand.NotifyCanExecuteChanged();
         ImportExportVmCommand.NotifyCanExecuteChanged();
     }
 
