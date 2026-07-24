@@ -22,9 +22,10 @@ on:
         type: boolean
         default: false
       codename:
-        description: "Unique Star Wars–inspired build codename (must be recorded in BUILD_CODENAMES.md; not Local/Emberlane)"
-        required: true
+        description: "Optional build label shown in Settings → About (defaults to Local if omitted)"
+        required: false
         type: string
+        default: "Local"
 
 permissions:
   contents: write
@@ -58,8 +59,8 @@ jobs:
           $version = "{0}.{1}.{2}.{3}" -f $utc.Year, $utc.Month, $utc.Day, $rev
           $tag = "v$version"
           $codename = "${{ inputs.codename }}".Trim()
-          if ([string]::IsNullOrWhiteSpace($codename) -or $codename -in @('Local', 'Emberlane')) {
-            throw "codename must be a unique registered name (got '$codename'). See BUILD_CODENAMES.md."
+          if ([string]::IsNullOrWhiteSpace($codename)) {
+            $codename = "Local"
           }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -124,9 +125,8 @@ jobs:
           VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
           TAG="v${VERSION}"
           CODENAME="$(echo "${{ inputs.codename }}" | tr -d '[:space:]')"
-          if [[ -z "$CODENAME" || "$CODENAME" == "Local" || "$CODENAME" == "Emberlane" ]]; then
-            echo "codename must be a unique registered name (got '$CODENAME'). See BUILD_CODENAMES.md." >&2
-            exit 1
+          if [[ -z "$CODENAME" ]]; then
+            CODENAME="Local"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"

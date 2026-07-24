@@ -19,7 +19,7 @@
 		<AssemblyVersion>$(Version)</AssemblyVersion>
 		<FileVersion>$(Version)</FileVersion>
 		<InformationalVersion>$(Version)</InformationalVersion>
-		<!-- Release/CI builds must pass -p:Codename=<Name> and record it in BUILD_CODENAMES.md. -->
+		<!-- Release/CI builds may pass -p:Codename=<Label> for Settings → About. -->
 		<Codename Condition="'$(Codename)' == ''">Local</Codename>
 		<Lab>xcpngcenter_main</Lab>
 	</PropertyGroup>

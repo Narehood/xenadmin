@@ -11,7 +11,7 @@ rewrite reaches feature parity for your environment.
 | Integration branch | `development` |
 | Milestone | Preview shell soak + Settings/auto-reconnect + compact VM chrome + Linux soak |
 | Test build | CI artifacts **`drop-shell-win-x64`** and **`drop-shell-linux-x64`** |
-| GitHub Releases | Calendar tags `vYYYY.M.D.N` (codename **Emberlane**); optional workflow **Publish Shell Release** |
+| GitHub Releases | Calendar tags `vYYYY.M.D.N`; optional workflow **Publish Shell Release** |
 
 ## Projects
 
@@ -29,7 +29,7 @@ rewrite reaches feature parity for your environment.
 - **Alerts** — always-visible sidebar badge; Copy on alert rows
 - **Performance** — RRD charts with hover + time axis; layout save
 - **Splash** / calendar **versioning** / GitHub **update banner**
-- **Settings** (beside alerts): General (auto-reconnect), About (version/build/**Emberlane**), Check for updates
+- **Settings** (beside alerts): General (auto-reconnect), About (version/build label), Check for updates
 - **Auto-reconnect** saved servers with stored passwords (DPAPI on Windows; AES key file on Linux)
 - **Linux soak hardening** — RFB cursor alpha preserved; GTK-friendly file pickers; XDG config paths; chart Outfit font via embedded family; update banner **View release** uses `xdg-open`
 
