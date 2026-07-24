@@ -88,11 +88,10 @@ namespace XenAdmin.Controls.CustomDataGraph
                 case "file descriptors":
                     break;
                 case "percent":
-                    CustomYRange = new DataRange(100, 0, 10, Unit.Percentage, RangeScaleMode.Auto);
+                    CustomYRange = new DataRange(100, 0, 10, Unit.Percentage, RangeScaleMode.Fixed);
                     break;
                 case "(fraction)":
-                    //CP-34000: use Auto instead of Fixed scale
-                    CustomYRange = new DataRange(100, 0, 10, Unit.Percentage, RangeScaleMode.Auto);
+                    CustomYRange = new DataRange(100, 0, 10, Unit.Percentage, RangeScaleMode.Fixed);
                     _multiplyingFactor = 100;
                     break;
                 case "MHz":

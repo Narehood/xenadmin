@@ -21,6 +21,10 @@ on:
         required: true
         type: boolean
         default: false
+      codename:
+        description: "Unique Star Wars–inspired build codename (must be recorded in BUILD_CODENAMES.md; not Local/Emberlane)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -53,10 +57,15 @@ jobs:
           $utc = [DateTime]::UtcNow
           $version = "{0}.{1}.{2}.{3}" -f $utc.Year, $utc.Month, $utc.Day, $rev
           $tag = "v$version"
+          $codename = "${{ inputs.codename }}".Trim()
+          if ([string]::IsNullOrWhiteSpace($codename) -or $codename -in @('Local', 'Emberlane')) {
+            throw "codename must be a unique registered name (got '$codename'). See BUILD_CODENAMES.md."
+          }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "revision=$rev" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Publishing $tag"
+          "codename=$codename" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Publishing $tag ($codename)"
 
       - name: Publish Avalonia shell (win-x64)
         run: >
@@ -66,6 +75,7 @@ jobs:
           --self-contained true
           -p:PublishSingleFile=false
           -p:BuildRevision=${{ steps.ver.outputs.revision }}
+          -p:Codename=${{ steps.ver.outputs.codename }}
           -o artifacts/shell-win-x64
           --nologo
 
@@ -113,10 +123,16 @@ jobs:
           DAY=$(date -u +%-d)
           VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
           TAG="v${VERSION}"
+          CODENAME="$(echo "${{ inputs.codename }}" | tr -d '[:space:]')"
+          if [[ -z "$CODENAME" || "$CODENAME" == "Local" || "$CODENAME" == "Emberlane" ]]; then
+            echo "codename must be a unique registered name (got '$CODENAME'). See BUILD_CODENAMES.md." >&2
+            exit 1
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "revision=${REV}" >> "$GITHUB_OUTPUT"
-          echo "Publishing ${TAG}"
+          echo "codename=${CODENAME}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${TAG} (${CODENAME})"
 
       - name: Publish Avalonia shell (linux-x64)
         run: >
@@ -126,6 +142,7 @@ jobs:
           --self-contained true
           -p:PublishSingleFile=false
           -p:BuildRevision=${{ steps.ver.outputs.revision }}
+          -p:Codename=${{ steps.ver.outputs.codename }}
           -o artifacts/shell-linux-x64
           --nologo
 

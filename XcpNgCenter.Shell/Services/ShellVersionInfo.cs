@@ -12,6 +12,20 @@ public static class ShellVersionInfo
         @"\d+(?:\.\d+){1,3}",
         RegexOptions.Compiled);
 
+    /// <summary>
+    /// Calendar build as <c>vYYYY.MM.DD.N</c> with zero-padded month/day (e.g. <c>v2026.07.24.1</c>).
+    /// </summary>
+    public static string TagDisplay
+    {
+        get
+        {
+            if (!TryGetFourPart(out var year, out var month, out var day, out var revision))
+                return Display;
+
+            return $"v{year:D4}.{month:D2}.{day:D2}.{revision}";
+        }
+    }
+
     public static string Display
     {
         get
@@ -140,5 +154,30 @@ public static class ShellVersionInfo
         while (parts.Count < 4)
             parts.Add("0");
         return string.Join('.', parts.Take(4));
+    }
+
+    private static bool TryGetFourPart(out int year, out int month, out int day, out int revision)
+    {
+        year = month = day = revision = 0;
+        Version version;
+        try
+        {
+            var stamped = ThisAssembly.InformationalData.Version;
+            if (!TryParse(stamped, out version) || (version.Major == 0 && version.Minor == 0))
+                version = Current;
+        }
+        catch
+        {
+            version = Current;
+        }
+
+        if (version.Major == 0 && version.Minor == 0 && version.Build == 0 && version.Revision <= 0)
+            return false;
+
+        year = version.Major;
+        month = version.Minor;
+        day = Math.Max(0, version.Build);
+        revision = Math.Max(0, version.Revision);
+        return true;
     }
 }

@@ -185,7 +185,8 @@ public static class PerformanceGraphBuilder
                 series.Id,
                 series.FriendlyName,
                 Palette[i % Palette.Length],
-                series.Points.ToList()));
+                series.Points.ToList(),
+                series.Units));
             i++;
         }
 
@@ -193,7 +194,16 @@ public static class PerformanceGraphBuilder
     }
 
     private static PerformanceGraphRow MakeGraph(string title, List<PerformanceSeriesView> series, RrdArchiveInterval interval)
-        => new(title, series, interval);
+    {
+        double? yAxisMax = null;
+        if (IsCpuGraph(title) || series.Count > 0 && series.All(s => s.IsPercentUnit))
+            yAxisMax = 100;
+
+        return new PerformanceGraphRow(title, series, interval, yAxisMax);
+    }
+
+    private static bool IsCpuGraph(string title)
+        => title.Contains("CPU", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed record PerformanceRangeOption(RrdArchiveInterval Interval, string Label, string Hint)

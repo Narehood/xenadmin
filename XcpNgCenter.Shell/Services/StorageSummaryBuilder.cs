@@ -25,6 +25,7 @@ public static class StorageSummaryBuilder
             InfraNodeKind.Pool => BuildPoolOrHost(conn, host: null),
             InfraNodeKind.Host => BuildPoolOrHost(conn, FindHost(conn, node.OpaqueRef)),
             InfraNodeKind.Vm => BuildVm(conn, FindVm(conn, node.OpaqueRef)),
+            InfraNodeKind.Storage => BuildSr(conn, FindSr(conn, node.OpaqueRef)),
             _ => Empty
         };
     }
@@ -121,6 +122,76 @@ public static class StorageSummaryBuilder
         return new StorageSummary(totals, items);
     }
 
+    private static StorageSummary BuildSr(IXenConnection conn, SR? sr)
+    {
+        if (sr == null)
+            return Empty;
+
+        var vdis = conn.ResolveAll(sr.VDIs)
+            .Where(vdi => vdi != null && vdi.Show(showHiddenVMs: true)
+                                      && vdi.type != vdi_type.crashdump
+                                      && vdi.type != vdi_type.ephemeral)
+            .OrderBy(vdi => Helpers.GetName(vdi), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var items = vdis.Select(vdi =>
+        {
+            var attached = DescribeVdiAttachment(conn, vdi);
+            return new StorageItemRow(
+                Helpers.GetName(vdi),
+                FormatVdiType(vdi),
+                attached,
+                vdi.SizeText(),
+                vdi.sharable ? "Shared" : "Private");
+        }).ToList();
+
+        long totalVirtual = vdis.Sum(v => v.virtual_size);
+        long totalPhysical = vdis.Sum(v => v.physical_utilisation >= 0 ? v.physical_utilisation : 0);
+        var totals = new List<GeneralPropertyRow>
+        {
+            new("Virtual disks", vdis.Count.ToString()),
+            new("Virtual size", Util.DiskSizeString(totalVirtual)),
+            new("Physical utilisation", Util.DiskSizeString(totalPhysical)),
+            new("SR free", Util.DiskSizeString(sr.FreeSpace()))
+        };
+
+        return new StorageSummary(totals, items);
+    }
+
+    private static string FormatVdiType(VDI vdi) => vdi.type switch
+    {
+        vdi_type.user => "Disk",
+        vdi_type.system => "System",
+        vdi_type.suspend => "Suspend",
+        vdi_type.ha_statefile => "HA statefile",
+        vdi_type.metadata => "Metadata",
+        vdi_type.redo_log => "Redo log",
+        vdi_type.rrd => "RRD",
+        vdi_type.pvs_cache => "PVS cache",
+        vdi_type.cbt_metadata => "CBT metadata",
+        _ => vdi.type.ToString()
+    };
+
+    private static string DescribeVdiAttachment(IXenConnection conn, VDI vdi)
+    {
+        var vbds = conn.ResolveAll(vdi.VBDs);
+        if (vbds == null || vbds.Count == 0)
+            return "Unattached";
+
+        var names = new List<string>();
+        foreach (var vbd in vbds)
+        {
+            if (vbd == null)
+                continue;
+            var vm = conn.Resolve(vbd.VM);
+            if (vm == null || !vm.IsRealVm())
+                continue;
+            names.Add(Helpers.GetName(vm));
+        }
+
+        return names.Count == 0 ? "Unattached" : string.Join(", ", names.Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
     private static List<SR> CollectSrs(IXenConnection conn, Host? host)
     {
         var pbds = host != null
@@ -157,4 +228,9 @@ public static class StorageSummaryBuilder
         => string.IsNullOrEmpty(opaqueRef)
             ? null
             : conn.Cache.VMs?.FirstOrDefault(v => v.opaque_ref == opaqueRef);
+
+    private static SR? FindSr(IXenConnection conn, string? opaqueRef)
+        => string.IsNullOrEmpty(opaqueRef)
+            ? null
+            : conn.Cache.SRs?.FirstOrDefault(sr => sr.opaque_ref == opaqueRef);
 }

@@ -18,13 +18,16 @@ public sealed class PerformanceChart : Control
     public static readonly StyledProperty<RrdArchiveInterval> IntervalProperty =
         AvaloniaProperty.Register<PerformanceChart, RrdArchiveInterval>(nameof(Interval), RrdArchiveInterval.FiveSecond);
 
+    public static readonly StyledProperty<double?> YAxisMaxProperty =
+        AvaloniaProperty.Register<PerformanceChart, double?>(nameof(YAxisMax));
+
     private Point? _pointer;
     private bool _pointerInside;
     private static FontFamily? _chartFontFamily;
 
     static PerformanceChart()
     {
-        AffectsRender<PerformanceChart>(SeriesProperty, IntervalProperty, BoundsProperty);
+        AffectsRender<PerformanceChart>(SeriesProperty, IntervalProperty, YAxisMaxProperty, BoundsProperty);
         ClipToBoundsProperty.OverrideDefaultValue<PerformanceChart>(true);
     }
 
@@ -66,6 +69,13 @@ public sealed class PerformanceChart : Control
     {
         get => GetValue(IntervalProperty);
         set => SetValue(IntervalProperty, value);
+    }
+
+    /// <summary>Fixed Y-axis maximum (e.g. 100 for CPU %). Null = scale to data peak.</summary>
+    public double? YAxisMax
+    {
+        get => GetValue(YAxisMaxProperty);
+        set => SetValue(YAxisMaxProperty, value);
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -128,7 +138,10 @@ public sealed class PerformanceChart : Control
 
         var minX = seriesList.SelectMany(s => s.Points).Min(p => p.Ticks);
         var maxX = seriesList.SelectMany(s => s.Points).Max(p => p.Ticks);
-        var maxY = seriesList.SelectMany(s => s.Points).Where(p => p.Value >= 0).DefaultIfEmpty(new(0, 1)).Max(p => p.Value);
+        var fixedMax = YAxisMax;
+        var maxY = fixedMax is > 0
+            ? fixedMax.Value
+            : seriesList.SelectMany(s => s.Points).Where(p => p.Value >= 0).DefaultIfEmpty(new(0, 1)).Max(p => p.Value);
         if (maxY <= 0)
             maxY = 1;
         if (maxX <= minX)
@@ -140,6 +153,9 @@ public sealed class PerformanceChart : Control
             var y = plot.Y + plot.Height * i / 4.0;
             context.DrawLine(gridPen, new Point(plot.X, y), new Point(plot.Right, y));
         }
+
+        if (fixedMax is > 0)
+            DrawPercentYAxis(context, plot, maxY);
 
         DrawTimeAxis(context, plot, minX, maxX);
 
@@ -174,6 +190,33 @@ public sealed class PerformanceChart : Control
 
         if (_pointerInside && _pointer is { } pt && plot.Contains(pt))
             DrawHover(context, plot, seriesList, minX, maxX, maxY, pt);
+    }
+
+    private static void DrawPercentYAxis(DrawingContext context, Rect plot, double maxY)
+    {
+        var muted = new SolidColorBrush(Color.Parse("#9AA6B2"));
+        for (var i = 0; i <= 4; i++)
+        {
+            var fraction = i / 4.0;
+            var value = maxY * (1.0 - fraction);
+            var y = plot.Y + plot.Height * fraction;
+            var label = maxY <= 100 && Math.Abs(maxY - 100) < 0.01
+                ? $"{value:0}%"
+                : $"{value:0.##}";
+            var text = new FormattedText(
+                label,
+                System.Globalization.CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                ChartTypeface,
+                9,
+                muted);
+            var ty = y - text.Height / 2;
+            if (i == 0)
+                ty = plot.Y;
+            else if (i == 4)
+                ty = plot.Bottom - text.Height;
+            context.DrawText(text, new Point(plot.X + 4, ty));
+        }
     }
 
     private void DrawTimeAxis(DrawingContext context, Rect plot, long minX, long maxX)
