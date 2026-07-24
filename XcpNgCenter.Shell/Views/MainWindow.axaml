@@ -25,7 +25,7 @@
       <Setter Property="BorderThickness" Value="0" />
     </Style>
     <Style Selector="TreeViewItem" x:DataType="vm:InfraTreeNode" x:CompileBindings="True">
-      <Setter Property="IsExpanded" Value="{Binding IsExpanded}" />
+      <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
       <Setter Property="Padding" Value="2,1" />
       <Setter Property="Margin" Value="0" />
       <Setter Property="MinHeight" Value="0" />
@@ -274,7 +274,7 @@
                                   Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).UseSavedServerCommand}"
                                   CommandParameter="{Binding}">
                             <StackPanel Spacing="2">
-                              <TextBlock Text="{Binding Address}"
+                              <TextBlock Text="{Binding DisplayAddress}"
                                          FontSize="13"
                                          Foreground="{StaticResource Brush.TextPrimary}"
                                          TextTrimming="CharacterEllipsis" />

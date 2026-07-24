@@ -30,8 +30,8 @@ public static class InfrastructureTreeBuilder
         var root = new InfraTreeNode
         {
             Kind = InfraNodeKind.Pool,
-            Title = poolName,
-            Subtitle = conn.HostnameWithPort,
+            Title = IdentifierPrivacy.ClusterName(poolName),
+            Subtitle = IdentifierPrivacy.Address(conn.HostnameWithPort),
             Detail = $"{hosts.Count} host(s), {vms.Count} VM(s)",
             Server = server,
             OpaqueRef = pool?.opaque_ref,
@@ -56,11 +56,12 @@ public static class InfrastructureTreeBuilder
 
             var (hostIcon, hostTip) = ShellStatusIcons.ForHost(host);
             var isCoordinator = Helpers.HostIsCoordinator(host);
+            var hostAddress = string.IsNullOrWhiteSpace(host.address) ? host.hostname : host.address;
             var hostNode = new InfraTreeNode
             {
                 Kind = InfraNodeKind.Host,
-                Title = Helpers.GetName(host),
-                Subtitle = string.IsNullOrWhiteSpace(host.address) ? host.hostname : host.address,
+                Title = IdentifierPrivacy.ServerName(Helpers.GetName(host)),
+                Subtitle = IdentifierPrivacy.Address(hostAddress),
                 Detail = isCoordinator
                     ? $"Coordinator · {hostVms.Count} VM(s)"
                     : $"{hostVms.Count} VM(s)",
@@ -124,12 +125,13 @@ public static class InfrastructureTreeBuilder
     {
         var (icon, tip) = ShellStatusIcons.ForVm(vm);
         var home = vm.Home();
+        var homeName = home != null ? IdentifierPrivacy.ServerName(Helpers.GetName(home)) : null;
         return new InfraTreeNode
         {
             Kind = InfraNodeKind.Vm,
-            Title = Helpers.GetName(vm),
+            Title = IdentifierPrivacy.VmName(Helpers.GetName(vm)),
             Subtitle = tip,
-            Detail = home != null ? $"{tip} · {Helpers.GetName(home)}" : tip,
+            Detail = homeName != null ? $"{tip} · {homeName}" : tip,
             Server = server,
             OpaqueRef = vm.opaque_ref,
             IsExpanded = false,

@@ -73,11 +73,13 @@ public static class NetworkSummaryBuilder
                 var network = conn.Resolve(pif.network);
                 var purpose = pif.management ? "Management" : (pif.GetManagementPurpose() ?? "Secondary");
                 return new NetworkItemRow(
-                    pifHost != null ? $"{Helpers.GetName(pifHost)} · {purpose}" : purpose,
+                    pifHost != null
+                        ? $"{IdentifierPrivacy.ServerName(Helpers.GetName(pifHost))} · {purpose}"
+                        : purpose,
                     $"{(network != null ? Helpers.GetName(network) : "—")} · {Helpers.GetName(pif)}",
                     pif.IpConfigurationModeString(),
-                    string.IsNullOrWhiteSpace(pif.IP) ? "—" : pif.IP,
-                    string.IsNullOrWhiteSpace(pif.DNS) ? "—" : pif.DNS);
+                    IdentifierPrivacy.Address(string.IsNullOrWhiteSpace(pif.IP) ? "—" : pif.IP),
+                    IdentifierPrivacy.Address(string.IsNullOrWhiteSpace(pif.DNS) ? "—" : pif.DNS));
             })
             .ToList();
 
@@ -119,6 +121,8 @@ public static class NetworkSummaryBuilder
             var ip = vif.IPAddressesAsString();
             if (string.IsNullOrWhiteSpace(ip))
                 ip = "—";
+            else
+                ip = IdentifierPrivacy.Address(ip);
 
             return new NetworkItemRow(
                 string.IsNullOrWhiteSpace(vif.device) ? "VIF" : $"Device {vif.device}",

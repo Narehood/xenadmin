@@ -947,7 +947,6 @@ public partial class MainViewModel
         if (!HasConsoleFrame || IsConsolePoppedOut)
             return;
 
-        var owner = GetMainWindow();
         var window = new ConsolePopOutWindow(this);
         _consolePopOut = window;
         IsConsolePoppedOut = true;
@@ -965,10 +964,10 @@ public partial class MainViewModel
             }
         };
 
-        if (owner != null)
-            window.Show(owner);
-        else
-            window.Show();
+        // Ownerless Show() so focusing the pop-out does not raise MainWindow
+        // (WinForms undock used the same pattern). Lifetime is still tied via CloseConsolePopOut.
+        window.Show();
+        window.Activate();
     }
 
     [RelayCommand]

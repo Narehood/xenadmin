@@ -75,7 +75,7 @@ public static class ConsoleSummaryBuilder
         if (dom0 == null)
             return Empty("Control domain not available for this host.");
 
-        return BuildForVm(conn, dom0, objectLabel: $"Control domain ({Helpers.GetName(host)})");
+        return BuildForVm(conn, dom0, objectLabel: $"Control domain ({IdentifierPrivacy.ServerName(Helpers.GetName(host))})");
     }
 
     private static ConsoleSummary BuildVm(IXenConnection conn, VM? vm)
@@ -83,7 +83,7 @@ public static class ConsoleSummaryBuilder
         if (vm == null)
             return Empty("VM not found in cache.");
 
-        return BuildForVm(conn, vm, objectLabel: Helpers.GetName(vm));
+        return BuildForVm(conn, vm, objectLabel: IdentifierPrivacy.VmName(Helpers.GetName(vm)));
     }
 
     private static ConsoleSummary BuildForVm(IXenConnection conn, VM vm, string objectLabel)
@@ -95,12 +95,16 @@ public static class ConsoleSummaryBuilder
             .Select(c =>
             {
                 var location = c.location ?? string.Empty;
+                var displayLocation = IdentifierPrivacy.HideIpAddresses
+                    ? IdentifierPrivacy.Placeholder
+                    : location;
                 return new ConsoleItemRow(
                     ProtocolLabel(c.protocol),
-                    string.IsNullOrWhiteSpace(c.uuid) ? "—" : c.uuid,
+                    string.IsNullOrWhiteSpace(c.uuid) ? "—" : IdentifierPrivacy.Uuid(c.uuid),
                     StatusForConsole(vm, c),
-                    location,
-                    canCopyLocation: !string.IsNullOrWhiteSpace(location));
+                    displayLocation,
+                    canCopyLocation: !string.IsNullOrWhiteSpace(location)
+                                     && !IdentifierPrivacy.HideIpAddresses);
             })
             .ToList();
 
