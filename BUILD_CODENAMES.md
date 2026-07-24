@@ -18,7 +18,7 @@ Never reuse a registry codename.
 | v2026.7.21.1 | Emberlane | First calendar-tagged shell release under Emberlane milestone |
 | v2026.7.21.2 | Emberlane | Same milestone name (pre per-build policy) |
 | development (pre–per-build) | Emberlane | Milestone label before unique-per-build codenames |
-| v2026.07.24.* | Sandwake | First unique per-build codename (shell UI bugfixes) |
+| v2026.7.24.1 | Sandwake | First unique per-build codename (shell UI bugfixes + PR #29–#31) |
 
 ## Candidate pool
 
