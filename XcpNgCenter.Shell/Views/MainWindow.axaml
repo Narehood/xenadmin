@@ -131,12 +131,18 @@
                             Command="{Binding RefreshStorageCommand}"
                             IsVisible="{Binding ShowPoolContextActions}" />
                   <Separator IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="Reconnect"
+                            Command="{Binding ReconnectSelectedCommand}"
+                            IsVisible="{Binding CanReconnectSelected}" />
+                  <MenuItem Header="Cancel connect"
+                            Command="{Binding CancelConnectSelectedCommand}"
+                            IsVisible="{Binding CanCancelConnectSelected}" />
                   <MenuItem Header="Disconnect"
                             Command="{Binding DisconnectSelectedCommand}"
                             IsVisible="{Binding CanDisconnectSelected}" />
                   <MenuItem Header="Remove"
                             Command="{Binding RemoveSelectedCommand}"
-                            IsVisible="{Binding CanDisconnectSelected}" />
+                            IsVisible="{Binding CanRemoveSelected}" />
 
                   <Separator IsVisible="{Binding ShowVmContextActions}" />
                   <MenuItem Header="Start" Command="{Binding StartVmCommand}" IsVisible="{Binding CanStartVm}" />

@@ -19,6 +19,7 @@ public partial class SettingsViewModel : ViewModelBase
         _suppressPrivacyNotify = true;
         // Assign backing fields so On*Changed does not rewrite settings on open.
         _autoReconnectSavedServers = settings.AutoReconnectSavedServers;
+        _autoRetryLostConnections = settings.AutoRetryLostConnections;
         _hideIpAddresses = settings.HideIpAddresses;
         _hideUuids = settings.HideUuids;
         _hideVmNames = settings.HideVmNames;
@@ -26,7 +27,6 @@ public partial class SettingsViewModel : ViewModelBase
         _hideClusterNames = settings.HideClusterNames;
         _requireMainPassword = settings.RequireMainPassword && settings.GetMainPasswordHash() != null;
         _suppressPrivacyNotify = false;
-
         VersionText = ShellVersionInfo.Display;
         BuildDateText = ShellVersionInfo.BuildDateDisplay;
         CodenameText = ShellVersionInfo.Codename;
@@ -36,6 +36,9 @@ public partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _autoReconnectSavedServers;
+
+    [ObservableProperty]
+    private bool _autoRetryLostConnections;
 
     [ObservableProperty]
     private bool _hideIpAddresses;
@@ -86,6 +89,11 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnAutoReconnectSavedServersChanged(bool value)
     {
         _settings.AutoReconnectSavedServers = value;
+    }
+
+    partial void OnAutoRetryLostConnectionsChanged(bool value)
+    {
+        _settings.AutoRetryLostConnections = value;
     }
 
     partial void OnHideIpAddressesChanged(bool value)

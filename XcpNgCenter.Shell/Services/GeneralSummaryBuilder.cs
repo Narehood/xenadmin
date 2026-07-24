@@ -11,8 +11,21 @@ public static class GeneralSummaryBuilder
 {
     public static IReadOnlyList<GeneralPropertyRow> Build(InfraTreeNode? node)
     {
-        if (node?.Server?.Connection is not { IsConnected: true } conn)
+        if (node?.Server is null)
             return Array.Empty<GeneralPropertyRow>();
+
+        if (node.Server.Connection is not { IsConnected: true } conn)
+        {
+            var server = node.Server;
+            return new[]
+            {
+                new GeneralPropertyRow("Name", string.IsNullOrWhiteSpace(server.Name) ? server.Address : server.Name),
+                new GeneralPropertyRow("Address", server.Address),
+                new GeneralPropertyRow("Status", server.Status),
+                new GeneralPropertyRow("Detail", string.IsNullOrWhiteSpace(server.Summary) ? "—" : server.Summary),
+                new GeneralPropertyRow("Username", server.Username)
+            };
+        }
 
         return node.Kind switch
         {

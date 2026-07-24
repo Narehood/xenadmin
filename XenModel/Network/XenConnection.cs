@@ -504,7 +504,14 @@ namespace XenAdmin.Network
                 {
                     if (e.Status == WebExceptionStatus.TrustFailure)
                         throw new CancelledException();
-                    if (e.Status == WebExceptionStatus.NameResolutionFailure || e.Status == WebExceptionStatus.ProtocolError || attempt >= DEFAULT_MAX_SESSION_LOGIN_ATTEMPTS)
+                    // Unreachable / wrong host: fail once. Retrying the same dead address
+                    // only prolongs the connecting dialog with no chance of success.
+                    if (e.Status == WebExceptionStatus.NameResolutionFailure
+                        || e.Status == WebExceptionStatus.ProtocolError
+                        || e.Status == WebExceptionStatus.ConnectFailure
+                        || e.Status == WebExceptionStatus.Timeout
+                        || e.Status == WebExceptionStatus.ConnectionClosed
+                        || attempt >= DEFAULT_MAX_SESSION_LOGIN_ATTEMPTS)
                         throw;
                 }
                 catch (UriFormatException)

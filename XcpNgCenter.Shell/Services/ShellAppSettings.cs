@@ -31,6 +31,20 @@ public sealed class ShellAppSettings
         set => SetBool(v => _state.AutoReconnectSavedServers = v, () => _state.AutoReconnectSavedServers, value);
     }
 
+    /// <summary>
+    /// When true, lost connections stay registered so XenConnection may retry.
+    /// When false (default), a lost connection stays in the tree as disconnected until the user reconnects.
+    /// </summary>
+    public bool AutoRetryLostConnections
+    {
+        get
+        {
+            lock (_gate)
+                return _state.AutoRetryLostConnections;
+        }
+        set => SetBool(v => _state.AutoRetryLostConnections = v, () => _state.AutoRetryLostConnections, value);
+    }
+
     public bool HideIpAddresses
     {
         get
@@ -184,6 +198,9 @@ public sealed class ShellAppSettings
     {
         [JsonPropertyName("autoReconnectSavedServers")]
         public bool AutoReconnectSavedServers { get; set; } = true;
+
+        [JsonPropertyName("autoRetryLostConnections")]
+        public bool AutoRetryLostConnections { get; set; }
 
         [JsonPropertyName("hideIpAddresses")]
         public bool HideIpAddresses { get; set; }

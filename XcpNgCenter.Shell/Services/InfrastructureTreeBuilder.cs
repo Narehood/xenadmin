@@ -9,6 +9,31 @@ namespace XcpNgCenter.Shell.Services;
 
 public static class InfrastructureTreeBuilder
 {
+    /// <summary>
+    /// Placeholder root shown while connecting or after a failed/disconnected session,
+    /// so the server stays visible in the infrastructure tree.
+    /// </summary>
+    public static InfraTreeNode BuildPlaceholder(ServerNode server)
+    {
+        var (icon, tip) = server.IsConnecting
+            ? (ShellStatusIcons.HostConnecting, "Connecting…")
+            : (ShellStatusIcons.HostDisconnected, server.Status);
+
+        return new InfraTreeNode
+        {
+            Kind = InfraNodeKind.Pool,
+            Title = string.IsNullOrWhiteSpace(server.Name) ? server.Address : server.Name,
+            Subtitle = server.Address,
+            Detail = string.IsNullOrWhiteSpace(server.Summary) ? server.Status : server.Summary,
+            Server = server,
+            OpaqueRef = $"placeholder:{server.Address}",
+            IsExpanded = false,
+            ShowStatusIcon = true,
+            StatusIcon = icon,
+            StatusTooltip = tip
+        };
+    }
+
     public static InfraTreeNode Build(ServerNode server, IXenConnection conn)
     {
         var pool = Helpers.GetPoolOfOne(conn);
