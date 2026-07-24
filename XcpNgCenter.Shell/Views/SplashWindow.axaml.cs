@@ -8,6 +8,7 @@ public partial class SplashWindow : Window
     {
         InitializeComponent();
         // Prefer the calendar build stamped at compile time (year.month.day.revision).
-        VersionText.Text = $"Version {Services.ShellVersionInfo.Display}";
+        BuildTagText.Text = Services.ShellVersionInfo.TagDisplay;
+        VersionText.Text = Services.ShellVersionInfo.Codename;
     }
 }

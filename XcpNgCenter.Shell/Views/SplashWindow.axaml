@@ -37,7 +37,7 @@
                      FontSize="26"
                      FontWeight="Bold"
                      Foreground="{StaticResource Brush.TextPrimary}" />
-          <TextBlock Text="Preview shell"
+          <TextBlock x:Name="BuildTagText"
                      FontSize="13"
                      Foreground="{StaticResource Brush.BrandOrange}" />
           <TextBlock x:Name="VersionText"

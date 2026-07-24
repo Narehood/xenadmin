@@ -6,27 +6,43 @@ namespace XcpNgCenter.Shell.ViewModels;
 
 public sealed class PerformanceSeriesView
 {
-    public PerformanceSeriesView(string id, string name, string colorHex, IReadOnlyList<RrdPoint> points)
+    public PerformanceSeriesView(
+        string id,
+        string name,
+        string colorHex,
+        IReadOnlyList<RrdPoint> points,
+        string? units = null)
     {
         Id = id;
         Name = name;
         ColorHex = colorHex;
         Points = points;
+        Units = units ?? "";
     }
 
     public string Id { get; }
     public string Name { get; }
     public string ColorHex { get; }
     public IReadOnlyList<RrdPoint> Points { get; }
+    public string Units { get; }
+
+    public bool IsPercentUnit =>
+        Units is "percent" or "(fraction)"
+        || Units.Contains("percent", StringComparison.OrdinalIgnoreCase);
 }
 
 public partial class PerformanceGraphRow : ObservableObject
 {
-    public PerformanceGraphRow(string title, IReadOnlyList<PerformanceSeriesView> series, RrdArchiveInterval interval)
+    public PerformanceGraphRow(
+        string title,
+        IReadOnlyList<PerformanceSeriesView> series,
+        RrdArchiveInterval interval,
+        double? yAxisMax = null)
     {
         Title = title;
         Interval = interval;
         Series = new ObservableCollection<PerformanceSeriesView>(series);
+        YAxisMax = yAxisMax;
         HasData = series.Any(s => s.Points.Count > 0);
         LatestSummary = BuildSummary(series);
     }
@@ -34,6 +50,11 @@ public partial class PerformanceGraphRow : ObservableObject
     public string Title { get; }
 
     public RrdArchiveInterval Interval { get; }
+
+    /// <summary>
+    /// When set (e.g. 100 for CPU %), the chart Y-axis uses this fixed maximum instead of the data peak.
+    /// </summary>
+    public double? YAxisMax { get; }
 
     public ObservableCollection<PerformanceSeriesView> Series { get; }
 

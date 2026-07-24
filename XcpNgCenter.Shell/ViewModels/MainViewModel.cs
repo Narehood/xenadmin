@@ -30,6 +30,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public string BrandName => "XCP-ng Center";
 
+    public string VersionDisplay => ShellVersionInfo.TagDisplay;
+
     public string Tagline => "Manage pools, hosts, and VMs with a calmer console.";
 
     public HostedConsoleSession ConsoleSession => _consoleSession;
@@ -68,6 +70,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private ServerNode? _selectedServer;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDetailNetwork))]
+    [NotifyPropertyChangedFor(nameof(ShowDetailConsole))]
+    [NotifyPropertyChangedFor(nameof(ShowDetailSnapshots))]
+    [NotifyPropertyChangedFor(nameof(ShowDetailPerformance))]
     private InfraTreeNode? _selectedInfraNode;
 
     [ObservableProperty]
@@ -88,6 +94,18 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Sidebar tree and actions when any server is connected.</summary>
     public bool ShowInfrastructure => HasServers;
+
+    /// <summary>SR selection hides VM/host-only detail tabs.</summary>
+    public bool IsStorageSelection =>
+        (SelectedInfraNode ?? _pinnedInfraNode)?.Kind == InfraNodeKind.Storage;
+
+    public bool ShowDetailGeneral => true;
+    public bool ShowDetailStorage => true;
+    public bool ShowDetailLogs => true;
+    public bool ShowDetailNetwork => !IsStorageSelection;
+    public bool ShowDetailConsole => !IsStorageSelection;
+    public bool ShowDetailSnapshots => !IsStorageSelection;
+    public bool ShowDetailPerformance => !IsStorageSelection;
 
     /// <summary>Object detail pane (hidden while the global alerts pane is open).</summary>
     public bool ShowInfrastructureDetail => HasServers && !ShowGlobalAlerts;
@@ -318,6 +336,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _pinnedInfraNode = value;
         if (value.Server != null)
             SelectedServer = value.Server;
+        NotifyDetailTabVisibility();
         RefreshDetailPanes();
     }
 
@@ -1337,6 +1356,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void RefreshDetailPanes()
     {
+        NotifyDetailTabVisibility();
         var node = SelectedInfraNode ?? _pinnedInfraNode;
         RefreshSelectedVm();
         RefreshGeneralProperties(node);
@@ -1345,6 +1365,15 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         RefreshConsoleProperties(node);
         RefreshSnapshotProperties();
         RefreshPerformanceProperties(node);
+    }
+
+    private void NotifyDetailTabVisibility()
+    {
+        OnPropertyChanged(nameof(IsStorageSelection));
+        OnPropertyChanged(nameof(ShowDetailNetwork));
+        OnPropertyChanged(nameof(ShowDetailConsole));
+        OnPropertyChanged(nameof(ShowDetailSnapshots));
+        OnPropertyChanged(nameof(ShowDetailPerformance));
     }
 
     private void RefreshGeneralProperties(InfraTreeNode? node)

@@ -32,6 +32,7 @@ public static class GeneralSummaryBuilder
             InfraNodeKind.Pool => BuildPool(conn, node),
             InfraNodeKind.Host => BuildHost(conn, node),
             InfraNodeKind.Vm => BuildVm(conn, node),
+            InfraNodeKind.Storage => BuildSr(conn, node),
             _ => Array.Empty<GeneralPropertyRow>()
         };
     }
@@ -182,6 +183,50 @@ public static class GeneralSummaryBuilder
         return rows;
     }
 
+    private static IReadOnlyList<GeneralPropertyRow> BuildSr(IXenConnection conn, InfraTreeNode node)
+    {
+        var sr = FindSr(conn, node.OpaqueRef);
+        if (sr == null)
+            return new[] { new GeneralPropertyRow("Name", node.Title) };
+
+        var rows = new List<GeneralPropertyRow>
+        {
+            new("Name", Helpers.GetName(sr)),
+            new("Type", sr.FriendlyTypeName()),
+            new("Shared", sr.shared ? "Yes" : "No")
+        };
+
+        if (sr.content_type != SR.Content_Type_ISO && sr.GetSRType(false) != SR.SRTypes.udev)
+            rows.Add(new("Size", sr.SizeString()));
+
+        var used = Util.DiskSizeString(sr.physical_utilisation);
+        var free = Util.DiskSizeString(sr.FreeSpace());
+        rows.Add(new("Used", used));
+        rows.Add(new("Free", free));
+
+        var scsiId = sr.GetScsiID();
+        if (!string.IsNullOrWhiteSpace(scsiId))
+            rows.Add(new("SCSI ID", scsiId));
+
+        var pool = Helpers.GetPool(conn);
+        if (pool != null)
+            rows.Add(new("Pool", Helpers.GetName(pool)));
+        else
+        {
+            var coordinator = Helpers.GetCoordinator(conn);
+            if (coordinator != null)
+                rows.Add(new("Server", Helpers.GetName(coordinator)));
+        }
+
+        rows.Add(new("UUID", sr.uuid));
+        AddTags(rows, sr);
+
+        if (!string.IsNullOrWhiteSpace(sr.name_description))
+            rows.Add(new("Description", sr.name_description));
+
+        return rows;
+    }
+
     private static string FormatHostProduct(Host host)
     {
         var brand = host.ProductBrand() ?? "XCP-ng";
@@ -274,4 +319,9 @@ public static class GeneralSummaryBuilder
         => string.IsNullOrEmpty(opaqueRef)
             ? null
             : conn.Cache.VMs?.FirstOrDefault(v => v.opaque_ref == opaqueRef);
+
+    private static SR? FindSr(IXenConnection conn, string? opaqueRef)
+        => string.IsNullOrEmpty(opaqueRef)
+            ? null
+            : conn.Cache.SRs?.FirstOrDefault(sr => sr.opaque_ref == opaqueRef);
 }

@@ -19,7 +19,8 @@
 		<AssemblyVersion>$(Version)</AssemblyVersion>
 		<FileVersion>$(Version)</FileVersion>
 		<InformationalVersion>$(Version)</InformationalVersion>
-		<Codename>Emberlane</Codename>
+		<!-- Release/CI builds must pass -p:Codename=<Name> and record it in BUILD_CODENAMES.md. -->
+		<Codename Condition="'$(Codename)' == ''">Local</Codename>
 		<Lab>xcpngcenter_main</Lab>
 	</PropertyGroup>
 </Project>

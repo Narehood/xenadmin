@@ -66,7 +66,7 @@
                            FontWeight="Bold"
                            Foreground="{StaticResource Brush.TextPrimary}"
                            TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="Preview shell"
+                <TextBlock Text="{Binding VersionDisplay}"
                            FontSize="12"
                            Foreground="{StaticResource Brush.BrandOrange}" />
               </StackPanel>
@@ -536,7 +536,7 @@
                   </Style>
                 </TabControl.Styles>
 
-                <TabItem Header="General">
+                <TabItem Header="General" IsVisible="{Binding ShowDetailGeneral}">
                   <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="12" Margin="0,0,4,0">
                       <Button Classes="ghost"
@@ -587,7 +587,7 @@
                   </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="Storage">
+                <TabItem Header="Storage" IsVisible="{Binding ShowDetailStorage}">
                   <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="18" Margin="0,0,4,0">
                       <ItemsControl ItemsSource="{Binding StorageTotals}">
@@ -684,7 +684,7 @@
                   </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="Network">
+                <TabItem Header="Network" IsVisible="{Binding ShowDetailNetwork}">
                   <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="18" Margin="0,0,4,0">
                       <ItemsControl ItemsSource="{Binding NetworkTotals}">
@@ -831,7 +831,7 @@
                   </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="Console">
+                <TabItem Header="Console" IsVisible="{Binding ShowDetailConsole}">
                   <Grid Margin="0,4,0,0" RowDefinitions="Auto,*">
                     <!-- CD/DVD + console actions; wraps to a second row at MinWidth. -->
                     <WrapPanel Orientation="Horizontal"
@@ -1061,7 +1061,7 @@
                   </Grid>
                 </TabItem>
 
-                <TabItem Header="Snapshots">
+                <TabItem Header="Snapshots" IsVisible="{Binding ShowDetailSnapshots}">
                   <Panel Margin="0,18,0,8">
                     <StackPanel Spacing="14" IsVisible="{Binding CanManageSnapshots}">
                       <TextBlock Text="Disk snapshots form a tree from the VM base. NOW marks the current branch tip. Memory checkpoints come later."
@@ -1146,7 +1146,7 @@
                   </Panel>
                 </TabItem>
 
-                <TabItem Header="Performance">
+                <TabItem Header="Performance" IsVisible="{Binding ShowDetailPerformance}">
                   <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
                     <StackPanel Spacing="8" Margin="0,0,4,8">
                       <DockPanel>
@@ -1201,7 +1201,8 @@
                                 </DockPanel>
                                 <controls:PerformanceChart Height="180"
                                                            Series="{Binding Series}"
-                                                           Interval="{Binding Interval}" />
+                                                           Interval="{Binding Interval}"
+                                                           YAxisMax="{Binding YAxisMax}" />
                               </StackPanel>
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>
@@ -1211,7 +1212,7 @@
                   </Grid>
                 </TabItem>
 
-                <TabItem Header="Logs">
+                <TabItem Header="Logs" IsVisible="{Binding ShowDetailLogs}">
                   <Grid Margin="0,18,0,0" RowDefinitions="Auto,*">
                     <DockPanel Margin="0,0,4,8">
                       <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
