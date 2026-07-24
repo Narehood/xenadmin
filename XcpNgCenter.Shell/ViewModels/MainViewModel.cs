@@ -821,7 +821,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         string? encrypted = null;
         if (!string.IsNullOrEmpty(password))
+        {
             encrypted = ProtectSavedPassword(password);
+            if (encrypted == null)
+            {
+                // Do not wipe an existing protected blob when main password is locked.
+                encrypted = previousSecret;
+                if (_appSettings.RequireMainPassword && _sessionMainPasswordHash == null)
+                    StatusMessage = "Unlock the main password to update saved credentials.";
+            }
+        }
         else if (RememberPassword)
             encrypted = previousSecret;
 

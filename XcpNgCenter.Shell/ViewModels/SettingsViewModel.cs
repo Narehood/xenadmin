@@ -143,7 +143,11 @@ public partial class SettingsViewModel : ViewModelBase
 
             var ok = await _main.PromptEnterMainPasswordAsync(hash).ConfigureAwait(true);
             if (!ok)
+            {
+                // Checkbox is OneWay; force UI to re-sync after cancel.
+                OnPropertyChanged(nameof(RequireMainPassword));
                 return;
+            }
 
             await DisableMainPasswordAsync().ConfigureAwait(true);
         }
@@ -151,7 +155,10 @@ public partial class SettingsViewModel : ViewModelBase
         {
             var set = await _main.PromptSetMainPasswordAsync().ConfigureAwait(true);
             if (set == null)
+            {
+                OnPropertyChanged(nameof(RequireMainPassword));
                 return;
+            }
 
             _main.SetSessionMainPassword(set.Value.Hash, set.Value.Plain);
             await EnableMainPasswordAsync(set.Value.Hash).ConfigureAwait(true);
