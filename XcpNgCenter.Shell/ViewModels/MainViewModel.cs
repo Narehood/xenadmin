@@ -1098,6 +1098,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (!Servers.Contains(node))
             return;
 
+        // TearDownConnection already cleared Connection (e.g. Cancel); keep Cancelled status.
+        if (node.Connection is null)
+            return;
+
         // Cancelled in-flight connects are handled by CancelConnectSelected.
         if (node.IsConnecting)
             return;
