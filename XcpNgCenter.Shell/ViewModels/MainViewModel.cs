@@ -994,9 +994,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         conn.CachePopulated += c => Dispatcher.UIThread.Post(() => OnCachePopulated(node, c));
         conn.XenObjectsUpdated += (_, _) => Dispatcher.UIThread.Post(() =>
         {
-            if (node.Connection != null && node.IsConnected)
+            // Require both the Shell flag and XenConnection.IsConnected so a queued
+            // refresh after coordinator death cannot rebuild a green "online" tree from
+            // stale Host_metrics.live snapshots.
+            if (node.Connection != null && node.IsConnected && node.Connection.IsConnected)
                 RebuildTreeForServer(node, node.Connection);
         });
+        conn.ClearingCache += c => Dispatcher.UIThread.Post(() => OnConnectionClearingCache(node, c));
+        conn.ConnectionStateChanged += c => Dispatcher.UIThread.Post(() => OnConnectionStateChanged(node, c));
         conn.ConnectionClosed += _ => Dispatcher.UIThread.Post(() => OnConnectionClosed(node));
         conn.ConnectionLost += _ => Dispatcher.UIThread.Post(() => OnConnectionLost(node));
         conn.ConnectionReconnecting += _ => Dispatcher.UIThread.Post(() =>
@@ -1093,6 +1098,47 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         NotifyServerActionCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Fired as soon as XenConnection clears its cache (before ConnectionClosed/Lost).
+    /// WinForms refreshes the tree here; without it the Shell keeps painting green host
+    /// icons from the last Host_metrics.live snapshot while the coordinator is already down.
+    /// </summary>
+    private void OnConnectionClearingCache(ServerNode node, IXenConnection conn)
+    {
+        if (!Servers.Contains(node) || !ReferenceEquals(node.Connection, conn))
+            return;
+
+        StopConsoleIfBoundTo(node);
+
+        if (!node.IsConnected && !node.IsConnecting)
+            return;
+
+        node.IsConnected = false;
+        if (!node.IsConnecting)
+        {
+            node.Status = "Connection lost";
+            node.Summary = "Disconnected — right-click to reconnect";
+        }
+
+        EnsureServerTreePlaceholder(node);
+        NotifyServerActionCanExecuteChanged();
+    }
+
+    private void OnConnectionStateChanged(ServerNode node, IXenConnection conn)
+    {
+        if (!Servers.Contains(node) || !ReferenceEquals(node.Connection, conn))
+            return;
+
+        // Drop stale "connected" chrome as soon as XenConnection flips IsConnected.
+        if (!conn.IsConnected && node.IsConnected)
+        {
+            node.IsConnected = false;
+            StopConsoleIfBoundTo(node);
+            EnsureServerTreePlaceholder(node);
+            NotifyServerActionCanExecuteChanged();
+        }
+    }
+
     private void OnConnectionClosed(ServerNode node)
     {
         if (!Servers.Contains(node))
@@ -1102,7 +1148,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (node.Connection is null)
             return;
 
-        // Cancelled in-flight connects are handled by CancelConnectSelected.
+        // Cancelled in-flight connects / reconnect searches are handled elsewhere.
         if (node.IsConnecting)
             return;
 
@@ -1237,8 +1283,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void RebuildTreeForServer(ServerNode server, IXenConnection conn, bool selectRoot = false)
     {
-        if (!server.IsConnected || !ReferenceEquals(server.Connection, conn))
+        if (!server.IsConnected
+            || !ReferenceEquals(server.Connection, conn)
+            || !conn.IsConnected)
+        {
             return;
+        }
 
         var selectedRef = _pinnedInfraNode?.Server == server
             ? _pinnedInfraNode.OpaqueRef

@@ -73,7 +73,17 @@ public static class ShellStatusIcons
 
     public static (Bitmap Icon, string Tooltip) ForHost(Host host)
     {
-        var metrics = host.Connection.Resolve(host.metrics);
+        var conn = host.Connection;
+        // Connection down ⇒ disconnected, even if the last Host_metrics.live snapshot was true.
+        // Otherwise pool members keep a green "online" glyph after the coordinator dies.
+        if (conn == null || !conn.IsConnected)
+        {
+            if (conn is { InProgress: true })
+                return (HostConnecting, "Connecting…");
+            return (HostDisconnected, "Disconnected");
+        }
+
+        var metrics = conn.Resolve(host.metrics);
         if (metrics != null && metrics.live)
         {
             if ((host.current_operations?.ContainsValue(host_allowed_operations.evacuate) == true) || !host.enabled)
@@ -81,7 +91,7 @@ public static class ShellStatusIcons
             return (HostConnected, "Connected");
         }
 
-        if (host.Connection.InProgress && !host.Connection.IsConnected)
+        if (conn.InProgress)
             return (HostConnecting, "Connecting…");
 
         return (HostDisconnected, "Disconnected");

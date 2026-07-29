@@ -81,7 +81,7 @@ namespace XenAdmin.Actions
                 try
                 {
                     // Try to re-enable the host
-                    if (wasEnabled)
+                    if (wasEnabled && Connection != null && Connection.IsConnected)
                         Host.enable(Session, Host.opaque_ref);
                 }
                 catch (Exception e2)
@@ -100,6 +100,18 @@ namespace XenAdmin.Actions
                         throw new Failure(string.Format(Messages.ACTION_REBOOT_HOST_VM_SHUTDOWN_ACK, vm.Name()));
                     }
                 }
+
+                // Coordinator reboot often kills the session mid-poll. Without Interrupt the
+                // UI keeps stale Host_metrics.live=true until the heartbeat times out.
+                if (Helpers.HostIsCoordinator(Host) && IsLikelyConnectionDeath(e))
+                {
+                    try { Host.Connection.Interrupt(); }
+                    catch (Exception interruptEx)
+                    {
+                        log.Debug("Interrupt after coordinator reboot failure", interruptEx);
+                    }
+                }
+
                 throw;
             }
 
@@ -110,6 +122,34 @@ namespace XenAdmin.Actions
             }
 
             this.Description = string.Format(Messages.ACTION_HOST_REBOOTED, Helpers.GetName(Host));
+        }
+
+        private static bool IsLikelyConnectionDeath(Exception error)
+        {
+            for (Exception ex = error; ex != null; ex = ex.InnerException)
+            {
+                if (ex is System.Net.WebException ||
+                    ex is System.Net.Sockets.SocketException ||
+                    ex is System.IO.IOException)
+                {
+                    return true;
+                }
+
+                if (ex is Failure failure &&
+                    failure.ErrorDescription != null &&
+                    failure.ErrorDescription.Count > 0)
+                {
+                    var code = failure.ErrorDescription[0];
+                    if (code == Failure.SESSION_INVALID ||
+                        code == Failure.HOST_OFFLINE ||
+                        code == "TRANSPORT_FAILURE")
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
     }
