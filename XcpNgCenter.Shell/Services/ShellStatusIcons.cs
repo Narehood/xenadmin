@@ -1,6 +1,8 @@
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using XenAdmin.Core;
+using XenAdmin;
+using XenAdmin.Actions;
+using XenAdmin.Actions.HostActions;
 using XenAdmin.Network;
 using XenAPI;
 
@@ -83,6 +85,11 @@ public static class ShellStatusIcons
             return (HostDisconnected, "Disconnected");
         }
 
+        // Yellow while this host is power-cycling — checked before maintenance/live so a
+        // Center-initiated reboot (disable → reboot) is not stuck on the green/maintenance icon.
+        if (TryGetHostPowerProgress(host, out var progressTip))
+            return (HostConnecting, progressTip);
+
         var metrics = conn.Resolve(host.metrics);
         if (metrics != null && metrics.live)
         {
@@ -91,10 +98,12 @@ public static class ShellStatusIcons
             return (HostConnected, "Connected");
         }
 
+        // Member host down while the pool session is still up → red (not yellow).
+        // Yellow is reserved for in-progress power ops or whole-connection reconnect.
         if (conn.InProgress)
             return (HostConnecting, "Connecting…");
 
-        return (HostDisconnected, "Disconnected");
+        return (HostDisconnected, "Offline");
     }
 
     public static (Bitmap Icon, string Tooltip) ForPool(IXenConnection conn)
@@ -122,6 +131,60 @@ public static class ShellStatusIcons
         if (sr.IsLocalSR())
             return (StorageLocal, "Local storage");
         return (Storage, "Shared storage");
+    }
+
+    /// <summary>
+    /// True when xapi or a local Shell action says this host is rebooting / shutting down / powering on.
+    /// </summary>
+    public static bool TryGetHostPowerProgress(Host host, out string tooltip)
+    {
+        tooltip = string.Empty;
+        if (host == null)
+            return false;
+
+        if (host.current_operations != null)
+        {
+            foreach (var op in host.current_operations.Values)
+            {
+                switch (op)
+                {
+                    case host_allowed_operations.reboot:
+                        tooltip = "Rebooting…";
+                        return true;
+                    case host_allowed_operations.shutdown:
+                        tooltip = "Shutting down…";
+                        return true;
+                    case host_allowed_operations.power_on:
+                        tooltip = "Powering on…";
+                        return true;
+                }
+            }
+        }
+
+        foreach (var action in ConnectionsManager.History)
+        {
+            if (action.IsCompleted || action.IsCancelled)
+                continue;
+            if (action.Host == null || action.Host.opaque_ref != host.opaque_ref)
+                continue;
+            if (!ReferenceEquals(action.Connection, host.Connection))
+                continue;
+
+            switch (action)
+            {
+                case RebootHostAction:
+                    tooltip = "Rebooting…";
+                    return true;
+                case ShutdownHostAction:
+                    tooltip = "Shutting down…";
+                    return true;
+                case HostPowerOnAction:
+                    tooltip = "Powering on…";
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     private static string FormatOp(vm_operations op) => op switch
