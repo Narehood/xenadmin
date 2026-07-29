@@ -84,6 +84,8 @@ public sealed class HostedConsoleSession : IDisposable
             if (string.IsNullOrWhiteSpace(target.Console.location))
                 throw new InvalidOperationException("Console location is empty.");
 
+            // DuplicateSession copies the main session opaque_ref onto a new TCP client.
+            // Never Session.logout() it — that would destroy the pool connection.
             session = target.Connection.DuplicateSession();
             token.ThrowIfCancellationRequested();
 
@@ -111,7 +113,7 @@ public sealed class HostedConsoleSession : IDisposable
                 {
                     client.Close();
                     SafeDispose(stream);
-                    Logout(session);
+                    // Drop local refs only — do not logout DuplicateSession.
                     return;
                 }
 
@@ -119,27 +121,23 @@ public sealed class HostedConsoleSession : IDisposable
                 _stream = stream;
                 _client = client;
                 connectClient = client;
-                // Ownership transferred to fields; local vars must not dispose on success path.
                 session = null;
                 stream = null;
                 client = null;
             }
 
             // Hosted XAPI consoles typically use auth scheme 1 (none).
-            // Connect returns after starting the RFB helper thread.
             connectClient.Connect(Array.Empty<char>());
         }
         catch (OperationCanceledException)
         {
             SafeDispose(client);
             SafeDispose(stream);
-            Logout(session);
         }
         catch (Exception ex)
         {
             SafeDispose(client);
             SafeDispose(stream);
-            Logout(session);
             if (!_disposed && _generation == generation)
                 SetStatus($"Console connect failed: {ex.Message}", connected: false);
             Debug.WriteLine(ex);
@@ -154,7 +152,6 @@ public sealed class HostedConsoleSession : IDisposable
     {
         RfbClient? client;
         Stream? stream;
-        Session? session;
 
         lock (_gate)
         {
@@ -165,14 +162,12 @@ public sealed class HostedConsoleSession : IDisposable
             _client = null;
             stream = _stream;
             _stream = null;
-            session = _session;
             _session = null;
             IsConnected = false;
         }
 
         try { client?.Close(); } catch { /* ignore */ }
         SafeDispose(stream);
-        Logout(session);
     }
 
     private void OnFramePresented()
@@ -247,7 +242,6 @@ public sealed class HostedConsoleSession : IDisposable
         CancellationTokenSource? cts;
         RfbClient? client;
         Stream? stream;
-        Session? session;
         AvaloniaRfbFramebuffer? framebuffer;
 
         lock (_gate)
@@ -258,7 +252,7 @@ public sealed class HostedConsoleSession : IDisposable
             _client = null;
             stream = _stream;
             _stream = null;
-            session = _session;
+            // DuplicateSession shares the pool opaque_ref — never logout here.
             _session = null;
             framebuffer = _framebuffer;
             _framebuffer = null;
@@ -270,7 +264,6 @@ public sealed class HostedConsoleSession : IDisposable
         try { cts?.Cancel(); } catch { /* ignore */ }
         try { client?.Close(); } catch { /* ignore */ }
         SafeDispose(stream);
-        Logout(session);
         if (framebuffer != null)
         {
             framebuffer.FramePresented -= OnFramePresented;
@@ -300,21 +293,6 @@ public sealed class HostedConsoleSession : IDisposable
     private static void SafeDispose(RfbClient? client)
     {
         try { client?.Close(); } catch { /* ignore */ }
-    }
-
-    private static void Logout(Session? session)
-    {
-        if (session == null)
-            return;
-        try
-        {
-            if (!string.IsNullOrEmpty(session.opaque_ref))
-                session.logout();
-        }
-        catch
-        {
-            // Session may already be invalid after host reboot.
-        }
     }
 }
 
