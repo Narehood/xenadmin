@@ -811,7 +811,9 @@ namespace XenAPI
 
         public bool IsLive()
         {
-            if (Connection == null)
+            // Without an active connection, cached Host_metrics.live is stale (e.g. after the
+            // pool coordinator reboots) and must not be treated as online.
+            if (Connection == null || !Connection.IsConnected)
                 return false;
 
             Host_metrics hm = Connection.Resolve(metrics);

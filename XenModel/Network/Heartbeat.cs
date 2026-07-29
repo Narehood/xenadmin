@@ -144,7 +144,7 @@ namespace XenAdmin.Network
                 {
                     log.Error(exn);
                 }
-                HandleConnectionLoss();
+                HandleConnectionLoss(exn.InnerException ?? exn);
             }
             catch (WebException exn)
             {
@@ -164,13 +164,13 @@ namespace XenAdmin.Network
                 }
                 else
                 {
-                    HandleConnectionLoss();
+                    HandleConnectionLoss(exn);
                 }
             }
             catch (Exception exn)
             {
                 log.Error(exn);
-                HandleConnectionLoss();
+                HandleConnectionLoss(exn);
             }
         }
 
@@ -183,15 +183,21 @@ namespace XenAdmin.Network
             connection.ServerTimeOffset = DateTime.UtcNow - t;
         }
 
-        private void HandleConnectionLoss()
+        private void HandleConnectionLoss(Exception error = null)
         {
+            // Hard connection failures (coordinator reboot / refused / reset) skip the
+            // second chance so the UI does not keep painting hosts as online.
+            // Transient timeouts still get one retry to avoid flapping on brief blips.
+            var hardFail = IsHardConnectionFailure(error);
+
             // We retry once, as the server is entitled to drop persistent connections from time to time.
             // After that, we assume that the server's gone away.
             // Note that this doubles the effective timeout before we decide the server has died.
-            if (retrying && !connection.ExpectDisruption)
+            if ((retrying || hardFail) && !connection.ExpectDisruption)
             {
-                log.DebugFormat("Heartbeat for {0} has failed for the second time; closing the main connection",
-                                session == null ? "null" : session.Url);
+                log.DebugFormat("Heartbeat for {0} has failed{1}; closing the main connection",
+                                session == null ? "null" : session.Url,
+                                hardFail && !retrying ? " hard" : " for the second time");
                 connection.Interrupt();
                 DropSession();
             }
@@ -201,6 +207,33 @@ namespace XenAdmin.Network
                                 session == null ? "null" : session.Url);
                 retrying = true;
             }
+        }
+
+        private static bool IsHardConnectionFailure(Exception error)
+        {
+            for (var ex = error; ex != null; ex = ex.InnerException)
+            {
+                if (ex is SocketException)
+                    return true;
+
+                if (ex is WebException web)
+                {
+                    switch (web.Status)
+                    {
+                        case WebExceptionStatus.ConnectFailure:
+                        case WebExceptionStatus.ConnectionClosed:
+                        case WebExceptionStatus.NameResolutionFailure:
+                        case WebExceptionStatus.ProxyNameResolutionFailure:
+                        case WebExceptionStatus.KeepAliveFailure:
+                        case WebExceptionStatus.ReceiveFailure:
+                        case WebExceptionStatus.SendFailure:
+                        case WebExceptionStatus.PipelineFailure:
+                            return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         /// Drop the session so that we'll get a new one the next time.
