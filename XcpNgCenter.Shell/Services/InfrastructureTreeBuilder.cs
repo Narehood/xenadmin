@@ -82,14 +82,17 @@ public static class InfrastructureTreeBuilder
             var (hostIcon, hostTip) = ShellStatusIcons.ForHost(host);
             var isCoordinator = Helpers.HostIsCoordinator(host);
             var hostAddress = string.IsNullOrWhiteSpace(host.address) ? host.hostname : host.address;
+            var role = isCoordinator ? "Coordinator" : "Member";
+            // Surface reboot/offline state in the row text, not only the icon tooltip.
+            var detail = hostTip is "Connected" or "Connecting…"
+                ? $"{role} · {hostVms.Count} VM(s)"
+                : $"{hostTip} · {role} · {hostVms.Count} VM(s)";
             var hostNode = new InfraTreeNode
             {
                 Kind = InfraNodeKind.Host,
                 Title = IdentifierPrivacy.ServerName(Helpers.GetName(host)),
                 Subtitle = IdentifierPrivacy.Address(hostAddress),
-                Detail = isCoordinator
-                    ? $"Coordinator · {hostVms.Count} VM(s)"
-                    : $"{hostVms.Count} VM(s)",
+                Detail = detail,
                 Server = server,
                 OpaqueRef = host.opaque_ref,
                 IsExpanded = true,

@@ -443,6 +443,18 @@ namespace XenAdmin
 
         public static Icons GetIconFor(Host host)
         {
+            // Yellow while reboot/shutdown/power_on is in flight (before live flips false).
+            if (host.current_operations != null)
+            {
+                foreach (var op in host.current_operations.Values)
+                {
+                    if (op == host_allowed_operations.reboot ||
+                        op == host_allowed_operations.shutdown ||
+                        op == host_allowed_operations.power_on)
+                        return Icons.HostConnecting;
+                }
+            }
+
             Host_metrics metrics = host.Connection.Resolve(host.metrics);
 
             if (metrics != null && metrics.live)

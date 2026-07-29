@@ -564,6 +564,21 @@ public partial class MainViewModel
             ActionStatusMessage = msg;
             StatusMessage = msg;
         });
+
+        // Host power actions should flip the tree icon to yellow immediately, before
+        // xapi publishes current_operations / Host_metrics.live changes.
+        if (action is RebootHostAction or ShutdownHostAction or HostPowerOnAction)
+        {
+            RefreshTreeForActionHost(action);
+            action.Completed += _ => Dispatcher.UIThread.Post(() => RefreshTreeForActionHost(action));
+        }
+    }
+
+    private void RefreshTreeForActionHost(ActionBase action)
+    {
+        var server = Servers.FirstOrDefault(s => ReferenceEquals(s.Connection, action.Connection));
+        if (server is { IsConnected: true, Connection: { IsConnected: true } conn })
+            RebuildTreeForServer(server, conn);
     }
 
     [RelayCommand]
