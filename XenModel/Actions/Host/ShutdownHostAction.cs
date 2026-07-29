@@ -61,6 +61,11 @@ namespace XenAdmin.Actions
 
             MaybeReduceNtolBeforeOp();
             ShutdownVMs(false);
+
+            var previousExpectDisruption = Connection?.ExpectDisruption ?? false;
+            if (Connection != null)
+                Connection.ExpectDisruption = true;
+
             try
             {
                 RelatedTask = XenAPI.Host.async_shutdown(Session, Host.opaque_ref);
@@ -80,6 +85,11 @@ namespace XenAdmin.Actions
                     log.Error("Exception trying to re-enable host after error shutting down Host.", edash);
                 }
                 throw;
+            }
+            finally
+            {
+                if (Connection != null && !Helpers.HostIsCoordinator(Host))
+                    Connection.ExpectDisruption = previousExpectDisruption;
             }
 
             // Close the IXenConnection if it is not to a pool, or is to the coordinator of a pool

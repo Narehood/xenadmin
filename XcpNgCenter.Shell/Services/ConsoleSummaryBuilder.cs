@@ -75,6 +75,30 @@ public static class ConsoleSummaryBuilder
         if (dom0 == null)
             return Empty("Control domain not available for this host.");
 
+        // Never keep a live RFB CONNECT open to a host that is power-cycling.
+        // An open dom0 console (auto-started on host select) can interfere with
+        // orderly reboot/shutdown — XO and SSH do not hold this path open.
+        if (ShellStatusIcons.TryGetHostPowerProgress(host, out var powerTip))
+        {
+            var busy = BuildForVm(conn, dom0, objectLabel: $"Control domain ({IdentifierPrivacy.ServerName(Helpers.GetName(host))})", allowLive: false);
+            return busy with
+            {
+                StatusMessage = $"{powerTip} Console disconnected so the host can finish rebooting.",
+                PlaceholderMessage = "Host console is paused during reboot/shutdown."
+            };
+        }
+
+        var metrics = conn.Resolve(host.metrics);
+        if (metrics is { live: false })
+        {
+            var offline = BuildForVm(conn, dom0, objectLabel: $"Control domain ({IdentifierPrivacy.ServerName(Helpers.GetName(host))})", allowLive: false);
+            return offline with
+            {
+                StatusMessage = "Host is offline — console unavailable.",
+                PlaceholderMessage = "Host console will be available when the server is back online."
+            };
+        }
+
         return BuildForVm(conn, dom0, objectLabel: $"Control domain ({IdentifierPrivacy.ServerName(Helpers.GetName(host))})");
     }
 
@@ -86,7 +110,7 @@ public static class ConsoleSummaryBuilder
         return BuildForVm(conn, vm, objectLabel: IdentifierPrivacy.VmName(Helpers.GetName(vm)));
     }
 
-    private static ConsoleSummary BuildForVm(IXenConnection conn, VM vm, string objectLabel)
+    private static ConsoleSummary BuildForVm(IXenConnection conn, VM vm, string objectLabel, bool allowLive = true)
     {
         var consoles = ResolveConsoles(conn, vm);
         var items = consoles
@@ -118,7 +142,10 @@ public static class ConsoleSummaryBuilder
         };
 
         LiveRfbTarget? live = null;
-        if (vm.power_state == vm_power_state.Running && rfb != null && !string.IsNullOrWhiteSpace(rfb.location))
+        if (allowLive
+            && vm.power_state == vm_power_state.Running
+            && rfb != null
+            && !string.IsNullOrWhiteSpace(rfb.location))
         {
             live = new LiveRfbTarget(
                 conn,

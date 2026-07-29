@@ -570,8 +570,30 @@ public partial class MainViewModel
         if (action is RebootHostAction or ShutdownHostAction or HostPowerOnAction)
         {
             RefreshTreeForActionHost(action);
-            action.Completed += _ => Dispatcher.UIThread.Post(() => RefreshTreeForActionHost(action));
+            action.Completed += _ => Dispatcher.UIThread.Post(() =>
+            {
+                RefreshTreeForActionHost(action);
+                // Allow a fresh console session once the power op finishes.
+                _activeConsoleKey = null;
+                RefreshConsoleProperties(SelectedInfraNode ?? _pinnedInfraNode);
+            });
         }
+    }
+
+    /// <summary>
+    /// Drop any live RFB session aimed at this host (or its control domain) before
+    /// reboot/shutdown. Leaving HTTP CONNECT open is a Center-only path that XO/SSH
+    /// do not take and can stall host power-off.
+    /// </summary>
+    private void DisconnectConsoleBeforeHostPowerOp(Host host)
+    {
+        _activeConsoleKey = null;
+        _consoleSession.Stop();
+        ConsoleBitmap = null;
+        ConsoleViewerStatus = "Console disconnected for host reboot/shutdown.";
+        ConsoleInputHint = string.Empty;
+        IsConsoleConnecting = false;
+        CloseConsolePopOut();
     }
 
     private void RefreshTreeForActionHost(ActionBase action)
@@ -858,6 +880,7 @@ public partial class MainViewModel
         if (!accepted)
             return;
 
+        DisconnectConsoleBeforeHostPowerOp(host);
         RunAction(new RebootHostAction(host, ShellHaNtolPrompt.NtolDialog));
     }
 
@@ -885,6 +908,7 @@ public partial class MainViewModel
         if (!accepted)
             return;
 
+        DisconnectConsoleBeforeHostPowerOp(host);
         RunAction(new ShutdownHostAction(host, ShellHaNtolPrompt.NtolDialog));
     }
 
@@ -906,6 +930,7 @@ public partial class MainViewModel
         if (!accepted)
             return;
 
+        DisconnectConsoleBeforeHostPowerOp(host);
         RunAction(new RestartToolstackAction(host));
     }
 

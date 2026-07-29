@@ -94,41 +94,85 @@ public sealed class HostedConsoleSession : IDisposable
             client = new RfbClient(framebuffer, stream, startPaused: false);
             client.ErrorOccurred += (_, ex) =>
             {
+                // Drop the HTTP CONNECT immediately. Holding an open dom0 console
+                // proxy against a rebooting host can stall orderly shutdown.
                 SetStatus($"Console error: {ex.Message}", connected: false);
+                TearDownTransport(generation);
             };
             client.ConnectionSuccess += (_, _) =>
             {
                 SetStatus("Live console — click to focus for keyboard/mouse.", connected: true);
             };
 
+            RfbClient connectClient;
             lock (_gate)
             {
                 if (_disposed || _generation != generation || token.IsCancellationRequested)
                 {
                     client.Close();
-                    stream.Dispose();
+                    SafeDispose(stream);
+                    Logout(session);
                     return;
                 }
 
                 _session = session;
                 _stream = stream;
                 _client = client;
+                connectClient = client;
+                // Ownership transferred to fields; local vars must not dispose on success path.
+                session = null;
+                stream = null;
+                client = null;
             }
 
             // Hosted XAPI consoles typically use auth scheme 1 (none).
-            client.Connect(Array.Empty<char>());
+            // Connect returns after starting the RFB helper thread.
+            connectClient.Connect(Array.Empty<char>());
         }
         catch (OperationCanceledException)
         {
-            stream?.Dispose();
+            SafeDispose(client);
+            SafeDispose(stream);
+            Logout(session);
         }
         catch (Exception ex)
         {
-            stream?.Dispose();
+            SafeDispose(client);
+            SafeDispose(stream);
+            Logout(session);
             if (!_disposed && _generation == generation)
                 SetStatus($"Console connect failed: {ex.Message}", connected: false);
             Debug.WriteLine(ex);
         }
+    }
+
+    /// <summary>
+    /// Closes RFB/HTTP transport for a generation without wiping the framebuffer
+    /// status the UI is already showing (used from ErrorOccurred).
+    /// </summary>
+    private void TearDownTransport(int generation)
+    {
+        RfbClient? client;
+        Stream? stream;
+        Session? session;
+
+        lock (_gate)
+        {
+            if (_disposed || _generation != generation)
+                return;
+
+            client = _client;
+            _client = null;
+            stream = _stream;
+            _stream = null;
+            session = _session;
+            _session = null;
+            IsConnected = false;
+        }
+
+        try { client?.Close(); } catch { /* ignore */ }
+        SafeDispose(stream);
+        Logout(session);
     }
 
     private void OnFramePresented()
@@ -203,6 +247,7 @@ public sealed class HostedConsoleSession : IDisposable
         CancellationTokenSource? cts;
         RfbClient? client;
         Stream? stream;
+        Session? session;
         AvaloniaRfbFramebuffer? framebuffer;
 
         lock (_gate)
@@ -213,6 +258,7 @@ public sealed class HostedConsoleSession : IDisposable
             _client = null;
             stream = _stream;
             _stream = null;
+            session = _session;
             _session = null;
             framebuffer = _framebuffer;
             _framebuffer = null;
@@ -223,7 +269,8 @@ public sealed class HostedConsoleSession : IDisposable
 
         try { cts?.Cancel(); } catch { /* ignore */ }
         try { client?.Close(); } catch { /* ignore */ }
-        try { stream?.Dispose(); } catch { /* ignore */ }
+        SafeDispose(stream);
+        Logout(session);
         if (framebuffer != null)
         {
             framebuffer.FramePresented -= OnFramePresented;
@@ -243,6 +290,31 @@ public sealed class HostedConsoleSession : IDisposable
         lock (_gate)
             _disposed = true;
         Stop();
+    }
+
+    private static void SafeDispose(IDisposable? d)
+    {
+        try { d?.Dispose(); } catch { /* ignore */ }
+    }
+
+    private static void SafeDispose(RfbClient? client)
+    {
+        try { client?.Close(); } catch { /* ignore */ }
+    }
+
+    private static void Logout(Session? session)
+    {
+        if (session == null)
+            return;
+        try
+        {
+            if (!string.IsNullOrEmpty(session.opaque_ref))
+                session.logout();
+        }
+        catch
+        {
+            // Session may already be invalid after host reboot.
+        }
     }
 }
 

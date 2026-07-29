@@ -70,6 +70,11 @@ namespace XenAdmin.Actions
             MaybeReduceNtolBeforeOp();
             ShutdownVMs(true);
 
+            // Soften reconnect/session-retry pressure while the host (or coordinator) drops.
+            var previousExpectDisruption = Connection?.ExpectDisruption ?? false;
+            if (Connection != null)
+                Connection.ExpectDisruption = true;
+
             try
             {
                 RelatedTask = Host.async_reboot(Session, Host.opaque_ref);
@@ -113,6 +118,11 @@ namespace XenAdmin.Actions
                 }
 
                 throw;
+            }
+            finally
+            {
+                if (Connection != null && !Helpers.HostIsCoordinator(Host))
+                    Connection.ExpectDisruption = previousExpectDisruption;
             }
 
             // Close the IXenConnection if it is not to a pool, or is to the coordinator of a pool
