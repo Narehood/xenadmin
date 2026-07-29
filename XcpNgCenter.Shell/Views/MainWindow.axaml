@@ -144,6 +144,30 @@
                             Command="{Binding RemoveSelectedCommand}"
                             IsVisible="{Binding CanRemoveSelected}" />
 
+                  <Separator IsVisible="{Binding ShowHostContextActions}" />
+                  <MenuItem Header="Enter maintenance mode"
+                            Command="{Binding EnterMaintenanceModeCommand}"
+                            IsVisible="{Binding CanEnterMaintenanceMode}" />
+                  <MenuItem Header="Exit maintenance mode"
+                            Command="{Binding ExitMaintenanceModeCommand}"
+                            IsVisible="{Binding CanExitMaintenanceMode}" />
+                  <MenuItem Header="Reboot"
+                            Command="{Binding RebootHostCommand}"
+                            IsVisible="{Binding CanRebootHost}" />
+                  <MenuItem Header="Shut down"
+                            Command="{Binding ShutdownHostCommand}"
+                            IsVisible="{Binding CanShutdownHost}" />
+                  <MenuItem Header="Power on"
+                            Command="{Binding PowerOnHostCommand}"
+                            IsVisible="{Binding CanPowerOnHost}" />
+                  <MenuItem Header="Restart toolstack"
+                            Command="{Binding RestartToolstackCommand}"
+                            IsVisible="{Binding CanRestartToolstack}" />
+                  <Separator IsVisible="{Binding ShowHostContextActions}" />
+                  <MenuItem Header="Properties"
+                            Command="{Binding EditHostCommand}"
+                            IsVisible="{Binding CanEditHost}" />
+
                   <Separator IsVisible="{Binding ShowVmContextActions}" />
                   <MenuItem Header="Start" Command="{Binding StartVmCommand}" IsVisible="{Binding CanStartVm}" />
                   <MenuItem Header="Shutdown" Command="{Binding ShutdownVmCommand}" IsVisible="{Binding CanShutdownVm}" />
