@@ -15,25 +15,34 @@ public static class ShellConfirmPrompt
     /// Shows a modal confirm dialog. Safe to call from a background thread.
     /// Returns false if cancelled or if no main window is available.
     /// When called on the UI thread, returns false without blocking (avoids deadlock).
+    /// Prefer <see cref="ConfirmAsync"/> from UI-thread commands.
     /// </summary>
     public static bool Confirm(ShellConfirmRequest request)
     {
         if (Dispatcher.UIThread.CheckAccess())
             return false;
 
-        return Dispatcher.UIThread.InvokeAsync(async () =>
-        {
-            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
-                {
-                    MainWindow: { } owner
-                })
-            {
-                return false;
-            }
+        return Dispatcher.UIThread.InvokeAsync(async () => await ConfirmCoreAsync(request))
+            .GetAwaiter().GetResult();
+    }
 
-            var window = new ShellConfirmWindow(request);
-            return await window.ShowDialog<bool>(owner);
-        }).GetAwaiter().GetResult();
+    /// <summary>
+    /// Async confirm for UI-thread callers (RelayCommands, menu handlers).
+    /// </summary>
+    public static Task<bool> ConfirmAsync(ShellConfirmRequest request) => ConfirmCoreAsync(request);
+
+    private static async Task<bool> ConfirmCoreAsync(ShellConfirmRequest request)
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
+            {
+                MainWindow: { } owner
+            })
+        {
+            return false;
+        }
+
+        var window = new ShellConfirmWindow(request);
+        return await window.ShowDialog<bool>(owner);
     }
 
     public static void Alert(string title, string message)
@@ -46,4 +55,13 @@ public static class ShellConfirmPrompt
             ShowCancel = false
         });
     }
+
+    public static Task AlertAsync(string title, string message) =>
+        ConfirmAsync(new ShellConfirmRequest
+        {
+            Title = title,
+            Message = message,
+            AcceptLabel = "OK",
+            ShowCancel = false
+        }).ContinueWith(_ => { });
 }

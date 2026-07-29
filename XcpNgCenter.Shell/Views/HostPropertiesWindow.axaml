@@ -1,0 +1,76 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.HostPropertiesWindow"
+        x:DataType="vm:HostPropertiesViewModel"
+        Title="Host Properties"
+        Width="560" Height="520"
+        MinWidth="440" MinHeight="400"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.BgDeep}">
+  <Border Margin="16" Padding="20"
+          Background="#99161C22"
+          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          BorderThickness="1"
+          CornerRadius="10">
+    <Grid RowDefinitions="Auto,*,Auto">
+      <StackPanel Spacing="4" Margin="0,0,0,16">
+        <TextBlock Text="Host Properties" FontSize="22" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding NameLabel}"
+                   Foreground="{StaticResource Brush.BrandOrange}"
+                   FontSize="14"
+                   TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding StatusMessage}"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   IsVisible="{Binding StatusMessage.Length}" />
+      </StackPanel>
+
+      <ScrollViewer Grid.Row="1"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="0,0,4,0">
+        <StackPanel Spacing="12" Margin="0,0,8,16">
+          <TextBlock Text="General" FontWeight="SemiBold" FontSize="16" />
+          <TextBox Watermark="Name" Text="{Binding NameLabel}" />
+          <TextBox Watermark="Description"
+                   Text="{Binding Description}"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   Height="88" />
+          <CheckBox Content="Autoboot VMs on this host"
+                    IsChecked="{Binding AutostartVms}" />
+
+          <TextBlock Text="Read-only" FontWeight="SemiBold" FontSize="16" Margin="0,12,0,0" />
+          <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="120,*">
+              <TextBlock Text="Address" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Grid.Column="1" Text="{Binding Address}" TextWrapping="Wrap" />
+            </Grid>
+            <Grid ColumnDefinitions="120,*">
+              <TextBlock Text="Role" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Grid.Column="1" Text="{Binding Role}" />
+            </Grid>
+            <Grid ColumnDefinitions="120,*">
+              <TextBlock Text="Product" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Grid.Column="1" Text="{Binding Product}" TextWrapping="Wrap" />
+            </Grid>
+            <Grid ColumnDefinitions="120,*">
+              <TextBlock Text="UUID" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Grid.Column="1" Text="{Binding Uuid}" TextWrapping="Wrap" FontSize="12" />
+            </Grid>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+
+      <StackPanel Grid.Row="2"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Spacing="10"
+                  Margin="0,12,0,0">
+        <Button Classes="ghost" Content="Cancel" MinWidth="100" Command="{Binding CancelCommand}" />
+        <Button Classes="cta" Content="OK" MinWidth="120" Command="{Binding ApplyCommand}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>

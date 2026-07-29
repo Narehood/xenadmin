@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using XenAdmin;
 using XenAdmin.Actions;
+using XenAdmin.Actions.HostActions;
 using XenAdmin.Actions.VMActions;
 using XenAdmin.Core;
 using XenAdmin.Network;
@@ -82,6 +83,24 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(ApplyConsoleIsoCommand))]
     [NotifyCanExecuteChangedFor(nameof(ImportExportVmCommand))]
     private VM? _selectedVm;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowHostContextActions))]
+    [NotifyPropertyChangedFor(nameof(CanRebootHost))]
+    [NotifyPropertyChangedFor(nameof(CanShutdownHost))]
+    [NotifyPropertyChangedFor(nameof(CanRestartToolstack))]
+    [NotifyPropertyChangedFor(nameof(CanEnterMaintenanceMode))]
+    [NotifyPropertyChangedFor(nameof(CanExitMaintenanceMode))]
+    [NotifyPropertyChangedFor(nameof(CanPowerOnHost))]
+    [NotifyPropertyChangedFor(nameof(CanEditHost))]
+    [NotifyCanExecuteChangedFor(nameof(RebootHostCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ShutdownHostCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RestartToolstackCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EnterMaintenanceModeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExitMaintenanceModeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PowerOnHostCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EditHostCommand))]
+    private Host? _selectedHost;
 
     [ObservableProperty]
     private bool _isConsolePoppedOut;
@@ -210,8 +229,48 @@ public partial class MainViewModel
 
     public bool ShowVmContextActions => SelectedVm != null;
 
+    public bool ShowHostContextActions => SelectedHost != null;
+
     public bool ShowPoolContextActions =>
         SelectedInfraNode is { Kind: InfraNodeKind.Pool or InfraNodeKind.Host, Server.Connection.IsConnected: true };
+
+    public bool CanRebootHost => SelectedHost?.IsLive() == true;
+
+    public bool CanShutdownHost => SelectedHost?.IsLive() == true && !HasActiveHostAction(SelectedHost);
+
+    public bool CanRestartToolstack => SelectedHost?.IsLive() == true;
+
+    public bool CanEnterMaintenanceMode =>
+        SelectedHost is { } host
+        && host.IsLive()
+        && host.enabled
+        && Helpers.GetCoordinator(host.Connection) != null;
+
+    public bool CanExitMaintenanceMode =>
+        SelectedHost is { } host
+        && host.IsLive()
+        && !host.enabled
+        && Helpers.GetCoordinator(host.Connection) != null;
+
+    public bool CanPowerOnHost => SelectedHost is { } host && !host.IsLive();
+
+    public bool CanEditHost => SelectedHost != null;
+
+    private static bool HasActiveHostAction(Host host)
+    {
+        foreach (var action in ConnectionsManager.History)
+        {
+            if (action is HostAbstractAction hostAction
+                && !hostAction.Cancelled
+                && !hostAction.IsCompleted
+                && host.Connection == hostAction.Connection)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public bool CanAddServer => true;
 
@@ -333,10 +392,12 @@ public partial class MainViewModel
         var vm = ResolveVm(node);
         // Cache updates mutate the same VM instance in place — always re-notify Can*.
         SelectedVm = vm;
+        SelectedHost = ResolveHostNode(node);
         RefreshConsoleIsoOptions();
         NotifyVmPowerCanExecuteChanged();
         OnPropertyChanged(nameof(ShowPoolStorageActions));
         OnPropertyChanged(nameof(ShowVmContextActions));
+        OnPropertyChanged(nameof(ShowHostContextActions));
         OnPropertyChanged(nameof(ShowPoolContextActions));
         OnPropertyChanged(nameof(CanDisconnectSelected));
         OnPropertyChanged(nameof(CanCancelConnectSelected));
@@ -418,6 +479,14 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanReconnectSelected));
         OnPropertyChanged(nameof(CanRemoveSelected));
         OnPropertyChanged(nameof(CanImportExportVm));
+        OnPropertyChanged(nameof(ShowHostContextActions));
+        OnPropertyChanged(nameof(CanRebootHost));
+        OnPropertyChanged(nameof(CanShutdownHost));
+        OnPropertyChanged(nameof(CanRestartToolstack));
+        OnPropertyChanged(nameof(CanEnterMaintenanceMode));
+        OnPropertyChanged(nameof(CanExitMaintenanceMode));
+        OnPropertyChanged(nameof(CanPowerOnHost));
+        OnPropertyChanged(nameof(CanEditHost));
         StartVmCommand.NotifyCanExecuteChanged();
         ShutdownVmCommand.NotifyCanExecuteChanged();
         ForceShutdownVmCommand.NotifyCanExecuteChanged();
@@ -445,6 +514,13 @@ public partial class MainViewModel
         ReconnectSelectedCommand.NotifyCanExecuteChanged();
         RemoveSelectedCommand.NotifyCanExecuteChanged();
         ImportExportVmCommand.NotifyCanExecuteChanged();
+        RebootHostCommand.NotifyCanExecuteChanged();
+        ShutdownHostCommand.NotifyCanExecuteChanged();
+        RestartToolstackCommand.NotifyCanExecuteChanged();
+        EnterMaintenanceModeCommand.NotifyCanExecuteChanged();
+        ExitMaintenanceModeCommand.NotifyCanExecuteChanged();
+        PowerOnHostCommand.NotifyCanExecuteChanged();
+        EditHostCommand.NotifyCanExecuteChanged();
     }
 
     private static VM? ResolveVm(InfraTreeNode? node)
@@ -454,20 +530,29 @@ public partial class MainViewModel
         return conn.Resolve(new XenRef<VM>(opaque));
     }
 
+    private Host? ResolveHostNode(InfraTreeNode? node)
+    {
+        if (node is not { Kind: InfraNodeKind.Host, OpaqueRef: { } opaque, Server.Connection: { IsConnected: true } conn })
+            return null;
+        return conn.Resolve(new XenRef<Host>(opaque));
+    }
+
     private IXenConnection? SelectedConnection =>
         (SelectedInfraNode ?? _pinnedInfraNode)?.Server?.Connection
         ?? SelectedServer?.Connection
-        ?? SelectedVm?.Connection;
+        ?? SelectedVm?.Connection
+        ?? SelectedHost?.Connection;
 
     private Host? ResolveSelectedHost()
     {
         var node = SelectedInfraNode ?? _pinnedInfraNode;
-        var conn = SelectedConnection;
-        if (conn is not { IsConnected: true } || node == null)
-            return null;
+        var hostNode = ResolveHostNode(node);
+        if (hostNode != null)
+            return hostNode;
 
-        if (node.Kind == InfraNodeKind.Host && node.OpaqueRef != null)
-            return conn.Resolve(new XenRef<Host>(node.OpaqueRef));
+        var conn = SelectedConnection;
+        if (conn is not { IsConnected: true })
+            return null;
 
         return Helpers.GetCoordinator(conn) ?? conn.Cache.Hosts.FirstOrDefault();
     }
@@ -729,6 +814,172 @@ public partial class MainViewModel
 
         var owner = GetMainWindow();
         var dialog = new VmPropertiesWindow(SelectedVm, msg =>
+        {
+            ActionStatusMessage = msg;
+            StatusMessage = msg;
+        });
+        if (owner != null)
+            await dialog.ShowDialog(owner);
+        else
+            dialog.Show();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRebootHost))]
+    private async Task RebootHostAsync()
+    {
+        if (SelectedHost is not { } host)
+            return;
+
+        var message = host.HasRunningVMs()
+            ? string.Format(Messages.CONFIRM_REBOOT_SERVER, host.Name())
+            : string.Format(Messages.CONFIRM_REBOOT_SERVER_NO_VMS, host.Name());
+
+        var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+        {
+            Title = Messages.CONFIRM_REBOOT_SERVER_TITLE,
+            Message = message,
+            AcceptLabel = Messages.CONFIRM_REBOOT_SERVER_YES_BUTTON_LABEL
+        });
+        if (!accepted)
+            return;
+
+        RunAction(new RebootHostAction(host, ShellHaNtolPrompt.NtolDialog));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanShutdownHost))]
+    private async Task ShutdownHostAsync()
+    {
+        if (SelectedHost is not { } host)
+            return;
+
+        var message = host.HasRunningVMs()
+            ? string.Format(Messages.CONFIRM_SHUTDOWN_SERVER, host.Name())
+            : string.Format(Messages.CONFIRM_SHUTDOWN_SERVER_NO_VMS, host.Name());
+
+        if (Helpers.HostIsCoordinator(host) && host.Connection.Cache.HostCount > 1)
+        {
+            message += "\n\n" + string.Format(Messages.SHUT_DOWN_POOL_COORDINATOR_SINGLE, host.Name());
+        }
+
+        var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+        {
+            Title = Messages.CONFIRM_SHUTDOWN_SERVER_TITLE,
+            Message = message,
+            AcceptLabel = Messages.CONFIRM_SHUTDOWN_SERVER_YES_BUTTON_LABEL
+        });
+        if (!accepted)
+            return;
+
+        RunAction(new ShutdownHostAction(host, ShellHaNtolPrompt.NtolDialog));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRestartToolstack))]
+    private async Task RestartToolstackAsync()
+    {
+        if (SelectedHost is not { } host)
+            return;
+
+        var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+        {
+            Title = Messages.CONFIRM_RESTART_TOOLSTACK_TITLE,
+            Message = string.Format(
+                Messages.CONFIRM_RESTART_TOOLSTACK_ONE_SERVER,
+                host.Name().Ellipsise(30),
+                BrandManager.BrandConsole),
+            AcceptLabel = "Restart"
+        });
+        if (!accepted)
+            return;
+
+        RunAction(new RestartToolstackAction(host));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEnterMaintenanceMode))]
+    private async Task EnterMaintenanceModeAsync()
+    {
+        if (SelectedHost is not { } host)
+            return;
+
+        var pool = Helpers.GetPool(host.Connection);
+        if (pool != null && pool.ha_enabled && host.IsCoordinator())
+        {
+            await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+            {
+                Title = Messages.HIGH_AVAILABILITY,
+                Message = string.Format(
+                    Messages.HA_CANNOT_EVACUATE_COORDINATOR,
+                    Helpers.GetName(host).Ellipsise(Helpers.DEFAULT_NAME_TRIM_LENGTH)),
+                AcceptLabel = "OK",
+                ShowCancel = false
+            });
+            return;
+        }
+
+        var vmCount = host.GetRunningVMs().Count;
+        var message = vmCount > 0
+            ? $"Enter maintenance mode on '{host.Name()}'?\n\n{vmCount} running VM(s) will be migrated off this host when possible."
+            : $"Enter maintenance mode on '{host.Name()}'?";
+
+        var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+        {
+            Title = Messages.ENTER_MAINTENANCE_MODE,
+            Message = message,
+            AcceptLabel = Messages.ENTER_MAINTENANCE_MODE_CONTEXT_MENU
+        });
+        if (!accepted)
+            return;
+
+        RunAction(new EvacuateHostAction(
+            host,
+            null!,
+            ShellHaNtolPrompt.NtolDialog,
+            ShellHaNtolPrompt.EnableNtolDialog));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanExitMaintenanceMode))]
+    private async Task ExitMaintenanceModeAsync()
+    {
+        if (SelectedHost is not { } host)
+            return;
+
+        var toRestore = new List<VM>();
+        toRestore.AddRange(host.GetHaltedEvacuatedVMs());
+        toRestore.AddRange(host.GetMigratedEvacuatedVMs());
+        toRestore.AddRange(host.GetSuspendedEvacuatedVMs());
+        toRestore.RemoveAll(vm => vm.resident_on == host.opaque_ref);
+
+        var resume = false;
+        if (toRestore.Count > 0)
+        {
+            var names = string.Join("\n", toRestore.Select(vm => Helpers.GetName(vm)));
+            resume = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+            {
+                Title = Messages.EXIT_MAINTENANCE_MODE,
+                Message = string.Format(Messages.EXIT_MAINTENANCE_MODE_PROMPT, names),
+                AcceptLabel = "Restore VMs",
+                CancelLabel = "Exit only"
+            });
+        }
+
+        RunAction(new EnableHostAction(host, resume, ShellHaNtolPrompt.EnableNtolDialog));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanPowerOnHost))]
+    private void PowerOnHost()
+    {
+        if (SelectedHost is not { } host)
+            return;
+        RunAction(new HostPowerOnAction(host));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditHost))]
+    private async Task EditHostAsync()
+    {
+        if (SelectedHost is not { } host)
+            return;
+
+        var owner = GetMainWindow();
+        var dialog = new HostPropertiesWindow(host, msg =>
         {
             ActionStatusMessage = msg;
             StatusMessage = msg;

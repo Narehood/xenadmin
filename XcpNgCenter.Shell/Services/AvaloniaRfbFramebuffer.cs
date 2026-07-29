@@ -18,8 +18,11 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
     private int _height;
     private bool _disposed;
     private bool _uiUpdateQueued;
+    private bool _uiUpdatePending;
+    private bool _desktopResizedPending;
     private bool _cursorUpdateQueued;
     private WriteableBitmap? _bitmap;
+    private WriteableBitmap? _bitmapAlt;
     private WriteableBitmap? _cursorBitmap;
     private int _cursorHotspotX;
     private int _cursorHotspotY;
@@ -208,7 +211,9 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
             _width = width;
             _height = height;
             _pixels = new byte[width * height * 4];
+            // Force both buffers to be recreated at the new size on the next UI flush.
             _bitmap = null;
+            _bitmapAlt = null;
         }
 
         QueueUiSync(resized: true);
@@ -335,39 +340,45 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
         {
             if (_disposed)
                 return;
+            _uiUpdatePending = true;
+            if (resized)
+                _desktopResizedPending = true;
+            // Always post on resize so DesktopResized fires even if a flush is already queued.
             if (_uiUpdateQueued && !resized)
                 return;
             _uiUpdateQueued = true;
         }
 
-        Dispatcher.UIThread.Post(() =>
+        Dispatcher.UIThread.Post(FlushUiSync);
+    }
+
+    private void FlushUiSync()
+    {
+        int width;
+        int height;
+        byte[] snapshot;
+        bool fireResized;
+
+        lock (_gate)
         {
-            int width;
-            int height;
-            byte[] snapshot;
+            _uiUpdateQueued = false;
+            _uiUpdatePending = false;
+            fireResized = _desktopResizedPending;
+            _desktopResizedPending = false;
+            if (_disposed || _width <= 0 || _height <= 0)
+                return;
 
-            lock (_gate)
+            width = _width;
+            height = _height;
+            snapshot = new byte[_pixels.Length];
+            Buffer.BlockCopy(_pixels, 0, snapshot, 0, _pixels.Length);
+
+            // Avalonia 11.2.4+ often keeps a stale GPU texture for an in-place WriteableBitmap
+            // mutation. Write into the back buffer, then swap so Bitmap identity changes each
+            // frame and bound controls pick up keyboard echo / text cursor without a tab switch.
+            EnsureBitmapSize(ref _bitmapAlt, width, height);
+            using (var fb = _bitmapAlt!.Lock())
             {
-                _uiUpdateQueued = false;
-                if (_disposed || _width <= 0 || _height <= 0)
-                    return;
-
-                width = _width;
-                height = _height;
-                snapshot = new byte[_pixels.Length];
-                Buffer.BlockCopy(_pixels, 0, snapshot, 0, _pixels.Length);
-
-                if (_bitmap == null || _bitmap.PixelSize.Width != width || _bitmap.PixelSize.Height != height)
-                {
-                    _bitmap?.Dispose();
-                    _bitmap = new WriteableBitmap(
-                        new PixelSize(width, height),
-                        new Vector(96, 96),
-                        PixelFormat.Bgra8888,
-                        AlphaFormat.Opaque);
-                }
-
-                using var fb = _bitmap.Lock();
                 var dstStride = fb.RowBytes;
                 var srcStride = width * 4;
                 for (var row = 0; row < height; row++)
@@ -380,15 +391,46 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
                 }
             }
 
-            if (resized)
-                DesktopResized?.Invoke(width, height);
-            FramePresented?.Invoke();
-        });
+            (_bitmap, _bitmapAlt) = (_bitmapAlt, _bitmap);
+        }
+
+        if (fireResized)
+            DesktopResized?.Invoke(width, height);
+        FramePresented?.Invoke();
+
+        // If RFB wrote more pixels while we were flushing, schedule another present so the
+        // last keystroke/cursor blink is not stuck until the user switches tabs.
+        lock (_gate)
+        {
+            if (_disposed || !_uiUpdatePending || _uiUpdateQueued)
+                return;
+            _uiUpdateQueued = true;
+        }
+
+        Dispatcher.UIThread.Post(FlushUiSync);
+    }
+
+    private static void EnsureBitmapSize(ref WriteableBitmap? bitmap, int width, int height)
+    {
+        if (bitmap != null
+            && bitmap.PixelSize.Width == width
+            && bitmap.PixelSize.Height == height)
+        {
+            return;
+        }
+
+        try { bitmap?.Dispose(); } catch { /* ignore */ }
+        bitmap = new WriteableBitmap(
+            new PixelSize(width, height),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Opaque);
     }
 
     public void Dispose()
     {
         WriteableBitmap? frame;
+        WriteableBitmap? frameAlt;
         WriteableBitmap? cursor;
         lock (_gate)
         {
@@ -396,14 +438,17 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
                 return;
             _disposed = true;
             frame = _bitmap;
+            frameAlt = _bitmapAlt;
             cursor = _cursorBitmap;
             _bitmap = null;
+            _bitmapAlt = null;
             _cursorBitmap = null;
             _pendingCursorBgra = null;
             _pixels = Array.Empty<byte>();
         }
 
         try { frame?.Dispose(); } catch { /* ignore */ }
+        try { frameAlt?.Dispose(); } catch { /* ignore */ }
         try { cursor?.Dispose(); } catch { /* ignore */ }
     }
 }
