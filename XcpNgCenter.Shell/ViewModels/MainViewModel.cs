@@ -1520,6 +1520,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         var key = $"{live.Connection.Hostname}|{live.Console.opaque_ref}|{live.Console.location}";
+        // Keep the same key after an RFB error so cache churn does not reconnect into a
+        // host that is mid-shutdown (e.g. reboot typed in the dom0 console). Callers that
+        // want a fresh session clear _activeConsoleKey first (selection change, power-op done).
         if (key == _activeConsoleKey)
             return;
 
