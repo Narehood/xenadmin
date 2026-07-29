@@ -123,56 +123,43 @@ public static class ShellVmHaPrompt
             return;
         }
 
-        try
+        // DuplicateSession reuses the main connection opaque_ref — never logout it.
+        var rows = new List<HostBootReasonRow>();
+        foreach (Host host in connection.Cache.Hosts.OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
         {
-            var rows = new List<HostBootReasonRow>();
-            foreach (Host host in connection.Cache.Hosts.OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
+            string reason;
+            var canBoot = false;
+
+            // WinForms resume path: CPU vendor mismatch is reported before assert_can_boot_here.
+            if (!isStart && VmCpuIncompatibleWithHost(host, vm))
             {
-                string reason;
-                var canBoot = false;
-
-                // WinForms resume path: CPU vendor mismatch is reported before assert_can_boot_here.
-                if (!isStart && VmCpuIncompatibleWithHost(host, vm))
-                {
-                    rows.Add(new HostBootReasonRow(
-                        Helpers.GetName(host),
-                        FriendlyErrorNames.VM_INCOMPATIBLE_WITH_THIS_HOST,
-                        canBoot: false));
-                    continue;
-                }
-
-                try
-                {
-                    VM.assert_can_boot_here(session, vm.opaque_ref, host.opaque_ref);
-                    reason = isStart ? "Host can start this VM." : "Host can resume this VM.";
-                    canBoot = true;
-                }
-                catch (Failure failure)
-                {
-                    reason = failure.Message;
-                }
-                catch (Exception e)
-                {
-                    reason = e.Message;
-                }
-
-                rows.Add(new HostBootReasonRow(Helpers.GetName(host), reason, canBoot));
+                rows.Add(new HostBootReasonRow(
+                    Helpers.GetName(host),
+                    FriendlyErrorNames.VM_INCOMPATIBLE_WITH_THIS_HOST,
+                    canBoot: false));
+                continue;
             }
 
-            var summary = string.Format(Messages.ERROR_DIALOG_START_VM_TEXT, Helpers.GetName(vm));
-            ShowStartFailureTable(Messages.ERROR_DIALOG_START_VM_TITLE, summary, rows);
-        }
-        finally
-        {
             try
             {
-                session.logout();
+                VM.assert_can_boot_here(session, vm.opaque_ref, host.opaque_ref);
+                reason = isStart ? "Host can start this VM." : "Host can resume this VM.";
+                canBoot = true;
             }
-            catch
+            catch (Failure failure)
             {
-                // Best-effort — diagnosis must not throw after the UI is shown.
+                reason = failure.Message;
             }
+            catch (Exception e)
+            {
+                reason = e.Message;
+            }
+
+            rows.Add(new HostBootReasonRow(Helpers.GetName(host), reason, canBoot));
         }
+
+        var summary = string.Format(Messages.ERROR_DIALOG_START_VM_TEXT, Helpers.GetName(vm));
+        ShowStartFailureTable(Messages.ERROR_DIALOG_START_VM_TITLE, summary, rows);
     }
 
     /// <summary>
