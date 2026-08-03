@@ -48,16 +48,15 @@ namespace XenCenterLib.Archive
         public void ExtractAllContents(string pathToExtractTo, Action cancellingDelegate = null)
         {
             if (string.IsNullOrEmpty(pathToExtractTo))
-                throw new ArgumentNullException();
+                throw new ArgumentNullException(nameof(pathToExtractTo));
 
             while (HasNext())
             {
-                //make the path Windows friendly
                 var fileName = CurrentFileName();
                 var isDirectory = IsDirectory();
 
-                var sanitizedName = fileName.Replace('/', Path.DirectorySeparatorChar);
-                var conflatedPath = Path.Combine(pathToExtractTo, sanitizedName);
+                // Reject Zip Slip / path traversal before creating any filesystem paths.
+                var conflatedPath = ArchivePath.GetSafeExtractPath(pathToExtractTo, fileName);
 
                 var dir = isDirectory ? conflatedPath : Path.GetDirectoryName(conflatedPath);
                 dir = StringUtility.ToLongWindowsPath(dir, true);

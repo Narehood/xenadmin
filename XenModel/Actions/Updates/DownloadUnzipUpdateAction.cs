@@ -91,7 +91,15 @@ namespace XenAdmin.Actions
 
                         if (updateFileSuffixes.Any(item => item.ToLowerInvariant() == currentExtension.ToLowerInvariant()))
                         {
-                            string path = Path.Combine(Path.GetTempPath(), iterator.CurrentFileName());
+                            // Use the leaf name only so archive paths cannot escape the temp directory (Zip Slip).
+                            string leafName = Path.GetFileName(iterator.CurrentFileName());
+                            if (string.IsNullOrEmpty(leafName))
+                                continue;
+
+                            // Unique extract directory so identical leaf names / concurrent updates do not collide.
+                            string extractDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+                            Directory.CreateDirectory(extractDir);
+                            string path = Path.Combine(extractDir, leafName);
 
                             log.InfoFormat(
                                 "Found '{0}' in the downloaded archive when looking for a '{1}' file. Extracting...",
