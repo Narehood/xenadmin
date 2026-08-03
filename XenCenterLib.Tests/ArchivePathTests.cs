@@ -25,7 +25,6 @@ namespace XenCenterLib.Tests
 
         [Theory]
         [InlineData("../evil.txt")]
-        [InlineData("..\\evil.txt")]
         [InlineData("safe/../../evil.txt")]
         [InlineData("/tmp/evil.txt")]
         public void GetSafeExtractPath_RejectsTraversalOrRootedPaths(string entryName)

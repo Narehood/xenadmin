@@ -42,6 +42,11 @@ namespace XenCenterLib.Archive
         /// Resolves <paramref name="entryName"/> under <paramref name="destinationDirectory"/>,
         /// rejecting rooted paths and <c>..</c> traversal outside the destination.
         /// </summary>
+        /// <remarks>
+        /// Uses the CodeQL <c>cs/zipslip</c> recommended pattern:
+        /// <c>Path.GetFullPath(Path.Combine(...))</c> plus
+        /// <c>StartsWith(Path.GetFullPath(dest + DirectorySeparatorChar))</c>.
+        /// </remarks>
         /// <exception cref="ArgumentNullException">Destination is null or empty.</exception>
         /// <exception cref="InvalidDataException">Entry name is empty, rooted, or escapes the destination.</exception>
         public static string GetSafeExtractPath(string destinationDirectory, string entryName)
@@ -52,36 +57,16 @@ namespace XenCenterLib.Archive
             if (string.IsNullOrEmpty(entryName))
                 throw new InvalidDataException("Archive entry name is empty.");
 
-            var relative = entryName
-                .Replace('/', Path.DirectorySeparatorChar)
-                .Replace('\\', Path.DirectorySeparatorChar);
+            // Recommended Zip Slip validation (CodeQL cs/zipslip / .NET zip best practices).
+            string destFileName = Path.GetFullPath(Path.Combine(destinationDirectory, entryName));
+            string fullDestDirPath = Path.GetFullPath(destinationDirectory + Path.DirectorySeparatorChar);
+            if (!destFileName.StartsWith(fullDestDirPath))
+            {
+                throw new InvalidDataException(
+                    $"Archive entry '{entryName}' would extract outside the destination directory.");
+            }
 
-            if (Path.IsPathRooted(relative))
-                throw new InvalidDataException($"Archive entry '{entryName}' has a rooted path.");
-
-            var destinationFull = Path.GetFullPath(destinationDirectory)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var destinationPrefix = destinationFull + Path.DirectorySeparatorChar;
-
-            var combined = Path.GetFullPath(Path.Combine(destinationFull, relative));
-            if (!IsUnderDestination(combined, destinationFull, destinationPrefix))
-                throw new InvalidDataException($"Archive entry '{entryName}' would extract outside the destination directory.");
-
-            return combined;
+            return destFileName;
         }
-
-        private static bool IsUnderDestination(string candidateFull, string destinationFull, string destinationPrefix)
-        {
-            var comparison = PathComparison;
-            return candidateFull.StartsWith(destinationPrefix, comparison)
-                   || string.Equals(candidateFull, destinationFull, comparison);
-        }
-
-        private static StringComparison PathComparison =>
-#if NET6_0_OR_GREATER
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-#else
-            StringComparison.OrdinalIgnoreCase;
-#endif
     }
 }
