@@ -16,4 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\XenCenterLib\XenCenterLib.csproj" />
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
 </Project>
