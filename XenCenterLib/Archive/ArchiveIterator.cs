@@ -50,15 +50,23 @@ namespace XenCenterLib.Archive
             if (string.IsNullOrEmpty(pathToExtractTo))
                 throw new ArgumentNullException(nameof(pathToExtractTo));
 
+            // Resolve once so the StartsWith prefix includes the trailing separator (Zip Slip).
+            string fullDestDirPath = Path.GetFullPath(pathToExtractTo + Path.DirectorySeparatorChar);
+
             while (HasNext())
             {
                 var fileName = CurrentFileName();
                 var isDirectory = IsDirectory();
 
-                // Reject Zip Slip / path traversal before creating any filesystem paths.
-                var conflatedPath = ArchivePath.GetSafeExtractPath(pathToExtractTo, fileName);
+                // CodeQL cs/zipslip: validate archive entry paths before any filesystem write.
+                string destFileName = Path.GetFullPath(Path.Combine(pathToExtractTo, fileName));
+                if (!destFileName.StartsWith(fullDestDirPath))
+                {
+                    throw new InvalidDataException(
+                        $"Archive entry '{fileName}' would extract outside the destination directory.");
+                }
 
-                var dir = isDirectory ? conflatedPath : Path.GetDirectoryName(conflatedPath);
+                var dir = isDirectory ? destFileName : Path.GetDirectoryName(destFileName);
                 dir = StringUtility.ToLongWindowsPath(dir, true);
 
                 //Create directory - empty one will be made too
@@ -67,9 +75,9 @@ namespace XenCenterLib.Archive
                 //If we have a file extract the contents
                 if (!isDirectory)
                 {
-                    conflatedPath = StringUtility.ToLongWindowsPath(conflatedPath, false);
+                    var createPath = StringUtility.ToLongWindowsPath(destFileName, false);
 
-                    using (var fs = File.Create(conflatedPath))
+                    using (var fs = File.Create(createPath))
                         ExtractCurrentFile(fs, cancellingDelegate);
                 }
             }
