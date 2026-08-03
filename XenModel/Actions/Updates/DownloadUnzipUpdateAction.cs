@@ -96,7 +96,10 @@ namespace XenAdmin.Actions
                             if (string.IsNullOrEmpty(leafName))
                                 continue;
 
-                            string path = Path.Combine(Path.GetTempPath(), leafName);
+                            // Unique extract directory so identical leaf names / concurrent updates do not collide.
+                            string extractDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+                            Directory.CreateDirectory(extractDir);
+                            string path = Path.Combine(extractDir, leafName);
 
                             log.InfoFormat(
                                 "Found '{0}' in the downloaded archive when looking for a '{1}' file. Extracting...",

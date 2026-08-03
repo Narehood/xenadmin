@@ -9,6 +9,20 @@ namespace XenCenterLib.Tests
 {
     public class ArchivePathTests
     {
+        [Fact]
+        public void GetSafeExtractPath_NullOrEmptyDestination_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(() => ArchivePath.GetSafeExtractPath(null, "file.txt"));
+            Assert.Throws<ArgumentNullException>(() => ArchivePath.GetSafeExtractPath("", "file.txt"));
+        }
+
+        [Fact]
+        public void GetSafeExtractPath_NullOrEmptyEntryName_ThrowsInvalidDataException()
+        {
+            Assert.Throws<InvalidDataException>(() => ArchivePath.GetSafeExtractPath(Path.GetTempPath(), null));
+            Assert.Throws<InvalidDataException>(() => ArchivePath.GetSafeExtractPath(Path.GetTempPath(), ""));
+        }
+
         [Theory]
         [InlineData("../evil.txt")]
         [InlineData("..\\evil.txt")]
