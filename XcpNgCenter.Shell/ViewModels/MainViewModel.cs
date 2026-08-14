@@ -261,6 +261,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         InitializeActionHistoryUi();
         InitializeAlertsAndGraphsUi();
         InitializeUpdateCheck();
+        if (!string.IsNullOrWhiteSpace(ShellUpdateInstaller.StartupStatusMessage))
+            StatusMessage = ShellUpdateInstaller.StartupStatusMessage;
         _ = UnlockMainPasswordThenAutoReconnectAsync();
     }
 

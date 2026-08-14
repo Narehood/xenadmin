@@ -1356,11 +1356,11 @@
       </Grid>
     </Grid>
 
-    <!-- GitHub Releases update notice (bottom-right). -->
+    <!-- GitHub Releases update/download notice (bottom-right). -->
     <Border HorizontalAlignment="Right"
             VerticalAlignment="Bottom"
             Margin="24"
-            MaxWidth="360"
+            MaxWidth="440"
             Padding="16"
             CornerRadius="10"
             BorderBrush="{StaticResource Brush.BrandOrange}"
@@ -1378,14 +1378,29 @@
                    FontSize="12"
                    TextWrapping="Wrap"
                    Foreground="{StaticResource Brush.TextMuted}" />
+        <ProgressBar Minimum="0"
+                     Maximum="100"
+                     Value="{Binding UpdateDownloadProgress}"
+                     Height="6"
+                     IsVisible="{Binding ShowUpdateProgress}" />
+        <TextBlock Text="{Binding UpdateProgressText}"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   IsVisible="{Binding ShowUpdateProgress}" />
         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
           <Button Classes="ghost"
                   Content="Dismiss"
+                  IsEnabled="{Binding CanDismissUpdate}"
                   Command="{Binding DismissUpdateBannerCommand}" />
-          <Button Classes="cta"
+          <Button Classes="ghost"
                   Content="View release"
-                  Padding="14,8"
                   Command="{Binding OpenUpdateReleaseCommand}" />
+          <Button Classes="cta"
+                  Content="{Binding UpdateActionLabel}"
+                  Padding="14,8"
+                  IsVisible="{Binding ShowUpdateAction}"
+                  Command="{Binding DownloadUpdateCommand}" />
         </StackPanel>
       </StackPanel>
     </Border>

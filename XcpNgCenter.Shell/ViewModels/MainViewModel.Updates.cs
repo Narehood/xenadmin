@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -8,8 +10,11 @@ namespace XcpNgCenter.Shell.ViewModels;
 public partial class MainViewModel
 {
     private readonly ShellGitHubUpdateChecker _updateChecker = new();
+    private readonly ShellUpdateInstaller _updateInstaller = new();
     private CancellationTokenSource? _updateCheckCts;
+    private CancellationTokenSource? _updateDownloadCts;
     private ShellUpdateOffer? _pendingUpdate;
+    private PreparedShellUpdate? _preparedUpdate;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowUpdateBanner))]
@@ -21,7 +26,31 @@ public partial class MainViewModel
     [ObservableProperty]
     private string _updateBannerMessage = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUpdateProgress))]
+    [NotifyPropertyChangedFor(nameof(CanDismissUpdate))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadUpdateCommand))]
+    private bool _isUpdateDownloading;
+
+    [ObservableProperty]
+    private double _updateDownloadProgress;
+
+    [ObservableProperty]
+    private string _updateProgressText = string.Empty;
+
+    [ObservableProperty]
+    private string _updateActionLabel = "Download update";
+
     public bool ShowUpdateBanner => UpdateAvailable && !string.IsNullOrWhiteSpace(UpdateBannerTitle);
+
+    public bool ShowUpdateProgress => IsUpdateDownloading;
+
+    public bool CanDismissUpdate => !IsUpdateDownloading;
+
+    public bool ShowUpdateAction =>
+        _pendingUpdate != null
+        && (_preparedUpdate != null
+            || (_pendingUpdate.Asset != null && _updateInstaller.CanInstallInPlace(out _)));
 
     private void InitializeUpdateCheck()
     {
@@ -52,16 +81,56 @@ public partial class MainViewModel
         }
 
         _updateCheckCts = null;
+
+        try
+        {
+            _updateDownloadCts?.Cancel();
+            _updateDownloadCts?.Dispose();
+        }
+        catch
+        {
+            // Best-effort.
+        }
+
+        _updateDownloadCts = null;
     }
 
     private void ApplyUpdateOffer(ShellUpdateOffer offer)
     {
         _pendingUpdate = offer;
-        UpdateBannerTitle = $"Update available — {offer.Version.ToString(4)}";
-        UpdateBannerMessage = string.IsNullOrWhiteSpace(offer.Title) || offer.Title == offer.TagName
+        _preparedUpdate = _updateInstaller.TryGetPreparedUpdate(offer);
+        UpdateDownloadProgress = 0;
+        UpdateProgressText = string.Empty;
+
+        var releaseMessage = string.IsNullOrWhiteSpace(offer.Title) || offer.Title == offer.TagName
             ? $"A newer build than {ShellVersionInfo.Display} is on GitHub Releases."
             : offer.Title;
+
+        if (_preparedUpdate != null)
+        {
+            ApplyPreparedUpdateState(offer);
+        }
+        else
+        {
+            UpdateBannerTitle = $"Update available — {offer.Version.ToString(4)}";
+            UpdateActionLabel = "Download update";
+            if (offer.Asset == null)
+            {
+                UpdateBannerMessage = $"{releaseMessage} No compatible automatic-install package is attached; use View release.";
+            }
+            else if (!_updateInstaller.CanInstallInPlace(out var reason))
+            {
+                UpdateBannerMessage = $"{releaseMessage} {reason}";
+            }
+            else
+            {
+                UpdateBannerMessage = $"{releaseMessage} Download and verify it here, then restart to install it.";
+            }
+        }
+
         UpdateAvailable = true;
+        OnPropertyChanged(nameof(ShowUpdateAction));
+        DownloadUpdateCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -70,6 +139,121 @@ public partial class MainViewModel
         var url = _pendingUpdate?.HtmlUrl ?? _updateChecker.ReleasesPageUrl;
         if (!ShellExternalOpener.TryOpenUrl(url, out var error))
             StatusMessage = $"Could not open release page: {error}";
+    }
+
+    private bool CanDownloadUpdate() => ShowUpdateAction && !IsUpdateDownloading;
+
+    [RelayCommand(CanExecute = nameof(CanDownloadUpdate))]
+    private async Task DownloadUpdateAsync()
+    {
+        if (_pendingUpdate == null)
+            return;
+
+        if (_preparedUpdate != null)
+        {
+            await PromptToRestartForUpdateAsync().ConfigureAwait(true);
+            return;
+        }
+
+        if (_pendingUpdate.Asset == null)
+            return;
+
+        _updateDownloadCts?.Dispose();
+        _updateDownloadCts = new CancellationTokenSource();
+        var token = _updateDownloadCts.Token;
+        PreparedShellUpdate? prepared = null;
+
+        try
+        {
+            IsUpdateDownloading = true;
+            UpdateActionLabel = "Downloading…";
+            UpdateBannerTitle = $"Downloading {_pendingUpdate.Version.ToString(4)}";
+            UpdateBannerMessage = $"Staging the release asset under {_updateInstaller.InstallDirectory}.";
+            var progress = new Progress<ShellUpdateProgress>(update =>
+            {
+                UpdateDownloadProgress = update.Percentage;
+                UpdateProgressText = FormatUpdateProgress(update);
+            });
+            prepared = await _updateInstaller.PrepareAsync(_pendingUpdate, progress, token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            UpdateBannerTitle = $"Update available — {_pendingUpdate.Version.ToString(4)}";
+            UpdateBannerMessage = "The update download was cancelled.";
+            UpdateActionLabel = "Retry download";
+        }
+        catch (Exception ex)
+        {
+            UpdateBannerTitle = $"Could not download {_pendingUpdate.Version.ToString(4)}";
+            UpdateBannerMessage = ex.Message;
+            UpdateActionLabel = "Retry download";
+            StatusMessage = $"Update download failed: {ex.Message}";
+        }
+        finally
+        {
+            IsUpdateDownloading = false;
+            _updateDownloadCts?.Dispose();
+            _updateDownloadCts = null;
+        }
+
+        if (prepared == null)
+            return;
+
+        _preparedUpdate = prepared;
+        ApplyPreparedUpdateState(_pendingUpdate);
+        OnPropertyChanged(nameof(ShowUpdateAction));
+        DownloadUpdateCommand.NotifyCanExecuteChanged();
+        await PromptToRestartForUpdateAsync().ConfigureAwait(true);
+    }
+
+    private void ApplyPreparedUpdateState(ShellUpdateOffer offer)
+    {
+        UpdateBannerTitle = $"Update ready — {offer.Version.ToString(4)}";
+        UpdateBannerMessage = "The update was downloaded and verified. Restart to install it in the current application directory.";
+        UpdateDownloadProgress = 100;
+        UpdateProgressText = "Download verified.";
+        UpdateActionLabel = "Restart & install";
+    }
+
+    private async Task PromptToRestartForUpdateAsync()
+    {
+        if (_pendingUpdate == null || _preparedUpdate == null)
+            return;
+
+        var restart = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+        {
+            Title = $"Restart to install {_pendingUpdate.Version.ToString(4)}?",
+            Message = $"The update is downloaded and verified. XCP-ng Center will close, replace the files in {_updateInstaller.InstallDirectory}, and reopen automatically. Active server sessions will be closed.",
+            AcceptLabel = "Restart & install",
+            CancelLabel = "Later"
+        }).ConfigureAwait(true);
+        if (!restart)
+            return;
+
+        try
+        {
+            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+                throw new InvalidOperationException("The desktop application lifetime is unavailable.");
+
+            _updateInstaller.StartApplyHelper(_preparedUpdate);
+            StatusMessage = "Restarting to install the update…";
+            desktop.Shutdown(0);
+        }
+        catch (Exception ex)
+        {
+            UpdateBannerTitle = "Could not start the update";
+            UpdateBannerMessage = ex.Message;
+            UpdateActionLabel = "Retry restart";
+            StatusMessage = $"Could not start the update: {ex.Message}";
+        }
+    }
+
+    private static string FormatUpdateProgress(ShellUpdateProgress progress)
+    {
+        if (progress.TotalBytes <= 0)
+            return $"{progress.Status} {progress.BytesReceived / 1024d / 1024d:N1} MB";
+
+        return $"{progress.Status} {progress.BytesReceived / 1024d / 1024d:N1} of {progress.TotalBytes / 1024d / 1024d:N1} MB ({progress.Percentage:N0}%)";
     }
 
     /// <summary>Manual update check used by Settings → About.</summary>
@@ -81,11 +265,15 @@ public partial class MainViewModel
             if (offer == null)
             {
                 UpdateAvailable = false;
+                _pendingUpdate = null;
+                _preparedUpdate = null;
+                OnPropertyChanged(nameof(ShowUpdateAction));
+                DownloadUpdateCommand.NotifyCanExecuteChanged();
                 return $"You're up to date ({ShellVersionInfo.Display}).";
             }
 
             ApplyUpdateOffer(offer);
-            return $"Update available: {offer.Version.ToString(4)} — see the banner or open the release page.";
+            return $"Update available: {offer.Version.ToString(4)} — use the banner to download it or open the release page.";
         }
         catch (Exception ex)
         {
@@ -96,12 +284,21 @@ public partial class MainViewModel
     [RelayCommand]
     private void DismissUpdateBanner()
     {
+        if (IsUpdateDownloading)
+            return;
+
         if (_pendingUpdate != null)
             _updateChecker.Dismiss(_pendingUpdate.Version);
+        if (_preparedUpdate != null)
+            _updateInstaller.DiscardPreparedUpdate(_preparedUpdate);
 
         UpdateAvailable = false;
         UpdateBannerTitle = string.Empty;
         UpdateBannerMessage = string.Empty;
+        UpdateProgressText = string.Empty;
         _pendingUpdate = null;
+        _preparedUpdate = null;
+        OnPropertyChanged(nameof(ShowUpdateAction));
+        DownloadUpdateCommand.NotifyCanExecuteChanged();
     }
 }

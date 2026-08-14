@@ -30,11 +30,11 @@ rewrite reaches feature parity for your environment.
 - VM chrome: power toggles top-right, kind+name header, compact CD/DVD row, console-first layout
 - **Alerts** — always-visible sidebar badge; Copy on alert rows
 - **Performance** — RRD charts with hover + time axis; layout save
-- **Splash** / calendar **versioning** / GitHub **update banner**
+- **Splash** / calendar **versioning** / verified GitHub **download, install, and restart updates**
 - **Settings** (beside alerts): saved-session/main-password controls; reconnect policy; direct/system/custom proxy with protected credentials and API timeout; graph/console/log display options and console shortcuts; TOFU/public-IP security policy; alert/OVF confirmations; privacy masking; About/update check
 - **OVF validation** — fatal validation failures block import; non-fatal warnings require per-appliance acceptance unless explicitly disabled in Settings
 - **Auto-reconnect** saved servers with stored passwords (DPAPI on Windows; AES key file on Linux)
-- **Linux soak hardening** — RFB cursor alpha preserved; GTK-friendly file pickers; XDG config paths; chart Outfit font via embedded family; update banner **View release** uses `xdg-open`
+- **Linux soak hardening** — RFB cursor alpha preserved; GTK-friendly file pickers; XDG config paths; chart Outfit font via embedded family; update assets preserve executable modes
 
 ### Key shell layout
 
@@ -42,7 +42,7 @@ rewrite reaches feature parity for your environment.
 XcpNgCenter.Shell/
   Alerts/            ShellMessageAlert, ShellAlarmMessageAlert, ShellAlertFixActions
   Actions/           DismissAlertsAction, SaveShellGraphLayoutAction
-  Services/          ShellAlertHub, Performance/*, ShellGitHubUpdateChecker, ShellVersionInfo,
+  Services/          ShellAlertHub, Performance/*, ShellGitHubUpdateChecker, ShellUpdateInstaller,
                      ShellPaths, ShellExternalOpener, ShellAppSettings, SavedServerStore
   ViewModels/        … OvfImport/Export, NewSr multi-LUN, MainViewModel.AlertsGraphs/Updates
   Views/             … Splash, Settings, OvfImport/Export, global alerts overlay, ShellFilePicker
@@ -54,7 +54,7 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 ## Next
 
 1. Continue **Linux/Windows desktop soak** of CI artifacts against real pools (multi-server, migrate/move, import/export, alerts, graphs, RFB).
-2. Verify update banner against published **`vYYYY.M.D.N`** (or newer via workflow **Publish Shell Release**). Soak binary must stamp a **lower** version than the release tag.
+2. Verify download/apply/restart updates between published **`vYYYY.M.D.N`** builds. The starting binary must stamp a **lower** version than the release tag.
 3. Later: HA/AD/DR wizards (richer HA alert fix-links); graph editor beyond save-current-defaults.
 4. WinForms plugin tabs, Windows-specific external-tool launchers, and RDP stay in the production client.
 
@@ -67,7 +67,7 @@ dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -
 
 Pins / prefs: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-ng Center Shell/`.
 
-**Linux notes:** saved passwords use a user-only AES `device.key` under the XDG config root. Update banner **View release** uses `xdg-open`.
+**Linux notes:** saved passwords use a user-only AES `device.key` under the XDG config root. In-place updates require a writable portable install directory and preserve the shell executable mode.
 
 ## Non-goals
 

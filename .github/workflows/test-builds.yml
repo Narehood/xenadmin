@@ -60,7 +60,9 @@ jobs:
           --nologo
 
       - name: Run unit tests
-        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release --logger "trx;LogFileName=test-results.trx"
+        run: |
+          dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release --logger "trx;LogFileName=xencenterlib-test-results.trx"
+          dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release --logger "trx;LogFileName=shell-test-results.trx"
 
       - name: Upload Release artifacts
         uses: actions/upload-artifact@v7

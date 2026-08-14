@@ -37,6 +37,7 @@ jobs:
     outputs:
       version: ${{ steps.ver.outputs.version }}
       tag: ${{ steps.ver.outputs.tag }}
+      codename: ${{ steps.ver.outputs.codename }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -99,6 +100,7 @@ jobs:
     outputs:
       version: ${{ steps.ver.outputs.version }}
       tag: ${{ steps.ver.outputs.tag }}
+      codename: ${{ steps.ver.outputs.codename }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -175,13 +177,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.publish-linux.outputs.tag }}
-          name: XCP-ng Center Shell ${{ needs.publish-linux.outputs.version }}
+          name: XCP-ng Center Shell ${{ needs.publish-linux.outputs.version }} (${{ needs.publish-linux.outputs.codename }})
           target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
           body: |
-            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ needs.publish-linux.outputs.version }}**.
+            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ needs.publish-linux.outputs.version }}** (**${{ needs.publish-linux.outputs.codename }}**).
 
             Calendar versioning: `year.month.day.revision`. Production client remains WinForms `XenAdmin` until Linux/Windows soak is clean.
 
@@ -189,7 +191,7 @@ jobs:
             - `XcpNgCenter.Shell-win-x64-*.zip`
             - `XcpNgCenter.Shell-linux-x64-*.tar.gz` (preserves `+x` on the main binary)
 
-            Update banner: launch an older shell build; a bottom-right banner should offer **View release** / **Dismiss** when this tag is newer than the stamped assembly version (and not a prerelease).
+            Update flow: launch an older self-contained shell build; the bottom-right banner should offer **Download update**, verify the matching asset, then prompt for **Restart & install**. **View release** / **Dismiss** remain available.
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -213,21 +215,26 @@ jobs:
           DAY=$(date -u +%-d)
           VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
           TAG="v${VERSION}"
+          CODENAME="$(echo "${{ inputs.codename }}" | tr -d '[:space:]')"
+          if [[ -z "$CODENAME" ]]; then
+            CODENAME="Local"
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Publishing ${TAG}"
+          echo "codename=${CODENAME}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${TAG} (${CODENAME})"
 
       - name: Create GitHub Release (notes only)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
-          name: XCP-ng Center Shell ${{ steps.ver.outputs.version }}
+          name: XCP-ng Center Shell ${{ steps.ver.outputs.version }} (${{ steps.ver.outputs.codename }})
           target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
           body: |
-            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ steps.ver.outputs.version }}**.
+            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ steps.ver.outputs.version }}** (**${{ steps.ver.outputs.codename }}**).
 
             Calendar versioning: `year.month.day.revision`. Production client remains WinForms `XenAdmin` until Linux/Windows soak is clean.
 

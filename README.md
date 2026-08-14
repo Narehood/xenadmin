@@ -1,6 +1,6 @@
 # XCP-ng Center
 
-Windows and Linux management client for [XCP-ng](https://xcp-ng.org) and Citrix® XenServer® environments — manage hosts, pools, storage, and virtual machines.
+Windows and Linux management client for [XCP-ng](https://xcp-ng.org) environments — manage hosts, pools, storage, and virtual machines.
 
 This repository is actively modernized on the **`development`** branch: .NET 8, calendar versioning, GitHub Actions CI, and an Avalonia UI rewrite that coexists with the production WinForms client.
 
@@ -29,7 +29,7 @@ The official graphical client for XCP-ng is [Xen Orchestra](https://xen-orchestr
 
 - **Versioning:** `year.month.day.revision` (UTC date; CI sets `BuildRevision` to the GitHub run number)
 - **WinForms:** full production feature set (including RDP)
-- **Avalonia shell (preview):** connect/TOFU, infrastructure tree, General/Storage/Network, RFB console, Logs, Alerts, Performance graphs, New VM/SR, disk and memory snapshots, comprehensive host/VM properties, clone/copy/migrate/move/delete, validated Import/Export (XVA + OVF/OVA), GitHub Releases update banner, and persisted General/Connection/Display/Security/Confirmations/Privacy settings
+- **Avalonia shell (preview):** connect/TOFU, infrastructure tree, General/Storage/Network, RFB console, Logs, Alerts, Performance graphs, New VM/SR, disk and memory snapshots, comprehensive host/VM properties, clone/copy/migrate/move/delete, validated Import/Export (XVA + OVF/OVA), verified in-place GitHub Releases updates with restart prompting, and persisted General/Connection/Display/Security/Confirmations/Privacy settings
 - **CI artifacts:** `drop-release` / `drop-debug` (WinForms), `drop-shell-win-x64` / `drop-shell-linux-x64` (Avalonia)
 
 RDP remains WinForms-only for now.

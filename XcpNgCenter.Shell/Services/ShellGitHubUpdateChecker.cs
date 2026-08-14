@@ -1,16 +1,24 @@
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace XcpNgCenter.Shell.Services;
+
+public sealed record ShellUpdateAsset(
+    string Name,
+    string DownloadUrl,
+    long Size,
+    string? Digest);
 
 public sealed record ShellUpdateOffer(
     Version Version,
     string TagName,
     string Title,
     string HtmlUrl,
-    DateTimeOffset? PublishedAt);
+    DateTimeOffset? PublishedAt,
+    ShellUpdateAsset? Asset);
 
 /// <summary>
 /// Checks GitHub Releases for a newer client build. Failures are silent (offline / no releases yet).
@@ -60,7 +68,19 @@ public sealed class ShellGitHubUpdateChecker
             var url = string.IsNullOrWhiteSpace(release.HtmlUrl) ? ReleasesPageUrl : release.HtmlUrl!;
             var title = string.IsNullOrWhiteSpace(release.Name) ? (release.TagName ?? remote.ToString(4)) : release.Name!;
             var tag = release.TagName ?? remote.ToString(4);
-            return new ShellUpdateOffer(remote, tag, title, url, release.PublishedAt);
+            var asset = SelectPlatformAsset(
+                release.Assets?
+                    .Where(static item => string.Equals(item.State, "uploaded", StringComparison.OrdinalIgnoreCase))
+                    .Select(static item => new ShellUpdateAsset(
+                        item.Name ?? string.Empty,
+                        item.DownloadUrl ?? string.Empty,
+                        item.Size,
+                        item.Digest)) ?? [],
+                remote,
+                OperatingSystem.IsWindows(),
+                OperatingSystem.IsLinux(),
+                RuntimeInformation.ProcessArchitecture);
+            return new ShellUpdateOffer(remote, tag, title, url, release.PublishedAt, asset);
         }
         catch
         {
@@ -69,6 +89,45 @@ public sealed class ShellGitHubUpdateChecker
     }
 
     public void Dismiss(Version version) => _preferences.SetDismissedVersion(version.ToString(4));
+
+    internal static ShellUpdateAsset? SelectPlatformAsset(
+        IEnumerable<ShellUpdateAsset> assets,
+        Version version,
+        bool isWindows,
+        bool isLinux,
+        Architecture architecture)
+    {
+        if (architecture != Architecture.X64)
+            return null;
+
+        var expectedName = isWindows
+            ? $"XcpNgCenter.Shell-win-x64-{version.ToString(4)}.zip"
+            : isLinux
+                ? $"XcpNgCenter.Shell-linux-x64-{version.ToString(4)}.tar.gz"
+                : null;
+        if (expectedName == null)
+            return null;
+
+        return assets.FirstOrDefault(asset =>
+            string.Equals(asset.Name, expectedName, StringComparison.OrdinalIgnoreCase)
+            && asset.Size > 0
+            && IsSha256Digest(asset.Digest)
+            && Uri.TryCreate(asset.DownloadUrl, UriKind.Absolute, out var uri)
+            && uri.Scheme == Uri.UriSchemeHttps
+            && (string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static bool IsSha256Digest(string? digest)
+    {
+        if (string.IsNullOrWhiteSpace(digest))
+            return false;
+        var parts = digest.Split(':', 2, StringSplitOptions.TrimEntries);
+        return parts.Length == 2
+               && string.Equals(parts[0], "sha256", StringComparison.OrdinalIgnoreCase)
+               && parts[1].Length == 64
+               && parts[1].All(Uri.IsHexDigit);
+    }
 
     private async Task<GitHubRelease?> FetchLatestReleaseAsync(CancellationToken cancellationToken)
     {
@@ -146,5 +205,26 @@ public sealed class ShellGitHubUpdateChecker
 
         [JsonPropertyName("published_at")]
         public DateTimeOffset? PublishedAt { get; set; }
+
+        [JsonPropertyName("assets")]
+        public List<GitHubAsset>? Assets { get; set; }
+    }
+
+    private sealed class GitHubAsset
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("browser_download_url")]
+        public string? DownloadUrl { get; set; }
+
+        [JsonPropertyName("size")]
+        public long Size { get; set; }
+
+        [JsonPropertyName("digest")]
+        public string? Digest { get; set; }
+
+        [JsonPropertyName("state")]
+        public string? State { get; set; }
     }
 }
