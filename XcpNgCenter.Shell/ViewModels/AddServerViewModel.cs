@@ -22,6 +22,12 @@ public partial class AddServerViewModel : ViewModelBase
     private string _hostInput = string.Empty;
 
     [ObservableProperty]
+    private bool _showPublicIpWarning;
+
+    [ObservableProperty]
+    private bool _acknowledgePublicIp;
+
+    [ObservableProperty]
     private string _username = "root";
 
     [ObservableProperty]
@@ -33,10 +39,21 @@ public partial class AddServerViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
+    partial void OnHostInputChanged(string value)
+    {
+        ShowPublicIpWarning = _main.ShouldWarnForPublicIp(value);
+        AcknowledgePublicIp = false;
+    }
+
     [RelayCommand]
     private void Connect()
     {
-        var error = _main.TryBeginConnect(HostInput, Username, Password, RememberPassword);
+        var error = _main.TryBeginConnect(
+            HostInput,
+            Username,
+            Password,
+            RememberPassword,
+            publicIpAcknowledged: AcknowledgePublicIp);
         if (error != null)
         {
             StatusMessage = error;

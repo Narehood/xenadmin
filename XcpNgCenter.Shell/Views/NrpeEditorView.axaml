@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+             x:Class="XcpNgCenter.Shell.Views.NrpeEditorView"
+             x:DataType="vm:NrpeEditor">
+  <StackPanel Spacing="12">
+    <TextBlock Text="NRPE monitoring" FontWeight="SemiBold" FontSize="16" />
+    <TextBlock Text="Expose host and control-domain health checks to authorized NRPE clients."
+               TextWrapping="Wrap"
+               Foreground="{StaticResource Brush.TextMuted}" />
+    <ProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding IsLoading}" />
+    <Border Padding="12"
+            Background="#55252C34"
+            BorderBrush="{StaticResource Brush.StrokeSubtle}"
+            BorderThickness="1"
+            CornerRadius="6">
+      <StackPanel Spacing="8">
+        <TextBlock Text="{Binding StatusMessage}"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource Brush.TextMuted}" />
+        <Button Classes="ghost"
+                Content="Retry"
+                HorizontalAlignment="Left"
+                IsVisible="{Binding !IsLoaded}"
+                IsEnabled="{Binding !IsLoading}"
+                Command="{Binding RetryLoadCommand}" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel Spacing="10" IsEnabled="{Binding CanEdit}">
+      <CheckBox Content="Enable NRPE"
+                IsChecked="{Binding Enabled}" />
+      <StackPanel Spacing="8" IsEnabled="{Binding CanEditConfiguration}">
+        <TextBox Text="{Binding AllowedHosts}"
+                 Watermark="Allowed clients, comma-separated (IPv4, CIDR, or DNS)" />
+        <CheckBox Content="Enable NRPE debug logging"
+                  IsChecked="{Binding DebugLogging}" />
+        <CheckBox Content="Enable SSL debug logging"
+                  IsChecked="{Binding SslLogging}" />
+
+        <TextBlock Text="Check thresholds" FontWeight="SemiBold" Margin="0,8,0,0" />
+        <Grid ColumnDefinitions="*,110,110" Margin="8,0,8,2">
+          <TextBlock Text="Check" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Grid.Column="1" Text="Warning" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Grid.Column="2" Text="Critical" Foreground="{StaticResource Brush.TextMuted}" />
+        </Grid>
+        <ItemsControl ItemsSource="{Binding Checks}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:NrpeCheckRow">
+              <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                      BorderThickness="0,0,0,1"
+                      Padding="8,6">
+                <Grid ColumnDefinitions="*,110,110" RowDefinitions="Auto,Auto">
+                  <TextBlock Text="{Binding Label}" TextWrapping="Wrap" Margin="0,4,8,0" />
+                  <TextBox Grid.Column="1" Text="{Binding Warning}" Margin="0,0,8,0" />
+                  <TextBox Grid.Column="2" Text="{Binding Critical}" />
+                  <TextBlock Grid.Row="1" Grid.ColumnSpan="3"
+                             Text="{Binding Hint}"
+                             FontSize="10"
+                             Foreground="{StaticResource Brush.TextMuted}"
+                             Margin="0,3,0,0" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

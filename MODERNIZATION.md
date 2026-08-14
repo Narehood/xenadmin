@@ -32,14 +32,13 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**On `development`:** Phase 1–2 parity + migrate/move harden + VM chrome + Import/Export (XVA/OVF) + global Alerts + Performance graphs + calendar versioning + GitHub update banner + Settings/About + auto-reconnect + Linux soak hardening (RFB cursor alpha, file pickers, XDG paths, `xdg-open`, Publish Shell Release). Production remains WinForms until soak is clean.
+**On `development`:** Phase 1–2 parity + migrate/move harden + VM chrome + comprehensive host/VM Properties (custom fields, alerts, power, GPU, clustering/NRPE, cloud config) + Import/Export (XVA/OVF) + global Alerts + Performance graphs + calendar versioning + GitHub update banner + persisted General/Connection/Display/Security/Confirmations/Privacy settings + Linux soak hardening (RFB cursor alpha, file pickers, XDG paths, `xdg-open`, Publish Shell Release). Production remains WinForms until soak is clean.
 
 **Next:** Continue Linux/Windows desktop soak against real pools → exercise update banner against published `vYYYY.M.D.N` → later HA/AD/DR. RDP stays WinForms-only.
 
 ### Still later
 
 - Broader async cleanup / installer CI automation.
-- Memory/quiesced snapshot types (disk-only shipped first; `System.Drawing.Common` is Windows-only on .NET 8).
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
 - HA/AD/DR wizards (alert fix-link for HA still points users to WinForms).
 
@@ -60,11 +59,13 @@ Policy implemented in `XenAdmin/Network/SSL.cs` (WinForms) and `XcpNgCenter.Shel
 - **Trust on first use (TOFU):** first connection to a host pins the certificate hash after acceptance.
 - **Later connections:** require the pinned hash; changes prompt before re-pinning.
 - **No accept-all:** low-level HTTP paths without the app TOFU callback reject untrusted chains instead of returning `true`.
-- **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (Windows) or `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux).
+- **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (Windows) or `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux). Settings can disable either prompt independently while retaining pinning; secure prompting remains the default.
 
 ## Public IP connection warning
 
 When Add Server targets a literal public IP, `PublicIpWarningDialog` warns about exposing the management plane and suggests a VPN/SSH tunnel/private path. Users can proceed or cancel; “don’t show again” and Options → Security control `WarnPublicIpConnection`. Non-IP hostnames are not warned (no DNS resolve in this pass).
+
+The Avalonia shell applies the same literal-public-IP guard to both its welcome connection form and its separate Add Server dialog. Saved-server reconnects are treated as previously accepted, and the warning can be controlled from Settings → Security.
 
 ## Stale local scripts
 

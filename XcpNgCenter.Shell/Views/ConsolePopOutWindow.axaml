@@ -9,7 +9,7 @@
         MinWidth="640" MinHeight="480"
         Background="{StaticResource Brush.BgDeep}">
   <Grid RowDefinitions="Auto,*" Margin="12">
-    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,10">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,10">
       <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Console'}"
                  FontSize="14"
                  FontWeight="SemiBold"
@@ -50,6 +50,9 @@
       <Button Grid.Column="5" Classes="ghost" Content="Reattach"
               Margin="6,0,0,0" Padding="10,6"
               Command="{Binding ReattachConsoleCommand}" />
+      <Button Grid.Column="6" Classes="ghost" Content="Full screen"
+              Margin="6,0,0,0" Padding="10,6"
+              Command="{Binding ToggleConsoleFullScreenCommand}" />
     </Grid>
 
     <Border Grid.Row="1"
@@ -61,6 +64,8 @@
             ClipToBounds="True">
       <controls:RfbConsoleView Frame="{Binding ConsoleBitmap}"
                                Session="{Binding ConsoleSession}"
+                           ScaleToFit="{Binding ScaleConsoleToFit}"
+                           ReleaseShortcut="{Binding ConsoleReleaseShortcut}"
                                HorizontalAlignment="Stretch"
                                VerticalAlignment="Stretch"
                                ClipToBounds="True"

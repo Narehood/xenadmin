@@ -41,6 +41,31 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
+          <Border IsVisible="{Binding HasValidationWarnings}"
+                  Padding="12"
+                  Background="#22F0A020"
+                  BorderBrush="{StaticResource Brush.BrandOrange}"
+                  BorderThickness="1"
+                  CornerRadius="6">
+            <StackPanel Spacing="8">
+              <TextBlock Text="OVF validation warnings"
+                         FontWeight="SemiBold"
+                         Foreground="{StaticResource Brush.BrandOrange}" />
+              <ItemsControl ItemsSource="{Binding ValidationWarnings}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <TextBlock Text="{Binding}"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,4" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <CheckBox Content="I reviewed these warnings and want to continue"
+                        IsChecked="{Binding AcknowledgeValidationWarnings}" />
+            </StackPanel>
+          </Border>
+
           <TextBlock Text="Destination SR" Foreground="{StaticResource Brush.TextMuted}" />
           <ComboBox ItemsSource="{Binding StorageRepositories}" SelectedItem="{Binding SelectedStorage}">
             <ComboBox.ItemTemplate>

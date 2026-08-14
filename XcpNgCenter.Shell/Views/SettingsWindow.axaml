@@ -4,8 +4,8 @@
         x:Class="XcpNgCenter.Shell.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="Settings"
-        Width="560"
-        Height="560"
+        Width="760"
+        Height="650"
         MinWidth="440"
         MinHeight="400"
         WindowStartupLocation="CenterOwner"
@@ -19,9 +19,20 @@
 
     <TabControl Grid.Row="1">
       <TabItem Header="General">
-        <StackPanel Spacing="14" Margin="0,16,0,0">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="14" Margin="0,16,10,12">
+          <CheckBox Content="Remember servers between sessions"
+                    IsChecked="{Binding RememberSavedServers, Mode=OneWay}"
+                    Command="{Binding ToggleRememberSavedServersCommand}" />
+          <TextBlock Text="Turning this off deletes the saved server list and stored server credentials. Active connections are not closed."
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+
           <CheckBox Content="Reconnect saved servers on startup"
-                    IsChecked="{Binding AutoReconnectSavedServers}" />
+                    IsChecked="{Binding AutoReconnectSavedServers}"
+                    IsEnabled="{Binding CanAutoReconnectSavedServers}" />
           <TextBlock Text="When enabled, the shell signs into every saved server that has a stored password."
                      FontSize="12"
                      TextWrapping="Wrap"
@@ -58,11 +69,198 @@
                      Foreground="{StaticResource Brush.TextMuted}"
                      Margin="0,8,0,0" />
 
-          <Button Classes="ghost"
-                  Content="Clear trusted certificates"
-                  HorizontalAlignment="Left"
-                  Margin="0,12,0,0"
-                  Command="{Binding ClearTrustedCertificatesCommand}" />
+        </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Connection">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="12" Margin="0,16,10,12">
+            <TextBlock Text="Connection timeout"
+                       FontSize="14"
+                       FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,120,Auto">
+              <TextBlock Text="Wait for a server API connection before timing out."
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}"
+                         VerticalAlignment="Center" />
+              <TextBox Grid.Column="1"
+                       Margin="8,0,0,0"
+                       Text="{Binding ConnectionTimeoutText}"
+                       Watermark="20" />
+              <TextBlock Grid.Column="2"
+                         Text="seconds"
+                         Margin="8,0,0,0"
+                         VerticalAlignment="Center" />
+            </Grid>
+
+            <TextBlock Text="Proxy"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Margin="0,10,0,0" />
+            <ComboBox ItemsSource="{Binding ProxyModes}"
+                      SelectedItem="{Binding SelectedProxyMode}" />
+
+            <StackPanel Spacing="10" IsVisible="{Binding ShowCustomProxy}">
+              <Grid ColumnDefinitions="*,120">
+                <TextBox Grid.Column="0"
+                         Text="{Binding ProxyAddress}"
+                         Watermark="Proxy hostname or IP address" />
+                <TextBox Grid.Column="1"
+                         Margin="8,0,0,0"
+                         Text="{Binding ProxyPortText}"
+                         Watermark="Port" />
+              </Grid>
+              <CheckBox Content="Bypass the proxy for host and pool connections"
+                        IsChecked="{Binding BypassProxyForServers}" />
+              <CheckBox Content="The proxy requires authentication"
+                        IsChecked="{Binding ProvideProxyAuthentication}" />
+
+              <StackPanel Spacing="8" IsVisible="{Binding ShowProxyAuthentication}">
+                <TextBox Text="{Binding ProxyUsername}" Watermark="Proxy username" />
+                <TextBox Text="{Binding ProxyPassword}"
+                         Watermark="Proxy password"
+                         PasswordChar="*" />
+                <ComboBox ItemsSource="{Binding ProxyAuthenticationMethods}"
+                          SelectedItem="{Binding SelectedProxyAuthentication}" />
+                <TextBlock Text="Digest is recommended when supported. Credentials are protected in the local settings store."
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource Brush.TextMuted}" />
+              </StackPanel>
+            </StackPanel>
+
+            <TextBlock Text="System and custom proxy settings apply to downloads and transfers. The bypass option keeps direct API connections to managed servers."
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <Button Classes="cta"
+                    Content="Save connection settings"
+                    HorizontalAlignment="Left"
+                    Margin="0,8,0,0"
+                    Command="{Binding SaveConnectionSettingsCommand}" />
+            <TextBlock Text="{Binding ProxyStatusMessage}"
+                       IsVisible="{Binding HasProxyStatusMessage}"
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Display">
+        <StackPanel Spacing="14" Margin="0,16,0,0">
+          <TextBlock Text="Performance graphs"
+                     FontSize="14"
+                     FontWeight="SemiBold" />
+          <CheckBox Content="Fill the area under graph lines"
+                    IsChecked="{Binding FillPerformanceGraphAreas}" />
+          <TextBlock Text="Filled graphs make volume changes easier to scan; line-only graphs remain less visually dense."
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+
+          <TextBlock Text="Console"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     Margin="0,10,0,0" />
+          <CheckBox Content="Scale consoles to fit the available space"
+                    IsChecked="{Binding ScaleConsoleToFit}" />
+          <TextBlock Text="Disable scaling to display the remote framebuffer at its native size, centered and clipped when necessary."
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="Release keyboard and mouse capture with" />
+          <ComboBox ItemsSource="{Binding ConsoleReleaseShortcuts}"
+                    SelectedItem="{Binding SelectedConsoleReleaseShortcut}" />
+          <Grid ColumnDefinitions="*,*">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Toggle full-screen console with" />
+              <ComboBox ItemsSource="{Binding ConsoleFullscreenShortcuts}"
+                        SelectedItem="{Binding SelectedConsoleFullscreenShortcut}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6" Margin="10,0,0,0">
+              <TextBlock Text="Dock or undock the console with" />
+              <ComboBox ItemsSource="{Binding ConsoleDockShortcuts}"
+                        SelectedItem="{Binding SelectedConsoleDockShortcut}" />
+            </StackPanel>
+          </Grid>
+
+          <CheckBox Content="Remember the last selected detail tab"
+                    IsChecked="{Binding RememberLastSelectedTab}"
+                    Margin="0,10,0,0" />
+          <CheckBox Content="Show timestamps in action logs"
+                    IsChecked="{Binding ShowTimestampsInLogs}" />
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Security">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="12" Margin="0,16,10,12">
+            <TextBlock Text="TLS certificate trust"
+                       FontSize="14"
+                       FontWeight="SemiBold" />
+            <TextBlock Text="Certificates are pinned per server. Secure prompting is enabled by default; disabling a warning automatically accepts and pins the affected certificate."
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <CheckBox Content="Warn before trusting a certificate for the first time"
+                      IsChecked="{Binding WarnUnrecognizedCertificates}" />
+            <CheckBox Content="Warn when a server certificate changes"
+                      IsChecked="{Binding WarnChangedCertificates}" />
+            <Button Classes="ghost"
+                    Content="Clear trusted certificates"
+                    HorizontalAlignment="Left"
+                    Margin="0,4,0,0"
+                    Command="{Binding ClearTrustedCertificatesCommand}" />
+            <TextBlock Text="Clearing pins makes each server a first-time certificate on its next connection."
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+
+            <TextBlock Text="Connection safety"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Margin="0,10,0,0" />
+            <CheckBox Content="Warn before connecting directly to a public IP address"
+                      IsChecked="{Binding WarnPublicIpConnections}" />
+            <TextBlock Text="A VPN, tunnel, or private management network is recommended for host and pool APIs."
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBlock Text="{Binding SecurityStatusMessage}"
+                       IsVisible="{Binding HasSecurityStatusMessage}"
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Confirmations">
+        <StackPanel Spacing="14" Margin="0,16,0,0">
+          <TextBlock Text="Potentially destructive actions"
+                     FontSize="14"
+                     FontWeight="SemiBold" />
+          <CheckBox Content="Confirm before dismissing alerts"
+                    IsChecked="{Binding ConfirmAlertDismissals}" />
+          <TextBlock Text="Dismissed server alerts cannot always be restored."
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+
+          <TextBlock Text="Appliance import"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     Margin="0,10,0,0" />
+          <CheckBox Content="Ignore non-fatal OVF validation warnings"
+                    IsChecked="{Binding IgnoreOvfValidationWarnings}" />
+          <TextBlock Text="Fatal OVF errors still block import. Leave this off to review and explicitly accept non-fatal compatibility warnings for each appliance."
+                     FontSize="12"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
         </StackPanel>
       </TabItem>
 

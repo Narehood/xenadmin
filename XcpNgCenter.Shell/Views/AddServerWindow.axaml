@@ -25,6 +25,13 @@
       <CheckBox IsChecked="{Binding RememberPassword}"
                 IsEnabled="{Binding CanPersistPasswords}"
                 Content="{Binding RememberPasswordLabel}" />
+      <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
+                 Text="Public IP detected — prefer a VPN, tunnel, or private management path."
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource Brush.BrandOrange}" />
+      <CheckBox IsVisible="{Binding ShowPublicIpWarning}"
+                IsChecked="{Binding AcknowledgePublicIp}"
+                Content="I understand the risk — connect anyway" />
       <TextBlock Text="{Binding StatusMessage}"
                  TextWrapping="Wrap"
                  Foreground="{StaticResource Brush.TextMuted}"

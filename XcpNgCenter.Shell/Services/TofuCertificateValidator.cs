@@ -11,11 +11,13 @@ namespace XcpNgCenter.Shell.Services;
 public sealed class TofuCertificateValidator
 {
     private readonly TofuCertificateStore _store;
+    private readonly ShellAppSettings _settings;
     private readonly object _gate = new();
 
-    public TofuCertificateValidator(TofuCertificateStore store)
+    public TofuCertificateValidator(TofuCertificateStore store, ShellAppSettings settings)
     {
         _store = store;
+        _settings = settings;
     }
 
     public string? LastMessage { get; private set; }
@@ -52,6 +54,16 @@ public sealed class TofuCertificateValidator
             if (string.Equals(pinned, hash, StringComparison.OrdinalIgnoreCase))
                 return true;
 
+            if (!_settings.WarnChangedCertificates)
+            {
+                lock (_gate)
+                    _store.Set(hostname, hash);
+                LastMessage = string.IsNullOrWhiteSpace(_store.LastSaveError)
+                    ? $"Updated pinned certificate for {hostname} without prompting."
+                    : $"Accepted certificate for {hostname}, but pin was not saved: {_store.LastSaveError}";
+                return true;
+            }
+
             var changedRequest = TofuTrustPrompt.BuildRequest(
                 CertificateTrustKind.Changed,
                 hostname,
@@ -69,6 +81,16 @@ public sealed class TofuCertificateValidator
                 _store.Set(hostname, hash);
             LastMessage = string.IsNullOrWhiteSpace(_store.LastSaveError)
                 ? $"Updated pinned certificate for {hostname}."
+                : $"Accepted certificate for {hostname}, but pin was not saved: {_store.LastSaveError}";
+            return true;
+        }
+
+        if (!_settings.WarnUnrecognizedCertificates)
+        {
+            lock (_gate)
+                _store.Set(hostname, hash);
+            LastMessage = string.IsNullOrWhiteSpace(_store.LastSaveError)
+                ? $"Pinned certificate for {hostname} without prompting."
                 : $"Accepted certificate for {hostname}, but pin was not saved: {_store.LastSaveError}";
             return true;
         }

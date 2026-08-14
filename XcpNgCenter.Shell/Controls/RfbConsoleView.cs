@@ -20,6 +20,12 @@ public sealed class RfbConsoleView : Control
     public static readonly StyledProperty<HostedConsoleSession?> SessionProperty =
         AvaloniaProperty.Register<RfbConsoleView, HostedConsoleSession?>(nameof(Session));
 
+    public static readonly StyledProperty<bool> ScaleToFitProperty =
+        AvaloniaProperty.Register<RfbConsoleView, bool>(nameof(ScaleToFit), true);
+
+    public static readonly StyledProperty<string> ReleaseShortcutProperty =
+        AvaloniaProperty.Register<RfbConsoleView, string>(nameof(ReleaseShortcut), "Right Ctrl");
+
     public static readonly RoutedEvent<RoutedEventArgs> FocusCaptureChangedEvent =
         RoutedEvent.Register<RfbConsoleView, RoutedEventArgs>(
             nameof(FocusCaptureChanged),
@@ -33,7 +39,7 @@ public sealed class RfbConsoleView : Control
 
     static RfbConsoleView()
     {
-        AffectsRender<RfbConsoleView>(FrameProperty, SessionProperty);
+        AffectsRender<RfbConsoleView>(FrameProperty, SessionProperty, ScaleToFitProperty);
         FocusableProperty.OverrideDefaultValue<RfbConsoleView>(true);
         ClipToBoundsProperty.OverrideDefaultValue<RfbConsoleView>(true);
     }
@@ -54,6 +60,18 @@ public sealed class RfbConsoleView : Control
     {
         get => GetValue(SessionProperty);
         set => SetValue(SessionProperty, value);
+    }
+
+    public bool ScaleToFit
+    {
+        get => GetValue(ScaleToFitProperty);
+        set => SetValue(ScaleToFitProperty, value);
+    }
+
+    public string ReleaseShortcut
+    {
+        get => GetValue(ReleaseShortcutProperty);
+        set => SetValue(ReleaseShortcutProperty, value);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -238,9 +256,20 @@ public sealed class RfbConsoleView : Control
         base.OnKeyDown(e);
         if (!IsFocused)
             return;
+        if (IsReleaseShortcut(e.Key))
+        {
+            TopLevel.GetTopLevel(this)?.FocusManager?.ClearFocus();
+            e.Handled = true;
+            return;
+        }
         if (SendKey(e, down: true))
             e.Handled = true;
     }
+
+    private bool IsReleaseShortcut(Key key) =>
+        string.Equals(ReleaseShortcut, "Left Alt", StringComparison.Ordinal)
+            ? key == Key.LeftAlt
+            : key == Key.RightCtrl;
 
     protected override void OnKeyUp(KeyEventArgs e)
     {
@@ -361,9 +390,19 @@ public sealed class RfbConsoleView : Control
             return false;
 
         desk = new PixelSize(dw, dh);
-        var scale = Math.Min(Bounds.Width / dw, Bounds.Height / dh);
+        var scale = ScaleToFit ? Math.Min(Bounds.Width / dw, Bounds.Height / dh) : 1d;
         var w = Math.Floor(dw * scale);
         var h = Math.Floor(dh * scale);
+        if (!ScaleToFit)
+        {
+            dest = new Rect(
+                Math.Floor((Bounds.Width - w) / 2),
+                Math.Floor((Bounds.Height - h) / 2),
+                w,
+                h);
+            return true;
+        }
+
         // Keep the fitted rect fully inside bounds so ClipToBounds does not shave the first column/row.
         var x = Math.Max(0, Math.Floor((Bounds.Width - w) / 2));
         var y = Math.Max(0, Math.Floor((Bounds.Height - h) / 2));

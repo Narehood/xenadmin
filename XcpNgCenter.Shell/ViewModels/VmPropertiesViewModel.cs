@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using XenAdmin.Actions;
@@ -12,10 +13,15 @@ namespace XcpNgCenter.Shell.ViewModels;
 public enum VmPropertiesSection
 {
     General,
+    CustomFields,
+    PerformanceAlerts,
     CpuMemory,
     Boot,
     StartupHa,
     HomeServer,
+    Advanced,
+    ContainerIntegration,
+    CloudConfig,
     Gpu,
     Usb
 }
@@ -143,6 +149,9 @@ public sealed class UsbAvailableItem
 public partial class VmPropertiesViewModel : ViewModelBase
 {
     private static readonly char[] BootCodes = ['C', 'D', 'N'];
+    private const string GeneralShadowMode = "General use (1.0)";
+    private const string ProvisioningShadowMode = "Provisioning services (4.0)";
+    private const string CustomShadowMode = "Custom";
 
     private readonly VM _original;
     private readonly VM _clone;
@@ -158,6 +167,11 @@ public partial class VmPropertiesViewModel : ViewModelBase
     private readonly string _origBootOrder;
     private readonly string _origPvArgs;
     private readonly bool _origBootFromCd;
+    private readonly double _origShadowMultiplier;
+    private readonly bool _origContainerIntegration;
+    private VDI? _cloudConfigDrive;
+    private string _initialCloudConfig = string.Empty;
+    private bool _cloudConfigLoadStarted;
     private bool _bootFromCd;
 
     public VmPropertiesViewModel(VM vm, Action close, Action<string>? status = null)
@@ -177,12 +191,21 @@ public partial class VmPropertiesViewModel : ViewModelBase
         IsHvm = vm.IsHVM();
         OrderText = vm.order.ToString();
         StartDelayText = vm.start_delay.ToString();
+        ShadowMultiplierText = vm.HVM_shadow_multiplier.ToString(CultureInfo.InvariantCulture);
+        ShowContainerIntegrationSection = Helpers.ContainerCapability(vm.Connection) && vm.CanBeEnlightened();
+        ContainerIntegrationEnabled = ShowContainerIntegrationSection && vm.IsEnlightened();
+        ShowCloudConfigSection = vm.CanHaveCloudConfigDrive();
+        CustomFields = new CustomFieldsEditor(vm);
+        PerformanceAlerts = new PerformanceAlertsEditor(vm);
 
         _origTags = Tags.GetTags(vm) ?? Array.Empty<string>();
         _origAutoPowerOn = AutoPowerOn;
         _origBootOrder = vm.GetBootOrder();
         _origPvArgs = PvArgs;
         _origBootFromCd = DetectBootFromCd(vm);
+        _origShadowMultiplier = vm.HVM_shadow_multiplier;
+        _origContainerIntegration = ContainerIntegrationEnabled;
+        _selectedShadowOptimizationMode = ShadowModeFor(_origShadowMultiplier);
         _bootFromCd = _origBootFromCd;
         _origOrder = vm.order;
         _origStartDelay = vm.start_delay;
@@ -191,10 +214,18 @@ public partial class VmPropertiesViewModel : ViewModelBase
         _originalGpus = vm.Connection.ResolveAll(vm.VGPUs).Where(g => g != null).Cast<VGPU>().ToList();
 
         Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.General, "General"));
+        Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.CustomFields, "Custom Fields"));
+        Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.PerformanceAlerts, "Performance Alerts"));
         Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.CpuMemory, "CPU & Memory"));
         Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.Boot, "Boot Options"));
         Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.StartupHa, "Startup Options"));
         Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.HomeServer, "Home Server"));
+        if (IsHvm)
+            Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.Advanced, "Advanced Options"));
+        if (ShowContainerIntegrationSection)
+            Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.ContainerIntegration, "Container Integration"));
+        if (ShowCloudConfigSection)
+            Sections.Add(new VmPropertiesSectionItem(VmPropertiesSection.CloudConfig, "Cloud Config"));
 
         ShowGpuSection = vm.CanHaveGpu() && Helpers.GpusAvailable(vm.Connection);
         if (ShowGpuSection)
@@ -218,6 +249,12 @@ public partial class VmPropertiesViewModel : ViewModelBase
         PopulateUsb();
 
         PoolHaEnabled = pool?.ha_enabled == true;
+        CanEditAdvanced = IsHvm
+                          && vm.power_state != vm_power_state.Paused
+                          && vm.power_state != vm_power_state.Suspended;
+        AdvancedStatusText = CanEditAdvanced
+            ? "The shadow-memory multiplier can be changed while the VM is running or halted."
+            : "Resume or shut down the VM before changing its shadow-memory multiplier.";
         HaStatusText = PoolHaEnabled
             ? "HA is enabled on this pool — choose a restart priority."
             : "HA is not enabled — restart priority is unavailable; order and start delay still apply.";
@@ -245,9 +282,21 @@ public partial class VmPropertiesViewModel : ViewModelBase
 
     public bool ShowUsbSection { get; }
 
+    public bool ShowContainerIntegrationSection { get; }
+
+    public bool ShowCloudConfigSection { get; }
+
+    public CustomFieldsEditor CustomFields { get; }
+
+    public PerformanceAlertsEditor PerformanceAlerts { get; }
+
     public bool PoolHaEnabled { get; }
 
     public string HaStatusText { get; }
+
+    public bool CanEditAdvanced { get; }
+
+    public string AdvancedStatusText { get; }
 
     public bool ShowHvmBoot => IsHvm;
 
@@ -267,15 +316,23 @@ public partial class VmPropertiesViewModel : ViewModelBase
         ? "Attach or detach USB devices immediately (VM must be halted)."
         : "USB changes require a halted VM without HA restart protection.";
 
+    public IReadOnlyList<string> ShadowOptimizationModes { get; } =
+        [GeneralShadowMode, ProvisioningShadowMode, CustomShadowMode];
+
     [ObservableProperty]
     private VmPropertiesSectionItem? _selectedSectionItem;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGeneral))]
+    [NotifyPropertyChangedFor(nameof(ShowCustomFields))]
+    [NotifyPropertyChangedFor(nameof(ShowPerformanceAlerts))]
     [NotifyPropertyChangedFor(nameof(ShowCpuMemory))]
     [NotifyPropertyChangedFor(nameof(ShowBoot))]
     [NotifyPropertyChangedFor(nameof(ShowStartupHa))]
     [NotifyPropertyChangedFor(nameof(ShowHomeServer))]
+    [NotifyPropertyChangedFor(nameof(ShowAdvanced))]
+    [NotifyPropertyChangedFor(nameof(ShowContainerIntegration))]
+    [NotifyPropertyChangedFor(nameof(ShowCloudConfig))]
     [NotifyPropertyChangedFor(nameof(ShowGpu))]
     [NotifyPropertyChangedFor(nameof(ShowUsb))]
     private VmPropertiesSection _selectedSection = VmPropertiesSection.General;
@@ -308,6 +365,30 @@ public partial class VmPropertiesViewModel : ViewModelBase
     private string _startDelayText = "0";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCustomShadowMultiplier))]
+    private string _selectedShadowOptimizationMode = GeneralShadowMode;
+
+    [ObservableProperty]
+    private string _shadowMultiplierText = "1";
+
+    [ObservableProperty]
+    private bool _containerIntegrationEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEditCloudConfig))]
+    private bool _isLoadingCloudConfig;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEditCloudConfig))]
+    private bool _isCloudConfigLoaded;
+
+    [ObservableProperty]
+    private string _cloudConfigText = string.Empty;
+
+    [ObservableProperty]
+    private string _cloudConfigStatusText = "Select this page to load the config-drive configuration.";
+
+    [ObservableProperty]
     private HaPriorityOption? _selectedHaPriority;
 
     [ObservableProperty]
@@ -337,17 +418,101 @@ public partial class VmPropertiesViewModel : ViewModelBase
     private string _statusMessage = string.Empty;
 
     public bool ShowGeneral => SelectedSection == VmPropertiesSection.General;
+    public bool ShowCustomFields => SelectedSection == VmPropertiesSection.CustomFields;
+    public bool ShowPerformanceAlerts => SelectedSection == VmPropertiesSection.PerformanceAlerts;
     public bool ShowCpuMemory => SelectedSection == VmPropertiesSection.CpuMemory;
     public bool ShowBoot => SelectedSection == VmPropertiesSection.Boot;
     public bool ShowStartupHa => SelectedSection == VmPropertiesSection.StartupHa;
     public bool ShowHomeServer => SelectedSection == VmPropertiesSection.HomeServer;
+    public bool ShowAdvanced => SelectedSection == VmPropertiesSection.Advanced;
+    public bool ShowContainerIntegration => SelectedSection == VmPropertiesSection.ContainerIntegration;
+    public bool ShowCloudConfig => SelectedSection == VmPropertiesSection.CloudConfig;
     public bool ShowGpu => SelectedSection == VmPropertiesSection.Gpu;
     public bool ShowUsb => SelectedSection == VmPropertiesSection.Usb;
-
+    public bool ShowCustomShadowMultiplier =>
+        string.Equals(SelectedShadowOptimizationMode, CustomShadowMode, StringComparison.Ordinal);
+    public bool CanEditCloudConfig =>
+        IsCloudConfigLoaded
+        && !IsLoadingCloudConfig
+        && _cloudConfigDrive != null
+        && (_original.is_a_template || _original.power_state == vm_power_state.Halted);
     partial void OnSelectedSectionItemChanged(VmPropertiesSectionItem? value)
     {
         if (value != null)
+        {
             SelectedSection = value.Section;
+            if (value.Section == VmPropertiesSection.CloudConfig)
+                _ = LoadCloudConfigAsync();
+        }
+    }
+
+    private async System.Threading.Tasks.Task LoadCloudConfigAsync()
+    {
+        if (_cloudConfigLoadStarted)
+            return;
+
+        _cloudConfigLoadStarted = true;
+        IsLoadingCloudConfig = true;
+        CloudConfigStatusText = "Loading config-drive configuration...";
+        try
+        {
+            _cloudConfigDrive = _original.CloudConfigDrive();
+            var parameters = new Dictionary<string, string>();
+            var function = "get_config_drive_default";
+            if (_cloudConfigDrive == null)
+                parameters["templateuuid"] = _original.uuid;
+            else
+            {
+                parameters["vdiuuid"] = _cloudConfigDrive.uuid;
+                function = "get_config_drive_configuration";
+            }
+
+            var action = new RunPluginAction(
+                _original.Connection,
+                Helpers.GetCoordinator(_original.Connection),
+                "xscontainer",
+                function,
+                parameters,
+                true);
+            await System.Threading.Tasks.Task.Run(
+                () => action.RunSync(_original.Connection.Session)).ConfigureAwait(true);
+
+            CloudConfigText = (action.Result ?? string.Empty)
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace("\n", Environment.NewLine, StringComparison.Ordinal);
+            _initialCloudConfig = CloudConfigText;
+            IsCloudConfigLoaded = true;
+            CloudConfigStatusText = _cloudConfigDrive == null
+                ? "This template has no attached config drive; the plugin defaults are read-only here."
+                : _original.is_a_template || _original.power_state == vm_power_state.Halted
+                    ? "Edit the configuration and click OK to regenerate the config drive."
+                    : "Shut down the VM before editing its config-drive configuration.";
+        }
+        catch (Exception ex)
+        {
+            CloudConfigStatusText = $"Could not retrieve the config-drive configuration: {ex.Message}";
+        }
+        finally
+        {
+            IsLoadingCloudConfig = false;
+        }
+    }
+
+    partial void OnSelectedShadowOptimizationModeChanged(string value)
+    {
+        if (string.Equals(value, GeneralShadowMode, StringComparison.Ordinal))
+            ShadowMultiplierText = "1";
+        else if (string.Equals(value, ProvisioningShadowMode, StringComparison.Ordinal))
+            ShadowMultiplierText = "4";
+    }
+
+    private static string ShadowModeFor(double multiplier)
+    {
+        if (multiplier == 1d)
+            return GeneralShadowMode;
+        if (multiplier == 4d)
+            return ProvisioningShadowMode;
+        return CustomShadowMode;
     }
 
     private void PopulateBootDevices()
@@ -637,6 +802,83 @@ public partial class VmPropertiesViewModel : ViewModelBase
             return;
         }
 
+        if (!PerformanceAlerts.TryValidate(out var performanceAlertError))
+        {
+            StatusMessage = performanceAlertError;
+            SelectedSection = VmPropertiesSection.PerformanceAlerts;
+            SelectedSectionItem = Sections.First(s => s.Section == VmPropertiesSection.PerformanceAlerts);
+            return;
+        }
+
+        if (!CustomFields.TryValidate(out var customFieldError))
+        {
+            StatusMessage = customFieldError;
+            SelectedSection = VmPropertiesSection.CustomFields;
+            SelectedSectionItem = Sections.First(s => s.Section == VmPropertiesSection.CustomFields);
+            return;
+        }
+
+        var cloudConfigChanged = IsCloudConfigLoaded
+                                 && !string.Equals(
+                                     CloudConfigText,
+                                     _initialCloudConfig,
+                                     StringComparison.Ordinal);
+        RunPluginAction? cloudConfigAction = null;
+        if (cloudConfigChanged)
+        {
+            if (!CanEditCloudConfig || _cloudConfigDrive == null)
+            {
+                StatusMessage = "The config-drive configuration is read-only while the VM is running.";
+                SelectedSection = VmPropertiesSection.CloudConfig;
+                SelectedSectionItem = Sections.First(s => s.Section == VmPropertiesSection.CloudConfig);
+                return;
+            }
+
+            var sr = _original.Connection.Resolve(_cloudConfigDrive.SR);
+            if (sr == null)
+            {
+                StatusMessage = "The storage repository for the config drive is unavailable.";
+                SelectedSection = VmPropertiesSection.CloudConfig;
+                SelectedSectionItem = Sections.First(s => s.Section == VmPropertiesSection.CloudConfig);
+                return;
+            }
+
+            var configuration = (CloudConfigText ?? string.Empty)
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace("\r", "\n", StringComparison.Ordinal);
+            cloudConfigAction = new RunPluginAction(
+                _original.Connection,
+                _original.Home() ?? Helpers.GetCoordinator(_original.Connection),
+                "xscontainer",
+                "create_config_drive",
+                new Dictionary<string, string>
+                {
+                    ["vmuuid"] = _original.uuid,
+                    ["sruuid"] = sr.uuid,
+                    ["configuration"] = configuration
+                },
+                true);
+        }
+
+        var shadowMultiplier = _origShadowMultiplier;
+        if (IsHvm && CanEditAdvanced
+            && (!double.TryParse(
+                    ShadowMultiplierText.Trim(),
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out shadowMultiplier)
+                || shadowMultiplier < 1d))
+        {
+            StatusMessage = "Enter a shadow-memory multiplier of 1.0 or greater.";
+            SelectedSection = VmPropertiesSection.Advanced;
+            SelectedSectionItem = Sections.First(s => s.Section == VmPropertiesSection.Advanced);
+            return;
+        }
+
+        var shadowMultiplierChanged = IsHvm
+                                      && CanEditAdvanced
+                                      && shadowMultiplier != _origShadowMultiplier;
+
         var actions = new List<AsyncAction>();
         var name = NameLabel.Trim();
         var description = Description ?? string.Empty;
@@ -662,7 +904,36 @@ public partial class VmPropertiesViewModel : ViewModelBase
 
         _clone.SetAutoPowerOn(AutoPowerOn);
 
+        if (shadowMultiplierChanged && _original.power_state != vm_power_state.Running)
+            _clone.HVM_shadow_multiplier = shadowMultiplier;
+
         actions.Add(new SaveChangesAction(_clone, suppressHistory: true, _original));
+
+        if (PerformanceAlerts.HasChanges)
+        {
+            actions.Add(new PerfmonDefinitionAction(
+                _original,
+                PerformanceAlerts.BuildDefinitions(),
+                suppressHistory: true));
+        }
+
+        if (CustomFields.HasChanges)
+            CustomFields.AppendActions(actions);
+
+        if (cloudConfigAction != null)
+            actions.Add(cloudConfigAction);
+
+        if (shadowMultiplierChanged && _original.power_state == vm_power_state.Running)
+        {
+            actions.Add(new DelegatedAsyncAction(
+                _original.Connection,
+                "Change shadow-memory multiplier",
+                "Changing shadow-memory multiplier...",
+                "Shadow-memory multiplier updated.",
+                session => VM.set_shadow_multiplier_live(session, _original.opaque_ref, shadowMultiplier),
+                true,
+                "vm.set_shadow_multiplier_live"));
+        }
 
         // Bootable VBD changes (PV DVD vs disk)
         if (!IsHvm && _bootFromCd != _origBootFromCd)
@@ -740,6 +1011,13 @@ public partial class VmPropertiesViewModel : ViewModelBase
                 "vm.set_affinity"));
         }
 
+        if (ShowContainerIntegrationSection && ContainerIntegrationEnabled != _origContainerIntegration)
+        {
+            actions.Add(ContainerIntegrationEnabled
+                ? new EnableVMEnlightenmentAction(_original, suppressHistory: true)
+                : new DisableVMEnlightenmentAction(_original, suppressHistory: true));
+        }
+
         if (ShowGpuSection && CanEditGpu && GpuAssignmentsChanged())
         {
             var vgpus = AssignedGpus.Select(BuildVgpuForAssign).ToList();
@@ -747,7 +1025,10 @@ public partial class VmPropertiesViewModel : ViewModelBase
         }
 
         // Drop no-op SaveChanges-only when nothing else and clone equals original for tracked fields
-        if (actions.Count == 1 && actions[0] is SaveChangesAction && !GeneralOrBootCloneChanged(name, description, tags))
+        if (actions.Count == 1
+            && actions[0] is SaveChangesAction
+            && !GeneralOrBootCloneChanged(name, description, tags)
+            && !shadowMultiplierChanged)
         {
             StatusMessage = "No changes to apply.";
             _close();
@@ -759,7 +1040,8 @@ public partial class VmPropertiesViewModel : ViewModelBase
             $"Update properties for {name}",
             "Updating properties…",
             $"Updated properties for {name}.",
-            actions);
+            actions,
+            stopOnFirstException: true);
 
         _original.Locked = true;
         multi.Completed += _ =>

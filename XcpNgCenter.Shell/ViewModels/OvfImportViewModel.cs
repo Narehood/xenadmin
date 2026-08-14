@@ -19,6 +19,7 @@ public partial class OvfImportViewModel : ViewModelBase
     private readonly Action _close;
     private readonly Action<string>? _status;
     private readonly Func<Task<string?>> _pickOpenPath;
+    private readonly ShellAppSettings _settings = ShellBootstrap.AppSettings;
     private Package? _package;
 
     public OvfImportViewModel(
@@ -73,6 +74,7 @@ public partial class OvfImportViewModel : ViewModelBase
     public ObservableCollection<ImportHostOption> Hosts { get; } = new();
     public ObservableCollection<XenAPI.Network> Networks { get; } = new();
     public ObservableCollection<string> SystemSummaries { get; } = new();
+    public ObservableCollection<string> ValidationWarnings { get; } = new();
     public string Hint { get; }
 
     [ObservableProperty] private string _filePath = string.Empty;
@@ -83,6 +85,8 @@ public partial class OvfImportViewModel : ViewModelBase
     [ObservableProperty] private bool _verifyManifest;
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _hasPackage;
+    [ObservableProperty] private bool _hasValidationWarnings;
+    [ObservableProperty] private bool _acknowledgeValidationWarnings;
 
     [RelayCommand]
     private async Task BrowseAsync()
@@ -98,11 +102,22 @@ public partial class OvfImportViewModel : ViewModelBase
     private void LoadPackage(string path)
     {
         SystemSummaries.Clear();
+        ValidationWarnings.Clear();
         _package = null;
         HasPackage = false;
+        HasValidationWarnings = false;
+        AcknowledgeValidationWarnings = false;
         try
         {
             _package = Package.Create(path);
+            if (!OVF.Validate(_package, out var warnings))
+            {
+                StatusMessage = warnings?.LastOrDefault()
+                                ?? "The appliance did not pass OVF validation.";
+                _package = null;
+                return;
+            }
+
             var envelope = _package.OvfEnvelope
                            ?? throw new InvalidOperationException("Appliance has no OVF envelope.");
             foreach (var sysId in OVF.FindSystemIds(envelope))
@@ -112,9 +127,18 @@ public partial class OvfImportViewModel : ViewModelBase
             }
 
             HasPackage = SystemSummaries.Count > 0;
-            StatusMessage = HasPackage
-                ? $"Loaded {SystemSummaries.Count} system(s) from {_package.Name}."
-                : "No virtual systems found in the appliance.";
+            if (warnings is { Count: > 0 } && !_settings.IgnoreOvfValidationWarnings)
+            {
+                foreach (var warning in warnings.Where(w => !string.IsNullOrWhiteSpace(w)))
+                    ValidationWarnings.Add(warning);
+                HasValidationWarnings = ValidationWarnings.Count > 0;
+            }
+
+            StatusMessage = !HasPackage
+                ? "No virtual systems found in the appliance."
+                : HasValidationWarnings
+                    ? $"Loaded {SystemSummaries.Count} system(s). Review the validation warnings before importing."
+                    : $"Loaded {SystemSummaries.Count} system(s) from {_package.Name}.";
         }
         catch (Exception ex)
         {
@@ -140,6 +164,14 @@ public partial class OvfImportViewModel : ViewModelBase
         if (SelectedNetwork == null)
         {
             StatusMessage = "Select a network for imported VIFs.";
+            return;
+        }
+
+        if (HasValidationWarnings
+            && !_settings.IgnoreOvfValidationWarnings
+            && !AcknowledgeValidationWarnings)
+        {
+            StatusMessage = "Review and accept the OVF validation warnings before importing.";
             return;
         }
 

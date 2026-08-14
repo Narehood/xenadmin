@@ -18,7 +18,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly HostedConsoleSession _consoleSession = new();
     private readonly SavedServerStore _savedServerStore = new();
-    private readonly ShellAppSettings _appSettings = new();
+    private readonly ShellAppSettings _appSettings = ShellBootstrap.AppSettings;
     private bool _disposed;
     private CancellationTokenSource? _autoReconnectCts;
 
@@ -36,8 +36,21 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public HostedConsoleSession ConsoleSession => _consoleSession;
 
+    public bool FillPerformanceGraphAreas => _appSettings.FillPerformanceGraphAreas;
+
+    public bool ScaleConsoleToFit => _appSettings.ScaleConsoleToFit;
+
+    public string ConsoleReleaseShortcut => _appSettings.ConsoleReleaseShortcut;
+
+    public string ConsoleFullscreenShortcut => _appSettings.ConsoleFullscreenShortcut;
+
+    public string ConsoleDockShortcut => _appSettings.ConsoleDockShortcut;
+
+    public bool ShowLogTimestamps => _appSettings.ShowTimestampsInLogs;
+
     /// <summary>Passwords can be remembered on all platforms (DPAPI on Windows; AES key file elsewhere).</summary>
-    public bool CanPersistPasswords => SavedServerStore.CanPersistPasswords;
+    public bool CanPersistPasswords =>
+        SavedServerStore.CanPersistPasswords && _appSettings.RememberSavedServers;
 
     public string RememberPasswordLabel => "Remember password for this server";
 
@@ -75,6 +88,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(ShowDetailSnapshots))]
     [NotifyPropertyChangedFor(nameof(ShowDetailPerformance))]
     private InfraTreeNode? _selectedInfraNode;
+
+    [ObservableProperty]
+    private int _selectedDetailTabIndex;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowWelcome))]
@@ -142,6 +158,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<SnapshotItemRow> SnapshotItems { get; } = new();
 
+    public ObservableCollection<SnapshotTypeOption> SnapshotTypeOptions { get; } = new();
+
     [ObservableProperty]
     private bool _hasStorageItems;
 
@@ -163,6 +181,18 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private bool _canManageSnapshots;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTakeSnapshot))]
+    [NotifyPropertyChangedFor(nameof(SnapshotTypeHint))]
+    [NotifyCanExecuteChangedFor(nameof(TakeSnapshotCommand))]
+    private SnapshotTypeOption? _selectedSnapshotType;
+
+    public bool CanTakeSnapshot =>
+        CanManageSnapshots && SelectedVm is { Locked: false } && SelectedSnapshotType != null;
+
+    public string SnapshotTypeHint => SelectedSnapshotType?.Detail ??
+                                      "No snapshot mode is currently allowed for this VM.";
 
     [ObservableProperty]
     private string _newSnapshotName = string.Empty;
@@ -219,6 +249,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         // Opt-in: do not default RememberPassword just because the platform can persist.
         IdentifierPrivacy.Bind(_appSettings);
+        _selectedDetailTabIndex = _appSettings.RememberLastSelectedTab
+            ? Math.Clamp(_appSettings.LastSelectedDetailTab, 0, 6)
+            : 0;
+        _appSettings.Changed += OnAppSettingsChanged;
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
         SavedServers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSavedServers));
         _consoleSession.StateChanged += OnConsoleSessionStateChanged;
@@ -251,6 +285,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         DisposeUpdateCheck();
         DisposeAlertsAndGraphsUi();
         DisposeActionHistoryUi();
+        _appSettings.Changed -= OnAppSettingsChanged;
         _consoleSession.StateChanged -= OnConsoleSessionStateChanged;
         try
         {
@@ -303,16 +338,15 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     partial void OnHostInputChanged(string value)
     {
-        if (!HostnameAddressClassifier.TryParseHostPort(value.Trim(), out var host, out _))
-        {
-            ShowPublicIpWarning = false;
-            AcknowledgePublicIp = false;
-            return;
-        }
+        ShowPublicIpWarning = ShouldWarnForPublicIp(value);
+        AcknowledgePublicIp = false;
+    }
 
-        ShowPublicIpWarning = HostnameAddressClassifier.IsPublicIp(host);
-        if (!ShowPublicIpWarning)
-            AcknowledgePublicIp = false;
+    public bool ShouldWarnForPublicIp(string hostInput)
+    {
+        return _appSettings.WarnPublicIpConnections
+               && HostnameAddressClassifier.TryParseHostPort(hostInput.Trim(), out var host, out _)
+               && HostnameAddressClassifier.IsPublicIp(host);
     }
 
     partial void OnSelectedInfraNodeChanged(InfraTreeNode? value)
@@ -343,7 +377,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void Connect()
     {
-        var error = TryBeginConnect(HostInput, Username, Password, RememberPassword);
+        var error = TryBeginConnect(
+            HostInput,
+            Username,
+            Password,
+            RememberPassword,
+            publicIpAcknowledged: AcknowledgePublicIp);
         if (error != null)
             StatusMessage = error;
     }
@@ -351,7 +390,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Starts a live connect. Returns an error message, or null when the connect was queued.
     /// </summary>
-    public string? TryBeginConnect(string hostInput, string usernameInput, string password, bool rememberPassword)
+    public string? TryBeginConnect(
+        string hostInput,
+        string usernameInput,
+        string password,
+        bool rememberPassword,
+        bool publicIpAcknowledged = false,
+        bool skipPublicIpWarning = false)
     {
         var raw = hostInput.Trim();
         if (string.IsNullOrEmpty(raw))
@@ -364,7 +409,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return "Enter a username.";
 
         var isPublic = HostnameAddressClassifier.IsPublicIp(host);
-        if (isPublic && ShowWelcome && ShowPublicIpWarning && !AcknowledgePublicIp)
+        if (isPublic
+            && _appSettings.WarnPublicIpConnections
+            && !skipPublicIpWarning
+            && !publicIpAcknowledged)
             return "Acknowledge the public-IP warning before connecting.";
 
         var effectivePort = port > 0 ? port : ConnectionsManager.DEFAULT_XEN_PORT;
@@ -479,7 +527,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             Password = restored;
             RememberPassword = true;
             // Prefer signing in immediately when a password is available.
-            var error = TryBeginConnect(entry.Address, entry.Username, restored, rememberPassword: true);
+            var error = TryBeginConnect(
+                entry.Address,
+                entry.Username,
+                restored,
+                rememberPassword: true,
+                skipPublicIpWarning: true);
             StatusMessage = error ?? $"Connecting to {entry.Address}…";
             if (error == null)
                 Password = string.Empty;
@@ -542,6 +595,35 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         RefreshDetailPanes();
+    }
+
+    public void PersistCurrentDetailTabPreference()
+    {
+        if (_appSettings.RememberLastSelectedTab)
+            _appSettings.LastSelectedDetailTab = SelectedDetailTabIndex;
+    }
+
+    partial void OnSelectedDetailTabIndexChanged(int value)
+    {
+        if (_appSettings.RememberLastSelectedTab && value is >= 0 and <= 6)
+            _appSettings.LastSelectedDetailTab = value;
+    }
+
+    private void OnAppSettingsChanged()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            OnPropertyChanged(nameof(FillPerformanceGraphAreas));
+            OnPropertyChanged(nameof(ScaleConsoleToFit));
+            OnPropertyChanged(nameof(ConsoleReleaseShortcut));
+            OnPropertyChanged(nameof(ConsoleFullscreenShortcut));
+            OnPropertyChanged(nameof(ConsoleDockShortcut));
+            OnPropertyChanged(nameof(ShowLogTimestamps));
+            OnPropertyChanged(nameof(CanPersistPasswords));
+            ShowPublicIpWarning = ShouldWarnForPublicIp(HostInput);
+            if (!ShowPublicIpWarning)
+                AcknowledgePublicIp = false;
+        });
     }
 
     public void SetSessionMainPassword(byte[] hash, string? plain = null)
@@ -765,7 +847,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (string.IsNullOrEmpty(password))
                 continue;
 
-            var error = TryBeginConnect(entry.Address, entry.Username, password, rememberPassword: true);
+            var error = TryBeginConnect(
+                entry.Address,
+                entry.Username,
+                password,
+                rememberPassword: true,
+                skipPublicIpWarning: true);
             if (error == null)
                 started++;
         }
@@ -823,7 +910,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         ShellBootstrap.CertificateStore.Clear();
         RefreshTrustUi();
-        StatusMessage = "Trusted certificates cleared. Next connect will prompt again.";
+        StatusMessage = "Trusted certificates cleared. Servers will be treated as first seen on their next connection.";
     }
 
     [RelayCommand(CanExecute = nameof(CanDisconnectSelected))]
@@ -922,12 +1009,19 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void LoadSavedServers()
     {
         SavedServers.Clear();
+        if (!_appSettings.RememberSavedServers)
+        {
+            _savedServerStore.Save([]);
+            return;
+        }
         foreach (var entry in _savedServerStore.Load())
             SavedServers.Add(entry);
     }
-
     private void RememberServer(string address, string username, string? password)
     {
+        if (!_appSettings.RememberSavedServers)
+            return;
+
         var existing = SavedServers.FirstOrDefault(s =>
             string.Equals(s.Address, address, StringComparison.OrdinalIgnoreCase));
         var previousSecret = existing?.EncryptedPassword;
@@ -966,7 +1060,19 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     private void PersistSavedServers()
-        => _savedServerStore.Save(SavedServers);
+        => _savedServerStore.Save(_appSettings.RememberSavedServers ? SavedServers : []);
+
+    public void SetRememberSavedServers(bool enabled)
+    {
+        _appSettings.RememberSavedServers = enabled;
+        if (enabled)
+            return;
+
+        RememberPassword = false;
+        SavedServers.Clear();
+        _savedServerStore.Save([]);
+        OnPropertyChanged(nameof(CanPersistPasswords));
+    }
 
     private void RefreshTrustUi()
     {
@@ -1486,19 +1592,62 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void RefreshSnapshotProperties()
     {
         SnapshotItems.Clear();
+        SnapshotTypeOptions.Clear();
         SnapshotStatusMessage = string.Empty;
         CanManageSnapshots = SelectedVm is { is_a_template: false, is_a_snapshot: false, is_control_domain: false };
         if (!CanManageSnapshots)
         {
+            SelectedSnapshotType = null;
             HasSnapshotItems = false;
+            OnPropertyChanged(nameof(CanTakeSnapshot));
+            OnPropertyChanged(nameof(SnapshotTypeHint));
+            TakeSnapshotCommand.NotifyCanExecuteChanged();
             return;
         }
 
-        foreach (var row in SnapshotSummaryBuilder.Build(SelectedVm))
+        var vm = SelectedVm!;
+        var operations = vm.allowed_operations ?? [];
+        if (operations.Contains(XenAPI.vm_operations.snapshot))
+        {
+            SnapshotTypeOptions.Add(new SnapshotTypeOption(
+                XenAdmin.Actions.SnapshotType.DISK,
+                "Disk snapshot",
+                "Captures virtual disks without guest memory."));
+        }
+
+        if (!Helpers.QuebecOrGreater(vm.Connection)
+            && operations.Contains(XenAPI.vm_operations.snapshot_with_quiesce)
+            && !Helpers.FeatureForbidden(vm, XenAPI.Host.RestrictVss))
+        {
+            SnapshotTypeOptions.Add(new SnapshotTypeOption(
+                XenAdmin.Actions.SnapshotType.QUIESCED_DISK,
+                "Quiesced disk snapshot",
+                "Requests a guest-consistent disk snapshot through the installed management tools."));
+        }
+
+        if (operations.Contains(XenAPI.vm_operations.checkpoint)
+            && !Helpers.FeatureForbidden(vm, XenAPI.Host.RestrictCheckpoint))
+        {
+            SnapshotTypeOptions.Add(new SnapshotTypeOption(
+                XenAdmin.Actions.SnapshotType.DISK_AND_MEMORY,
+                "Disk and memory checkpoint",
+                "Captures virtual disks and running memory so the VM can return to the exact execution state."));
+        }
+
+        var previousType = SelectedSnapshotType?.Type;
+        SelectedSnapshotType = SnapshotTypeOptions.FirstOrDefault(o => o.Type == previousType)
+                               ?? SnapshotTypeOptions.FirstOrDefault();
+        OnPropertyChanged(nameof(CanTakeSnapshot));
+        OnPropertyChanged(nameof(SnapshotTypeHint));
+        TakeSnapshotCommand.NotifyCanExecuteChanged();
+
+        foreach (var row in SnapshotSummaryBuilder.Build(vm))
             SnapshotItems.Add(row);
 
-        HasSnapshotItems = SelectedVm!.snapshots is { Count: > 0 };
-        if (!HasSnapshotItems)
+        HasSnapshotItems = vm.snapshots is { Count: > 0 };
+        if (SnapshotTypeOptions.Count == 0)
+            SnapshotStatusMessage = "This VM does not currently allow a snapshot or checkpoint.";
+        else if (!HasSnapshotItems)
             SnapshotStatusMessage = "No snapshots yet — take one to start a tree.";
     }
 

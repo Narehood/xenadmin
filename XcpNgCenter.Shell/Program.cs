@@ -9,8 +9,8 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // XenModel pulls System.Drawing.Common (Windows-only GDI+ on .NET 8).
-        // Disk-only snapshots never touch Image APIs; memory/quiesced stay deferred.
+        // XenModel's snapshot action references System.Drawing.Common for an optional
+        // console thumbnail. The shell supplies no thumbnail, so all snapshot modes stay GDI-free.
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 

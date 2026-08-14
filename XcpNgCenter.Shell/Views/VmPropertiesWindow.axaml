@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:views="using:XcpNgCenter.Shell.Views"
         x:Class="XcpNgCenter.Shell.Views.VmPropertiesWindow"
         x:DataType="vm:VmPropertiesViewModel"
         Title="VM Properties"
@@ -63,6 +64,16 @@
                        TextWrapping="Wrap"
                        Foreground="{StaticResource Brush.TextMuted}" />
           </StackPanel>
+
+          <!-- Custom fields -->
+          <Panel IsVisible="{Binding ShowCustomFields}" Margin="0,0,0,8">
+            <views:CustomFieldsEditorView DataContext="{Binding CustomFields}" />
+          </Panel>
+
+          <!-- Performance alerts -->
+          <Panel IsVisible="{Binding ShowPerformanceAlerts}" Margin="0,0,0,8">
+            <views:PerformanceAlertsEditorView DataContext="{Binding PerformanceAlerts}" />
+          </Panel>
 
           <!-- CPU & Memory -->
           <StackPanel Spacing="10" IsVisible="{Binding ShowCpuMemory}" Margin="0,0,0,8">
@@ -146,6 +157,74 @@
                 </DataTemplate>
               </ComboBox.ItemTemplate>
             </ComboBox>
+          </StackPanel>
+
+          <!-- Advanced -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowAdvanced}" Margin="0,0,0,8">
+            <TextBlock Text="Shadow-memory optimization" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Tune the HVM shadow-memory multiplier for the guest workload. Most VMs should use the general-purpose setting."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <ComboBox ItemsSource="{Binding ShadowOptimizationModes}"
+                      SelectedItem="{Binding SelectedShadowOptimizationMode}"
+                      IsEnabled="{Binding CanEditAdvanced}" />
+            <StackPanel Spacing="6" IsVisible="{Binding ShowCustomShadowMultiplier}">
+              <TextBlock Text="Custom multiplier" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBox Watermark="1.0 or greater"
+                       Text="{Binding ShadowMultiplierText}"
+                       IsEnabled="{Binding CanEditAdvanced}" />
+            </StackPanel>
+            <Border Padding="12"
+                    Background="#55252C34"
+                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="6">
+              <TextBlock Text="{Binding AdvancedStatusText}"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </Border>
+          </StackPanel>
+
+          <!-- Container integration -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowContainerIntegration}" Margin="0,0,0,8">
+            <TextBlock Text="Container integration" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Register this VM with the host container-management plugin so container information can be discovered and monitored."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <CheckBox Content="Enable container management for this VM"
+                      IsChecked="{Binding ContainerIntegrationEnabled}" />
+            <TextBlock Text="This setting calls the xscontainer plugin on the pool coordinator when changes are applied."
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+
+          <!-- Cloud config -->
+          <StackPanel Spacing="10" IsVisible="{Binding ShowCloudConfig}" Margin="0,0,0,8">
+            <TextBlock Text="Cloud config" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Edit the metadata and user-data template used to regenerate this VM's config drive."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <ProgressBar IsIndeterminate="True"
+                         Height="4"
+                         IsVisible="{Binding IsLoadingCloudConfig}" />
+            <TextBox Text="{Binding CloudConfigText}"
+                     Watermark="Config-drive configuration"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     MinHeight="260"
+                     IsReadOnly="{Binding !CanEditCloudConfig}" />
+            <Border Padding="12"
+                    Background="#55252C34"
+                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="6">
+              <TextBlock Text="{Binding CloudConfigStatusText}"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </Border>
           </StackPanel>
 
           <!-- GPU -->

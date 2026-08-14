@@ -539,7 +539,9 @@
             </StackPanel>
           </DockPanel>
 
-          <TabControl Grid.Row="1" Margin="12,0,12,0">
+          <TabControl Grid.Row="1"
+                      Margin="12,0,12,0"
+                      SelectedIndex="{Binding SelectedDetailTabIndex}">
                 <TabControl.Styles>
                   <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="13" />
@@ -990,6 +992,8 @@
                                                      HorizontalAlignment="Stretch"
                                                      VerticalAlignment="Stretch"
                                                      ClipToBounds="True"
+                                                     ScaleToFit="{Binding ScaleConsoleToFit}"
+                                                     ReleaseShortcut="{Binding ConsoleReleaseShortcut}"
                                                      Frame="{Binding ConsoleBitmap}"
                                                      Session="{Binding ConsoleSession}"
                                                      ToolTip.Tip="Click the console to capture keyboard, mouse, and scroll — until then the page keeps scrolling"
@@ -1088,16 +1092,29 @@
                 <TabItem Header="Snapshots" IsVisible="{Binding ShowDetailSnapshots}">
                   <Panel Margin="0,18,0,8">
                     <StackPanel Spacing="14" IsVisible="{Binding CanManageSnapshots}">
-                      <TextBlock Text="Disk snapshots form a tree from the VM base. NOW marks the current branch tip. Memory checkpoints come later."
+                      <TextBlock Text="Snapshots form a tree from the VM base. NOW marks the current branch tip. Available modes follow the VM's current server permissions and license."
                                  TextWrapping="Wrap"
                                  FontSize="12"
                                  Foreground="{StaticResource Brush.TextMuted}" />
                       <TextBox Watermark="Snapshot name" Text="{Binding NewSnapshotName}" />
                       <TextBox Watermark="Description (optional)" Text="{Binding NewSnapshotDescription}" />
+                      <ComboBox ItemsSource="{Binding SnapshotTypeOptions}"
+                                SelectedItem="{Binding SelectedSnapshotType}">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate x:DataType="vm:SnapshotTypeOption">
+                            <TextBlock Text="{Binding Label}" />
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                      <TextBlock Text="{Binding SnapshotTypeHint}"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextMuted}" />
                       <Button Classes="cta"
                               Content="Take snapshot"
                               HorizontalAlignment="Left"
-                              Command="{Binding TakeSnapshotCommand}" />
+                              Command="{Binding TakeSnapshotCommand}"
+                              IsEnabled="{Binding CanTakeSnapshot}" />
                       <TextBlock Text="{Binding SnapshotStatusMessage}"
                                  TextWrapping="Wrap"
                                  FontSize="12"
@@ -1223,10 +1240,11 @@
                                              MaxWidth="420"
                                              HorizontalAlignment="Right" />
                                 </DockPanel>
-                                <controls:PerformanceChart Height="180"
-                                                           Series="{Binding Series}"
-                                                           Interval="{Binding Interval}"
-                                                           YAxisMax="{Binding YAxisMax}" />
+                                 <controls:PerformanceChart Height="180"
+                                                            Series="{Binding Series}"
+                                                            Interval="{Binding Interval}"
+                                                            FillArea="{Binding #RootWindow.((vm:MainViewModel)DataContext).FillPerformanceGraphAreas}"
+                                                            YAxisMax="{Binding YAxisMax}" />
                               </StackPanel>
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>
@@ -1286,6 +1304,7 @@
                                              Margin="0,4,0,0" />
                                   <TextBlock Grid.Row="2"
                                              Text="{Binding StartedText}"
+                                             IsVisible="{Binding #RootWindow.((vm:MainViewModel)DataContext).ShowLogTimestamps}"
                                              FontSize="11"
                                              Foreground="{StaticResource Brush.TextMuted}"
                                              Margin="0,4,0,0" />

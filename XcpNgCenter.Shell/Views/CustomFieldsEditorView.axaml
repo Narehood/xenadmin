@@ -1,0 +1,83 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+             x:Class="XcpNgCenter.Shell.Views.CustomFieldsEditorView"
+             x:DataType="vm:CustomFieldsEditor">
+  <StackPanel Spacing="12">
+    <TextBlock Text="Custom fields" FontWeight="SemiBold" FontSize="16" />
+    <TextBlock Text="Store pool-defined metadata on this object. Field definitions are shared by every object in the pool."
+               TextWrapping="Wrap"
+               Foreground="{StaticResource Brush.TextMuted}" />
+
+    <TextBlock Text="No custom fields have been defined for this pool."
+               IsVisible="{Binding HasNoFields}"
+               Foreground="{StaticResource Brush.TextMuted}"
+               FontStyle="Italic" />
+
+    <ItemsControl ItemsSource="{Binding Fields}" IsVisible="{Binding HasFields}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:CustomFieldValueRow">
+          <Border Padding="10"
+                  Margin="0,0,0,8"
+                  Background="#55252C34"
+                  BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                  BorderThickness="1"
+                  CornerRadius="6">
+            <Grid ColumnDefinitions="150,*,Auto" RowDefinitions="Auto,Auto">
+              <StackPanel Grid.RowSpan="2" Grid.Column="0" Spacing="2" Margin="0,3,10,0">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TypeLabel}"
+                           FontSize="11"
+                           Foreground="{StaticResource Brush.TextMuted}" />
+              </StackPanel>
+              <TextBox Grid.Column="1"
+                       Text="{Binding ValueText}"
+                       Watermark="Value; dates may use YYYY-MM-DD HH:MM:SS" />
+              <TextBlock Grid.Row="1" Grid.Column="1"
+                         Text="Use local date and time; leave blank to clear the value."
+                         IsVisible="{Binding IsDate}"
+                         Margin="0,4,0,0"
+                         FontSize="10"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+              <Button Grid.Column="2"
+                      Classes="ghost"
+                      Content="Remove"
+                      Margin="8,0,0,0"
+                      VerticalAlignment="Top"
+                      Command="{Binding RemoveCommand}" />
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Border Padding="12"
+            Background="#55252C34"
+            BorderBrush="{StaticResource Brush.StrokeSubtle}"
+            BorderThickness="1"
+            CornerRadius="6">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Create a field" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="*,150,Auto">
+          <TextBox Grid.Column="0"
+                   Text="{Binding NewFieldName}"
+                   Watermark="Field name" />
+          <ComboBox Grid.Column="1"
+                    Margin="8,0,0,0"
+                    ItemsSource="{Binding FieldTypes}"
+                    SelectedItem="{Binding SelectedFieldType}" />
+          <Button Grid.Column="2"
+                  Classes="ghost"
+                  Content="Add"
+                  Margin="8,0,0,0"
+                  Command="{Binding AddFieldCommand}" />
+        </Grid>
+        <TextBlock Text="{Binding StatusMessage}"
+                   IsVisible="{Binding StatusMessage.Length}"
+                   TextWrapping="Wrap"
+                   FontSize="11"
+                   Foreground="{StaticResource Brush.TextMuted}" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

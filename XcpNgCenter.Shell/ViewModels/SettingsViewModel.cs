@@ -6,6 +6,11 @@ namespace XcpNgCenter.Shell.ViewModels;
 
 public partial class SettingsViewModel : ViewModelBase
 {
+    private const string DirectProxy = "Direct connection";
+    private const string SystemProxy = "Use system proxy";
+    private const string CustomProxy = "Use custom proxy";
+    private const string BasicAuthentication = "Basic";
+    private const string DigestAuthentication = "Digest";
     private readonly MainViewModel _main;
     private readonly Action _close;
     private readonly ShellAppSettings _settings;
@@ -19,7 +24,36 @@ public partial class SettingsViewModel : ViewModelBase
         _suppressPrivacyNotify = true;
         // Assign backing fields so On*Changed does not rewrite settings on open.
         _autoReconnectSavedServers = settings.AutoReconnectSavedServers;
+        _rememberSavedServers = settings.RememberSavedServers;
         _autoRetryLostConnections = settings.AutoRetryLostConnections;
+        _selectedProxyMode = settings.ProxyMode switch
+        {
+            ShellProxyMode.System => SystemProxy,
+            ShellProxyMode.Custom => CustomProxy,
+            _ => DirectProxy
+        };
+        _proxyAddress = settings.ProxyAddress;
+        _proxyPortText = settings.ProxyPort.ToString();
+        _bypassProxyForServers = settings.BypassProxyForServers;
+        _provideProxyAuthentication = settings.ProvideProxyAuthentication;
+        _proxyUsername = settings.GetProxyUsername();
+        _proxyPassword = settings.GetProxyPassword();
+        _selectedProxyAuthentication = settings.ProxyAuthentication == ShellProxyAuthentication.Basic
+            ? BasicAuthentication
+            : DigestAuthentication;
+        _connectionTimeoutText = settings.ConnectionTimeoutSeconds.ToString();
+        _warnUnrecognizedCertificates = settings.WarnUnrecognizedCertificates;
+        _warnChangedCertificates = settings.WarnChangedCertificates;
+        _warnPublicIpConnections = settings.WarnPublicIpConnections;
+        _confirmAlertDismissals = settings.ConfirmAlertDismissals;
+        _ignoreOvfValidationWarnings = settings.IgnoreOvfValidationWarnings;
+        _fillPerformanceGraphAreas = settings.FillPerformanceGraphAreas;
+        _scaleConsoleToFit = settings.ScaleConsoleToFit;
+        _selectedConsoleReleaseShortcut = settings.ConsoleReleaseShortcut;
+        _selectedConsoleFullscreenShortcut = settings.ConsoleFullscreenShortcut;
+        _selectedConsoleDockShortcut = settings.ConsoleDockShortcut;
+        _rememberLastSelectedTab = settings.RememberLastSelectedTab;
+        _showTimestampsInLogs = settings.ShowTimestampsInLogs;
         _hideIpAddresses = settings.HideIpAddresses;
         _hideUuids = settings.HideUuids;
         _hideVmNames = settings.HideVmNames;
@@ -38,7 +72,97 @@ public partial class SettingsViewModel : ViewModelBase
     private bool _autoReconnectSavedServers;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAutoReconnectSavedServers))]
+    private bool _rememberSavedServers;
+
+    [ObservableProperty]
     private bool _autoRetryLostConnections;
+
+    public IReadOnlyList<string> ProxyModes { get; } = [DirectProxy, SystemProxy, CustomProxy];
+
+    public IReadOnlyList<string> ProxyAuthenticationMethods { get; } =
+        [DigestAuthentication, BasicAuthentication];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCustomProxy))]
+    [NotifyPropertyChangedFor(nameof(ShowProxyAuthentication))]
+    private string _selectedProxyMode = DirectProxy;
+
+    [ObservableProperty]
+    private string _proxyAddress = string.Empty;
+
+    [ObservableProperty]
+    private string _proxyPortText = "80";
+
+    [ObservableProperty]
+    private bool _bypassProxyForServers;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowProxyAuthentication))]
+    private bool _provideProxyAuthentication;
+
+    [ObservableProperty]
+    private string _proxyUsername = string.Empty;
+
+    [ObservableProperty]
+    private string _proxyPassword = string.Empty;
+
+    [ObservableProperty]
+    private string _selectedProxyAuthentication = DigestAuthentication;
+
+    [ObservableProperty]
+    private string _connectionTimeoutText = "20";
+
+    [ObservableProperty]
+    private bool _warnUnrecognizedCertificates;
+
+    [ObservableProperty]
+    private bool _warnChangedCertificates;
+
+    [ObservableProperty]
+    private bool _warnPublicIpConnections;
+
+    [ObservableProperty]
+    private bool _confirmAlertDismissals;
+
+    [ObservableProperty]
+    private bool _ignoreOvfValidationWarnings;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSecurityStatusMessage))]
+    private string _securityStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProxyStatusMessage))]
+    private string _proxyStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _fillPerformanceGraphAreas;
+
+    [ObservableProperty]
+    private bool _scaleConsoleToFit;
+
+    public IReadOnlyList<string> ConsoleReleaseShortcuts { get; } = ["Right Ctrl", "Left Alt"];
+
+    public IReadOnlyList<string> ConsoleFullscreenShortcuts { get; } =
+        ["Ctrl+Enter", "Ctrl+Alt+F", "F12", "Ctrl+Alt"];
+
+    public IReadOnlyList<string> ConsoleDockShortcuts { get; } = ["Alt+Shift+U", "F11", "None"];
+
+    [ObservableProperty]
+    private string _selectedConsoleReleaseShortcut = "Right Ctrl";
+
+    [ObservableProperty]
+    private string _selectedConsoleFullscreenShortcut = "Ctrl+Enter";
+
+    [ObservableProperty]
+    private string _selectedConsoleDockShortcut = "Alt+Shift+U";
+
+    [ObservableProperty]
+    private bool _rememberLastSelectedTab;
+
+    [ObservableProperty]
+    private bool _showTimestampsInLogs;
 
     [ObservableProperty]
     private bool _hideIpAddresses;
@@ -84,16 +208,177 @@ public partial class SettingsViewModel : ViewModelBase
 
     public bool HasUpdateCheckStatus => !string.IsNullOrEmpty(UpdateCheckStatus);
 
+    public bool HasProxyStatusMessage => !string.IsNullOrEmpty(ProxyStatusMessage);
+
+    public bool HasSecurityStatusMessage => !string.IsNullOrEmpty(SecurityStatusMessage);
+
+    public bool ShowCustomProxy => string.Equals(SelectedProxyMode, CustomProxy, StringComparison.Ordinal);
+
+    public bool ShowProxyAuthentication => ShowCustomProxy && ProvideProxyAuthentication;
+
     public bool CanChangeMainPassword => RequireMainPassword && _settings.GetMainPasswordHash() != null;
+
+    public bool CanAutoReconnectSavedServers => RememberSavedServers;
 
     partial void OnAutoReconnectSavedServersChanged(bool value)
     {
         _settings.AutoReconnectSavedServers = value;
     }
 
+    [RelayCommand]
+    private async Task ToggleRememberSavedServersAsync()
+    {
+        if (_settings.RememberSavedServers)
+        {
+            var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+            {
+                Title = "Stop remembering servers",
+                Message = "Forget every saved server and its stored credentials? Active connections will stay open, but this list cannot be recovered.",
+                AcceptLabel = "Forget saved servers",
+                CancelLabel = "Keep saved servers"
+            }).ConfigureAwait(true);
+            if (!accepted)
+            {
+                OnPropertyChanged(nameof(RememberSavedServers));
+                return;
+            }
+
+            _main.SetRememberSavedServers(false);
+            RememberSavedServers = false;
+            AutoReconnectSavedServers = false;
+            return;
+        }
+
+        _main.SetRememberSavedServers(true);
+        RememberSavedServers = true;
+    }
+
     partial void OnAutoRetryLostConnectionsChanged(bool value)
     {
         _settings.AutoRetryLostConnections = value;
+    }
+
+    partial void OnWarnUnrecognizedCertificatesChanged(bool value)
+    {
+        _settings.WarnUnrecognizedCertificates = value;
+    }
+
+    partial void OnWarnChangedCertificatesChanged(bool value)
+    {
+        _settings.WarnChangedCertificates = value;
+    }
+
+    partial void OnWarnPublicIpConnectionsChanged(bool value)
+    {
+        _settings.WarnPublicIpConnections = value;
+    }
+
+    partial void OnConfirmAlertDismissalsChanged(bool value)
+    {
+        _settings.ConfirmAlertDismissals = value;
+    }
+
+    partial void OnIgnoreOvfValidationWarningsChanged(bool value)
+    {
+        _settings.IgnoreOvfValidationWarnings = value;
+    }
+
+    partial void OnFillPerformanceGraphAreasChanged(bool value)
+    {
+        _settings.FillPerformanceGraphAreas = value;
+    }
+
+    partial void OnScaleConsoleToFitChanged(bool value)
+    {
+        _settings.ScaleConsoleToFit = value;
+    }
+
+    partial void OnSelectedConsoleReleaseShortcutChanged(string value)
+    {
+        _settings.ConsoleReleaseShortcut = value;
+    }
+
+    partial void OnSelectedConsoleFullscreenShortcutChanged(string value)
+    {
+        _settings.ConsoleFullscreenShortcut = value;
+    }
+
+    partial void OnSelectedConsoleDockShortcutChanged(string value)
+    {
+        _settings.ConsoleDockShortcut = value;
+    }
+
+    partial void OnRememberLastSelectedTabChanged(bool value)
+    {
+        _settings.RememberLastSelectedTab = value;
+        if (value)
+            _main.PersistCurrentDetailTabPreference();
+    }
+
+    partial void OnShowTimestampsInLogsChanged(bool value)
+    {
+        _settings.ShowTimestampsInLogs = value;
+    }
+
+    [RelayCommand]
+    private void SaveConnectionSettings()
+    {
+        if (!int.TryParse(ConnectionTimeoutText.Trim(), out var timeoutSeconds)
+            || timeoutSeconds < 1
+            || timeoutSeconds > 3600)
+        {
+            ProxyStatusMessage = "Enter a connection timeout between 1 and 3,600 seconds.";
+            return;
+        }
+
+        var mode = SelectedProxyMode switch
+        {
+            SystemProxy => ShellProxyMode.System,
+            CustomProxy => ShellProxyMode.Custom,
+            _ => ShellProxyMode.Direct
+        };
+
+        var address = ProxyAddress.Trim();
+        var port = 80;
+        if (mode == ShellProxyMode.Custom)
+        {
+            if (Uri.CheckHostName(address) == UriHostNameType.Unknown)
+            {
+                ProxyStatusMessage = "Enter a valid proxy hostname or IP address without a URL path.";
+                return;
+            }
+
+            if (!int.TryParse(ProxyPortText.Trim(), out port) || port is < 1 or > 65535)
+            {
+                ProxyStatusMessage = "Enter a proxy port between 1 and 65,535.";
+                return;
+            }
+
+            if (ProvideProxyAuthentication && string.IsNullOrWhiteSpace(ProxyUsername))
+            {
+                ProxyStatusMessage = "Enter the proxy username.";
+                return;
+            }
+        }
+
+        _settings.ProxyMode = mode;
+        _settings.ProxyAddress = address;
+        _settings.ProxyPort = port;
+        _settings.BypassProxyForServers = BypassProxyForServers;
+        _settings.ProvideProxyAuthentication = mode == ShellProxyMode.Custom && ProvideProxyAuthentication;
+        _settings.ProxyAuthentication = string.Equals(
+            SelectedProxyAuthentication,
+            BasicAuthentication,
+            StringComparison.Ordinal)
+            ? ShellProxyAuthentication.Basic
+            : ShellProxyAuthentication.Digest;
+        _settings.ConnectionTimeoutSeconds = timeoutSeconds;
+        _settings.SetProxyCredentials(
+            _settings.ProvideProxyAuthentication ? ProxyUsername : string.Empty,
+            _settings.ProvideProxyAuthentication ? ProxyPassword : string.Empty);
+        ShellBootstrap.ApplyProxySettings();
+
+        ProxyStatusMessage = "Connection settings saved. Reconnect existing servers to apply proxy changes to their API sessions.";
     }
 
     partial void OnHideIpAddressesChanged(bool value)
@@ -269,7 +554,7 @@ public partial class SettingsViewModel : ViewModelBase
     private void ClearTrustedCertificates()
     {
         _main.ClearTrustedCertificatesCommand.Execute(null);
-        UpdateCheckStatus = _main.StatusMessage;
+        SecurityStatusMessage = _main.StatusMessage;
     }
 
     [RelayCommand]

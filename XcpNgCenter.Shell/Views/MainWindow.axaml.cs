@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using XcpNgCenter.Shell.Controls;
+using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.ViewModels;
 
 namespace XcpNgCenter.Shell.Views;
@@ -17,7 +18,27 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, OnConsoleShortcutKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnConsoleShortcutKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || !vm.HasConsoleFrame)
+            return;
+
+        if (ConsoleShortcutMatcher.Matches(e, vm.ConsoleFullscreenShortcut))
+        {
+            vm.ToggleConsoleFullScreenCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (ConsoleShortcutMatcher.Matches(e, vm.ConsoleDockShortcut))
+        {
+            vm.ToggleConsoleDockCommand.Execute(null);
+            e.Handled = true;
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)

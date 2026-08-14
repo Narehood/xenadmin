@@ -21,13 +21,21 @@ public sealed class PerformanceChart : Control
     public static readonly StyledProperty<double?> YAxisMaxProperty =
         AvaloniaProperty.Register<PerformanceChart, double?>(nameof(YAxisMax));
 
+    public static readonly StyledProperty<bool> FillAreaProperty =
+        AvaloniaProperty.Register<PerformanceChart, bool>(nameof(FillArea));
+
     private Point? _pointer;
     private bool _pointerInside;
     private static FontFamily? _chartFontFamily;
 
     static PerformanceChart()
     {
-        AffectsRender<PerformanceChart>(SeriesProperty, IntervalProperty, YAxisMaxProperty, BoundsProperty);
+        AffectsRender<PerformanceChart>(
+            SeriesProperty,
+            IntervalProperty,
+            YAxisMaxProperty,
+            FillAreaProperty,
+            BoundsProperty);
         ClipToBoundsProperty.OverrideDefaultValue<PerformanceChart>(true);
     }
 
@@ -76,6 +84,12 @@ public sealed class PerformanceChart : Control
     {
         get => GetValue(YAxisMaxProperty);
         set => SetValue(YAxisMaxProperty, value);
+    }
+
+    public bool FillArea
+    {
+        get => GetValue(FillAreaProperty);
+        set => SetValue(FillAreaProperty, value);
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -169,6 +183,31 @@ public sealed class PerformanceChart : Control
                 .ToList();
             if (points.Count < 2)
                 continue;
+
+            if (FillArea)
+            {
+                var fill = new StreamGeometry();
+                using (var fillContext = fill.Open())
+                {
+                    var firstX = MapX(plot, points[0].Ticks, minX, maxX);
+                    fillContext.BeginFigure(new Point(firstX, plot.Bottom), true);
+                    foreach (var point in points)
+                    {
+                        fillContext.LineTo(new Point(
+                            MapX(plot, point.Ticks, minX, maxX),
+                            MapY(plot, point.Value, maxY)));
+                    }
+
+                    var lastX = MapX(plot, points[^1].Ticks, minX, maxX);
+                    fillContext.LineTo(new Point(lastX, plot.Bottom));
+                    fillContext.EndFigure(true);
+                }
+
+                context.DrawGeometry(
+                    new SolidColorBrush(Color.FromArgb(42, color.R, color.G, color.B)),
+                    null,
+                    fill);
+            }
 
             var geo = new StreamGeometry();
             using (var ctx = geo.Open())

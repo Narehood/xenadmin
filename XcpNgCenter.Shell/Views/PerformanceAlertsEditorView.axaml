@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+             x:Class="XcpNgCenter.Shell.Views.PerformanceAlertsEditorView"
+             x:DataType="vm:PerformanceAlertsEditor">
+  <StackPanel Spacing="12">
+    <TextBlock Text="Performance alerts" FontWeight="SemiBold" FontSize="16" />
+    <TextBlock Text="Generate an alert when a metric remains beyond its threshold for the configured duration."
+               TextWrapping="Wrap"
+               Foreground="{StaticResource Brush.TextMuted}" />
+
+    <ItemsControl ItemsSource="{Binding Rules}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:PerformanceAlertRule">
+          <Border Padding="12"
+                  Margin="0,0,0,10"
+                  Background="#55252C34"
+                  BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                  BorderThickness="1"
+                  CornerRadius="6">
+            <StackPanel Spacing="8">
+              <CheckBox Content="{Binding Title}"
+                        IsChecked="{Binding Enabled}"
+                        FontWeight="SemiBold" />
+              <TextBlock Text="{Binding Description}"
+                         TextWrapping="Wrap"
+                         FontSize="11"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+              <Grid ColumnDefinitions="Auto,120,Auto,Auto,100,Auto"
+                    IsEnabled="{Binding Enabled}">
+                <TextBlock Grid.Column="0" Text="Threshold" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Column="1"
+                               Margin="8,0,0,0"
+                               Value="{Binding Threshold}"
+                               Minimum="{Binding MinimumThreshold}"
+                               Maximum="{Binding MaximumThreshold}"
+                               Increment="{Binding ThresholdIncrement}"
+                               FormatString="0.##" />
+                <TextBlock Grid.Column="2" Text="{Binding Unit}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <TextBlock Grid.Column="3" Text="for" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <NumericUpDown Grid.Column="4"
+                               Margin="8,0,0,0"
+                               Value="{Binding DurationMinutes}"
+                               Minimum="1"
+                               Maximum="60"
+                               Increment="1"
+                               FormatString="0.##" />
+                <TextBlock Grid.Column="5" Text="minutes" VerticalAlignment="Center" Margin="8,0,0,0" />
+              </Grid>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Border Padding="12"
+            Background="#55252C34"
+            BorderBrush="{StaticResource Brush.StrokeSubtle}"
+            BorderThickness="1"
+            CornerRadius="6">
+      <Grid ColumnDefinitions="*,120,Auto">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Text="Repeat interval" FontWeight="SemiBold" />
+          <TextBlock Text="Wait this long before repeating an alert. Use a multiple of five minutes."
+                     TextWrapping="Wrap"
+                     FontSize="11"
+                     Foreground="{StaticResource Brush.TextMuted}" />
+        </StackPanel>
+        <NumericUpDown Grid.Column="1"
+                       Margin="8,0,0,0"
+                       Value="{Binding AlertIntervalMinutes}"
+                       Minimum="5"
+                       Maximum="86400"
+                       Increment="5"
+                       FormatString="0" />
+        <TextBlock Grid.Column="2" Text="minutes" VerticalAlignment="Center" Margin="8,0,0,0" />
+      </Grid>
+    </Border>
+  </StackPanel>
+</UserControl>

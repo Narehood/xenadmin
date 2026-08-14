@@ -33,16 +33,15 @@ public static class ShellConfirmPrompt
 
     private static async Task<bool> ConfirmCoreAsync(ShellConfirmRequest request)
     {
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
-            {
-                MainWindow: { } owner
-            })
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime lifetime
+            || lifetime.MainWindow is not { } owner)
         {
             return false;
         }
 
+        var activeOwner = lifetime.Windows.FirstOrDefault(window => window.IsActive) ?? owner;
         var window = new ShellConfirmWindow(request);
-        return await window.ShowDialog<bool>(owner);
+        return await window.ShowDialog<bool>(activeOwner);
     }
 
     public static void Alert(string title, string message)

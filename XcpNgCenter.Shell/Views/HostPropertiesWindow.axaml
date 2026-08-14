@@ -1,20 +1,21 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:views="using:XcpNgCenter.Shell.Views"
         x:Class="XcpNgCenter.Shell.Views.HostPropertiesWindow"
         x:DataType="vm:HostPropertiesViewModel"
         Title="Host Properties"
-        Width="560" Height="520"
-        MinWidth="440" MinHeight="400"
+        Width="760" Height="570"
+        MinWidth="620" MinHeight="460"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource Brush.BgDeep}">
-  <Border Margin="16" Padding="20"
+  <Border Margin="16" Padding="16"
           Background="#99161C22"
           BorderBrush="{StaticResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
-    <Grid RowDefinitions="Auto,*,Auto">
-      <StackPanel Spacing="4" Margin="0,0,0,16">
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="156,*">
+      <StackPanel Grid.ColumnSpan="2" Spacing="4" Margin="0,0,0,12">
         <TextBlock Text="Host Properties" FontSize="22" FontWeight="SemiBold" />
         <TextBlock Text="{Binding NameLabel}"
                    Foreground="{StaticResource Brush.BrandOrange}"
@@ -26,50 +27,284 @@
                    IsVisible="{Binding StatusMessage.Length}" />
       </StackPanel>
 
-      <ScrollViewer Grid.Row="1"
+      <ListBox Grid.Row="1"
+               ItemsSource="{Binding Sections}"
+               SelectedItem="{Binding SelectedSectionItem}"
+               Background="Transparent"
+               BorderThickness="0"
+               Margin="0,0,12,0"
+               VerticalAlignment="Stretch">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:HostPropertiesSectionItem">
+            <TextBlock Text="{Binding Title}" Margin="8,6" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <ScrollViewer Grid.Row="1" Grid.Column="1"
                     HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Auto"
-                    Padding="0,0,4,0">
-        <StackPanel Spacing="12" Margin="0,0,8,16">
-          <TextBlock Text="General" FontWeight="SemiBold" FontSize="16" />
-          <TextBox Watermark="Name" Text="{Binding NameLabel}" />
-          <TextBox Watermark="Description"
-                   Text="{Binding Description}"
-                   AcceptsReturn="True"
-                   TextWrapping="Wrap"
-                   Height="88" />
-          <CheckBox Content="Autoboot VMs on this host"
-                    IsChecked="{Binding AutostartVms}" />
+                    Padding="0,0,4,0"
+                    AllowAutoHide="False">
+        <StackPanel Spacing="0" Margin="0,0,8,40">
+          <StackPanel Spacing="10" IsVisible="{Binding ShowGeneral}" Margin="0,0,0,8">
+            <TextBlock Text="Name and description" FontWeight="SemiBold" FontSize="16" />
+            <TextBox Watermark="Name" Text="{Binding NameLabel}" />
+            <TextBox Watermark="Description"
+                     Text="{Binding Description}"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     Height="88" />
+            <CheckBox Content="Autoboot VMs on this host"
+                      IsChecked="{Binding AutostartVms}" />
 
-          <TextBlock Text="Read-only" FontWeight="SemiBold" FontSize="16" Margin="0,12,0,0" />
-          <StackPanel Spacing="8">
-            <Grid ColumnDefinitions="120,*">
-              <TextBlock Text="Address" Foreground="{StaticResource Brush.TextMuted}" />
-              <TextBlock Grid.Column="1" Text="{Binding Address}" TextWrapping="Wrap" />
-            </Grid>
-            <Grid ColumnDefinitions="120,*">
-              <TextBlock Text="Role" Foreground="{StaticResource Brush.TextMuted}" />
-              <TextBlock Grid.Column="1" Text="{Binding Role}" />
-            </Grid>
-            <Grid ColumnDefinitions="120,*">
-              <TextBlock Text="Product" Foreground="{StaticResource Brush.TextMuted}" />
-              <TextBlock Grid.Column="1" Text="{Binding Product}" TextWrapping="Wrap" />
-            </Grid>
-            <Grid ColumnDefinitions="120,*">
-              <TextBlock Text="UUID" Foreground="{StaticResource Brush.TextMuted}" />
-              <TextBlock Grid.Column="1" Text="{Binding Uuid}" TextWrapping="Wrap" FontSize="12" />
-            </Grid>
+            <TextBlock Text="Host details" FontWeight="SemiBold" FontSize="16" Margin="0,12,0,0" />
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="120,*">
+                <TextBlock Text="Address" Foreground="{StaticResource Brush.TextMuted}" />
+                <TextBlock Grid.Column="1" Text="{Binding Address}" TextWrapping="Wrap" />
+              </Grid>
+              <Grid ColumnDefinitions="120,*">
+                <TextBlock Text="Role" Foreground="{StaticResource Brush.TextMuted}" />
+                <TextBlock Grid.Column="1" Text="{Binding Role}" />
+              </Grid>
+              <Grid ColumnDefinitions="120,*">
+                <TextBlock Text="Product" Foreground="{StaticResource Brush.TextMuted}" />
+                <TextBlock Grid.Column="1" Text="{Binding Product}" TextWrapping="Wrap" />
+              </Grid>
+              <Grid ColumnDefinitions="120,*">
+                <TextBlock Text="UUID" Foreground="{StaticResource Brush.TextMuted}" />
+                <TextBlock Grid.Column="1" Text="{Binding Uuid}" TextWrapping="Wrap" FontSize="12" />
+              </Grid>
+            </StackPanel>
+          </StackPanel>
+
+          <Panel IsVisible="{Binding ShowCustomFields}" Margin="0,0,0,8">
+            <views:CustomFieldsEditorView DataContext="{Binding CustomFields}" />
+          </Panel>
+
+          <Panel IsVisible="{Binding ShowPerformanceAlerts}" Margin="0,0,0,8">
+            <views:PerformanceAlertsEditorView DataContext="{Binding PerformanceAlerts}" />
+          </Panel>
+
+          <StackPanel Spacing="10" IsVisible="{Binding ShowAlertDelivery}" Margin="0,0,0,8">
+            <TextBlock Text="Alert delivery" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Send performance and system alerts by email. These settings apply to the entire pool."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <CheckBox Content="Send email alert notifications"
+                      IsChecked="{Binding EmailNotificationsEnabled}" />
+            <StackPanel Spacing="8" IsEnabled="{Binding CanEditAlertDelivery}">
+              <TextBox Text="{Binding AlertEmailAddress}"
+                       Watermark="Destination email address" />
+              <Grid ColumnDefinitions="*,120">
+                <TextBox Grid.Column="0"
+                         Text="{Binding SmtpServer}"
+                         Watermark="SMTP hostname or IPv4 address" />
+                <TextBox Grid.Column="1"
+                         Text="{Binding SmtpPort}"
+                         Watermark="Port"
+                         Margin="8,0,0,0" />
+              </Grid>
+              <ComboBox ItemsSource="{Binding MailLanguages}"
+                        SelectedItem="{Binding SelectedMailLanguage}"
+                        IsVisible="{Binding ShowMailLanguage}"
+                        PlaceholderText="Email language" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Spacing="14" IsVisible="{Binding ShowPoolPolicies}" Margin="0,0,0,8">
+            <TextBlock Text="Pool policies" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="These settings apply to the pool. They are exposed here on a standalone host or pool coordinator."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+
+            <StackPanel Spacing="5" IsVisible="{Binding ShowLivePatchingPolicy}">
+              <CheckBox Content="Enable live patching"
+                        IsChecked="{Binding LivePatchingEnabled}" />
+              <TextBlock Text="Allow supported hotfixes to be applied without rebooting hosts."
+                         FontSize="11"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </StackPanel>
+
+            <StackPanel Spacing="5" IsVisible="{Binding ShowIgmpSnoopingPolicy}">
+              <CheckBox Content="Enable IGMP snooping"
+                        IsChecked="{Binding IgmpSnoopingEnabled}" />
+              <TextBlock Text="Limit multicast traffic on Open vSwitch networks to interested receivers."
+                         FontSize="11"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </StackPanel>
+
+            <StackPanel Spacing="5" IsVisible="{Binding ShowLegacySslPolicy}">
+              <CheckBox Content="Allow legacy SSL connections"
+                        IsChecked="{Binding LegacySslEnabled}" />
+              <TextBlock Text="Changing this compatibility setting can temporarily disrupt management connections. Prefer TLS-only mode whenever possible."
+                         FontSize="11"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Spacing="10" IsVisible="{Binding ShowClustering}" Margin="0,0,0,8">
+            <TextBlock Text="Clustering" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Enable Corosync clustering for clustered storage and related pool services."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <CheckBox Content="Enable clustering"
+                      IsChecked="{Binding ClusteringEnabled}"
+                      IsEnabled="{Binding CanEditClustering}" />
+            <ComboBox ItemsSource="{Binding ClusterNetworks}"
+                      SelectedItem="{Binding SelectedClusterNetwork}"
+                      IsEnabled="{Binding CanSelectClusterNetwork}"
+                      PlaceholderText="Clustering network">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ClusterNetworkOption">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Border Padding="12"
+                    Background="#55252C34"
+                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="6">
+              <TextBlock Text="{Binding ClusteringStatusText}"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </Border>
+            <TextBlock Text="A three-host minimum is recommended for reliable cluster quorum."
+                       IsVisible="{Binding ShowClusterHostCountWarning}"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.BrandOrange}" />
+          </StackPanel>
+
+          <Panel IsVisible="{Binding ShowNrpe}" Margin="0,0,0,8">
+            <views:NrpeEditorView DataContext="{Binding Nrpe}" />
+          </Panel>
+
+          <StackPanel Spacing="14" IsVisible="{Binding ShowGpu}" Margin="0,0,0,8">
+            <TextBlock Text="GPU" FontWeight="SemiBold" FontSize="16" />
+
+            <StackPanel Spacing="8" IsVisible="{Binding ShowGpuPlacementPolicy}">
+              <TextBlock Text="vGPU placement policy" FontWeight="SemiBold" />
+              <TextBlock Text="Choose whether new vGPUs favor consolidating workloads or spreading them for performance."
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+              <ComboBox ItemsSource="{Binding GpuPlacementPolicies}"
+                        SelectedItem="{Binding SelectedGpuPlacementPolicy}" />
+            </StackPanel>
+
+            <StackPanel Spacing="8" IsVisible="{Binding ShowIntegratedGpu}">
+              <TextBlock Text="Integrated GPU pass-through" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding IntegratedGpuCurrentStatus}"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+              <CheckBox Content="Use the integrated GPU after the next host reboot"
+                        IsChecked="{Binding IntegratedGpuEnabledOnNextReboot}" />
+              <TextBlock Text="This change takes effect on the next reboot and changes control-domain access to the system display device."
+                         FontSize="11"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Spacing="12" IsVisible="{Binding ShowPowerOn}" Margin="0,0,0,8">
+            <TextBlock Text="Out-of-band power on" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Configure how the pool starts this host when it is powered off. Availability depends on the server hardware and management controller."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <ProgressBar IsIndeterminate="True"
+                         Height="4"
+                         IsVisible="{Binding IsLoadingPowerOnSettings}" />
+            <ComboBox ItemsSource="{Binding PowerOnModeOptions}"
+                      SelectedItem="{Binding SelectedPowerOnMode}"
+                      IsEnabled="{Binding CanEditPowerOnSettings}"
+                      PlaceholderText="Power-on mode" />
+
+            <StackPanel Spacing="8" IsVisible="{Binding ShowPowerOnCredentials}">
+              <TextBox Watermark="Management controller IP address"
+                       Text="{Binding PowerOnAddress}"
+                       IsEnabled="{Binding CanEditPowerOnSettings}" />
+              <TextBox Watermark="Username"
+                       Text="{Binding PowerOnUsername}"
+                       IsEnabled="{Binding CanEditPowerOnSettings}" />
+              <TextBox Watermark="Password"
+                       PasswordChar="*"
+                       Text="{Binding PowerOnPassword}"
+                       IsEnabled="{Binding CanEditPowerOnSettings}" />
+            </StackPanel>
+
+            <StackPanel Spacing="8" IsVisible="{Binding ShowCustomPowerOn}">
+              <TextBox Watermark="Custom mode name"
+                       Text="{Binding CustomPowerOnMode}"
+                       IsEnabled="{Binding CanEditPowerOnSettings}" />
+              <TextBox Watermark="Configuration, one key=value per line"
+                       Text="{Binding CustomPowerOnConfig}"
+                       AcceptsReturn="True"
+                       TextWrapping="NoWrap"
+                       Height="120"
+                       IsEnabled="{Binding CanEditPowerOnSettings}" />
+            </StackPanel>
+
+            <Border Padding="12"
+                    Background="#55252C34"
+                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="6">
+              <TextBlock Text="{Binding PowerOnStatusText}"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="12" IsVisible="{Binding ShowStorage}" Margin="0,0,0,8">
+            <TextBlock Text="Storage multipathing" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Use multiple physical paths to supported storage for redundancy and throughput."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <CheckBox Content="Enable multipathing on this host"
+                      IsChecked="{Binding MultipathingEnabled}"
+                      IsEnabled="{Binding CanEditMultipathing}" />
+            <Border Padding="12"
+                    Background="#55252C34"
+                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="6">
+              <TextBlock Text="{Binding MultipathStatusText}"
+                         TextWrapping="Wrap"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="12" IsVisible="{Binding ShowLogging}" Margin="0,0,0,8">
+            <TextBlock Text="Remote logging" FontWeight="SemiBold" FontSize="16" />
+            <TextBlock Text="Keep local logs and optionally forward host logs to a remote syslog server."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
+            <CheckBox Content="Send logs to a remote syslog server"
+                      IsChecked="{Binding RemoteLoggingEnabled}" />
+            <TextBox Watermark="Syslog hostname or IPv4 address"
+                     Text="{Binding SyslogDestination}"
+                     IsEnabled="{Binding CanEditSyslogDestination}" />
+            <TextBlock Text="The host applies the new destination immediately after the settings are saved."
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Brush.TextMuted}" />
           </StackPanel>
         </StackPanel>
       </ScrollViewer>
 
-      <StackPanel Grid.Row="2"
+      <StackPanel Grid.Row="2" Grid.ColumnSpan="2"
                   Orientation="Horizontal"
                   HorizontalAlignment="Right"
                   Spacing="10"
                   Margin="0,12,0,0">
-        <Button Classes="ghost" Content="Cancel" MinWidth="100" Command="{Binding CancelCommand}" />
-        <Button Classes="cta" Content="OK" MinWidth="120" Command="{Binding ApplyCommand}" />
+        <Button Classes="ghost" Content="Cancel" MinWidth="100" IsCancel="True"
+                Command="{Binding CancelCommand}" />
+        <Button Classes="cta" Content="OK" MinWidth="120" IsDefault="True"
+                Command="{Binding ApplyCommand}" />
       </StackPanel>
     </Grid>
   </Border>

@@ -10,6 +10,7 @@ using XcpNgCenter.Shell.Actions;
 using XcpNgCenter.Shell.Alerts;
 using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.Services.Performance;
+using Task = System.Threading.Tasks.Task;
 
 namespace XcpNgCenter.Shell.ViewModels;
 
@@ -198,17 +199,37 @@ public partial class MainViewModel
     }
 
     [RelayCommand(CanExecute = nameof(HasSelectedAlerts))]
-    private void DismissSelectedAlerts()
+    private async Task DismissSelectedAlertsAsync()
     {
         var selected = AlertItems.Where(a => a.IsSelected && a.CanDismiss).Select(a => a.Alert).ToList();
+        if (!await ConfirmAlertDismissalAsync(selected.Count).ConfigureAwait(true))
+            return;
         DismissAlerts(selected);
     }
 
     [RelayCommand(CanExecute = nameof(HasAlertItems))]
-    private void DismissAllAlerts()
+    private async Task DismissAllAlertsAsync()
     {
         var all = AlertItems.Where(a => a.CanDismiss).Select(a => a.Alert).ToList();
+        if (!await ConfirmAlertDismissalAsync(all.Count).ConfigureAwait(true))
+            return;
         DismissAlerts(all);
+    }
+
+    private async Task<bool> ConfirmAlertDismissalAsync(int count)
+    {
+        if (count == 0 || !_appSettings.ConfirmAlertDismissals)
+            return true;
+
+        return await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+        {
+            Title = count == 1 ? "Dismiss alert" : "Dismiss alerts",
+            Message = count == 1
+                ? "Dismiss the selected alert? It may not be possible to restore it."
+                : $"Dismiss {count} alerts? They may not be possible to restore.",
+            AcceptLabel = count == 1 ? "Dismiss alert" : "Dismiss alerts",
+            CancelLabel = "Cancel"
+        }).ConfigureAwait(true);
     }
 
     private void DismissAlerts(List<Alert> alerts)

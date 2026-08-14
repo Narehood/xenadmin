@@ -1310,6 +1310,31 @@ public partial class MainViewModel
     }
 
     [RelayCommand]
+    private void ToggleConsoleDock()
+    {
+        if (IsConsolePoppedOut)
+            CloseConsolePopOut();
+        else
+            PopOutConsole();
+    }
+
+    [RelayCommand]
+    private void ToggleConsoleFullScreen()
+    {
+        if (!HasConsoleFrame)
+            return;
+
+        var window = _consolePopOut as ConsolePopOutWindow;
+        if (window == null)
+        {
+            PopOutConsole();
+            window = _consolePopOut as ConsolePopOutWindow;
+        }
+
+        window?.ToggleFullScreen();
+    }
+
+    [RelayCommand]
     private void SendCtrlAltDel()
     {
         // X11 keysyms: Control_L, Alt_L, Delete
@@ -1326,10 +1351,10 @@ public partial class MainViewModel
         ConsoleInputHint = "Sent Ctrl+Alt+Del to guest.";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanTakeSnapshot))]
     private void TakeSnapshot()
     {
-        if (SelectedVm == null || !CanManageSnapshots)
+        if (SelectedVm == null || !CanTakeSnapshot || SelectedSnapshotType == null)
             return;
 
         var name = string.IsNullOrWhiteSpace(NewSnapshotName)
@@ -1340,12 +1365,12 @@ public partial class MainViewModel
             SelectedVm,
             name,
             NewSnapshotDescription?.Trim() ?? string.Empty,
-            SnapshotType.DISK,
+            SelectedSnapshotType.Type,
             (_, _, _) => null!));
 
         NewSnapshotName = string.Empty;
         NewSnapshotDescription = string.Empty;
-        SnapshotStatusMessage = "Snapshot queued — see Logs.";
+        SnapshotStatusMessage = $"{SelectedSnapshotType.Label} queued — see Logs.";
     }
 
     [RelayCommand]

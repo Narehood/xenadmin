@@ -14,11 +14,17 @@ public sealed class ShellConfigProvider : IXenAdminConfigProvider
 {
     private static readonly HashSet<string> HiddenObjects = new(StringComparer.Ordinal);
     private static readonly object HiddenObjectsLock = new();
+    private readonly ShellAppSettings _settings;
+
+    public ShellConfigProvider(ShellAppSettings settings)
+    {
+        _settings = settings;
+    }
 
     public Func<List<Role>, IXenConnection, string, AsyncAction.SudoElevationResult?> ElevatedSessionDelegate =>
         (_, _, _) => null;
 
-    public int ConnectionTimeout => 20_000;
+    public int ConnectionTimeout => Math.Clamp(_settings.ConnectionTimeoutSeconds, 1, 3600) * 1000;
 
     public Session CreateActionSession(Session session, IXenConnection connection)
         => new Session(session, connection) { Timeout = ConnectionTimeout };
@@ -36,7 +42,37 @@ public sealed class ShellConfigProvider : IXenAdminConfigProvider
         => GetProxyFromSettings(connection, true);
 
     public IWebProxy? GetProxyFromSettings(IXenConnection connection, bool isForXenServer)
-        => null;
+    {
+        try
+        {
+            if (isForXenServer && _settings.BypassProxyForServers)
+                return null;
+
+            if (_settings.ProxyMode == ShellProxyMode.System)
+                return WebRequest.GetSystemWebProxy();
+            if (_settings.ProxyMode != ShellProxyMode.Custom)
+                return null;
+
+            var uri = new UriBuilder(
+                Uri.UriSchemeHttp,
+                _settings.ProxyAddress,
+                _settings.ProxyPort).Uri;
+            var proxy = new WebProxy(uri, false);
+            if (_settings.ProvideProxyAuthentication)
+            {
+                proxy.Credentials = new NetworkCredential(
+                    _settings.GetProxyUsername(),
+                    _settings.GetProxyPassword());
+            }
+
+            return proxy;
+        }
+        catch
+        {
+            // Invalid persisted settings fail closed to a direct connection.
+            return null;
+        }
+    }
 
     public int GetProxyTimeout(bool timeout) => timeout ? 30_000 : 0;
 
