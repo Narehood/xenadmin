@@ -57,15 +57,22 @@
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowNameStep}" Spacing="10">
+          <TextBlock Text="VM name" Foreground="{StaticResource Brush.TextMuted}" />
           <TextBox Watermark="VM name" Text="{Binding VmName}" />
+          <TextBlock Text="Description" Foreground="{StaticResource Brush.TextMuted}" />
           <TextBox Watermark="Description" Text="{Binding VmDescription}" AcceptsReturn="True" Height="80" TextWrapping="Wrap" />
-          <ComboBox ItemsSource="{Binding Hosts}" SelectedItem="{Binding SelectedHost}" PlaceholderText="Home server (optional)">
+          <TextBlock Text="Home / placement host" Foreground="{StaticResource Brush.TextMuted}" />
+          <ComboBox ItemsSource="{Binding Hosts}" SelectedItem="{Binding SelectedHost}" PlaceholderText="Select a placement host">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="xena:Host">
                 <TextBlock Text="{Binding name_label}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
+          <TextBlock Text="Storage choices will be limited to repositories visible from this host."
+                     FontSize="11"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.TextMuted}" />
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowComputeStep}" Spacing="10">
@@ -74,13 +81,35 @@
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowStorageStep}" Spacing="10">
-          <ComboBox ItemsSource="{Binding StorageRepositories}" SelectedItem="{Binding SelectedStorage}">
+          <Border Padding="12,9"
+                  Background="{StaticResource Brush.BgElevated}"
+                  BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                  BorderThickness="1"
+                  CornerRadius="6">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Text="Placement host" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Grid.Column="1"
+                         Margin="16,0,0,0"
+                         Text="{Binding PlacementHostText}"
+                         FontWeight="SemiBold"
+                         TextTrimming="CharacterEllipsis" />
+            </Grid>
+          </Border>
+          <TextBlock Text="Storage repository" Foreground="{StaticResource Brush.TextMuted}" />
+          <ComboBox ItemsSource="{Binding StorageRepositories}"
+                    SelectedItem="{Binding SelectedStorage}"
+                    PlaceholderText="Select a compatible storage repository">
             <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="xena:SR">
-                <TextBlock Text="{Binding name_label}" />
+              <DataTemplate x:DataType="views:NewVmStorageOption">
+                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
+          <TextBlock Text="{Binding StoragePlacementText}"
+                     FontSize="11"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource Brush.BrandOrange}" />
+          <TextBlock Text="Disk size" Foreground="{StaticResource Brush.TextMuted}" />
           <TextBox Watermark="Disk size (GiB)" Text="{Binding DiskGibText}" />
         </StackPanel>
 

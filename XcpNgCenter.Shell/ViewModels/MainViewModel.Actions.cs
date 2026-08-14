@@ -727,7 +727,7 @@ public partial class MainViewModel
         }
 
         var owner = GetMainWindow();
-        var wizard = new NewVmWizardWindow(conn);
+        var wizard = new NewVmWizardWindow(conn, ResolveSelectedHost());
         if (owner != null)
             await wizard.ShowDialog(owner);
         else

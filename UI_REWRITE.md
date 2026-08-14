@@ -23,7 +23,7 @@ rewrite reaches feature parity for your environment.
 
 ## Done
 
-- Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM; snapshot tree with disk, memory-checkpoint, and supported quiesced modes
+- Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM with explicit host-aware storage placement; snapshot tree with disk, memory-checkpoint, and supported quiesced modes
 - **Host Properties** — general/autostart, custom fields, metric alerts + email delivery, out-of-band power, multipathing, syslog, GPU policy/integrated GPU, pool live-patching/IGMP/TLS policies, clustering, and NRPE
 - **VM Properties** — general/tags, custom fields, metric alerts, CPU/memory, boot/startup/HA, home server, GPU/USB, shadow-memory tuning, container integration, and cloud-config drive editing
 - Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA + OVF/OVA

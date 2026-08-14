@@ -40,6 +40,19 @@ public sealed class TemplateOption
     public int SortOrder { get; }
 }
 
+public sealed class NewVmStorageOption
+{
+    public NewVmStorageOption(SR sr)
+    {
+        Sr = sr;
+        Label = ShellStoragePicker.FormatSrLabel(sr);
+    }
+
+    public SR Sr { get; }
+    public string Label { get; }
+    public override string ToString() => Label;
+}
+
 public partial class NewVmWizardWindow : Window
 {
     public NewVmWizardWindow()
@@ -47,9 +60,9 @@ public partial class NewVmWizardWindow : Window
         InitializeComponent();
     }
 
-    public NewVmWizardWindow(IXenConnection connection) : this()
+    public NewVmWizardWindow(IXenConnection connection, Host? preferredHost = null) : this()
     {
-        DataContext = new NewVmWizardViewModel(connection, Close);
+        DataContext = new NewVmWizardViewModel(connection, Close, preferredHost);
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close();
@@ -60,8 +73,9 @@ public partial class NewVmWizardViewModel : ViewModelBase
     private readonly IXenConnection _connection;
     private readonly Action _close;
     private readonly List<TemplateOption> _allTemplates = new();
+    private readonly List<SR> _allStorageRepositories = new();
 
-    public NewVmWizardViewModel(IXenConnection connection, Action close)
+    public NewVmWizardViewModel(IXenConnection connection, Action close, Host? preferredHost = null)
     {
         _connection = connection;
         _close = close;
@@ -90,14 +104,20 @@ public partial class NewVmWizardViewModel : ViewModelBase
 
         ApplyTemplateFilter();
 
-        foreach (var host in connection.Cache.Hosts.OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
+        foreach (var host in connection.Cache.Hosts
+                     .Where(h => h.enabled && h.IsLive())
+                     .OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
             Hosts.Add(host);
 
         foreach (var sr in connection.Cache.SRs
-                     .Where(sr => sr.SupportsVdiCreate() && !sr.IsToolsSR() && sr.PBDs.Count > 0)
+                     .Where(sr => sr.SupportsVdiCreate()
+                                  && !sr.IsToolsSR()
+                                  && sr.PBDs.Count > 0
+                                  && !sr.IsBroken(checkAttached: false)
+                                  && !sr.IsDetached())
                      .OrderBy(sr => Helpers.GetName(sr), StringComparer.OrdinalIgnoreCase))
         {
-            StorageRepositories.Add(sr);
+            _allStorageRepositories.Add(sr);
         }
 
         foreach (var network in connection.Cache.Networks
@@ -107,22 +127,41 @@ public partial class NewVmWizardViewModel : ViewModelBase
             Networks.Add(network);
         }
 
-        SelectedStorage = StorageRepositories.FirstOrDefault(sr =>
-        {
-            var pool = Helpers.GetPoolOfOne(connection);
-            return pool != null && connection.Resolve(pool.default_SR) == sr;
-        }) ?? StorageRepositories.FirstOrDefault();
-
         SelectedNetwork = Networks.FirstOrDefault();
-        SelectedHost = Hosts.FirstOrDefault();
+        var coordinator = Helpers.GetCoordinator(connection);
+        SelectedHost = Hosts.FirstOrDefault(h => h.opaque_ref == preferredHost?.opaque_ref)
+                       ?? Hosts.FirstOrDefault(h => h.opaque_ref == coordinator?.opaque_ref)
+                       ?? Hosts.FirstOrDefault();
         StepIndex = 0;
         UpdateStepVisibility();
     }
 
     public ObservableCollection<TemplateOption> Templates { get; } = new();
     public ObservableCollection<Host> Hosts { get; } = new();
-    public ObservableCollection<SR> StorageRepositories { get; } = new();
+    public ObservableCollection<NewVmStorageOption> StorageRepositories { get; } = new();
     public ObservableCollection<XenAPI.Network> Networks { get; } = new();
+
+    public string PlacementHostText => SelectedHost == null
+        ? "No placement host selected"
+        : Helpers.GetName(SelectedHost);
+
+    public string StoragePlacementText
+    {
+        get
+        {
+            var sr = SelectedStorage?.Sr;
+            if (sr == null)
+                return "No compatible storage repository is available for this host.";
+
+            if (sr.shared)
+                return $"Shared storage visible from {PlacementHostText}.";
+
+            var storageHost = sr.GetStorageHost();
+            return storageHost == null
+                ? "Host-local storage."
+                : $"Host-local storage on {storageHost.Name()}.";
+        }
+    }
 
     [ObservableProperty] private int _stepIndex;
     [ObservableProperty] private bool _showTemplateStep;
@@ -143,13 +182,23 @@ public partial class NewVmWizardViewModel : ViewModelBase
     [ObservableProperty] private Host? _selectedHost;
     [ObservableProperty] private string _vcpusText = "1";
     [ObservableProperty] private string _memoryMibText = "1024";
-    [ObservableProperty] private SR? _selectedStorage;
+    [ObservableProperty] private NewVmStorageOption? _selectedStorage;
     [ObservableProperty] private string _diskGibText = "24";
     [ObservableProperty] private XenAPI.Network? _selectedNetwork;
     [ObservableProperty] private bool _startAfter = true;
     [ObservableProperty] private string _summaryText = string.Empty;
 
     partial void OnTemplateFilterChanged(string value) => ApplyTemplateFilter();
+
+    partial void OnSelectedHostChanged(Host? value)
+    {
+        OnPropertyChanged(nameof(PlacementHostText));
+        RefreshStorageRepositories();
+        OnPropertyChanged(nameof(StoragePlacementText));
+    }
+
+    partial void OnSelectedStorageChanged(NewVmStorageOption? value) =>
+        OnPropertyChanged(nameof(StoragePlacementText));
 
     private void ApplyTemplateFilter()
     {
@@ -169,6 +218,32 @@ public partial class NewVmWizardViewModel : ViewModelBase
             SelectedTemplate = keep;
         else
             SelectedTemplate = Templates.FirstOrDefault();
+    }
+
+    private void RefreshStorageRepositories()
+    {
+        var previousRef = SelectedStorage?.Sr.opaque_ref;
+        var targetHost = SelectedHost;
+        var pool = Helpers.GetPoolOfOne(_connection);
+        var defaultSr = pool == null ? null : _connection.Resolve(pool.default_SR);
+
+        SelectedStorage = null;
+        StorageRepositories.Clear();
+
+        foreach (var sr in _allStorageRepositories
+                     .Where(sr => targetHost == null
+                         ? sr.shared
+                         : sr.CanBeSeenFrom(targetHost))
+                     .OrderByDescending(sr => sr.shared)
+                     .ThenBy(sr => Helpers.GetName(sr), StringComparer.OrdinalIgnoreCase))
+        {
+            StorageRepositories.Add(new NewVmStorageOption(sr));
+        }
+
+        SelectedStorage = StorageRepositories.FirstOrDefault(o => o.Sr.opaque_ref == previousRef)
+                          ?? StorageRepositories.FirstOrDefault(o => o.Sr.opaque_ref == defaultSr?.opaque_ref)
+                          ?? StorageRepositories.FirstOrDefault(o => o.Sr.shared)
+                          ?? StorageRepositories.FirstOrDefault();
     }
 
     partial void OnSelectedTemplateChanged(TemplateOption? value)
@@ -220,6 +295,9 @@ public partial class NewVmWizardViewModel : ViewModelBase
             case 1 when string.IsNullOrWhiteSpace(VmName):
                 StatusMessage = "Enter a VM name.";
                 return false;
+            case 1 when SelectedHost == null:
+                StatusMessage = "Select a placement host.";
+                return false;
             case 2 when !long.TryParse(VcpusText, out var v) || v < 1:
                 StatusMessage = "Enter a valid vCPU count.";
                 return false;
@@ -227,7 +305,12 @@ public partial class NewVmWizardViewModel : ViewModelBase
                 StatusMessage = "Enter memory in MiB.";
                 return false;
             case 3 when SelectedStorage == null:
-                StatusMessage = "Select a storage repository.";
+                StatusMessage = "Select a storage repository visible from the placement host.";
+                return false;
+            case 3 when SelectedHost != null
+                             && SelectedStorage != null
+                             && !SelectedStorage.Sr.CanBeSeenFrom(SelectedHost):
+                StatusMessage = "That storage repository is not visible from the placement host.";
                 return false;
             case 3 when !long.TryParse(DiskGibText, out var g) || g < 1:
                 StatusMessage = "Enter disk size in GiB.";
@@ -243,14 +326,14 @@ public partial class NewVmWizardViewModel : ViewModelBase
     private void Finish()
     {
         var template = SelectedTemplate?.Template;
-        if (template == null || SelectedStorage == null || SelectedNetwork == null)
+        if (template == null || SelectedHost == null || SelectedStorage == null || SelectedNetwork == null)
             return;
         if (!long.TryParse(VcpusText, out var vcpus) || !long.TryParse(MemoryMibText, out var mib)
             || !long.TryParse(DiskGibText, out var gib))
             return;
 
         var memory = mib * 1024L * 1024L;
-        var disks = BuildDisks(template, SelectedStorage, VmName.Trim(), gib * 1024L * 1024L * 1024L);
+        var disks = BuildDisks(template, SelectedStorage.Sr, VmName.Trim(), gib * 1024L * 1024L * 1024L);
         var vifs = new List<VIF>
         {
             new()
@@ -317,10 +400,11 @@ public partial class NewVmWizardViewModel : ViewModelBase
         {
             SummaryText =
                 $"Create VM '{VmName}' from '{SelectedTemplate?.Name}'\n" +
-                $"Home: {Helpers.GetName(SelectedHost) ?? "(pool default)"}\n" +
-                $"{VcpusText} vCPU · {MemoryMibText} MiB\n" +
-                $"Disk {DiskGibText} GiB on {Helpers.GetName(SelectedStorage)}\n" +
-                $"Network {Helpers.GetName(SelectedNetwork)}\n" +
+                $"Placement host: {PlacementHostText}\n" +
+                $"Compute: {VcpusText} vCPU / {MemoryMibText} MiB\n" +
+                $"Storage repository: {SelectedStorage?.Label ?? "(none)"}\n" +
+                $"Disk: {DiskGibText} GiB\n" +
+                $"Network: {Helpers.GetName(SelectedNetwork)}\n" +
                 (StartAfter ? "Start after create" : "Leave halted");
         }
     }
