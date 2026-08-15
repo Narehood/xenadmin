@@ -30,7 +30,7 @@ rewrite reaches feature parity for your environment.
 - VM chrome: power toggles top-right, kind+name header, compact CD/DVD row, console-first layout
 - **Alerts** — always-visible sidebar badge; Copy on alert rows
 - **Performance** — RRD charts with hover + time axis; layout save
-- **Splash** / calendar **versioning** / verified GitHub **download, install, and restart updates**
+- **Splash** / calendar **versioning** / verified GitHub **download, install, and restart updates**, with installer-only UAC elevation for protected Windows folders
 - **Settings** (beside alerts): saved-session/main-password controls; reconnect policy; direct/system/custom proxy with protected credentials and API timeout; graph/console/log display options and console shortcuts; TOFU/public-IP security policy; alert/OVF confirmations; privacy masking; About/update check
 - **OVF validation** — fatal validation failures block import; non-fatal warnings require per-appliance acceptance unless explicitly disabled in Settings
 - **Auto-reconnect** saved servers with stored passwords (DPAPI on Windows; AES key file on Linux)

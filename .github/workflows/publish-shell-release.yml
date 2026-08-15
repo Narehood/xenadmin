@@ -191,7 +191,7 @@ jobs:
             - `XcpNgCenter.Shell-win-x64-*.zip`
             - `XcpNgCenter.Shell-linux-x64-*.tar.gz` (preserves `+x` on the main binary)
 
-            Update flow: launch an older self-contained shell build; the bottom-right banner should offer **Download update**, verify the matching asset, then prompt for **Restart & install**. **View release** / **Dismiss** remain available.
+            Update flow: launch an older self-contained shell build; the bottom-right banner should offer **Download update**, verify the matching asset, then prompt for **Restart & install**. Windows installs in protected folders request UAC only for the installer helper and reopen without elevation. **View release** / **Dismiss** remain available.
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

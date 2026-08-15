@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
@@ -5,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using XenCenterLib.Archive;
@@ -25,9 +27,9 @@ public sealed record PreparedShellUpdate(
     string ExecutableName);
 
 /// <summary>
-/// Downloads, verifies, and stages a shell release beside the current installation.
+/// Downloads, verifies, and stages a shell release in the current user's local update cache.
 /// The staged new executable then waits for this process to exit, replaces the installed
-/// files, and relaunches from the original directory.
+/// files (requesting Windows elevation only when required), and relaunches from the original directory.
 /// </summary>
 public sealed class ShellUpdateInstaller
 {
@@ -41,6 +43,10 @@ public sealed class ShellUpdateInstaller
     private const string CleanupArgument = "--cleanup-shell-update";
     private const string UpdatedVersionArgument = "--updated-to";
     private const string UpdateErrorArgument = "--shell-update-error";
+    private const string DeferRestartArgument = "--defer-shell-update-restart";
+    private const string RestartBrokerArgument = "--wait-for-shell-update-result";
+    private const string UpdateResultFileName = "update-result.json";
+    private const int ElevationCancelledError = 1223;
     private const long MaximumExtractedBytes = 4L * 1024 * 1024 * 1024;
     private const int MaximumArchiveEntries = 50_000;
 
@@ -50,9 +56,12 @@ public sealed class ShellUpdateInstaller
 
     private readonly string _installDirectory;
     private readonly string _currentExecutablePath;
+    private readonly string _stagingBaseDirectory;
     private readonly bool _isWindows;
     private readonly bool _isLinux;
     private readonly Architecture _architecture;
+    private readonly Func<string, bool> _directoryWritableProbe;
+    private bool? _installDirectoryWritable;
 
     public ShellUpdateInstaller()
         : this(
@@ -60,7 +69,9 @@ public sealed class ShellUpdateInstaller
             Environment.ProcessPath ?? string.Empty,
             OperatingSystem.IsWindows(),
             OperatingSystem.IsLinux(),
-            RuntimeInformation.ProcessArchitecture)
+            RuntimeInformation.ProcessArchitecture,
+            stagingRoot: null,
+            directoryWritableProbe: null)
     {
     }
 
@@ -69,7 +80,9 @@ public sealed class ShellUpdateInstaller
         string currentExecutablePath,
         bool isWindows,
         bool isLinux,
-        Architecture architecture)
+        Architecture architecture,
+        string? stagingRoot = null,
+        Func<string, bool>? directoryWritableProbe = null)
     {
         _installDirectory = NormalizeDirectory(installDirectory);
         _currentExecutablePath = string.IsNullOrWhiteSpace(currentExecutablePath)
@@ -78,9 +91,19 @@ public sealed class ShellUpdateInstaller
         _isWindows = isWindows;
         _isLinux = isLinux;
         _architecture = architecture;
+        _stagingBaseDirectory = GetStagingBaseDirectory(
+            _installDirectory,
+            stagingRoot ?? ShellPaths.GetUpdateStagingRoot(ensureExists: false),
+            isWindows);
+        _directoryWritableProbe = directoryWritableProbe ?? ProbeDirectoryWritable;
     }
 
     public string InstallDirectory => _installDirectory;
+
+    public string StagingDirectory => _stagingBaseDirectory;
+
+    public bool RequiresElevationForInstall =>
+        ShouldRequestElevation(_isWindows, IsInstallDirectoryWritable());
 
     public static string? StartupStatusMessage => _startupStatusMessage;
 
@@ -101,9 +124,18 @@ public sealed class ShellUpdateInstaller
             return false;
         }
 
+        if (_isLinux && !IsInstallDirectoryWritable())
+        {
+            reason = $"The install directory is not writable ({_installDirectory}). Move the portable installation to a user-writable folder or update it with the required system permissions.";
+            return false;
+        }
+
         reason = string.Empty;
         return true;
     }
+
+    internal static bool ShouldRequestElevation(bool isWindows, bool installDirectoryWritable) =>
+        isWindows && !installDirectoryWritable;
 
     public PreparedShellUpdate? TryGetPreparedUpdate(ShellUpdateOffer offer)
     {
@@ -156,7 +188,7 @@ public sealed class ShellUpdateInstaller
             return alreadyPrepared;
         }
 
-        EnsureInstallDirectoryIsWritable();
+        EnsureStagingDirectoryIsWritable();
         var updateRoot = GetUpdateRoot(offer.Version);
         ResetUpdateRoot(updateRoot);
 
@@ -225,22 +257,188 @@ public sealed class ShellUpdateInstaller
         if (!File.Exists(stagedExecutable))
             throw new FileNotFoundException("The staged updater executable is missing.", stagedExecutable);
 
+        var requiresElevation = RequiresElevationForInstall;
+        Process? restartBroker = null;
+        var previousResult = Path.Combine(update.UpdateRoot, UpdateResultFileName);
+        if (File.Exists(previousResult))
+            File.Delete(previousResult);
+        try
+        {
+            if (requiresElevation)
+                restartBroker = StartRestartBroker(stagedExecutable, update, Environment.ProcessId, _installDirectory);
+
+            var startInfo = CreateApplyStartInfo(
+                stagedExecutable,
+                update.PayloadDirectory,
+                Environment.ProcessId,
+                _installDirectory,
+                update.UpdateRoot,
+                requiresElevation,
+                deferRestart: requiresElevation);
+            using var process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("The update helper could not be started.");
+        }
+        catch (Win32Exception ex) when (requiresElevation && ex.NativeErrorCode == ElevationCancelledError)
+        {
+            TryStopProcess(restartBroker);
+            throw new OperationCanceledException(
+                "Administrator approval was cancelled. The verified update is still ready to install.", ex);
+        }
+        catch
+        {
+            TryStopProcess(restartBroker);
+            throw;
+        }
+        finally
+        {
+            restartBroker?.Dispose();
+        }
+    }
+
+    internal static ProcessStartInfo CreateApplyStartInfo(
+        string stagedExecutable,
+        string payloadDirectory,
+        int parentProcessId,
+        string installDirectory,
+        string updateRoot,
+        bool elevate,
+        bool deferRestart)
+    {
+        if (deferRestart && !elevate)
+            throw new ArgumentException("Deferred restart requires an elevated apply helper.", nameof(deferRestart));
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = stagedExecutable,
+            WorkingDirectory = payloadDirectory,
+            UseShellExecute = elevate
+        };
+        if (elevate)
+            startInfo.Verb = "runas";
+        startInfo.ArgumentList.Add(ApplyArgument);
+        startInfo.ArgumentList.Add(WaitPidArgument);
+        startInfo.ArgumentList.Add(parentProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        startInfo.ArgumentList.Add(InstallDirectoryArgument);
+        startInfo.ArgumentList.Add(installDirectory);
+        startInfo.ArgumentList.Add(UpdateRootArgument);
+        startInfo.ArgumentList.Add(updateRoot);
+        if (deferRestart)
+            startInfo.ArgumentList.Add(DeferRestartArgument);
+        return startInfo;
+    }
+
+    private static Process StartRestartBroker(
+        string stagedExecutable,
+        PreparedShellUpdate update,
+        int parentProcessId,
+        string installDirectory)
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = stagedExecutable,
             WorkingDirectory = update.PayloadDirectory,
-            UseShellExecute = false
+            UseShellExecute = false,
+            CreateNoWindow = true
         };
-        startInfo.ArgumentList.Add(ApplyArgument);
+        startInfo.ArgumentList.Add(RestartBrokerArgument);
         startInfo.ArgumentList.Add(WaitPidArgument);
-        startInfo.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        startInfo.ArgumentList.Add(parentProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         startInfo.ArgumentList.Add(InstallDirectoryArgument);
-        startInfo.ArgumentList.Add(_installDirectory);
+        startInfo.ArgumentList.Add(installDirectory);
         startInfo.ArgumentList.Add(UpdateRootArgument);
         startInfo.ArgumentList.Add(update.UpdateRoot);
 
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("The update helper could not be started.");
+        return Process.Start(startInfo)
+               ?? throw new InvalidOperationException("The non-elevated update restart helper could not be started.");
+    }
+
+    /// <summary>
+    /// Waits outside the elevated process and relaunches the installed app with the
+    /// original user's token after a protected-directory update finishes.
+    /// </summary>
+    public static bool TryRunRestartBrokerMode(string[] args, out int exitCode)
+    {
+        if (!args.Contains(RestartBrokerArgument, StringComparer.Ordinal))
+        {
+            exitCode = 0;
+            return false;
+        }
+
+        var waitPid = 0;
+        string? installDirectory = null;
+        string? updateRoot = null;
+        try
+        {
+            var waitPidText = GetArgumentValue(args, WaitPidArgument)
+                ?? throw new InvalidDataException("The update restart helper is missing the parent process ID.");
+            if (!int.TryParse(waitPidText, out waitPid) || waitPid <= 0 || waitPid == Environment.ProcessId)
+                throw new InvalidDataException("The update restart helper parent process ID is invalid.");
+
+            installDirectory = NormalizeDirectory(GetArgumentValue(args, InstallDirectoryArgument)
+                ?? throw new InvalidDataException("The update restart helper is missing the install directory."));
+            updateRoot = NormalizeDirectory(GetArgumentValue(args, UpdateRootArgument)
+                ?? throw new InvalidDataException("The update restart helper is missing the staging directory."));
+            ValidatePreparedUpdateLocation(installDirectory, updateRoot);
+
+            var manifest = ReadManifest(updateRoot)
+                ?? throw new InvalidDataException("The prepared update manifest is missing.");
+            if (!PathEquals(manifest.InstallDirectory, installDirectory)
+                || !string.Equals(
+                    manifest.ExecutableName,
+                    GetExecutableName(OperatingSystem.IsWindows()),
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("The prepared update does not match this installation.");
+            }
+            var stagedExecutable = Path.Combine(updateRoot, PayloadDirectoryName, manifest.ExecutableName);
+            if (!PathEquals(Environment.ProcessPath ?? string.Empty, stagedExecutable))
+                throw new InvalidDataException("The update restart helper is not running from the prepared package.");
+
+            WaitForProcessExit(waitPid);
+            var result = WaitForUpdateResult(updateRoot);
+            if (string.IsNullOrWhiteSpace(result.ErrorMessage)
+                && !string.Equals(result.Version, manifest.Version, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("The update completion result has an unexpected version.");
+            }
+            var executable = Path.Combine(installDirectory, GetExecutableName(OperatingSystem.IsWindows()));
+            if (!TryRestartApplication(
+                    executable,
+                    installDirectory,
+                    updateRoot,
+                    result.Version,
+                    result.ErrorMessage))
+            {
+                throw new InvalidOperationException("XCP-ng Center could not be restarted after the update.");
+            }
+
+            exitCode = string.IsNullOrWhiteSpace(result.ErrorMessage) ? 0 : 1;
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"Shell update restart helper failed: {ex}");
+            if (waitPid > 0 && !string.IsNullOrWhiteSpace(installDirectory))
+            {
+                try
+                {
+                    WaitForProcessExit(waitPid);
+                    var executable = Path.Combine(installDirectory, GetExecutableName(OperatingSystem.IsWindows()));
+                    TryRestartApplication(
+                        executable,
+                        installDirectory,
+                        updateRoot ?? string.Empty,
+                        string.Empty,
+                        $"The update could not be completed: {ex.Message}");
+                }
+                catch
+                {
+                    // The broker failure remains the useful diagnostic.
+                }
+            }
+            exitCode = 1;
+        }
+
+        return true;
     }
 
     /// <summary>Runs the headless update helper before Avalonia is initialized.</summary>
@@ -255,6 +453,7 @@ public sealed class ShellUpdateInstaller
         var waitPid = 0;
         string? installDirectory = null;
         string? updateRoot = null;
+        var deferRestart = args.Contains(DeferRestartArgument, StringComparer.Ordinal);
         try
         {
             var waitPidText = GetArgumentValue(args, WaitPidArgument)
@@ -267,12 +466,19 @@ public sealed class ShellUpdateInstaller
             updateRoot = NormalizeDirectory(GetArgumentValue(args, UpdateRootArgument)
                 ?? throw new InvalidDataException("The update helper is missing the staging directory."));
 
-            exitCode = ApplyPreparedUpdate(waitPid, installDirectory, updateRoot);
+            exitCode = ApplyPreparedUpdate(waitPid, installDirectory, updateRoot, deferRestart);
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"Shell update helper failed: {ex}");
-            if (waitPid > 0 && !string.IsNullOrWhiteSpace(installDirectory))
+            if (deferRestart && !string.IsNullOrWhiteSpace(updateRoot))
+            {
+                TryWriteUpdateResult(
+                    updateRoot!,
+                    string.Empty,
+                    $"The update could not be installed: {ex.Message}");
+            }
+            else if (waitPid > 0 && !string.IsNullOrWhiteSpace(installDirectory))
             {
                 try
                 {
@@ -497,11 +703,13 @@ public sealed class ShellUpdateInstaller
         }
     }
 
-    private static int ApplyPreparedUpdate(int waitPid, string installDirectory, string updateRoot)
+    private static int ApplyPreparedUpdate(
+        int waitPid,
+        string installDirectory,
+        string updateRoot,
+        bool deferRestart)
     {
-        var updateBase = NormalizeDirectory(Path.Combine(installDirectory, UpdateDirectoryName));
-        if (!PathEquals(Path.GetDirectoryName(updateRoot) ?? string.Empty, updateBase))
-            throw new InvalidDataException("The update staging directory is outside the installation.");
+        ValidatePreparedUpdateLocation(installDirectory, updateRoot);
 
         var manifest = ReadManifest(updateRoot)
             ?? throw new InvalidDataException("The prepared update manifest is missing.");
@@ -534,6 +742,13 @@ public sealed class ShellUpdateInstaller
         }
 
         var installedExecutable = Path.Combine(installDirectory, manifest.ExecutableName);
+        if (deferRestart)
+        {
+            if (!TryWriteUpdateResult(updateRoot, manifest.Version, errorMessage))
+                return 1;
+            return errorMessage == null ? 0 : 1;
+        }
+
         if (!TryRestartApplication(installedExecutable, installDirectory, updateRoot, manifest.Version, errorMessage))
             return 1;
         return errorMessage == null ? 0 : 1;
@@ -664,6 +879,72 @@ public sealed class ShellUpdateInstaller
         Thread.Sleep(250);
     }
 
+    private static UpdateResult WaitForUpdateResult(string updateRoot)
+    {
+        var path = Path.Combine(updateRoot, UpdateResultFileName);
+        for (var attempt = 0; attempt < 720; attempt++)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    var result = JsonSerializer.Deserialize<UpdateResult>(File.ReadAllText(path));
+                    if (result != null)
+                        return result;
+                }
+            }
+            catch (IOException)
+            {
+                // The elevated helper may still be committing the result.
+            }
+            catch (JsonException)
+            {
+                // The elevated helper may still be committing the result.
+            }
+
+            Thread.Sleep(250);
+        }
+
+        throw new TimeoutException("The elevated update helper did not report completion in time.");
+    }
+
+    private static bool TryWriteUpdateResult(string updateRoot, string version, string? errorMessage)
+    {
+        try
+        {
+            var path = Path.Combine(updateRoot, UpdateResultFileName);
+            var temporary = path + $".{Guid.NewGuid():N}.tmp";
+            File.WriteAllText(temporary, JsonSerializer.Serialize(new UpdateResult
+            {
+                Version = version,
+                ErrorMessage = errorMessage
+            }, JsonOptions));
+            File.Move(temporary, path, overwrite: true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"Could not write shell update result: {ex}");
+            return false;
+        }
+    }
+
+    private static void TryStopProcess(Process? process)
+    {
+        if (process == null)
+            return;
+
+        try
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+        }
+        catch
+        {
+            // Best-effort cleanup after a failed or cancelled elevation request.
+        }
+    }
+
     private static void ScheduleCleanup(string directory)
     {
         _ = Task.Run(async () =>
@@ -694,7 +975,10 @@ public sealed class ShellUpdateInstaller
         try
         {
             var normalized = NormalizeDirectory(directory);
-            var updateBase = NormalizeDirectory(Path.Combine(AppContext.BaseDirectory, UpdateDirectoryName));
+            var updateBase = GetStagingBaseDirectory(
+                AppContext.BaseDirectory,
+                ShellPaths.GetUpdateStagingRoot(ensureExists: false),
+                OperatingSystem.IsWindows());
             return PathEquals(Path.GetDirectoryName(normalized) ?? string.Empty, updateBase)
                    && Path.GetFileName(normalized).StartsWith('v');
         }
@@ -704,11 +988,10 @@ public sealed class ShellUpdateInstaller
         }
     }
 
-    private void EnsureInstallDirectoryIsWritable()
+    private void EnsureStagingDirectoryIsWritable()
     {
-        var updateBase = Path.Combine(_installDirectory, UpdateDirectoryName);
-        Directory.CreateDirectory(updateBase);
-        var probe = Path.Combine(updateBase, $"write-test-{Guid.NewGuid():N}.tmp");
+        Directory.CreateDirectory(_stagingBaseDirectory);
+        var probe = Path.Combine(_stagingBaseDirectory, $"write-test-{Guid.NewGuid():N}.tmp");
         try
         {
             using var stream = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -717,7 +1000,7 @@ public sealed class ShellUpdateInstaller
         catch (Exception ex)
         {
             throw new UnauthorizedAccessException(
-                $"The install directory is not writable. Download the release manually or move the portable installation to a user-writable folder. ({_installDirectory})",
+                $"The update staging directory is not writable ({_stagingBaseDirectory}).",
                 ex);
         }
         finally
@@ -726,8 +1009,33 @@ public sealed class ShellUpdateInstaller
         }
     }
 
+    private bool IsInstallDirectoryWritable() =>
+        _installDirectoryWritable ??= _directoryWritableProbe(_installDirectory);
+
+    private static bool ProbeDirectoryWritable(string directory)
+    {
+        if (!Directory.Exists(directory))
+            return false;
+
+        var probe = Path.Combine(directory, $".xcpng-write-test-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using var stream = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            stream.WriteByte(0);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            TryDeleteFile(probe);
+        }
+    }
+
     private string GetUpdateRoot(Version version) =>
-        NormalizeDirectory(Path.Combine(_installDirectory, UpdateDirectoryName, $"v{version.ToString(4)}"));
+        NormalizeDirectory(Path.Combine(_stagingBaseDirectory, $"v{version.ToString(4)}"));
 
     private static void ResetUpdateRoot(string updateRoot)
     {
@@ -858,6 +1166,36 @@ public sealed class ShellUpdateInstaller
     private static string GetExecutableName(bool isWindows) =>
         isWindows ? "XcpNgCenter.Shell.exe" : "XcpNgCenter.Shell";
 
+    internal static string GetStagingBaseDirectory(
+        string installDirectory,
+        string stagingRoot,
+        bool isWindows)
+    {
+        var identity = GetInstallDirectoryIdentity(installDirectory, isWindows);
+        return NormalizeDirectory(Path.Combine(stagingRoot, identity));
+    }
+
+    private static string GetInstallDirectoryIdentity(string installDirectory, bool isWindows)
+    {
+        var normalized = NormalizeDirectory(installDirectory);
+        if (isWindows)
+            normalized = normalized.ToUpperInvariant();
+        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
+        return Convert.ToHexString(digest.AsSpan(0, 12)).ToLowerInvariant();
+    }
+
+    private static void ValidatePreparedUpdateLocation(string installDirectory, string updateRoot)
+    {
+        var normalizedRoot = NormalizeDirectory(updateRoot);
+        var updateBase = Path.GetDirectoryName(normalizedRoot) ?? string.Empty;
+        var expectedIdentity = GetInstallDirectoryIdentity(installDirectory, OperatingSystem.IsWindows());
+        if (!string.Equals(Path.GetFileName(updateBase), expectedIdentity, StringComparison.OrdinalIgnoreCase)
+            || !Path.GetFileName(normalizedRoot).StartsWith('v'))
+        {
+            throw new InvalidDataException("The update staging directory does not match this installation.");
+        }
+    }
+
     private static string NormalizeDirectory(string path) =>
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
@@ -917,6 +1255,15 @@ public sealed class ShellUpdateInstaller
         client.DefaultRequestHeaders.UserAgent.ParseAdd($"XCP-ng-Center-Shell/{ShellVersionInfo.Display}");
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
         return client;
+    }
+
+    private sealed class UpdateResult
+    {
+        [JsonPropertyName("version")]
+        public string Version { get; set; } = string.Empty;
+
+        [JsonPropertyName("errorMessage")]
+        public string? ErrorMessage { get; set; }
     }
 
     private sealed class PreparedManifest

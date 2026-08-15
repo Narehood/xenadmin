@@ -10,6 +10,13 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // An unelevated broker relaunches the app after a protected-directory update.
+        if (ShellUpdateInstaller.TryRunRestartBrokerMode(args, out var restartExitCode))
+        {
+            Environment.ExitCode = restartExitCode;
+            return;
+        }
+
         // A staged new build runs headlessly while replacing the previous installation.
         if (ShellUpdateInstaller.TryRunApplyMode(args, out var updateExitCode))
         {

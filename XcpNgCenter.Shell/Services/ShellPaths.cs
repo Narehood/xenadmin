@@ -20,6 +20,18 @@ public static class ShellPaths
         return root;
     }
 
+    /// <summary>
+    /// Non-roaming storage for downloaded update packages.
+    /// Windows: %LOCALAPPDATA%; Linux/macOS: $XDG_CACHE_HOME or ~/.cache.
+    /// </summary>
+    public static string GetUpdateStagingRoot(bool ensureExists = true)
+    {
+        var root = Path.Combine(GetPlatformLocalDataHome(), "XCP-ng", ProductFolderName, "Updates");
+        if (ensureExists)
+            Directory.CreateDirectory(root);
+        return root;
+    }
+
     private static string GetPlatformConfigHome()
     {
         if (OperatingSystem.IsWindows())
@@ -43,5 +55,28 @@ public static class ShellPaths
             home = ".";
 
         return Path.Combine(home, ".config");
+    }
+
+    private static string GetPlatformLocalDataHome()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (!string.IsNullOrWhiteSpace(localData))
+                return localData;
+            return GetPlatformConfigHome();
+        }
+
+        var xdgCache = Environment.GetEnvironmentVariable("XDG_CACHE_HOME");
+        if (!string.IsNullOrWhiteSpace(xdgCache))
+            return xdgCache!;
+
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(home))
+            home = Environment.GetEnvironmentVariable("HOME");
+        if (string.IsNullOrWhiteSpace(home))
+            home = ".";
+
+        return Path.Combine(home, ".cache");
     }
 }

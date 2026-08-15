@@ -124,7 +124,10 @@ public partial class MainViewModel
             }
             else
             {
-                UpdateBannerMessage = $"{releaseMessage} Download and verify it here, then restart to install it.";
+                var permissionMessage = _updateInstaller.RequiresElevationForInstall
+                    ? " Windows will request administrator approval only when it is ready to replace the protected application files."
+                    : string.Empty;
+                UpdateBannerMessage = $"{releaseMessage} Download and verify it here, then restart to install it.{permissionMessage}";
             }
         }
 
@@ -168,7 +171,7 @@ public partial class MainViewModel
             IsUpdateDownloading = true;
             UpdateActionLabel = "Downloading…";
             UpdateBannerTitle = $"Downloading {_pendingUpdate.Version.ToString(4)}";
-            UpdateBannerMessage = $"Staging the release asset under {_updateInstaller.InstallDirectory}.";
+            UpdateBannerMessage = $"Staging the release asset under {_updateInstaller.StagingDirectory}.";
             var progress = new Progress<ShellUpdateProgress>(update =>
             {
                 UpdateDownloadProgress = update.Percentage;
@@ -209,7 +212,9 @@ public partial class MainViewModel
     private void ApplyPreparedUpdateState(ShellUpdateOffer offer)
     {
         UpdateBannerTitle = $"Update ready — {offer.Version.ToString(4)}";
-        UpdateBannerMessage = "The update was downloaded and verified. Restart to install it in the current application directory.";
+        UpdateBannerMessage = _updateInstaller.RequiresElevationForInstall
+            ? "The update was downloaded and verified. Windows administrator approval is required to replace files in this protected installation folder."
+            : "The update was downloaded and verified. Restart to install it in the current application directory.";
         UpdateDownloadProgress = 100;
         UpdateProgressText = "Download verified.";
         UpdateActionLabel = "Restart & install";
@@ -220,11 +225,15 @@ public partial class MainViewModel
         if (_pendingUpdate == null || _preparedUpdate == null)
             return;
 
+        var requiresElevation = _updateInstaller.RequiresElevationForInstall;
+        var permissionMessage = requiresElevation
+            ? " Windows will show an administrator approval prompt before replacing the protected application files. Only the installer helper is elevated; XCP-ng Center will reopen normally."
+            : string.Empty;
         var restart = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
         {
             Title = $"Restart to install {_pendingUpdate.Version.ToString(4)}?",
-            Message = $"The update is downloaded and verified. XCP-ng Center will close, replace the files in {_updateInstaller.InstallDirectory}, and reopen automatically. Active server sessions will be closed.",
-            AcceptLabel = "Restart & install",
+            Message = $"The update is downloaded and verified. XCP-ng Center will close, replace the files in {_updateInstaller.InstallDirectory}, and reopen automatically. Active server sessions will be closed.{permissionMessage}",
+            AcceptLabel = requiresElevation ? "Continue to approval" : "Restart & install",
             CancelLabel = "Later"
         }).ConfigureAwait(true);
         if (!restart)
@@ -238,6 +247,13 @@ public partial class MainViewModel
             _updateInstaller.StartApplyHelper(_preparedUpdate);
             StatusMessage = "Restarting to install the update…";
             desktop.Shutdown(0);
+        }
+        catch (OperationCanceledException ex)
+        {
+            UpdateBannerTitle = "Administrator approval cancelled";
+            UpdateBannerMessage = ex.Message;
+            UpdateActionLabel = "Retry install";
+            StatusMessage = ex.Message;
         }
         catch (Exception ex)
         {

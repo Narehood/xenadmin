@@ -29,7 +29,7 @@ The official graphical client for XCP-ng is [Xen Orchestra](https://xen-orchestr
 
 - **Versioning:** `year.month.day.revision` (UTC date; CI sets `BuildRevision` to the GitHub run number)
 - **WinForms:** full production feature set (including RDP)
-- **Avalonia shell (preview):** connect/TOFU, infrastructure tree, General/Storage/Network, RFB console, Logs, Alerts, Performance graphs, New VM/SR, disk and memory snapshots, comprehensive host/VM properties, clone/copy/migrate/move/delete, validated Import/Export (XVA + OVF/OVA), verified in-place GitHub Releases updates with restart prompting, and persisted General/Connection/Display/Security/Confirmations/Privacy settings
+- **Avalonia shell (preview):** connect/TOFU, infrastructure tree, General/Storage/Network, RFB console, Logs, Alerts, Performance graphs, New VM/SR, disk and memory snapshots, comprehensive host/VM properties, clone/copy/migrate/move/delete, validated Import/Export (XVA + OVF/OVA), verified in-place GitHub Releases updates with restart and protected-folder UAC prompting, and persisted General/Connection/Display/Security/Confirmations/Privacy settings
 - **CI artifacts:** `drop-release` / `drop-debug` (WinForms), `drop-shell-win-x64` / `drop-shell-linux-x64` (Avalonia)
 
 RDP remains WinForms-only for now.

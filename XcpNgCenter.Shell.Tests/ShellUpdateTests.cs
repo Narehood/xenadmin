@@ -74,6 +74,124 @@ public sealed class ShellUpdateTests
     }
 
     [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    public void ShouldRequestElevation_OnlyForProtectedWindowsInstall(
+        bool isWindows,
+        bool installDirectoryWritable,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            ShellUpdateInstaller.ShouldRequestElevation(isWindows, installDirectoryWritable));
+    }
+
+    [Fact]
+    public void ProtectedWindowsInstall_RemainsEligibleForAutomaticUpdate()
+    {
+        using var temp = new TemporaryDirectory();
+        var install = Path.Combine(temp.Path, "install");
+        var staging = Path.Combine(temp.Path, "staging");
+        Directory.CreateDirectory(install);
+        var executable = Path.Combine(install, "XcpNgCenter.Shell.exe");
+        File.WriteAllText(executable, "shell");
+
+        var installer = new ShellUpdateInstaller(
+            install,
+            executable,
+            isWindows: true,
+            isLinux: false,
+            Architecture.X64,
+            staging,
+            _ => false);
+
+        Assert.True(installer.CanInstallInPlace(out var reason), reason);
+        Assert.True(installer.RequiresElevationForInstall);
+        Assert.StartsWith(Path.GetFullPath(staging), installer.StagingDirectory, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ProtectedLinuxInstall_ExplainsWhyAutomaticUpdateIsUnavailable()
+    {
+        using var temp = new TemporaryDirectory();
+        var install = Path.Combine(temp.Path, "install");
+        Directory.CreateDirectory(install);
+        var executable = Path.Combine(install, "XcpNgCenter.Shell");
+        File.WriteAllText(executable, "shell");
+
+        var installer = new ShellUpdateInstaller(
+            install,
+            executable,
+            isWindows: false,
+            isLinux: true,
+            Architecture.X64,
+            Path.Combine(temp.Path, "staging"),
+            _ => false);
+
+        Assert.False(installer.CanInstallInPlace(out var reason));
+        Assert.Contains("not writable", reason, StringComparison.OrdinalIgnoreCase);
+        Assert.False(installer.RequiresElevationForInstall);
+    }
+
+    [Fact]
+    public void StagingDirectory_IsStablePerInstallAndWindowsCaseInsensitive()
+    {
+        using var temp = new TemporaryDirectory();
+        var first = ShellUpdateInstaller.GetStagingBaseDirectory(
+            @"C:\Program Files\XCP-ng Center",
+            temp.Path,
+            isWindows: true);
+        var same = ShellUpdateInstaller.GetStagingBaseDirectory(
+            @"c:\program files\xcp-NG center\",
+            temp.Path,
+            isWindows: true);
+        var other = ShellUpdateInstaller.GetStagingBaseDirectory(
+            @"C:\Tools\XCP-ng Center",
+            temp.Path,
+            isWindows: true);
+
+        Assert.Equal(first, same, ignoreCase: true);
+        Assert.NotEqual(first, other);
+    }
+
+    [Fact]
+    public void CreateApplyStartInfo_RequestsUacAndDefersElevatedRestart()
+    {
+        var info = ShellUpdateInstaller.CreateApplyStartInfo(
+            @"C:\staging\XcpNgCenter.Shell.exe",
+            @"C:\staging",
+            1234,
+            @"C:\Program Files\XCP-ng Center",
+            @"C:\staging\v2026.8.14.4",
+            elevate: true,
+            deferRestart: true);
+
+        Assert.True(info.UseShellExecute);
+        Assert.Equal("runas", info.Verb);
+        Assert.Contains("--apply-shell-update", info.ArgumentList);
+        Assert.Contains("--defer-shell-update-restart", info.ArgumentList);
+    }
+
+    [Fact]
+    public void CreateApplyStartInfo_UsesDirectLaunchForWritableInstall()
+    {
+        var info = ShellUpdateInstaller.CreateApplyStartInfo(
+            @"C:\staging\XcpNgCenter.Shell.exe",
+            @"C:\staging",
+            1234,
+            @"C:\Tools\XCP-ng Center",
+            @"C:\staging\v2026.8.14.4",
+            elevate: false,
+            deferRestart: false);
+
+        Assert.False(info.UseShellExecute);
+        Assert.Empty(info.Verb);
+        Assert.DoesNotContain("--defer-shell-update-restart", info.ArgumentList);
+    }
+
+    [Theory]
     [InlineData("https://example.com/update.zip")]
     [InlineData("http://github.com/Narehood/xenadmin/update.zip")]
     public void SelectPlatformAsset_RejectsUntrustedDownloadUrl(string url)
