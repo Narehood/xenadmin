@@ -37,6 +37,8 @@ public sealed class HostedConsoleSession : IDisposable
 
     public bool IsConnected { get; private set; }
 
+    public bool IsConnecting { get; private set; }
+
     public bool HasFrame => Bitmap != null;
 
     public event Action? StateChanged;
@@ -63,6 +65,7 @@ public sealed class HostedConsoleSession : IDisposable
             framebuffer.CursorChanged += OnCursorChanged;
             _framebuffer = framebuffer;
             IsConnected = false;
+            IsConnecting = true;
             StatusMessage = "Connecting to RFB console…";
         }
 
@@ -164,6 +167,7 @@ public sealed class HostedConsoleSession : IDisposable
             _stream = null;
             _session = null;
             IsConnected = false;
+            IsConnecting = false;
         }
 
         try { client?.Close(); } catch { /* ignore */ }
@@ -195,6 +199,7 @@ public sealed class HostedConsoleSession : IDisposable
                 return;
             StatusMessage = message;
             IsConnected = connected;
+            IsConnecting = false;
         }
 
         RaiseStateChanged();
@@ -257,6 +262,7 @@ public sealed class HostedConsoleSession : IDisposable
             framebuffer = _framebuffer;
             _framebuffer = null;
             IsConnected = false;
+            IsConnecting = false;
             if (!string.IsNullOrEmpty(StatusMessage) && StatusMessage.StartsWith("Live console", StringComparison.Ordinal))
                 StatusMessage = "Console disconnected.";
         }
@@ -302,4 +308,6 @@ public readonly record struct LiveRfbTarget(
     XenAPI.Console Console,
     string ObjectLabel,
     string VmName,
-    string Uuid);
+    string Uuid,
+    bool IsControlDomain,
+    long DomainId);

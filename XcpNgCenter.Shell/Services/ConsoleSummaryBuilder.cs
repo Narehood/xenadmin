@@ -132,7 +132,10 @@ public static class ConsoleSummaryBuilder
             })
             .ToList();
 
-        var rfb = consoles.FirstOrDefault(c => c.protocol == console_protocol.rfb);
+        var rfb = ConsoleSessionSyncPolicy.SelectPreferredRfbConsole(
+            consoles,
+            c => c.protocol == console_protocol.rfb,
+            c => c.location);
         var totals = new List<GeneralPropertyRow>
         {
             new("Object", objectLabel),
@@ -152,7 +155,9 @@ public static class ConsoleSummaryBuilder
                 rfb,
                 objectLabel,
                 objectLabel,
-                string.IsNullOrWhiteSpace(vm.uuid) ? rfb.uuid ?? objectLabel : vm.uuid);
+                string.IsNullOrWhiteSpace(vm.uuid) ? rfb.uuid ?? objectLabel : vm.uuid,
+                vm.is_control_domain,
+                vm.domid);
         }
 
         var status = BuildStatus(vm, rfb, live != null);

@@ -239,6 +239,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool _suppressSelectionClear;
     private bool _restoreSelectionQueued;
     private string? _activeConsoleKey;
+    private DateTime _nextGuestConsoleRetryUtc;
 
     /// <summary>Raised around infrastructure tree rebuilds/selection restores so the view can keep scroll position.</summary>
     public event Action? TreeLayoutChanging;
@@ -1670,15 +1671,38 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var key = $"{live.Connection.Hostname}|{live.Console.opaque_ref}|{live.Console.location}";
-        // Keep the same key after an RFB error so cache churn does not reconnect into a
-        // host that is mid-shutdown (e.g. reboot typed in the dom0 console). Callers that
-        // want a fresh session clear _activeConsoleKey first (selection change, power-op done).
-        if (key == _activeConsoleKey)
+        var key = ConsoleSessionSyncPolicy.SessionKey(
+            live.Connection.Hostname ?? string.Empty,
+            live.Console.opaque_ref ?? string.Empty,
+            live.Console.location ?? string.Empty,
+            live.DomainId);
+
+        // Guest VM reboots: reconnect when the RFB target changes (new console / new
+        // domid) or the transport drops, so the last pre-reboot frame is not left frozen.
+        // Host control-domain: never retry the same key after drop — holding HTTP CONNECT
+        // stalls host reboot/shutdown. Callers that want a fresh host session still clear
+        // _activeConsoleKey first (selection change, power-op done).
+        var sameTarget = string.Equals(_activeConsoleKey, key, StringComparison.Ordinal);
+        if (!ConsoleSessionSyncPolicy.ShouldReplaceSession(
+                _activeConsoleKey,
+                key,
+                _consoleSession.IsConnected,
+                _consoleSession.IsConnecting,
+                live.IsControlDomain))
+        {
+            return;
+        }
+
+        if (sameTarget && DateTime.UtcNow < _nextGuestConsoleRetryUtc)
             return;
 
-        CloseConsolePopOut();
+        if (!sameTarget)
+            CloseConsolePopOut();
+
         _activeConsoleKey = key;
+        if (sameTarget)
+            _nextGuestConsoleRetryUtc = DateTime.UtcNow.AddMilliseconds(1500);
+
         ConsoleBitmap = null;
         IsConsoleConnecting = true;
         ConsoleViewerStatus = "Connecting to RFB console…";
@@ -1695,15 +1719,36 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(ConsoleBitmap));
 
         ConsoleViewerStatus = _consoleSession.StatusMessage;
-        IsConsoleConnecting = !_consoleSession.IsConnected
-                              && !string.IsNullOrEmpty(_consoleSession.StatusMessage)
-                              && _consoleSession.StatusMessage.Contains("Connecting", StringComparison.OrdinalIgnoreCase);
+        IsConsoleConnecting = _consoleSession.IsConnecting
+                              || (!_consoleSession.IsConnected
+                                  && !string.IsNullOrEmpty(_consoleSession.StatusMessage)
+                                  && _consoleSession.StatusMessage.Contains("Connecting", StringComparison.OrdinalIgnoreCase));
         OnPropertyChanged(nameof(HasConsoleFrame));
         OnPropertyChanged(nameof(ShowEmbeddedConsole));
         if (!HasConsoleFrame)
             ConsoleInputHint = string.Empty;
         else if (string.IsNullOrEmpty(ConsoleInputHint))
             ConsoleInputHint = "Click the console to send keyboard and mouse to the guest.";
+
+        QueueGuestConsoleRetryIfDropped();
+    }
+
+    /// <summary>
+    /// Guest RFB often drops during reboot while power_state stays Running. Re-evaluate
+    /// on the next UI turn so we reconnect without waiting for cache churn — and without
+    /// recursing into Start() from the Stop() that Start itself performs.
+    /// </summary>
+    private void QueueGuestConsoleRetryIfDropped()
+    {
+        if (_consoleSession.IsConnected || _consoleSession.IsConnecting || _activeConsoleKey == null)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_consoleSession.IsConnected || _consoleSession.IsConnecting || _activeConsoleKey == null)
+                return;
+            RefreshConsoleProperties(SelectedInfraNode ?? _pinnedInfraNode);
+        });
     }
 
     [RelayCommand]
