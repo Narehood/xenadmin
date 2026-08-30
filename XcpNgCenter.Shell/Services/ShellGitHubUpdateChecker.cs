@@ -20,8 +20,21 @@ public sealed record ShellUpdateOffer(
     DateTimeOffset? PublishedAt,
     ShellUpdateAsset? Asset);
 
+public enum ShellUpdateCheckStatus
+{
+    UpToDate,
+    Available,
+    Dismissed,
+    Failed
+}
+
+public sealed record ShellUpdateCheckResult(
+    ShellUpdateCheckStatus Status,
+    ShellUpdateOffer? Offer = null,
+    string? Detail = null);
+
 /// <summary>
-/// Checks GitHub Releases for a newer client build. Failures are silent (offline / no releases yet).
+/// Checks GitHub Releases for a newer client build.
 /// </summary>
 public sealed class ShellGitHubUpdateChecker
 {
@@ -43,27 +56,46 @@ public sealed class ShellGitHubUpdateChecker
 
     public string ReleasesPageUrl => $"https://github.com/{_owner}/{_repo}/releases";
 
+    /// <summary>
+    /// Silent startup-friendly check. Prefer <see cref="CheckForUpdateDetailedAsync"/> when the
+    /// UI must distinguish failures and dismissed updates from a true "up to date".
+    /// </summary>
     public async Task<ShellUpdateOffer?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await CheckForUpdateDetailedAsync(ignoreDismissed: false, cancellationToken)
+            .ConfigureAwait(false);
+        return result.Status == ShellUpdateCheckStatus.Available ? result.Offer : null;
+    }
+
+    public async Task<ShellUpdateCheckResult> CheckForUpdateDetailedAsync(
+        bool ignoreDismissed = false,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             var release = await FetchLatestReleaseAsync(cancellationToken).ConfigureAwait(false);
             if (release == null || release.Draft || release.Prerelease)
-                return null;
+            {
+                return new ShellUpdateCheckResult(
+                    ShellUpdateCheckStatus.UpToDate,
+                    Detail: "No newer published release was found on GitHub.");
+            }
 
             if (!ShellVersionInfo.TryParse(release.TagName, out var remote)
                 && !ShellVersionInfo.TryParse(release.Name, out remote))
-                return null;
+            {
+                return new ShellUpdateCheckResult(
+                    ShellUpdateCheckStatus.Failed,
+                    Detail: $"Could not parse the latest release version ({release.TagName ?? release.Name}).");
+            }
 
             var local = ShellVersionInfo.Current;
             if (remote.CompareTo(local) <= 0)
-                return null;
-
-            var dismissed = _preferences.GetDismissedVersion();
-            if (!string.IsNullOrWhiteSpace(dismissed)
-                && ShellVersionInfo.TryParse(dismissed, out var dismissedVersion)
-                && dismissedVersion.CompareTo(remote) >= 0)
-                return null;
+            {
+                return new ShellUpdateCheckResult(
+                    ShellUpdateCheckStatus.UpToDate,
+                    Detail: $"You're up to date ({ShellVersionInfo.Display}).");
+            }
 
             var url = string.IsNullOrWhiteSpace(release.HtmlUrl) ? ReleasesPageUrl : release.HtmlUrl!;
             var title = string.IsNullOrWhiteSpace(release.Name) ? (release.TagName ?? remote.ToString(4)) : release.Name!;
@@ -80,15 +112,37 @@ public sealed class ShellGitHubUpdateChecker
                 OperatingSystem.IsWindows(),
                 OperatingSystem.IsLinux(),
                 RuntimeInformation.ProcessArchitecture);
-            return new ShellUpdateOffer(remote, tag, title, url, release.PublishedAt, asset);
+            var offer = new ShellUpdateOffer(remote, tag, title, url, release.PublishedAt, asset);
+
+            var dismissed = _preferences.GetDismissedVersion();
+            if (!ignoreDismissed
+                && !string.IsNullOrWhiteSpace(dismissed)
+                && ShellVersionInfo.TryParse(dismissed, out var dismissedVersion)
+                && dismissedVersion.CompareTo(remote) >= 0)
+            {
+                return new ShellUpdateCheckResult(
+                    ShellUpdateCheckStatus.Dismissed,
+                    offer,
+                    $"Update {remote.ToString(4)} is available but was previously dismissed.");
+            }
+
+            return new ShellUpdateCheckResult(ShellUpdateCheckStatus.Available, offer);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            return null;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return new ShellUpdateCheckResult(
+                ShellUpdateCheckStatus.Failed,
+                Detail: ex.Message);
         }
     }
 
     public void Dismiss(Version version) => _preferences.SetDismissedVersion(version.ToString(4));
+
+    public void ClearDismissed() => _preferences.ClearDismissedVersion();
 
     internal static ShellUpdateAsset? SelectPlatformAsset(
         IEnumerable<ShellUpdateAsset> assets,
@@ -134,27 +188,32 @@ public sealed class ShellGitHubUpdateChecker
         // Prefer /latest (non-draft, non-prerelease). Fall back to listing when empty.
         var latest = await GetJsonAsync<GitHubRelease>(
             $"https://api.github.com/repos/{_owner}/{_repo}/releases/latest",
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            allowNotFound: true).ConfigureAwait(false);
         if (latest != null)
             return latest;
 
         var list = await GetJsonAsync<List<GitHubRelease>>(
             $"https://api.github.com/repos/{_owner}/{_repo}/releases?per_page=10",
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            allowNotFound: true).ConfigureAwait(false);
         return list?
             .Where(r => r is { Draft: false, Prerelease: false })
             .OrderByDescending(r => r.PublishedAt ?? DateTimeOffset.MinValue)
             .FirstOrDefault();
     }
 
-    private static async Task<T?> GetJsonAsync<T>(string url, CancellationToken cancellationToken)
+    private static async Task<T?> GetJsonAsync<T>(string url, CancellationToken cancellationToken, bool allowNotFound)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         using var response = await Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound && allowNotFound)
             return default;
         if (!response.IsSuccessStatusCode)
-            return default;
+        {
+            throw new HttpRequestException(
+                $"GitHub Releases returned {(int)response.StatusCode} ({response.ReasonPhrase}).");
+        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         return await JsonSerializer.DeserializeAsync<T>(stream, cancellationToken: cancellationToken).ConfigureAwait(false);

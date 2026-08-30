@@ -125,7 +125,7 @@ public partial class MainViewModel
             else
             {
                 var permissionMessage = _updateInstaller.RequiresElevationForInstall
-                    ? " Windows will request administrator approval only when it is ready to replace the protected application files."
+                    ? " Windows will request administrator approval to replace files in this Program Files (or other protected) installation."
                     : string.Empty;
                 UpdateBannerMessage = $"{releaseMessage} Download and verify it here, then restart to install it.{permissionMessage}";
             }
@@ -277,19 +277,36 @@ public partial class MainViewModel
     {
         try
         {
-            var offer = await _updateChecker.CheckForUpdateAsync(cancellationToken).ConfigureAwait(true);
-            if (offer == null)
-            {
-                UpdateAvailable = false;
-                _pendingUpdate = null;
-                _preparedUpdate = null;
-                OnPropertyChanged(nameof(ShowUpdateAction));
-                DownloadUpdateCommand.NotifyCanExecuteChanged();
-                return $"You're up to date ({ShellVersionInfo.Display}).";
-            }
+            // Never treat a dismissed update or a network failure as "up to date".
+            var result = await _updateChecker
+                .CheckForUpdateDetailedAsync(ignoreDismissed: true, cancellationToken)
+                .ConfigureAwait(true);
 
-            ApplyUpdateOffer(offer);
-            return $"Update available: {offer.Version.ToString(4)} — use the banner to download it or open the release page.";
+            switch (result.Status)
+            {
+                case ShellUpdateCheckStatus.Available when result.Offer != null:
+                    _updateChecker.ClearDismissed();
+                    ApplyUpdateOffer(result.Offer);
+                    return $"Update available: {result.Offer.Version.ToString(4)} — use the banner to download it or open the release page.";
+
+                case ShellUpdateCheckStatus.Dismissed when result.Offer != null:
+                    // ignoreDismissed:true should not return Dismissed; keep a safe fallback.
+                    _updateChecker.ClearDismissed();
+                    ApplyUpdateOffer(result.Offer);
+                    return $"Update available: {result.Offer.Version.ToString(4)} — use the banner to download it or open the release page.";
+
+                case ShellUpdateCheckStatus.Failed:
+                    return $"Update check failed: {result.Detail ?? "Unknown error."}";
+
+                case ShellUpdateCheckStatus.UpToDate:
+                default:
+                    UpdateAvailable = false;
+                    _pendingUpdate = null;
+                    _preparedUpdate = null;
+                    OnPropertyChanged(nameof(ShowUpdateAction));
+                    DownloadUpdateCommand.NotifyCanExecuteChanged();
+                    return result.Detail ?? $"You're up to date ({ShellVersionInfo.Display}).";
+            }
         }
         catch (Exception ex)
         {

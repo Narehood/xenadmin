@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -103,7 +104,11 @@ public sealed class ShellUpdateInstaller
     public string StagingDirectory => _stagingBaseDirectory;
 
     public bool RequiresElevationForInstall =>
-        ShouldRequestElevation(_isWindows, IsInstallDirectoryWritable());
+        ShouldRequestElevation(
+            _isWindows,
+            IsInstallDirectoryWritable(),
+            IsProtectedWindowsInstallDirectory(_installDirectory),
+            IsCurrentProcessElevated());
 
     public static string? StartupStatusMessage => _startupStatusMessage;
 
@@ -134,8 +139,88 @@ public sealed class ShellUpdateInstaller
         return true;
     }
 
-    internal static bool ShouldRequestElevation(bool isWindows, bool installDirectoryWritable) =>
-        isWindows && !installDirectoryWritable;
+    internal static bool ShouldRequestElevation(
+        bool isWindows,
+        bool installDirectoryWritable,
+        bool isProtectedInstallDirectory = false,
+        bool processElevated = false) =>
+        isWindows
+        && !processElevated
+        && (isProtectedInstallDirectory || !installDirectoryWritable);
+
+    /// <summary>
+    /// Program Files installs can look writable under UAC VirtualStore while real
+    /// files stay protected — always treat those roots as elevation-required.
+    /// </summary>
+    internal static bool IsProtectedWindowsInstallDirectory(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+            return false;
+
+        string full;
+        try
+        {
+            full = Path.GetFullPath(directory);
+        }
+        catch
+        {
+            return false;
+        }
+
+        foreach (var root in GetWindowsProtectedInstallRoots())
+        {
+            if (IsPathUnderRoot(full, root))
+                return true;
+        }
+
+        return false;
+    }
+
+    internal static bool IsCurrentProcessElevated()
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static IEnumerable<string> GetWindowsProtectedInstallRoots()
+    {
+        yield return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        yield return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        yield return Environment.GetEnvironmentVariable("ProgramW6432") ?? string.Empty;
+        yield return Environment.GetEnvironmentVariable("ProgramFiles(x86)") ?? string.Empty;
+    }
+
+    private static bool IsPathUnderRoot(string fullPath, string? root)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+            return false;
+
+        string normalizedRoot;
+        try
+        {
+            normalizedRoot = Path.GetFullPath(root);
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (string.Equals(fullPath, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var prefix = Path.TrimEndingDirectorySeparator(normalizedRoot) + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    }
 
     public PreparedShellUpdate? TryGetPreparedUpdate(ShellUpdateOffer offer)
     {

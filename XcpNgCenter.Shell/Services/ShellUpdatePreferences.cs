@@ -38,6 +38,18 @@ public sealed class ShellUpdatePreferences
         }
     }
 
+    public void ClearDismissedVersion()
+    {
+        lock (_gate)
+        {
+            var state = LoadUnlocked();
+            if (string.IsNullOrWhiteSpace(state.DismissedUpdateVersion))
+                return;
+            state.DismissedUpdateVersion = null;
+            SaveUnlocked(state);
+        }
+    }
+
     private State LoadUnlocked()
     {
         try

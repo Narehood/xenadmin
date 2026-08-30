@@ -74,18 +74,37 @@ public sealed class ShellUpdateTests
     }
 
     [Theory]
-    [InlineData(true, false, true)]
-    [InlineData(true, true, false)]
-    [InlineData(false, false, false)]
-    [InlineData(false, true, false)]
-    public void ShouldRequestElevation_OnlyForProtectedWindowsInstall(
+    [InlineData(true, false, false, false, true)]  // protected probe miss
+    [InlineData(true, true, false, false, false)] // writable non-protected
+    [InlineData(true, true, true, false, true)]   // Program Files + VirtualStore false positive
+    [InlineData(true, false, true, false, true)]  // Program Files not writable
+    [InlineData(true, false, true, true, false)]  // already elevated
+    [InlineData(false, false, false, false, false)]
+    [InlineData(false, true, false, false, false)]
+    public void ShouldRequestElevation_OnlyForUnelevatedProtectedOrUnwritableWindowsInstall(
         bool isWindows,
         bool installDirectoryWritable,
+        bool isProtectedInstallDirectory,
+        bool processElevated,
         bool expected)
     {
         Assert.Equal(
             expected,
-            ShellUpdateInstaller.ShouldRequestElevation(isWindows, installDirectoryWritable));
+            ShellUpdateInstaller.ShouldRequestElevation(
+                isWindows,
+                installDirectoryWritable,
+                isProtectedInstallDirectory,
+                processElevated));
+    }
+
+    [Theory]
+    [InlineData(@"C:\Program Files\XCP-ng Center", true)]
+    [InlineData(@"C:\Program Files (x86)\XCP-ng Center", true)]
+    [InlineData(@"C:\Tools\XCP-ng Center", false)]
+    [InlineData(@"C:\Users\Michael\Apps\XCP-ng Center", false)]
+    public void IsProtectedWindowsInstallDirectory_DetectsProgramFilesRoots(string path, bool expected)
+    {
+        Assert.Equal(expected, ShellUpdateInstaller.IsProtectedWindowsInstallDirectory(path));
     }
 
     [Fact]
@@ -110,6 +129,18 @@ public sealed class ShellUpdateTests
         Assert.True(installer.CanInstallInPlace(out var reason), reason);
         Assert.True(installer.RequiresElevationForInstall);
         Assert.StartsWith(Path.GetFullPath(staging), installer.StagingDirectory, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void VirtualStoreWritableProgramFiles_StillRequiresElevation()
+    {
+        // UAC VirtualStore can make a create-file probe succeed under Program Files.
+        Assert.True(ShellUpdateInstaller.IsProtectedWindowsInstallDirectory(@"C:\Program Files\XCP-ng Center"));
+        Assert.True(ShellUpdateInstaller.ShouldRequestElevation(
+            isWindows: true,
+            installDirectoryWritable: true,
+            isProtectedInstallDirectory: true,
+            processElevated: false));
     }
 
     [Fact]
