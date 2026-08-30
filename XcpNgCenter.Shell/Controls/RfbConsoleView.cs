@@ -42,6 +42,7 @@ public sealed class RfbConsoleView : Control
     private Cursor? _remoteCursor;
     private bool _pointerOverDesktop;
     private Window? _hostWindow;
+    private TopLevel? _topLevel;
 
     static RfbConsoleView()
     {
@@ -52,8 +53,8 @@ public sealed class RfbConsoleView : Control
 
     public RfbConsoleView()
     {
-        // Terminal glyphs/emoji are 1px strokes in the framebuffer. Avalonia's default
-        // LowQuality (bilinear) scale softens them into thin/blurry text — use nearest-neighbor.
+        // Terminal glyphs are 1px strokes. Prefer nearest-neighbor; fractional DPI/downscales
+        // switch to HighQuality in TryGetDisplayRect so text is not shredded.
         RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
         RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
     }
@@ -117,16 +118,32 @@ public sealed class RfbConsoleView : Control
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        AttachTopLevel(TopLevel.GetTopLevel(this));
         AttachHostWindow(TopLevel.GetTopLevel(this) as Window);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         AttachHostWindow(null);
+        AttachTopLevel(null);
         SubscribeSession(null);
         ClearRemoteCursor();
         base.OnDetachedFromVisualTree(e);
     }
+
+    private void AttachTopLevel(TopLevel? topLevel)
+    {
+        if (ReferenceEquals(_topLevel, topLevel))
+            return;
+        if (_topLevel != null)
+            _topLevel.ScalingChanged -= OnTopLevelScalingChanged;
+        _topLevel = topLevel;
+        if (_topLevel != null)
+            _topLevel.ScalingChanged += OnTopLevelScalingChanged;
+        InvalidateVisual();
+    }
+
+    private void OnTopLevelScalingChanged(object? sender, EventArgs e) => InvalidateVisual();
 
     private void AttachHostWindow(Window? window)
     {
@@ -457,32 +474,45 @@ public sealed class RfbConsoleView : Control
             return false;
 
         desk = new PixelSize(dw, dh);
-        // Prefer integer upscales so console fonts/emoji stay crisp; only use a
-        // fractional factor when the viewport is smaller than the native desktop.
-        var fit = Math.Min(Bounds.Width / dw, Bounds.Height / dh);
-        var scale = ScaleToFit
-            ? (fit >= 1d ? Math.Max(1d, Math.Floor(fit)) : fit)
-            : 1d;
-        var w = Math.Floor(dw * scale);
-        var h = Math.Floor(dh * scale);
+
+        // Bounds are DIPs; Avalonia then multiplies by RenderScaling. Compute the scale in
+        // physical pixels so 1 framebuffer pixel maps to an integer number of screen pixels.
+        // Ignoring DPI made nearest-neighbor draw at 1.25×/1.5× and shredded terminal glyphs.
+        var dpi = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1d;
+        if (dpi <= 0)
+            dpi = 1d;
+
+        var availPhysW = Bounds.Width * dpi;
+        var availPhysH = Bounds.Height * dpi;
+        double physicalScale;
         if (!ScaleToFit)
         {
-            dest = new Rect(
-                Math.Floor((Bounds.Width - w) / 2),
-                Math.Floor((Bounds.Height - h) / 2),
-                w,
-                h);
-            return true;
+            physicalScale = 1d;
+        }
+        else
+        {
+            var fit = Math.Min(availPhysW / dw, availPhysH / dh);
+            physicalScale = fit >= 1d
+                ? Math.Max(1d, Math.Floor(fit + 1e-9))
+                : fit;
         }
 
-        // Keep the fitted rect fully inside bounds so ClipToBounds does not shave the first column/row.
-        var x = Math.Max(0, Math.Floor((Bounds.Width - w) / 2));
-        var y = Math.Max(0, Math.Floor((Bounds.Height - h) / 2));
-        if (x + w > Bounds.Width)
-            w = Math.Max(0, Math.Floor(Bounds.Width - x));
-        if (y + h > Bounds.Height)
-            h = Math.Max(0, Math.Floor(Bounds.Height - y));
-        dest = new Rect(x, y, w, h);
+        var integerScale = Math.Abs(physicalScale - Math.Round(physicalScale)) < 1e-6;
+        RenderOptions.SetBitmapInterpolationMode(
+            this,
+            integerScale ? BitmapInterpolationMode.None : BitmapInterpolationMode.HighQuality);
+
+        var physW = dw * physicalScale;
+        var physH = dh * physicalScale;
+        // Keep the destination on physical-pixel boundaries after DPI transform.
+        var xPhys = Math.Max(0, Math.Floor((availPhysW - physW) / 2));
+        var yPhys = Math.Max(0, Math.Floor((availPhysH - physH) / 2));
+        if (xPhys + physW > availPhysW)
+            physW = Math.Max(0, availPhysW - xPhys);
+        if (yPhys + physH > availPhysH)
+            physH = Math.Max(0, availPhysH - yPhys);
+
+        dest = new Rect(xPhys / dpi, yPhys / dpi, physW / dpi, physH / dpi);
         return true;
     }
 }
