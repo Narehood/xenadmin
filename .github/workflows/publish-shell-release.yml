@@ -167,11 +167,60 @@ jobs:
     if: ${{ always() && inputs.attach_artifacts && needs.publish-windows.result == 'success' && needs.publish-linux.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
       - name: Download assets
         uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
+
+      - name: Build release notes from commits
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.publish-linux.outputs.tag }}"
+          VERSION="${{ needs.publish-linux.outputs.version }}"
+          CODENAME="${{ needs.publish-linux.outputs.codename }}"
+
+          # Previous shell release tag (vYYYY.M.D.N), excluding the tag we are about to create.
+          PREV="$(git tag -l 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -n1 || true)"
+
+          {
+            echo "## ${VERSION} (${CODENAME})"
+            echo
+            if [[ -n "$PREV" ]]; then
+              echo "Changes since \`${PREV}\`:"
+              echo
+              # Prefer subject lines; skip merge commits and empty noise.
+              git log "${PREV}..HEAD" --pretty=format:'- %s' --no-merges \
+                | sed '/^$/d' \
+                | head -n 80
+              echo
+              echo
+              COUNT="$(git rev-list --count "${PREV}..HEAD" --no-merges || echo 0)"
+              echo "_${COUNT} commit(s) since ${PREV}._"
+            else
+              echo "Changes in this build:"
+              echo
+              git log -n 40 --pretty=format:'- %s' --no-merges \
+                | sed '/^$/d'
+              echo
+            fi
+            echo
+            echo "## Downloads"
+            echo
+            echo "- \`XcpNgCenter.Shell-win-x64-${VERSION}.zip\`"
+            echo "- \`XcpNgCenter.Shell-linux-x64-${VERSION}.tar.gz\`"
+          } > release-notes.md
+
+          echo "Wrote release notes:"
+          cat release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -181,17 +230,8 @@ jobs:
           target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
-          generate_release_notes: true
-          body: |
-            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ needs.publish-linux.outputs.version }}** (**${{ needs.publish-linux.outputs.codename }}**).
-
-            Calendar versioning: `year.month.day.revision`. Production client remains WinForms `XenAdmin` until Linux/Windows soak is clean.
-
-            Assets:
-            - `XcpNgCenter.Shell-win-x64-*.zip`
-            - `XcpNgCenter.Shell-linux-x64-*.tar.gz` (preserves `+x` on the main binary)
-
-            Update flow: launch an older self-contained shell build; the bottom-right banner should offer **Download update**, verify the matching asset, then prompt for **Restart & install**. Windows installs in protected folders request UAC only for the installer helper and reopen without elevation. **View release** / **Dismiss** remain available.
+          generate_release_notes: false
+          body_path: release-notes.md
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -200,6 +240,12 @@ jobs:
     if: ${{ !inputs.attach_artifacts }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
       - name: Validate revision and compute version
         id: ver
         shell: bash
@@ -224,6 +270,37 @@ jobs:
           echo "codename=${CODENAME}" >> "$GITHUB_OUTPUT"
           echo "Publishing ${TAG} (${CODENAME})"
 
+      - name: Build release notes from commits
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          VERSION="${{ steps.ver.outputs.version }}"
+          CODENAME="${{ steps.ver.outputs.codename }}"
+          PREV="$(git tag -l 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -n1 || true)"
+
+          {
+            echo "## ${VERSION} (${CODENAME})"
+            echo
+            if [[ -n "$PREV" ]]; then
+              echo "Changes since \`${PREV}\`:"
+              echo
+              git log "${PREV}..HEAD" --pretty=format:'- %s' --no-merges \
+                | sed '/^$/d' \
+                | head -n 80
+              echo
+            else
+              echo "Changes in this build:"
+              echo
+              git log -n 40 --pretty=format:'- %s' --no-merges \
+                | sed '/^$/d'
+              echo
+            fi
+            echo
+            echo "CI artifacts: download \`drop-shell-linux-x64\` / \`drop-shell-win-x64\` from the Test Builds workflow on \`development\`."
+          } > release-notes.md
+
       - name: Create GitHub Release (notes only)
         uses: softprops/action-gh-release@v2
         with:
@@ -232,12 +309,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
-          generate_release_notes: true
-          body: |
-            Avalonia preview shell (`XcpNgCenter.Shell`) build **${{ steps.ver.outputs.version }}** (**${{ steps.ver.outputs.codename }}**).
-
-            Calendar versioning: `year.month.day.revision`. Production client remains WinForms `XenAdmin` until Linux/Windows soak is clean.
-
-            CI artifacts: download `drop-shell-linux-x64` / `drop-shell-win-x64` from the Test Builds workflow on `development`.
+          generate_release_notes: false
+          body_path: release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
