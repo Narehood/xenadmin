@@ -262,12 +262,19 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         InitializeActionHistoryUi();
         InitializeAlertsAndGraphsUi();
         InitializeUpdateCheck();
+        // Password unlock / auto-reconnect runs after the main window is shown (StartPostWindowStartup).
+    }
+
+    /// <summary>Called once the main window is visible so modal unlock dialogs have a real owner.</summary>
+    public void StartPostWindowStartup()
+    {
         if (!string.IsNullOrWhiteSpace(ShellUpdateInstaller.StartupStatusMessage))
         {
             StatusMessage = ShellUpdateInstaller.StartupStatusMessage;
             if (ShellUpdateInstaller.StartupUpdateFailed)
                 ActionStatusMessage = ShellUpdateInstaller.StartupStatusMessage;
         }
+
         _ = UnlockMainPasswordThenAutoReconnectAsync();
     }
 
