@@ -62,6 +62,7 @@ public sealed class ShellUpdateInstaller
     private readonly bool _isLinux;
     private readonly Architecture _architecture;
     private readonly Func<string, bool> _directoryWritableProbe;
+    private readonly Func<bool> _processElevatedProbe;
     private bool? _installDirectoryWritable;
 
     public ShellUpdateInstaller()
@@ -72,7 +73,8 @@ public sealed class ShellUpdateInstaller
             OperatingSystem.IsLinux(),
             RuntimeInformation.ProcessArchitecture,
             stagingRoot: null,
-            directoryWritableProbe: null)
+            directoryWritableProbe: null,
+            processElevatedProbe: null)
     {
     }
 
@@ -83,7 +85,8 @@ public sealed class ShellUpdateInstaller
         bool isLinux,
         Architecture architecture,
         string? stagingRoot = null,
-        Func<string, bool>? directoryWritableProbe = null)
+        Func<string, bool>? directoryWritableProbe = null,
+        Func<bool>? processElevatedProbe = null)
     {
         _installDirectory = NormalizeDirectory(installDirectory);
         _currentExecutablePath = string.IsNullOrWhiteSpace(currentExecutablePath)
@@ -97,6 +100,7 @@ public sealed class ShellUpdateInstaller
             stagingRoot ?? ShellPaths.GetUpdateStagingRoot(ensureExists: false),
             isWindows);
         _directoryWritableProbe = directoryWritableProbe ?? ProbeDirectoryWritable;
+        _processElevatedProbe = processElevatedProbe ?? IsCurrentProcessElevated;
     }
 
     public string InstallDirectory => _installDirectory;
@@ -108,7 +112,7 @@ public sealed class ShellUpdateInstaller
             _isWindows,
             IsInstallDirectoryWritable(),
             IsProtectedWindowsInstallDirectory(_installDirectory),
-            IsCurrentProcessElevated());
+            _processElevatedProbe());
 
     public static string? StartupStatusMessage => _startupStatusMessage;
 

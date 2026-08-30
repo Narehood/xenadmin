@@ -124,7 +124,8 @@ public sealed class ShellUpdateTests
             isLinux: false,
             Architecture.X64,
             staging,
-            _ => false);
+            _ => false,
+            processElevatedProbe: () => false);
 
         Assert.True(installer.CanInstallInPlace(out var reason), reason);
         Assert.True(installer.RequiresElevationForInstall);
