@@ -189,6 +189,18 @@ public sealed class ShellUpdateTests
     }
 
     [Fact]
+    public void ResolveInstallDirectory_PrefersProcessPathFolder()
+    {
+        var resolved = ShellUpdateInstaller.ResolveInstallDirectory(
+            @"C:\Wrong\Base",
+            @"C:\Program Files\XCP-ng Center\XcpNgCenter.Shell.exe");
+        Assert.Equal(
+            Path.GetFullPath(@"C:\Program Files\XCP-ng Center"),
+            Path.GetFullPath(resolved),
+            ignoreCase: true);
+    }
+
+    [Fact]
     public void CreateApplyStartInfo_RequestsUacAndDefersElevatedRestart()
     {
         var info = ShellUpdateInstaller.CreateApplyStartInfo(

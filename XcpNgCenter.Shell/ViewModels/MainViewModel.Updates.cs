@@ -108,7 +108,22 @@ public partial class MainViewModel
 
         if (_preparedUpdate != null)
         {
-            ApplyPreparedUpdateState(offer);
+            var failure = _updateInstaller.TryGetApplyFailure(offer);
+            if (string.IsNullOrWhiteSpace(failure) && ShellUpdateInstaller.StartupUpdateFailed)
+                failure = ShellUpdateInstaller.StartupStatusMessage;
+
+            if (!string.IsNullOrWhiteSpace(failure))
+            {
+                UpdateBannerTitle = $"Update install failed — {offer.Version.ToString(4)}";
+                UpdateBannerMessage = failure;
+                UpdateActionLabel = "Retry install";
+                UpdateDownloadProgress = 100;
+                UpdateProgressText = "Download verified; install did not complete.";
+            }
+            else
+            {
+                ApplyPreparedUpdateState(offer);
+            }
         }
         else
         {
@@ -154,6 +169,7 @@ public partial class MainViewModel
 
         if (_preparedUpdate != null)
         {
+            _updateInstaller.ClearApplyFailure(_preparedUpdate);
             await PromptToRestartForUpdateAsync().ConfigureAwait(true);
             return;
         }

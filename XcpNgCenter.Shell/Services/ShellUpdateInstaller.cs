@@ -47,6 +47,8 @@ public sealed class ShellUpdateInstaller
     private const string DeferRestartArgument = "--defer-shell-update-restart";
     private const string RestartBrokerArgument = "--wait-for-shell-update-result";
     private const string UpdateResultFileName = "update-result.json";
+    private const string FailureMarkerFileName = "update-failed.txt";
+    private const string StickyUpdateErrorFileName = "last-update-error.txt";
     private const int ElevationCancelledError = 1223;
     private const long MaximumExtractedBytes = 4L * 1024 * 1024 * 1024;
     private const int MaximumArchiveEntries = 50_000;
@@ -54,6 +56,7 @@ public sealed class ShellUpdateInstaller
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private static readonly HttpClient Http = CreateClient();
     private static string? _startupStatusMessage;
+    private static bool _startupUpdateFailed;
 
     private readonly string _installDirectory;
     private readonly string _currentExecutablePath;
@@ -67,7 +70,7 @@ public sealed class ShellUpdateInstaller
 
     public ShellUpdateInstaller()
         : this(
-            AppContext.BaseDirectory,
+            ResolveInstallDirectory(AppContext.BaseDirectory, Environment.ProcessPath),
             Environment.ProcessPath ?? string.Empty,
             OperatingSystem.IsWindows(),
             OperatingSystem.IsLinux(),
@@ -115,6 +118,27 @@ public sealed class ShellUpdateInstaller
             _processElevatedProbe());
 
     public static string? StartupStatusMessage => _startupStatusMessage;
+
+    public static bool StartupUpdateFailed => _startupUpdateFailed;
+
+    internal static string ResolveInstallDirectory(string baseDirectory, string? processPath)
+    {
+        if (!string.IsNullOrWhiteSpace(processPath))
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(Path.GetFullPath(processPath));
+                if (!string.IsNullOrWhiteSpace(dir))
+                    return NormalizeDirectory(dir);
+            }
+            catch
+            {
+                // Fall back to AppContext.BaseDirectory.
+            }
+        }
+
+        return NormalizeDirectory(baseDirectory);
+    }
 
     public bool CanInstallInPlace(out string reason)
     {
@@ -351,11 +375,9 @@ public sealed class ShellUpdateInstaller
         var previousResult = Path.Combine(update.UpdateRoot, UpdateResultFileName);
         if (File.Exists(previousResult))
             File.Delete(previousResult);
+        ClearApplyFailure(update);
         try
         {
-            if (requiresElevation)
-                restartBroker = StartRestartBroker(stagedExecutable, update, Environment.ProcessId, _installDirectory);
-
             var startInfo = CreateApplyStartInfo(
                 stagedExecutable,
                 update.PayloadDirectory,
@@ -364,8 +386,14 @@ public sealed class ShellUpdateInstaller
                 update.UpdateRoot,
                 requiresElevation,
                 deferRestart: requiresElevation);
+            // Process.Start(runas) blocks until the user accepts or cancels UAC. Start the
+            // unelevated restart broker only after that returns — otherwise the broker's
+            // parent-exit wait times out while the elevation prompt is still open.
             using var process = Process.Start(startInfo)
                 ?? throw new InvalidOperationException("The update helper could not be started.");
+
+            if (requiresElevation)
+                restartBroker = StartRestartBroker(stagedExecutable, update, Environment.ProcessId, _installDirectory);
         }
         catch (Win32Exception ex) when (requiresElevation && ex.NativeErrorCode == ElevationCancelledError)
         {
@@ -382,6 +410,44 @@ public sealed class ShellUpdateInstaller
         {
             restartBroker?.Dispose();
         }
+    }
+
+    /// <summary>Returns a sticky apply-failure message for a prepared update, if any.</summary>
+    public string? TryGetApplyFailure(ShellUpdateOffer offer)
+    {
+        ArgumentNullException.ThrowIfNull(offer);
+        try
+        {
+            var updateRoot = GetUpdateRoot(offer.Version);
+            var marker = Path.Combine(updateRoot, FailureMarkerFileName);
+            if (File.Exists(marker))
+            {
+                var text = File.ReadAllText(marker).Trim();
+                if (!string.IsNullOrWhiteSpace(text))
+                    return text;
+            }
+
+            var sticky = Path.Combine(ShellPaths.GetConfigRoot(ensureExists: false), StickyUpdateErrorFileName);
+            if (File.Exists(sticky))
+            {
+                var text = File.ReadAllText(sticky).Trim();
+                if (!string.IsNullOrWhiteSpace(text))
+                    return text;
+            }
+        }
+        catch
+        {
+            // Best-effort diagnostics only.
+        }
+
+        return null;
+    }
+
+    public void ClearApplyFailure(PreparedShellUpdate update)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        TryDeleteFile(Path.Combine(update.UpdateRoot, FailureMarkerFileName));
+        TryDeleteFile(Path.Combine(ShellPaths.GetConfigRoot(ensureExists: false), StickyUpdateErrorFileName));
     }
 
     internal static ProcessStartInfo CreateApplyStartInfo(
@@ -560,6 +626,12 @@ public sealed class ShellUpdateInstaller
         catch (Exception ex)
         {
             Trace.WriteLine($"Shell update helper failed: {ex}");
+            if (!string.IsNullOrWhiteSpace(updateRoot))
+            {
+                WriteApplyFailure(
+                    updateRoot!,
+                    $"The update could not be installed: {ex.Message}");
+            }
             if (deferRestart && !string.IsNullOrWhiteSpace(updateRoot))
             {
                 TryWriteUpdateResult(
@@ -620,9 +692,16 @@ public sealed class ShellUpdateInstaller
         }
 
         if (!string.IsNullOrWhiteSpace(updatedVersion))
+        {
+            _startupUpdateFailed = false;
             _startupStatusMessage = $"Updated successfully to {updatedVersion}.";
+            ClearStickyUpdateError();
+        }
         else if (!string.IsNullOrWhiteSpace(updateError))
+        {
+            _startupUpdateFailed = true;
             _startupStatusMessage = updateError;
+        }
 
         if (!string.IsNullOrWhiteSpace(cleanupDirectory) && IsSafeCleanupDirectory(cleanupDirectory))
             ScheduleCleanup(cleanupDirectory);
@@ -822,12 +901,16 @@ public sealed class ShellUpdateInstaller
             if (!Version.TryParse(manifest.Version, out var expectedVersion))
                 throw new InvalidDataException("The prepared update version is invalid.");
             ApplyPayload(payloadDirectory, installDirectory, Path.Combine(updateRoot, "backup"), expectedVersion);
+            ClearStickyUpdateError();
         }
         catch (Exception ex)
         {
             var logPath = Path.Combine(updateRoot, "update-error.log");
             TryWriteAllText(logPath, ex.ToString());
-            errorMessage = $"The update could not be installed. Recovery details: {logPath}";
+            errorMessage =
+                $"The update could not be installed ({ex.GetType().Name}: {ex.Message}). " +
+                $"If Windows Security blocked the updater, allow XcpNgCenter.Shell.exe and add exclusions for the install folder and %LOCALAPPDATA%\\XCP-ng\\XCP-ng Center Shell\\Updates. Details: {logPath}";
+            WriteApplyFailure(updateRoot, errorMessage);
         }
 
         var installedExecutable = Path.Combine(installDirectory, manifest.ExecutableName);
@@ -957,7 +1040,7 @@ public sealed class ShellUpdateInstaller
         try
         {
             using var process = Process.GetProcessById(processId);
-            if (!process.HasExited && !process.WaitForExit(120_000))
+            if (!process.HasExited && !process.WaitForExit(300_000))
                 throw new TimeoutException("XCP-ng Center did not exit in time for the update.");
         }
         catch (ArgumentException)
@@ -1038,8 +1121,9 @@ public sealed class ShellUpdateInstaller
     {
         _ = Task.Run(async () =>
         {
-            await Task.Delay(2000).ConfigureAwait(false);
-            for (var attempt = 0; attempt < 12; attempt++)
+            // Give Windows Defender / AV a chance to finish scanning before we delete.
+            await Task.Delay(15_000).ConfigureAwait(false);
+            for (var attempt = 0; attempt < 30; attempt++)
             {
                 try
                 {
@@ -1053,7 +1137,7 @@ public sealed class ShellUpdateInstaller
                 }
                 catch
                 {
-                    await Task.Delay(500).ConfigureAwait(false);
+                    await Task.Delay(1000).ConfigureAwait(false);
                 }
             }
         });
@@ -1064,17 +1148,36 @@ public sealed class ShellUpdateInstaller
         try
         {
             var normalized = NormalizeDirectory(directory);
-            var updateBase = GetStagingBaseDirectory(
-                AppContext.BaseDirectory,
-                ShellPaths.GetUpdateStagingRoot(ensureExists: false),
-                OperatingSystem.IsWindows());
-            return PathEquals(Path.GetDirectoryName(normalized) ?? string.Empty, updateBase)
+            var stagingRoot = NormalizeDirectory(ShellPaths.GetUpdateStagingRoot(ensureExists: false));
+            var parent = Path.GetDirectoryName(normalized);
+            var grandparent = parent == null ? null : Path.GetDirectoryName(parent);
+            return grandparent != null
+                   && PathEquals(grandparent, stagingRoot)
                    && Path.GetFileName(normalized).StartsWith('v');
         }
         catch
         {
             return false;
         }
+    }
+
+    private static void WriteApplyFailure(string updateRoot, string message)
+    {
+        TryWriteAllText(Path.Combine(updateRoot, FailureMarkerFileName), message);
+        try
+        {
+            var sticky = Path.Combine(ShellPaths.GetConfigRoot(), StickyUpdateErrorFileName);
+            File.WriteAllText(sticky, message);
+        }
+        catch
+        {
+            // Sticky diagnostics are best-effort when Defender locks AppData.
+        }
+    }
+
+    private static void ClearStickyUpdateError()
+    {
+        TryDeleteFile(Path.Combine(ShellPaths.GetConfigRoot(ensureExists: false), StickyUpdateErrorFileName));
     }
 
     private void EnsureStagingDirectoryIsWritable()
@@ -1193,7 +1296,7 @@ public sealed class ShellUpdateInstaller
         {
             var temporary = Path.Combine(
                 Path.GetDirectoryName(target)!,
-                $".{Path.GetFileName(target)}.{Guid.NewGuid():N}.xcpng-new");
+                $".xcpng-{Guid.NewGuid():N}.tmp");
             try
             {
                 CopyFilePreservingMode(source, temporary, overwrite: false);
@@ -1330,6 +1433,9 @@ public sealed class ShellUpdateInstaller
     {
         try
         {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(dir))
+                Directory.CreateDirectory(dir);
             File.WriteAllText(path, text);
         }
         catch
