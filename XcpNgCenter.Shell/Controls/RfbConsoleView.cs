@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using XcpNgCenter.Shell.Services;
 
 namespace XcpNgCenter.Shell.Controls;
@@ -14,6 +15,8 @@ namespace XcpNgCenter.Shell.Controls;
 /// </summary>
 public sealed class RfbConsoleView : Control
 {
+    private const string LocalCursorAsset = "avares://XcpNgCenter.Shell/Assets/Images/vnc_local_cursor.png";
+
     public static readonly StyledProperty<WriteableBitmap?> FrameProperty =
         AvaloniaProperty.Register<RfbConsoleView, WriteableBitmap?>(nameof(Frame));
 
@@ -31,17 +34,45 @@ public sealed class RfbConsoleView : Control
             nameof(FocusCaptureChanged),
             RoutingStrategies.Bubble);
 
+    private static Cursor? _localDesktopCursor;
+
     private int _buttonMask;
     private readonly Dictionary<Key, int> _pressed = new();
     private HostedConsoleSession? _subscribedSession;
     private Cursor? _remoteCursor;
     private bool _pointerOverDesktop;
+    private Window? _hostWindow;
 
     static RfbConsoleView()
     {
         AffectsRender<RfbConsoleView>(FrameProperty, SessionProperty, ScaleToFitProperty);
         FocusableProperty.OverrideDefaultValue<RfbConsoleView>(true);
         ClipToBoundsProperty.OverrideDefaultValue<RfbConsoleView>(true);
+    }
+
+    public RfbConsoleView()
+    {
+        // Terminal glyphs/emoji are 1px strokes in the framebuffer. Avalonia's default
+        // LowQuality (bilinear) scale softens them into thin/blurry text — use nearest-neighbor.
+        RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
+        RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
+    }
+
+    private static Cursor LocalDesktopCursor => _localDesktopCursor ??= CreateLocalDesktopCursor();
+
+    private static Cursor CreateLocalDesktopCursor()
+    {
+        try
+        {
+            using var stream = AssetLoader.Open(new Uri(LocalCursorAsset));
+            var bitmap = new Bitmap(stream);
+            // Hotspot matches XenAdmin VNCGraphicsClient (2, 2).
+            return new Cursor(bitmap, new PixelPoint(2, 2));
+        }
+        catch
+        {
+            return new Cursor(StandardCursorType.Arrow);
+        }
     }
 
     public event EventHandler<RoutedEventArgs> FocusCaptureChanged
@@ -83,11 +114,42 @@ public sealed class RfbConsoleView : Control
             SubscribeSession(change.GetNewValue<HostedConsoleSession?>());
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        AttachHostWindow(TopLevel.GetTopLevel(this) as Window);
+    }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        AttachHostWindow(null);
         SubscribeSession(null);
         ClearRemoteCursor();
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void AttachHostWindow(Window? window)
+    {
+        if (ReferenceEquals(_hostWindow, window))
+            return;
+        if (_hostWindow != null)
+            _hostWindow.Deactivated -= OnHostWindowDeactivated;
+        _hostWindow = window;
+        if (_hostWindow != null)
+            _hostWindow.Deactivated += OnHostWindowDeactivated;
+    }
+
+    private void OnHostWindowDeactivated(object? sender, EventArgs e)
+    {
+        // Synergy / multi-seat: leaving this machine must drop console keyboard capture
+        // without requiring a click-back on the XenAdmin window first.
+        if (IsFocused)
+            ReleaseInputCapture();
+    }
+
+    private void ReleaseInputCapture()
+    {
+        TopLevel.GetTopLevel(this)?.FocusManager?.ClearFocus();
     }
 
     private void SubscribeSession(HostedConsoleSession? session)
@@ -145,8 +207,10 @@ public sealed class RfbConsoleView : Control
 
     private void UpdatePointerCursor()
     {
+        // Terminals / text consoles often never send a remote cursor shape. Never hide the
+        // OS pointer in that case — fall back to the local VNC dot like XenAdmin.
         Cursor = _pointerOverDesktop
-            ? _remoteCursor ?? new Cursor(StandardCursorType.None)
+            ? _remoteCursor ?? LocalDesktopCursor
             : Cursor.Default;
     }
 
@@ -232,6 +296,9 @@ public sealed class RfbConsoleView : Control
         if (!IsFocused)
             return;
         _buttonMask = 0;
+        // Drop keyboard capture as soon as the pointer leaves the console. Otherwise
+        // Synergy and similar tools keep keys stuck on this machine until a click-away.
+        ReleaseInputCapture();
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
@@ -258,7 +325,7 @@ public sealed class RfbConsoleView : Control
             return;
         if (IsReleaseShortcut(e.Key))
         {
-            TopLevel.GetTopLevel(this)?.FocusManager?.ClearFocus();
+            ReleaseInputCapture();
             e.Handled = true;
             return;
         }
@@ -390,7 +457,12 @@ public sealed class RfbConsoleView : Control
             return false;
 
         desk = new PixelSize(dw, dh);
-        var scale = ScaleToFit ? Math.Min(Bounds.Width / dw, Bounds.Height / dh) : 1d;
+        // Prefer integer upscales so console fonts/emoji stay crisp; only use a
+        // fractional factor when the viewport is smaller than the native desktop.
+        var fit = Math.Min(Bounds.Width / dw, Bounds.Height / dh);
+        var scale = ScaleToFit
+            ? (fit >= 1d ? Math.Max(1d, Math.Floor(fit)) : fit)
+            : 1d;
         var w = Math.Floor(dw * scale);
         var h = Math.Floor(dh * scale);
         if (!ScaleToFit)

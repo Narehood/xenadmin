@@ -335,7 +335,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         ConsoleInputHint = focused
-            ? "Keyboard and mouse captured by guest — click elsewhere to release."
+            ? $"Keyboard and mouse captured by guest — move the pointer away, press {ConsoleReleaseShortcut}, or click elsewhere to release."
             : "Click the console to send keyboard and mouse to the guest.";
     }
 

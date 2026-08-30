@@ -167,7 +167,7 @@
                      Margin="0,10,0,0" />
           <CheckBox Content="Scale consoles to fit the available space"
                     IsChecked="{Binding ScaleConsoleToFit}" />
-          <TextBlock Text="Disable scaling to display the remote framebuffer at its native size, centered and clipped when necessary."
+          <TextBlock Text="Uses sharp (nearest-neighbor) integer scaling when possible so terminal fonts and emoji stay crisp. Disable to show the remote framebuffer at native 1:1 size."
                      FontSize="12"
                      TextWrapping="Wrap"
                      Foreground="{StaticResource Brush.TextMuted}" />

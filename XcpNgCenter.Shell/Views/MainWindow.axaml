@@ -996,7 +996,7 @@
                                                      ReleaseShortcut="{Binding ConsoleReleaseShortcut}"
                                                      Frame="{Binding ConsoleBitmap}"
                                                      Session="{Binding ConsoleSession}"
-                                                     ToolTip.Tip="Click the console to capture keyboard, mouse, and scroll — until then the page keeps scrolling"
+                                                     ToolTip.Tip="Click the console to capture keyboard and mouse. Move the pointer away, use the release shortcut, or click elsewhere to release."
                                                      FocusCaptureChanged="OnConsoleFocusCaptureChanged" />
                           </Grid>
                         </Border>

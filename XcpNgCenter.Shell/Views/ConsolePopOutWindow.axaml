@@ -70,7 +70,7 @@
                                VerticalAlignment="Stretch"
                                ClipToBounds="True"
                                Margin="2"
-                               ToolTip.Tip="Keyboard and mouse are sent to the guest" />
+                               ToolTip.Tip="Click to capture keyboard and mouse. Move the pointer away or use the release shortcut to release." />
     </Border>
   </Grid>
 </Window>

@@ -167,9 +167,13 @@ public partial class HostPropertiesViewModel : ViewModelBase
         _initialIgmpSnoopingEnabled = IgmpSnoopingEnabled;
         _initialLegacySslEnabled = LegacySslEnabled;
 
-        ShowClusteringSection = canManagePoolPolicies
-                                && !Helpers.FeatureForbidden(host.Connection, Host.RestrictCorosync);
         var existingCluster = host.Connection.Cache.Clusters.FirstOrDefault();
+        // Standalone hosts do not need the Clustering tab unless clustering is already on
+        // (so it can still be reviewed/disabled). Multi-host pools keep the tab as usual.
+        var isStandalone = Helpers.GetPool(host.Connection) == null;
+        ShowClusteringSection = canManagePoolPolicies
+                                && !Helpers.FeatureForbidden(host.Connection, Host.RestrictCorosync)
+                                && (!isStandalone || existingCluster != null);
         ClusteringEnabled = existingCluster != null;
         _initialClusteringEnabled = ClusteringEnabled;
         PopulateClusterNetworks(existingCluster);
