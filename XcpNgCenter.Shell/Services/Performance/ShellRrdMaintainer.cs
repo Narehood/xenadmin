@@ -35,14 +35,24 @@ public sealed class ShellRrdMaintainer : IDisposable
     private long _currentTime;
     private int _valueCount;
     private string _lastNode = "";
-    private DateTime _lastFiveSecond = DateTime.MinValue;
-    private DateTime _lastOneMinute = DateTime.MinValue;
-    private DateTime _lastOneHour = DateTime.MinValue;
-    private DateTime _lastOneDay = DateTime.MinValue;
+    private readonly Dictionary<RrdArchiveInterval, DateTime> _lastPoll = new();
+    private readonly Dictionary<RrdArchiveInterval, long> _lastSample = new();
+    private readonly Action<Action> _dispatch;
 
-    public ShellRrdMaintainer(IXenObject xenObject)
+    public ShellRrdMaintainer(IXenObject xenObject) : this(xenObject, action =>
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+            action();
+        else
+            Dispatcher.UIThread.Post(action);
+    })
+    {
+    }
+
+    internal ShellRrdMaintainer(IXenObject xenObject, Action<Action> dispatch)
     {
         XenObject = xenObject;
+        _dispatch = dispatch;
         Archives[RrdArchiveInterval.FiveSecond] = new RrdArchive(FiveSecondsInTenMinutes + 4);
         Archives[RrdArchiveInterval.OneMinute] = new RrdArchive(MinutesInTwoHours);
         Archives[RrdArchiveInterval.OneHour] = new RrdArchive(HoursInOneWeek);
@@ -88,40 +98,17 @@ public sealed class ShellRrdMaintainer : IDisposable
             while (!_cancel)
             {
                 serverWas = ServerNow;
-                if (serverWas - _lastFiveSecond > TimeSpan.FromSeconds(5))
+                foreach (var interval in Enum.GetValues<RrdArchiveInterval>())
                 {
-                    Get(UpdateUri, RrdUpdateInspect, XenObject);
-                    if (_cancel) break;
-                    _lastFiveSecond = serverWas;
-                    if (_setsAdded != null)
-                        MergeOnUi(RrdArchiveInterval.FiveSecond, _setsAdded);
-                }
-
-                if (serverWas - _lastOneMinute > TimeSpan.FromMinutes(1))
-                {
-                    Get(UpdateUri, RrdUpdateInspect, XenObject);
-                    if (_cancel) break;
-                    _lastOneMinute = serverWas;
-                    if (_setsAdded != null)
-                        MergeOnUi(RrdArchiveInterval.OneMinute, _setsAdded);
-                }
-
-                if (serverWas - _lastOneHour > TimeSpan.FromHours(1))
-                {
-                    Get(UpdateUri, RrdUpdateInspect, XenObject);
-                    if (_cancel) break;
-                    _lastOneHour = serverWas;
-                    if (_setsAdded != null)
-                        MergeOnUi(RrdArchiveInterval.OneHour, _setsAdded);
-                }
-
-                if (serverWas - _lastOneDay > TimeSpan.FromDays(1))
-                {
-                    Get(UpdateUri, RrdUpdateInspect, XenObject);
-                    if (_cancel) break;
-                    _lastOneDay = serverWas;
-                    if (_setsAdded != null)
-                        MergeOnUi(RrdArchiveInterval.OneDay, _setsAdded);
+                    if (_cancel)
+                        break;
+                    if (!_lastPoll.TryGetValue(interval, out var last)
+                        || serverWas - last >= TimeSpan.FromSeconds(IntervalSeconds(interval)))
+                    {
+                        PollArchive(interval, serverWas, (start, seconds) =>
+                            Get(xo => UpdateUri(xo, start, seconds), RrdUpdateInspect, XenObject)
+                                ? _setsAdded : null);
+                    }
                 }
 
                 RaiseUpdated();
@@ -178,51 +165,88 @@ public sealed class ShellRrdMaintainer : IDisposable
             return;
 
         LoadingInitialData = false;
-        _lastFiveSecond = initialServerTime;
-        _lastOneMinute = initialServerTime;
-        _lastOneHour = initialServerTime;
-        _lastOneDay = initialServerTime;
+        foreach (var interval in Enum.GetValues<RrdArchiveInterval>())
+            _lastPoll[interval] = initialServerTime;
         RaiseUpdated();
     }
 
-    private void Get(Func<IXenObject, Uri?> uriBuilder, Action<XmlReader, IXenObject> readerMethod, IXenObject xo)
+    internal static int IntervalSeconds(RrdArchiveInterval interval) => interval switch
     {
+        RrdArchiveInterval.FiveSecond => 5,
+        RrdArchiveInterval.OneMinute => 60,
+        RrdArchiveInterval.OneHour => 3600,
+        RrdArchiveInterval.OneDay => 86400,
+        _ => throw new ArgumentOutOfRangeException(nameof(interval))
+    };
+
+    internal void PollArchive(RrdArchiveInterval interval, DateTime serverNow,
+        Func<long, int, List<RrdSeries>?> fetch)
+    {
+        _lastPoll[interval] = serverNow;
+        var seconds = IntervalSeconds(interval);
+        var maxPoints = Archives[interval].MaxPoints;
+        if (_cancel || maxPoints == 0)
+            return;
+
+        var oldestRetained = new DateTimeOffset(serverNow).ToUnixTimeSeconds() - (long)maxPoints * seconds;
+        var start = _lastSample.TryGetValue(interval, out var latest)
+            ? Math.Max(oldestRetained, latest) : oldestRetained;
+        var sets = fetch(start, seconds);
+        if (_cancel || sets == null)
+            return;
+        RecordLatestSample(interval, sets);
+        MergeOnUi(interval, sets);
+    }
+
+    private void RecordLatestSample(RrdArchiveInterval interval, List<RrdSeries> sets)
+    {
+        var ticks = sets.SelectMany(s => s.Points).Select(p => p.Ticks).DefaultIfEmpty(0).Max();
+        if (ticks == 0)
+            return;
+        // RRD points are stored in local display time; requests use server Unix time.
+        var latest = new DateTimeOffset(new DateTime(ticks, DateTimeKind.Local)).ToUnixTimeSeconds();
+        if (!_lastSample.TryGetValue(interval, out var previous) || latest > previous)
+            _lastSample[interval] = latest;
+    }
+
+    private bool Get(Func<IXenObject, Uri?> uriBuilder, Action<XmlReader, IXenObject> readerMethod, IXenObject xo)
+    {
+        _setsAdded = null;
         try
         {
             var uri = uriBuilder(xo);
             if (uri == null)
-                return;
+                return false;
 
             using var stream = HTTPHelper.GET(uri, xo.Connection, true);
             using var reader = XmlReader.Create(stream);
             _setsAdded = new List<RrdSeries>();
             while (reader.Read() && !_cancel)
                 readerMethod(reader, xo);
+            return !_cancel;
         }
         catch (Exception e)
         {
             Log.Warn($"RRD get for {xo.Name()} failed", e);
+            return false;
         }
     }
 
-    private Uri? UpdateUri(IXenObject xo)
+    private Uri? UpdateUri(IXenObject xo, long start, int seconds)
     {
         var sessionRef = xo.Connection?.Session?.opaque_ref;
         if (sessionRef == null)
             return null;
 
         var escaped = Uri.EscapeDataString(sessionRef);
-        // Five-second window start (recent samples).
-        var start = Util.TicksToSecondsSince1970(DateTime.UtcNow.Ticks - ClientServerOffset.Ticks - TimeSpan.FromMinutes(10).Ticks);
-
         return xo switch
         {
             Host host => BuildUri(host, "rrd_updates",
-                $"session_id={escaped}&start={start}&cf=AVERAGE&interval=5&host=true"),
+                $"session_id={escaped}&start={start}&cf=AVERAGE&interval={seconds}&host=true"),
             VM vm => BuildUri(
                 vm.Connection.Resolve(vm.resident_on) ?? Helpers.GetCoordinator(vm.Connection),
                 "rrd_updates",
-                $"session_id={escaped}&start={start}&cf=AVERAGE&interval=5&vm_uuid={vm.uuid}"),
+                $"session_id={escaped}&start={start}&cf=AVERAGE&interval={seconds}&vm_uuid={vm.uuid}"),
             _ => null
         };
     }
@@ -281,7 +305,10 @@ public sealed class ShellRrdMaintainer : IDisposable
 
                     var interval = IntervalFromFiveSecs(_currentInterval);
                     if (interval != null && _setsAdded != null)
+                    {
+                        RecordLatestSample(interval.Value, _setsAdded);
                         MergeOnUi(interval.Value, CloneSets(_setsAdded));
+                    }
 
                     if (_setsAdded != null)
                     {
@@ -442,23 +469,15 @@ public sealed class ShellRrdMaintainer : IDisposable
     {
         void Apply()
         {
-            if (Archives.TryGetValue(interval, out var archive))
+            if (!_cancel && Archives.TryGetValue(interval, out var archive))
                 archive.Merge(sets);
         }
 
-        if (Dispatcher.UIThread.CheckAccess())
-            Apply();
-        else
-            Dispatcher.UIThread.Post(Apply);
+        _dispatch(Apply);
     }
 
     private void RaiseUpdated()
     {
-        void Apply() => ArchivesUpdated?.Invoke();
-
-        if (Dispatcher.UIThread.CheckAccess())
-            Apply();
-        else
-            Dispatcher.UIThread.Post(Apply);
+        _dispatch(() => { if (!_cancel) ArchivesUpdated?.Invoke(); });
     }
 }

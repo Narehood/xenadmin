@@ -163,9 +163,8 @@ namespace XenAPI
         }
 
         /// <summary>
-        /// Fired when a request has been serialized taking as a parameter the call name in RELEASE and the
-        /// Json string in DEBUG mode.
-        /// IMPORTANT: the latter may contain sensitive data, so handle it carefully.
+        /// Reports only the method name in every build configuration. Request parameters
+        /// can contain passwords and bearer session references and must not enter diagnostics.
         /// </summary>
         public event Action<string> RequestEvent;
 
@@ -218,27 +217,11 @@ namespace XenAPI
             webRequest.CookieContainer = Cookies ?? webRequest.CookieContainer ?? new CookieContainer();
             webRequest.ServerCertificateValidationCallback = ServerCertificateValidationCallback ?? ServicePointManager.ServerCertificateValidationCallback;
 
-            // for performance reasons it's preferable to deserialize directly
-            // from the Stream rather than allocating strings inbetween
-            // therefore the latter will be done only in DEBUG mode
-
-#if DEBUG
-            var settings = CreateSettings(serializer.Converters);
-#endif
-
             using (var str = webRequest.GetRequestStream())
             using (var sw = new StreamWriter(str))
             {
-#if DEBUG
-                string jsonReq = JsonConvert.SerializeObject(request, settings);
-                if (RequestEvent != null)
-                    RequestEvent(jsonReq);
-                sw.Write(jsonReq);
-#else
-                if (RequestEvent != null)
-                    RequestEvent(callName);
+                RequestEvent?.Invoke(callName);
                 serializer.Serialize(sw, request);
-#endif
                 sw.Flush();
             }
 
@@ -257,12 +240,7 @@ namespace XenAPI
                         switch (JsonRpcVersion)
                         {
                             case JsonRpcVersion.v2:
-#if DEBUG
-                                string json2 = responseReader.ReadToEnd();
-                                var res2 = JsonConvert.DeserializeObject<JsonResponseV2<T>>(json2, settings);
-#else
                                 var res2 = (JsonResponseV2<T>)serializer.Deserialize(responseReader, typeof(JsonResponseV2<T>));
-#endif
                                 if (res2.Error != null)
                                 {
                                     var descr = new List<string> { res2.Error.Message };
@@ -271,12 +249,7 @@ namespace XenAPI
                                 }
                                 return res2.Result;
                             default:
-#if DEBUG
-                                string json1 = responseReader.ReadToEnd();
-                                var res1 = JsonConvert.DeserializeObject<JsonResponseV1<T>>(json1, settings);
-#else
                                 var res1 = (JsonResponseV1<T>)serializer.Deserialize(responseReader, typeof(JsonResponseV1<T>));
-#endif
                                 if (res1.Error != null)
                                 {
                                     var errorArray = res1.Error.ToObject<string[]>();

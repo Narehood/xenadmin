@@ -1,6 +1,9 @@
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Security;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -43,6 +46,7 @@ public sealed class ShellGitHubUpdateChecker
     public const string DefaultRepo = "xenadmin";
 
     private static readonly HttpClient Http = CreateClient();
+    private static readonly Lazy<HttpClient> MachineTrustHttp = new(() => CreateClient(machineTrustOnly: true));
 
     private readonly string _owner;
     private readonly string _repo;
@@ -55,6 +59,16 @@ public sealed class ShellGitHubUpdateChecker
     }
 
     public string ReleasesPageUrl => $"https://github.com/{_owner}/{_repo}/releases";
+
+    internal static bool IsDefaultRepositoryConfigured
+    {
+        get
+        {
+            ResolveRepo(null, null, out var owner, out var repo);
+            return string.Equals(owner, DefaultOwner, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(repo, DefaultRepo, StringComparison.OrdinalIgnoreCase);
+        }
+    }
 
     /// <summary>
     /// Silent startup-friendly check. Prefer <see cref="CheckForUpdateDetailedAsync"/> when the
@@ -144,6 +158,30 @@ public sealed class ShellGitHubUpdateChecker
 
     public void ClearDismissed() => _preferences.ClearDismissedVersion();
 
+    internal static async Task<ShellUpdateAsset> GetPublishedAssetAsync(
+        Version version, bool useDefaultRepository, CancellationToken cancellationToken)
+    {
+        var owner = DefaultOwner;
+        var repo = DefaultRepo;
+        // Elevated code must never take its publisher or digest from writable cache
+        // metadata or an environment override inherited from an unelevated process.
+        if (!useDefaultRepository)
+            ResolveRepo(null, null, out owner, out repo);
+        var tag = "v" + version.ToString(4);
+        var release = await GetJsonAsync<GitHubRelease>(
+            $"https://api.github.com/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/releases/tags/{Uri.EscapeDataString(tag)}",
+            cancellationToken, allowNotFound: false,
+            useDefaultRepository && OperatingSystem.IsWindows() ? MachineTrustHttp.Value : Http).ConfigureAwait(false);
+        if (release == null || release.Draft || release.Prerelease
+            || !string.Equals(release.TagName, tag, StringComparison.Ordinal))
+            throw new InvalidDataException("The requested update is not a published stable release.");
+        return SelectPlatformAsset(
+            release.Assets?.Where(a => a.State == "uploaded").Select(a =>
+                new ShellUpdateAsset(a.Name ?? string.Empty, a.DownloadUrl ?? string.Empty, a.Size, a.Digest)) ?? [],
+            version, OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture)
+            ?? throw new InvalidDataException("The published release has no authenticated package for this platform.");
+    }
+
     internal static ShellUpdateAsset? SelectPlatformAsset(
         IEnumerable<ShellUpdateAsset> assets,
         Version version,
@@ -203,10 +241,11 @@ public sealed class ShellGitHubUpdateChecker
             .FirstOrDefault();
     }
 
-    private static async Task<T?> GetJsonAsync<T>(string url, CancellationToken cancellationToken, bool allowNotFound)
+    private static async Task<T?> GetJsonAsync<T>(string url, CancellationToken cancellationToken, bool allowNotFound,
+        HttpClient? client = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        using var response = await Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await (client ?? Http).SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound && allowNotFound)
             return default;
         if (!response.IsSuccessStatusCode)
@@ -237,12 +276,63 @@ public sealed class ShellGitHubUpdateChecker
         resolvedRepo = string.IsNullOrWhiteSpace(repo) ? DefaultRepo : repo!;
     }
 
-    private static HttpClient CreateClient()
+    private static HttpClient CreateClient(bool machineTrustOnly = false)
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
+        var client = machineTrustOnly
+            ? new HttpClient(new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (_, certificate, chain, errors) =>
+                    ValidateMachineTrustCertificate(certificate, chain, errors)
+            })
+            : new HttpClient();
+        client.Timeout = TimeSpan.FromSeconds(12);
         client.DefaultRequestHeaders.UserAgent.ParseAdd($"XCP-ng-Center-Shell/{ShellVersionInfo.Display}");
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         return client;
+    }
+
+    internal static bool ValidateMachineTrustCertificate(X509Certificate2? certificate,
+        X509Chain? presentedChain, SslPolicyErrors errors)
+    {
+        // SslStream checks the hostname and certificate availability. Its default
+        // chain can trust current-user roots, so even a reported success must be
+        // rebuilt against Windows' machine chain engine before trusting privileged update metadata.
+        if (!OperatingSystem.IsWindows() || certificate == null
+            || (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) != SslPolicyErrors.None)
+            return false;
+
+        using var machineChain = new X509Chain(useMachineContext: true);
+        try
+        {
+            var policy = machineChain.ChainPolicy;
+            policy.TrustMode = X509ChainTrustMode.System;
+            policy.VerificationFlags = X509VerificationFlags.NoFlag;
+            policy.ApplicationPolicy.Add(new Oid("1.3.6.1.5.5.7.3.1")); // TLS server authentication
+            if (presentedChain != null)
+            {
+                // Preserve the transport's revocation/download policy, never its
+                // trust anchors or verification exemptions. ExtraStore supplies
+                // intermediate candidates; it does not make their roots trusted.
+                policy.RevocationMode = presentedChain.ChainPolicy.RevocationMode;
+                policy.RevocationFlag = presentedChain.ChainPolicy.RevocationFlag;
+                policy.UrlRetrievalTimeout = presentedChain.ChainPolicy.UrlRetrievalTimeout;
+                policy.DisableCertificateDownloads = presentedChain.ChainPolicy.DisableCertificateDownloads;
+                policy.ExtraStore.AddRange(presentedChain.ChainPolicy.ExtraStore);
+                foreach (X509ChainElement element in presentedChain.ChainElements)
+                    if (!element.Certificate.Equals(certificate))
+                        policy.ExtraStore.Add(element.Certificate);
+            }
+            return machineChain.Build(certificate);
+        }
+        catch (CryptographicException)
+        {
+            return false;
+        }
+        finally
+        {
+            foreach (X509ChainElement element in machineChain.ChainElements)
+                element.Certificate.Dispose();
+        }
     }
 
     private sealed class GitHubRelease

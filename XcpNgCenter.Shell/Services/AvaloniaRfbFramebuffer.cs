@@ -211,9 +211,8 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
             _width = width;
             _height = height;
             _pixels = new byte[width * height * 4];
-            // Force both buffers to be recreated at the new size on the next UI flush.
-            _bitmap = null;
-            _bitmapAlt = null;
+            // Keep ownership until the UI flush replaces/disposes each old buffer.
+            // Nulling them here loses the native resources on every desktop resize.
         }
 
         QueueUiSync(resized: true);
@@ -356,7 +355,6 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
     {
         int width;
         int height;
-        byte[] snapshot;
         bool fireResized;
 
         lock (_gate)
@@ -370,9 +368,6 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
 
             width = _width;
             height = _height;
-            snapshot = new byte[_pixels.Length];
-            Buffer.BlockCopy(_pixels, 0, snapshot, 0, _pixels.Length);
-
             // Avalonia 11.2.4+ often keeps a stale GPU texture for an in-place WriteableBitmap
             // mutation. Write into the back buffer, then swap so Bitmap identity changes each
             // frame and bound controls pick up keyboard echo / text cursor without a tab switch.
@@ -384,7 +379,7 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
                 for (var row = 0; row < height; row++)
                 {
                     System.Runtime.InteropServices.Marshal.Copy(
-                        snapshot,
+                        _pixels,
                         row * srcStride,
                         IntPtr.Add(fb.Address, row * dstStride),
                         srcStride);

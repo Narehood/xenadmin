@@ -43,7 +43,7 @@ namespace XenAdmin.Network
 {
     internal class SSL
     {
-        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(typeof(SSL));
 
         private static readonly object CertificateValidationLock = new object();
 
@@ -60,34 +60,26 @@ namespace XenAdmin.Network
               X509Chain chain,
               SslPolicyErrors sslPolicyErrors)
         {
-            // Clean public-CA chains are fine; self-signed hosts fall through to TOFU below.
-            if (sslPolicyErrors == SslPolicyErrors.None)
-            {
-                log.Debug("SslPolicyErrors is set to None, exiting validation");
-                return true;
-            }
+            if (certificate == null)
+                return false;
             lock (CertificateValidationLock)
             {
                 bool AcceptCertificate = false;
-                string hostname = null;
+                string hostname = string.Empty;
                 if (sender is HttpWebRequest webreq)
-                    hostname = webreq.Address?.Host;
+                    hostname = webreq.Address?.Host ?? string.Empty;
                 else if (sender is string host)
                     hostname = host;
 
                 if (string.IsNullOrEmpty(hostname))
                     return false;
 
-                // No UI means we cannot complete TOFU prompting; do not accept-all.
-                if (Program.MainWindow == null)
-                    return false;
-
                 foreach (KeyValuePair<string, string> kvp in Settings.KnownServers)
                 {
-                    if (kvp.Key != hostname)
+                    if (!string.Equals(kvp.Key, hostname, System.StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    if (kvp.Value == certificate.GetCertHashString())
+                    if (string.Equals(kvp.Value, certificate.GetCertHashString(), System.StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
@@ -99,6 +91,8 @@ namespace XenAdmin.Network
                     }
                     else
                     {
+                        if (Program.MainWindow == null)
+                            return false;
                         Program.Invoke(Program.MainWindow, () =>
                         {
                             using (var dialog = new CertificateChangedDialog(certificate, hostname))
@@ -113,6 +107,10 @@ namespace XenAdmin.Network
                     }
                 }
 
+                // OS trust applies only when this hostname has no existing pin.
+                if (sslPolicyErrors == SslPolicyErrors.None)
+                    return true;
+
                 // First sight of this host (typical for self-signed XCP-ng): pin after
                 // optional warning. Default settings silently pin; Security options can require a prompt.
                 if (!Properties.Settings.Default.WarnUnrecognizedCertificate && Registry.SSLCertificateTypes != SSLCertificateTypes.All)
@@ -121,6 +119,9 @@ namespace XenAdmin.Network
                     log.Debug("Adding new cert silently (TOFU pin for unrecognized/self-signed certificate)");
                     return true;
                 }
+
+                if (Program.MainWindow == null)
+                    return false;
 
                 Program.Invoke(Program.MainWindow, () =>
                 {

@@ -106,6 +106,7 @@ public partial class MainViewModel
     private bool _isConsolePoppedOut;
 
     private bool _suppressConsoleIsoSelection;
+    private readonly ConsoleIsoSelection _consoleIsoSelection = new();
 
     public ObservableCollection<IsoOption> ConsoleIsoOptions { get; } = new();
 
@@ -409,28 +410,21 @@ public partial class MainViewModel
 
     private void RefreshConsoleIsoOptions()
     {
+        var available = SelectedVm == null ? [] : ShellIsoLibrary.Enumerate(SelectedVm).ToList();
+        var attached = SelectedVm == null ? null : ShellIsoLibrary.GetAttachedIso(SelectedVm);
+        // Capture the pending choice before clearing the collection: the bound ComboBox
+        // can clear SelectedConsoleIso as soon as its existing item is removed.
+        var next = _consoleIsoSelection.Refresh(SelectedVm, SelectedConsoleIso, available, attached);
         _suppressConsoleIsoSelection = true;
         try
         {
             ConsoleIsoOptions.Clear();
-            SelectedConsoleIso = null;
             AttachedIsoLabel = ShellIsoLibrary.FormatAttachedLabel(SelectedVm);
-            if (SelectedVm == null)
-            {
-                HasConsoleIsoOptions = false;
-                return;
-            }
-
-            foreach (var iso in ShellIsoLibrary.Enumerate(SelectedVm))
+            foreach (var iso in available)
                 ConsoleIsoOptions.Add(iso);
 
             HasConsoleIsoOptions = ConsoleIsoOptions.Count > 0;
-            var attached = ShellIsoLibrary.GetAttachedIso(SelectedVm);
-            if (attached != null)
-            {
-                SelectedConsoleIso = ConsoleIsoOptions.FirstOrDefault(o =>
-                    o.Vdi.opaque_ref == attached.opaque_ref);
-            }
+            SelectedConsoleIso = next;
         }
         finally
         {

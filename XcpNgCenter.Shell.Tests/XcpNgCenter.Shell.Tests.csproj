@@ -19,4 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\XcpNgCenter.Shell\XcpNgCenter.Shell.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\XenAdmin\Network\SSL.cs" Link="Production\WinFormsSSL.cs" />
+  </ItemGroup>
 </Project>

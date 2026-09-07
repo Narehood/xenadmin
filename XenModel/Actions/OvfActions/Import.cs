@@ -260,7 +260,7 @@ namespace XenAdmin.Actions.OvfActions
             if (filename == null)
                 throw new InvalidDataException(Messages.ERROR_FILE_NAME_NULL);
 
-            string filePath = Path.Combine(pathToOvf, filename);
+            string filePath = OvfFilePath.Resolve(pathToOvf, filename);
             
             if (!File.Exists(filePath))
                 throw new FileNotFoundException(string.Format(Messages.ERROR_FILE_NOT_FOUND, filename));
@@ -270,6 +270,7 @@ namespace XenAdmin.Actions.OvfActions
             VirtualDisk vhdDisk = null;
             Stream dataStream = null;
             XenRef<VDI> vdiRef = null;
+            var temporaryFiles = new ImportTemporaryFiles(pathToOvf);
 
             try
             {
@@ -281,8 +282,9 @@ namespace XenAdmin.Actions.OvfActions
                         throw new InvalidDataException(Messages.ERROR_NO_PASSWORD);
 
                     Description = string.Format(Messages.START_FILE_DECRYPTION, filename);
-                    log.Debug($"Decrypting {filename} to temporary file enc_{filename}");
-                    sourcefile = Path.Combine(pathToOvf, "enc_" + filename);
+                    log.Debug($"Decrypting {filename} to an import temporary file");
+                    using (var reserved = temporaryFiles.Create(ext))
+                        sourcefile = reserved.Name;
                     OVF.DecryptToTempFile(m_encryptionClass, filePath, m_encryptionVersion, m_password, sourcefile);
                 }
 
@@ -293,17 +295,28 @@ namespace XenAdmin.Actions.OvfActions
                 if (compression.HasValue)
                 {
                     Description = string.Format(Messages.START_FILE_EXPANSION, filename);
-                    log.Debug($"Uncompressing {filename} to temporary file unc_{filename}");
+                    log.Debug($"Uncompressing {filename} to an import temporary file");
 
                     // the compressed file will be replaced by the uncompressed, hence we need
                     // to use it with its disk extension (vmdk, vhd, etc.)
                     if (ext.ToLower().EndsWith(".gz"))
                     {
-                        sourcefile = Path.Combine(pathToOvf, "unc_" + Path.GetFileNameWithoutExtension(filename));
-                        ext = Path.GetExtension(sourcefile);
+                        ext = Path.GetExtension(Path.GetFileNameWithoutExtension(filename));
                     }
 
-                    CompressionFactory.UncompressFile(filePath, sourcefile, compression.Value, CheckForCancellation);
+                    using (var input = File.OpenRead(sourcefile))
+                    using (var uncompressed = CompressionFactory.Reader(compression.Value, input))
+                    using (var output = temporaryFiles.Create(ext))
+                    {
+                        sourcefile = output.Name;
+                        var buffer = new byte[81920];
+                        int count;
+                        while ((count = uncompressed.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            CheckForCancellation();
+                            output.Write(buffer, 0, count);
+                        }
+                    }
                 }
 
                 #endregion
@@ -460,19 +473,14 @@ namespace XenAdmin.Actions.OvfActions
             }
             finally
             {
-                dataStream?.Dispose();
-                vhdDisk?.Dispose();
-
                 try
                 {
-                    var sourcefileName = Path.GetFileName(sourcefile);
-                    
-                    if ((sourcefileName.StartsWith("enc_") || sourcefileName.StartsWith("unc_")) && File.Exists(sourcefile))
-                        File.Delete(sourcefile);
+                    dataStream?.Dispose();
                 }
-                catch
+                finally
                 {
-                    //ignore errors
+                    try { vhdDisk?.Dispose(); }
+                    finally { temporaryFiles.Dispose(); }
                 }
             }
         }

@@ -13,13 +13,16 @@ using Task = System.Threading.Tasks.Task;
 
 namespace XcpNgCenter.Shell.ViewModels;
 
-public partial class OvfImportViewModel : ViewModelBase
+public partial class OvfImportViewModel : ViewModelBase, IDisposable
 {
     private readonly IXenConnection _connection;
     private readonly Action _close;
     private readonly Action<string>? _status;
     private readonly Func<Task<string?>> _pickOpenPath;
-    private readonly ShellAppSettings _settings = ShellBootstrap.AppSettings;
+    private readonly ShellAppSettings _settings;
+    private readonly Func<string, CancellationToken, Task<OvfPackageLoadResult>> _loadPackage;
+    private CancellationTokenSource? _loadCts;
+    private bool _disposed;
     private Package? _package;
 
     public OvfImportViewModel(
@@ -28,11 +31,22 @@ public partial class OvfImportViewModel : ViewModelBase
         Func<Task<string?>> pickOpenPath,
         Action close,
         Action<string>? status = null)
+        : this(connection, preferredHost, pickOpenPath, close, status,
+            OvfPackageLoader.LoadAsync, ShellBootstrap.AppSettings)
+    {
+    }
+
+    internal OvfImportViewModel(IXenConnection connection, Host? preferredHost,
+        Func<Task<string?>> pickOpenPath, Action close, Action<string>? status,
+        Func<string, CancellationToken, Task<OvfPackageLoadResult>> loadPackage,
+        ShellAppSettings settings)
     {
         _connection = connection;
         _close = close;
         _status = status;
         _pickOpenPath = pickOpenPath;
+        _loadPackage = loadPackage;
+        _settings = settings;
 
         foreach (var sr in connection.Cache.SRs
                      .Where(sr => sr.SupportsVdiCreate() && !sr.IsToolsSR() && sr.PBDs.Count > 0 && !sr.IsBroken())
@@ -87,19 +101,39 @@ public partial class OvfImportViewModel : ViewModelBase
     [ObservableProperty] private bool _hasPackage;
     [ObservableProperty] private bool _hasValidationWarnings;
     [ObservableProperty] private bool _acknowledgeValidationWarnings;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LoadCommand))]
+    private bool _isLoading;
+
+    private bool CanLoad => !_disposed && !IsLoading && !string.IsNullOrWhiteSpace(FilePath);
+
+    [RelayCommand(CanExecute = nameof(CanLoad))]
+    private async Task LoadAsync()
+    {
+        if (CanLoad)
+            await LoadPackageAsync(FilePath.Trim());
+    }
 
     [RelayCommand]
     private async Task BrowseAsync()
     {
         var path = await _pickOpenPath();
-        if (string.IsNullOrWhiteSpace(path))
+        if (_disposed || string.IsNullOrWhiteSpace(path))
             return;
 
         FilePath = path;
-        LoadPackage(path);
+        await LoadPackageAsync(path);
     }
 
-    private void LoadPackage(string path)
+    partial void OnFilePathChanged(string value)
+    {
+        CancelLoad();
+        ClearPackage();
+        StatusMessage = "Choose Load to validate the appliance.";
+        LoadCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ClearPackage()
     {
         SystemSummaries.Clear();
         ValidationWarnings.Clear();
@@ -107,29 +141,34 @@ public partial class OvfImportViewModel : ViewModelBase
         HasPackage = false;
         HasValidationWarnings = false;
         AcknowledgeValidationWarnings = false;
+    }
+
+    private async Task LoadPackageAsync(string path)
+    {
+        CancelLoad();
+        ClearPackage();
+        var cts = _loadCts = new CancellationTokenSource();
+        IsLoading = true;
+        StatusMessage = "Loading and validating appliance…";
         try
         {
-            _package = Package.Create(path);
-            if (!OVF.Validate(_package, out var warnings))
+            var result = await _loadPackage(path, cts.Token);
+            if (_disposed || !ReferenceEquals(_loadCts, cts) || cts.IsCancellationRequested)
+                return;
+            if (result.Package == null)
             {
-                StatusMessage = warnings?.LastOrDefault()
-                                ?? "The appliance did not pass OVF validation.";
-                _package = null;
+                StatusMessage = result.Error ?? "The appliance did not pass OVF validation.";
                 return;
             }
 
-            var envelope = _package.OvfEnvelope
-                           ?? throw new InvalidOperationException("Appliance has no OVF envelope.");
-            foreach (var sysId in OVF.FindSystemIds(envelope))
-            {
-                var name = FindVmName(envelope, sysId);
-                SystemSummaries.Add($"{name} ({sysId})");
-            }
+            _package = result.Package;
+            foreach (var summary in result.Systems)
+                SystemSummaries.Add(summary);
 
             HasPackage = SystemSummaries.Count > 0;
-            if (warnings is { Count: > 0 } && !_settings.IgnoreOvfValidationWarnings)
+            if (!_settings.IgnoreOvfValidationWarnings)
             {
-                foreach (var warning in warnings.Where(w => !string.IsNullOrWhiteSpace(w)))
+                foreach (var warning in result.Warnings)
                     ValidationWarnings.Add(warning);
                 HasValidationWarnings = ValidationWarnings.Count > 0;
             }
@@ -140,16 +179,44 @@ public partial class OvfImportViewModel : ViewModelBase
                     ? $"Loaded {SystemSummaries.Count} system(s). Review the validation warnings before importing."
                     : $"Loaded {SystemSummaries.Count} system(s) from {_package.Name}.";
         }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            // Closing the dialog or changing the path discards pending work.
+        }
         catch (Exception ex)
         {
-            StatusMessage = ex.Message;
+            if (!_disposed && ReferenceEquals(_loadCts, cts))
+                StatusMessage = ex.Message;
         }
+        finally
+        {
+            if (ReferenceEquals(_loadCts, cts))
+            {
+                _loadCts = null;
+                IsLoading = false;
+            }
+            cts.Dispose();
+        }
+    }
+
+    private void CancelLoad()
+    {
+        var cts = _loadCts;
+        _loadCts = null;
+        cts?.Cancel();
+        IsLoading = false;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        CancelLoad();
     }
 
     [RelayCommand]
     private void Import()
     {
-        if (_package?.OvfEnvelope == null)
+        if (_disposed || IsLoading || _package?.OvfEnvelope == null)
         {
             StatusMessage = "Choose a valid .ovf / .ova appliance first.";
             return;

@@ -10,6 +10,13 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        if (ShellUpdateInstaller.TryRunBootstrapMode(args, out var bootstrapExitCode)
+            || ShellUpdateInstaller.TryRunProtectedCleanupMode(args, out bootstrapExitCode))
+        {
+            Environment.ExitCode = bootstrapExitCode;
+            return;
+        }
+
         // An unelevated broker relaunches the app after a protected-directory update.
         if (ShellUpdateInstaller.TryRunRestartBrokerMode(args, out var restartExitCode))
         {

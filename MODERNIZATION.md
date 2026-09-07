@@ -21,7 +21,13 @@ Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownl
 
 ### Client updates (Avalonia shell)
 
-`XcpNgCenter.Shell` checks GitHub Releases (`Narehood/xenadmin` by default; override with `XCPNG_UPDATE_GITHUB_REPO=owner/name`) a few seconds after launch. When a newer tag/version is found, a bottom-right banner can download the matching Windows/Linux x64 asset, validate its GitHub SHA-256 digest, stage it in the current user's non-roaming update cache, and prompt to restart. The staged new executable waits for the running client to exit, replaces the application files with rollback protection, and reopens the client. Windows installations under a protected location such as `Program Files` request UAC approval only for the installer helper; a non-elevated broker reopens the updated client with the user's normal token. Cancelling UAC leaves the verified package ready to retry. **View release** and remembered **Dismiss** options remain available; unsupported platforms or non-portable launch layouts fall back to the release page. Draft and prerelease tags are ignored. Publish complete assets with the manual workflow **Publish Shell Release** (`.github/workflows/publish-shell-release.yml`). The running binary must stamp a lower `year.month.day.revision` than the release tag for the banner to appear.
+`XcpNgCenter.Shell` checks GitHub Releases (`Narehood/xenadmin` by default) a few seconds after launch. A newer release can be downloaded into the user's non-roaming cache after validating its GitHub SHA-256 digest. Restart begins with the installed executable, which fetches the exact release metadata again and verifies a fresh archive copy before extracting or launching replacement code. Cached executables and local cache manifests do not authorize installation.
+
+Protected Windows installations request UAC approval for that installed bootstrap. Elevated preparation uses the built-in `Narehood/xenadmin` publisher, rebuilds metadata HTTPS certificate trust in Windows machine context, and creates administrator-owned staging with user read/execute access. `XCPNG_UPDATE_GITHUB_REPO=owner/name` applies only to update checks and non-elevated preparation. The verified helper applies files with rollback protection, and a broker is intended to reopen the client with the original user's normal token. Cancelling UAC retains the download for a later attempt, which verifies it again. Installation requires fresh GitHub metadata, so it cannot complete offline. Real UAC, rollback, token/ACL, and restart behavior still requires the tests listed in the [remediation record](docs/reviews/2026-09-07-remediation.md).
+
+**View release** and remembered **Dismiss** options remain available; unsupported platforms or non-portable launch layouts fall back to the release page. Draft and prerelease tags are ignored. Publish complete assets with the manual workflow **Publish Shell Release** (`.github/workflows/publish-shell-release.yml`). The running binary must stamp a lower `year.month.day.revision` than the release tag for the banner to appear.
+
+Install the first release containing this bootstrap manually when upgrading an older deployed shell; that older executable still runs its original updater. Custom-repository builds also require manual installation when administrator privileges are needed or the app is elevated. The shell directs these builds to the release page before requesting UAC.
 
 ### Plugins (opt-in, IE WebBrowser)
 
@@ -32,7 +38,7 @@ Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled b
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).
 Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
-**On `development`:** Phase 1–2 parity + migrate/move harden + VM chrome + comprehensive host/VM Properties (custom fields, alerts, power, GPU, clustering/NRPE, cloud config) + Import/Export (XVA/OVF) + global Alerts + Performance graphs + calendar versioning + verified in-place GitHub updates + persisted General/Connection/Display/Security/Confirmations/Privacy settings + Linux soak hardening (RFB cursor alpha, file pickers, XDG paths, Publish Shell Release). Production remains WinForms until soak is clean.
+**On `development`:** Phase 1–2 parity + migrate/move harden + VM chrome + comprehensive host/VM Properties (custom fields, alerts, power, GPU, clustering/NRPE, cloud config) + Import/Export (XVA/OVF) + global Alerts + Performance graphs + calendar versioning + GitHub updates with installation-time package verification + persisted General/Connection/Display/Security/Confirmations/Privacy settings + Linux soak hardening (RFB cursor alpha, file pickers, XDG paths, Publish Shell Release). Production remains WinForms until soak is clean.
 
 **Next:** Continue Linux/Windows desktop soak against real pools → exercise download/apply/restart updates between published `vYYYY.M.D.N` builds → later HA/AD/DR. RDP stays WinForms-only.
 
@@ -56,8 +62,8 @@ XCP-ng ships with **self-signed** management certificates by default. The client
 
 Policy implemented in `XenAdmin/Network/SSL.cs` (WinForms) and `XcpNgCenter.Shell` TOFU services (Avalonia):
 
-- **Trust on first use (TOFU):** first connection to a host pins the certificate hash after acceptance.
-- **Later connections:** require the pinned hash; changes prompt before re-pinning.
+- **Trust on first use (TOFU):** an unpinned host with an untrusted chain is pinned after acceptance. An unpinned CA-valid host uses OS trust without creating a pin.
+- **Later connections:** an existing pin is checked even when the new certificate has a valid CA chain. Changes follow the configured warning/re-pin policy; disabling change warnings permits silent re-pinning.
 - **No accept-all:** low-level HTTP paths without the app TOFU callback reject untrusted chains instead of returning `true`.
 - **Shell:** Avalonia dialogs for first-seen and changed certs (`CertificateTrustWindow`); pins in `%APPDATA%\XCP-ng\XCP-ng Center Shell\known-servers.json` (Windows) or `~/.config/XCP-ng/XCP-ng Center Shell/` (Linux). Settings can disable either prompt independently while retaining pinning; secure prompting remains the default.
 

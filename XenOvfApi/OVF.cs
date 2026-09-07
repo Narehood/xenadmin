@@ -2381,7 +2381,7 @@ namespace XenOvf
                         {
                             foreach (VirtualDiskDesc_Type vdisk in dsksection.Disk)
                             {
-                                if (vdisk.fileRef.Contains(fileRef))
+                                if (string.Equals(vdisk.fileRef, fileRef, StringComparison.Ordinal))
                                 {
                                     vdisk.capacity = Convert.ToString(capacity);
                                     vdisk.capacityAllocationUnits = _ovfrm.GetString("VIRTUAL_DISK_DESC_CAPACITYALLOCATIONUNITS");
@@ -3457,34 +3457,21 @@ namespace XenOvf
             if (diskReference == null)
                 return null;
 
-            var section = ovfEnv.Sections.FirstOrDefault(s => s is DiskSection_Type);
-            if (!(section is DiskSection_Type diskSection))
+            var disk = FindDiskReference(ovfEnv, diskReference);
+            var file = FindFileReferenceByVDisk(ovfEnv, disk);
+            if (file == null)
                 return null;
 
-            foreach (VirtualDiskDesc_Type vdisk in diskSection.Disk)
+            if (string.IsNullOrEmpty(file.compression) || string.Equals(file.compression, "identity", StringComparison.OrdinalIgnoreCase))
+                return file.href;
+
+            if (string.Equals(file.compression, "gzip", StringComparison.OrdinalIgnoreCase))
             {
-                if (!diskReference.Contains(vdisk.diskId))
-                    continue;
-
-                foreach (File_Type filer in ovfEnv.References.File)
-                {
-                    if (!filer.id.Contains(vdisk.fileRef))
-                        continue;
-
-                    if (string.IsNullOrEmpty(filer.compression) || filer.compression.ToLower() == "identity")
-                        return filer.href;
-
-                    if (filer.compression.ToLower().Equals("gzip"))
-                    {
-                        compression = CompressionFactory.Type.Gz;
-                        return filer.href;
-                    }
-
-                    throw new NotSupportedException(string.Format(Messages.COMPRESS_INVALID_METHOD, filer.compression));
-                }
+                compression = CompressionFactory.Type.Gz;
+                return file.href;
             }
 
-            return null;
+            throw new NotSupportedException(string.Format(Messages.COMPRESS_INVALID_METHOD, file.compression));
         }
 
         /// <summary>
@@ -3719,9 +3706,11 @@ namespace XenOvf
 
         public static File_Type FindFileReference(EnvelopeType ovfObj, string fileId)
         {
+            if (string.IsNullOrEmpty(fileId))
+                return null;
             foreach (File_Type file in ovfObj.References.File)
             {
-                if (file.id.Contains(fileId))
+                if (string.Equals(file.id, fileId, StringComparison.Ordinal))
                 {
                     return file;
                 }
@@ -3769,7 +3758,7 @@ namespace XenOvf
                     DiskSection_Type ds = (DiskSection_Type)obj;
                     foreach (VirtualDiskDesc_Type vds in ds.Disk)
                     {
-                        if (vds.fileRef.Contains(fileId))
+                        if (!string.IsNullOrEmpty(fileId) && string.Equals(vds.fileRef, fileId, StringComparison.Ordinal))
                         {
                             return vds;
                         }
@@ -3789,7 +3778,7 @@ namespace XenOvf
                     DiskSection_Type ds = (DiskSection_Type)obj;
                     foreach (VirtualDiskDesc_Type vds in ds.Disk)
                     {
-                        if (diskId.Contains(vds.diskId))
+                        if (MatchesDiskReference(diskId, vds.diskId))
                         {
                             return vds;
                         }
@@ -3797,6 +3786,15 @@ namespace XenOvf
                 }
             }
             return null;
+        }
+
+        // OVF HostResource uses ovf:/disk/<id>; older descriptors use the bare ID.
+        private static bool MatchesDiskReference(string reference, string diskId)
+        {
+            const string prefix = "ovf:/disk/";
+            if (reference != null && reference.StartsWith(prefix, StringComparison.Ordinal))
+                reference = reference.Substring(prefix.Length);
+            return !string.IsNullOrEmpty(diskId) && string.Equals(reference, diskId, StringComparison.Ordinal);
         }
 
         public static VirtualDiskDesc_Type FindDiskReference(EnvelopeType ovfObj, RASD_Type rasd)
@@ -3838,7 +3836,7 @@ namespace XenOvf
                             {
                                 if (!string.IsNullOrEmpty(hostresource.Value))
                                 {
-                                    if (hostresource.Value.Contains(disk.diskId))
+                                    if (MatchesDiskReference(hostresource.Value, disk.diskId))
                                     {
                                         return _rasd;
                                     }
@@ -3847,7 +3845,7 @@ namespace XenOvf
                         }
                         else if (_rasd.InstanceID != null && !string.IsNullOrEmpty(_rasd.InstanceID.Value))
                         {
-                            if (_rasd.InstanceID.Value.Contains(disk.diskId))
+                            if (MatchesDiskReference(_rasd.InstanceID.Value, disk.diskId))
                             {
                                 return _rasd;
                             }
@@ -5121,14 +5119,14 @@ namespace XenOvf
             {
                 if (useHostResource)
                 {
-                    if (rasd.HostResource[0].Value.Contains(disk.diskId))
+                    if (MatchesDiskReference(rasd.HostResource[0].Value, disk.diskId))
                     {
                         isBootable = disk.isBootable;
                     }
                 }
                 else
                 {
-                    if (rasd.InstanceID.Value.Contains(disk.diskId))
+                    if (MatchesDiskReference(rasd.InstanceID.Value, disk.diskId))
                     {
                         isBootable = disk.isBootable;
                     }

@@ -22,11 +22,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool _disposed;
     private CancellationTokenSource? _autoReconnectCts;
 
-    /// <summary>In-session main-password hash (for EncryptString) when unlocked.</summary>
-    private byte[]? _sessionMainPasswordHash;
+    private readonly MainPasswordVault _credentialVault;
 
-    /// <summary>In-session plaintext main password (for DecryptString) when unlocked.</summary>
-    private string? _sessionMainPasswordPlain;
+    public bool RequiresMainPassword => _credentialVault.RequiresMainPassword;
 
     public string BrandName => "XCP-ng Center";
 
@@ -239,7 +237,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool _suppressSelectionClear;
     private bool _restoreSelectionQueued;
     private string? _activeConsoleKey;
-    private DateTime _nextGuestConsoleRetryUtc;
+    private readonly ConsoleRetryScheduler _guestConsoleRetry = new(action => Dispatcher.UIThread.Post(action));
 
     /// <summary>Raised around infrastructure tree rebuilds/selection restores so the view can keep scroll position.</summary>
     public event Action? TreeLayoutChanging;
@@ -257,6 +255,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         Servers.CollectionChanged += (_, _) => HasServers = Servers.Count > 0;
         SavedServers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSavedServers));
         _consoleSession.StateChanged += OnConsoleSessionStateChanged;
+        _credentialVault = new MainPasswordVault(_savedServerStore, _appSettings);
         LoadSavedServers();
         RefreshTrustUi();
         InitializeActionHistoryUi();
@@ -300,6 +299,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         DisposeAlertsAndGraphsUi();
         DisposeActionHistoryUi();
         _appSettings.Changed -= OnAppSettingsChanged;
+        ClearSessionMainPassword();
+        _guestConsoleRetry.Dispose();
         _consoleSession.StateChanged -= OnConsoleSessionStateChanged;
         try
         {
@@ -494,7 +495,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             var saved = SavedServers.FirstOrDefault(s =>
                 string.Equals(s.Address, node.Address, StringComparison.OrdinalIgnoreCase));
-            password = SavedServerStore.UnprotectPassword(saved?.EncryptedPassword);
+            password = TryUnprotectSavedPassword(saved?.EncryptedPassword);
         }
 
         if (string.IsNullOrEmpty(password))
@@ -552,7 +553,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 Password = string.Empty;
         }
         else if (SavedServerStore.IsMainPasswordProtected(entry.EncryptedPassword)
-                 && string.IsNullOrEmpty(_sessionMainPasswordPlain))
+                 && !_credentialVault.IsUnlocked)
         {
             Password = string.Empty;
             StatusMessage = "Main password required to unlock this saved password.";
@@ -566,21 +567,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private async Task UnlockMainPasswordThenAutoReconnectAsync()
     {
-        if (_appSettings.RequireMainPassword)
+        if (RequiresMainPassword)
         {
-            var hash = _appSettings.GetMainPasswordHash();
-            if (hash != null)
-            {
-                var unlocked = await PromptEnterMainPasswordAsync(
-                    hash,
-                    title: "Unlock saved credentials",
-                    message: "Enter the main password to reconnect your servers.").ConfigureAwait(true);
+            var unlocked = await PromptEnterMainPasswordAsync(
+                title: "Unlock saved credentials",
+                message: "Enter the main password to reconnect your servers.").ConfigureAwait(true);
 
-                if (!unlocked)
-                {
-                    StatusMessage = "Main password not entered — saved passwords were not unlocked.";
-                    return;
-                }
+            if (!unlocked)
+            {
+                StatusMessage = "Main password not entered — saved passwords were not unlocked.";
+                return;
             }
         }
 
@@ -640,92 +636,63 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         });
     }
 
-    public void SetSessionMainPassword(byte[] hash, string? plain = null)
-    {
-        _sessionMainPasswordHash = hash;
-        if (plain != null)
-            _sessionMainPasswordPlain = plain;
-    }
-
-    public void ClearSessionMainPassword()
-    {
-        _sessionMainPasswordHash = null;
-        _sessionMainPasswordPlain = null;
-    }
+    public void ClearSessionMainPassword() => _credentialVault.Dispose();
 
     private string? TryUnprotectSavedPassword(string? encrypted)
     {
-        if (string.IsNullOrWhiteSpace(encrypted))
-            return null;
-
-        if (SavedServerStore.IsMainPasswordProtected(encrypted))
+        try { return _credentialVault.Unprotect(encrypted); }
+        catch (Exception ex)
         {
-            if (string.IsNullOrEmpty(_sessionMainPasswordPlain))
-                return null;
-            return SavedServerStore.UnprotectPasswordWithMainPassword(encrypted, _sessionMainPasswordPlain);
+            StatusMessage = "Saved credential could not be unlocked: " + ex.Message;
+            return null;
         }
-
-        return SavedServerStore.UnprotectPassword(encrypted);
     }
 
     private string? ProtectSavedPassword(string password)
     {
-        if (_appSettings.RequireMainPassword)
+        try { return _credentialVault.Protect(password); }
+        catch (Exception ex)
         {
-            if (_sessionMainPasswordHash == null)
-                return null;
-            return SavedServerStore.ProtectPasswordWithMainPassword(password, _sessionMainPasswordHash);
+            StatusMessage = "Saved credential could not be protected: " + ex.Message;
+            return null;
         }
-
-        return SavedServerStore.ProtectPassword(password);
     }
 
-    public async Task<bool> PromptEnterMainPasswordAsync(
-        byte[] expectedHash,
-        string? title = null,
-        string? message = null)
+    public async Task<bool> PromptEnterMainPasswordAsync(string? title = null, string? message = null)
     {
         var owner = await WaitForMainWindowAsync().ConfigureAwait(true);
-        var dialog = new EnterMainPasswordWindow(expectedHash, title, message);
         if (owner == null)
             return false;
-
-        var result = await dialog.ShowDialog<bool>(owner).ConfigureAwait(true);
-        if (!result)
+        var dialog = new EnterMainPasswordWindow(
+            password => Task.Run(() => _credentialVault.Unlock(password)), title, message);
+        if (!await dialog.ShowDialog<bool>(owner).ConfigureAwait(true))
             return false;
-
-        _sessionMainPasswordHash = expectedHash;
-        _sessionMainPasswordPlain = dialog.Password;
+        LoadSavedServers(); // Unlock may have atomically migrated a legacy vault.
+        if (_credentialVault.CleanupWarning != null)
+            StatusMessage = _credentialVault.CleanupWarning;
         return true;
     }
 
-    public async Task<(byte[] Hash, string Plain)?> PromptSetMainPasswordAsync()
+    public async Task<string?> PromptSetMainPasswordAsync()
     {
         var owner = await WaitForMainWindowAsync().ConfigureAwait(true);
         if (owner == null)
             return null;
-
         var dialog = new SetMainPasswordWindow();
-        var result = await dialog.ShowDialog<bool>(owner).ConfigureAwait(true);
-        if (!result || dialog.NewPasswordHash == null || string.IsNullOrEmpty(dialog.PasswordPlain))
-            return null;
-        return (dialog.NewPasswordHash, dialog.PasswordPlain);
+        return await dialog.ShowDialog<bool>(owner).ConfigureAwait(true) ? dialog.PasswordPlain : null;
     }
 
-    public async Task<(byte[] Hash, string CurrentPlain, string NewPlain)?> PromptChangeMainPasswordAsync(byte[] currentHash)
+    public async Task<string?> PromptChangeMainPasswordAsync()
     {
         var owner = await WaitForMainWindowAsync().ConfigureAwait(true);
         if (owner == null)
             return null;
-
-        var dialog = new ChangeMainPasswordWindow(currentHash);
-        var result = await dialog.ShowDialog<bool>(owner).ConfigureAwait(true);
-        if (!result
-            || dialog.NewPasswordHash == null
-            || string.IsNullOrEmpty(dialog.CurrentPasswordPlain)
-            || string.IsNullOrEmpty(dialog.NewPasswordPlain))
+        var dialog = new ChangeMainPasswordWindow(
+            password => Task.Run(() => _credentialVault.Unlock(password)));
+        if (!await dialog.ShowDialog<bool>(owner).ConfigureAwait(true))
             return null;
-        return (dialog.NewPasswordHash, dialog.CurrentPasswordPlain, dialog.NewPasswordPlain);
+        LoadSavedServers();
+        return dialog.NewPasswordPlain;
     }
 
     private static async Task<Avalonia.Controls.Window?> WaitForMainWindowAsync()
@@ -742,77 +709,20 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         return GetDesktopMainWindow();
     }
 
-    public Task MigrateSavedPasswordsToMainPasswordAsync(byte[] hash)
+    public async Task<bool> ChangeSavedPasswordProtectionAsync(string? newPassword)
     {
-        for (var i = 0; i < SavedServers.Count; i++)
+        try
         {
-            var entry = SavedServers[i];
-            if (!entry.HasSavedPassword)
-                continue;
-
-            var plain = TryUnprotectSavedPassword(entry.EncryptedPassword);
-            if (string.IsNullOrEmpty(plain))
-                continue;
-
-            var wrapped = SavedServerStore.ProtectPasswordWithMainPassword(plain, hash);
-            if (wrapped == null)
-                continue;
-
-            SavedServers[i] = entry with { EncryptedPassword = wrapped };
+            await Task.Run(() => _credentialVault.ChangePassword(newPassword)).ConfigureAwait(true);
+            LoadSavedServers();
+            StatusMessage = _credentialVault.CleanupWarning ?? "Saved credential protection updated.";
+            return true;
         }
-
-        PersistSavedServers();
-        return Task.CompletedTask;
-    }
-
-    public Task MigrateSavedPasswordsFromMainPasswordAsync()
-    {
-        for (var i = 0; i < SavedServers.Count; i++)
+        catch (Exception ex)
         {
-            var entry = SavedServers[i];
-            if (!entry.HasSavedPassword)
-                continue;
-
-            var plain = TryUnprotectSavedPassword(entry.EncryptedPassword);
-            if (string.IsNullOrEmpty(plain))
-                continue;
-
-            var device = SavedServerStore.ProtectPassword(plain);
-            SavedServers[i] = entry with { EncryptedPassword = device };
+            StatusMessage = "Saved credential protection was not changed: " + ex.Message;
+            return false;
         }
-
-        PersistSavedServers();
-        return Task.CompletedTask;
-    }
-
-    public Task ReencryptSavedPasswordsForMainPasswordChangeAsync(
-        string currentPlain,
-        byte[] newHash)
-    {
-        for (var i = 0; i < SavedServers.Count; i++)
-        {
-            var entry = SavedServers[i];
-            if (!entry.HasSavedPassword)
-                continue;
-
-            string? plain = null;
-            if (SavedServerStore.IsMainPasswordProtected(entry.EncryptedPassword))
-                plain = SavedServerStore.UnprotectPasswordWithMainPassword(entry.EncryptedPassword, currentPlain);
-            else
-                plain = SavedServerStore.UnprotectPassword(entry.EncryptedPassword);
-
-            if (string.IsNullOrEmpty(plain))
-                continue;
-
-            var wrapped = SavedServerStore.ProtectPasswordWithMainPassword(plain, newHash);
-            if (wrapped == null)
-                continue;
-
-            SavedServers[i] = entry with { EncryptedPassword = wrapped };
-        }
-
-        PersistSavedServers();
-        return Task.CompletedTask;
     }
 
     private void QueueAutoReconnectSavedServers()
@@ -1025,7 +935,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         SavedServers.Clear();
         if (!_appSettings.RememberSavedServers)
         {
-            _savedServerStore.Save([]);
+            PersistSavedServers();
             return;
         }
         foreach (var entry in _savedServerStore.Load())
@@ -1050,7 +960,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             {
                 // Do not wipe an existing protected blob when main password is locked.
                 encrypted = previousSecret;
-                if (_appSettings.RequireMainPassword && _sessionMainPasswordHash == null)
+                if (RequiresMainPassword && !_credentialVault.IsUnlocked)
                     StatusMessage = "Unlock the main password to update saved credentials.";
             }
         }
@@ -1074,7 +984,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     private void PersistSavedServers()
-        => _savedServerStore.Save(_appSettings.RememberSavedServers ? SavedServers : []);
+    {
+        try { _credentialVault.Save(_appSettings.RememberSavedServers ? SavedServers : []); }
+        catch (Exception ex) { StatusMessage = "Saved credentials were not written: " + ex.Message; }
+    }
 
     public void SetRememberSavedServers(bool enabled)
     {
@@ -1084,7 +997,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         RememberPassword = false;
         SavedServers.Clear();
-        _savedServerStore.Save([]);
+        PersistSavedServers();
         OnPropertyChanged(nameof(CanPersistPasswords));
     }
 
@@ -1424,6 +1337,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         var root = InfrastructureTreeBuilder.Build(server, conn);
         ApplyExpandState(root, expandState);
 
+        var detailsRefreshed = false;
         TreeLayoutChanging?.Invoke();
         _suppressSelectionClear = true;
         try
@@ -1443,6 +1357,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 var next = FindByOpaqueRef(root, selectedRef) ?? root;
                 ExpandAncestors(root, next);
                 SelectInfraNode(next);
+                detailsRefreshed = true;
             }
         }
         finally
@@ -1451,7 +1366,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             Dispatcher.UIThread.Post(() => TreeLayoutChanged?.Invoke(), DispatcherPriority.Loaded);
         }
 
-        RefreshDetailPanes();
+        if (!detailsRefreshed)
+            RefreshDetailPanes();
     }
 
     private static Dictionary<string, bool> CaptureExpandState(InfraTreeNode root)
@@ -1669,6 +1585,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         if (target is not { } live)
         {
+            _guestConsoleRetry.Cancel();
             if (_activeConsoleKey != null)
             {
                 _activeConsoleKey = null;
@@ -1704,16 +1621,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (sameTarget && DateTime.UtcNow < _nextGuestConsoleRetryUtc)
+        if (sameTarget && _guestConsoleRetry.IsPending)
             return;
 
+        _guestConsoleRetry.Cancel();
         if (!sameTarget)
             CloseConsolePopOut();
 
         _activeConsoleKey = key;
-        if (sameTarget)
-            _nextGuestConsoleRetryUtc = DateTime.UtcNow.AddMilliseconds(1500);
-
         ConsoleBitmap = null;
         IsConsoleConnecting = true;
         ConsoleViewerStatus = "Connecting to RFB console…";
@@ -1752,9 +1667,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void QueueGuestConsoleRetryIfDropped()
     {
         if (_consoleSession.IsConnected || _consoleSession.IsConnecting || _activeConsoleKey == null)
+        {
+            _guestConsoleRetry.Cancel();
             return;
+        }
 
-        Dispatcher.UIThread.Post(() =>
+        _guestConsoleRetry.Schedule(() =>
         {
             if (_consoleSession.IsConnected || _consoleSession.IsConnecting || _activeConsoleKey == null)
                 return;

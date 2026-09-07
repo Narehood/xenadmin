@@ -1,53 +1,62 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using XenAdmin.Core;
-using XenCenterLib;
 
 namespace XcpNgCenter.Shell.Views;
 
 public partial class ChangeMainPasswordWindow : Window
 {
-    private readonly byte[] _currentHash;
+    private readonly Func<string, Task<bool>> _unlock;
+    private bool _unlocking;
 
-    public byte[]? NewPasswordHash { get; private set; }
-
-    /// <summary>Plaintext of the new password (needed to re-encrypt blobs with EncryptString).</summary>
+    /// <summary>New password returned only for the immediate vault migration.</summary>
     public string? NewPasswordPlain { get; private set; }
 
-    /// <summary>Plaintext of the current password (needed to decrypt existing blobs).</summary>
-    public string? CurrentPasswordPlain { get; private set; }
-
-    public ChangeMainPasswordWindow() : this(Array.Empty<byte>())
+    public ChangeMainPasswordWindow() : this(_ => Task.FromResult(false))
     {
     }
 
-    public ChangeMainPasswordWindow(byte[] currentHash)
+    public ChangeMainPasswordWindow(Func<string, Task<bool>> unlock)
     {
         InitializeComponent();
-        _currentHash = currentHash;
+        _unlock = unlock;
+        Closing += (_, e) => e.Cancel = _unlocking;
         CurrentError.IsVisible = false;
         NewError.IsVisible = false;
     }
 
-    private void OnOkClick(object? sender, RoutedEventArgs e)
+    private async void OnOkClick(object? sender, RoutedEventArgs e)
     {
+        if (_unlocking)
+            return;
         var current = CurrentBox.Text ?? string.Empty;
         var next = NewBox.Text ?? string.Empty;
         var confirm = ConfirmBox.Text ?? string.Empty;
 
-        var currentOk = !string.IsNullOrEmpty(current) &&
-                        Helpers.ArrayElementsEqual(EncryptionUtils.ComputeHash(current), _currentHash);
+        var currentOk = false;
+        // Validate the new inputs before unlocking/migrating a legacy credential file.
+        if (!string.IsNullOrEmpty(next) && next == confirm)
+        {
+            _unlocking = true;
+            IsEnabled = false;
+            try { currentOk = !string.IsNullOrEmpty(current) && await _unlock(current); }
+            catch (Exception ex)
+            {
+                CurrentError.Text = ex.Message;
+                CurrentError.IsVisible = true;
+                return;
+            }
+            finally { _unlocking = false; IsEnabled = true; }
+        }
 
         if (currentOk && !string.IsNullOrEmpty(next) && next == confirm)
         {
-            CurrentPasswordPlain = current;
             NewPasswordPlain = next;
-            NewPasswordHash = EncryptionUtils.ComputeHash(next);
+            CurrentBox.Text = NewBox.Text = ConfirmBox.Text = string.Empty;
             Close(true);
             return;
         }
 
-        if (!currentOk)
+        if (!currentOk && !string.IsNullOrEmpty(next) && next == confirm)
         {
             CurrentError.Text = "Incorrect password.";
             CurrentError.IsVisible = true;
@@ -70,5 +79,9 @@ public partial class ChangeMainPasswordWindow : Window
         CurrentBox.SelectAll();
     }
 
-    private void OnCancelClick(object? sender, RoutedEventArgs e) => Close(false);
+    private void OnCancelClick(object? sender, RoutedEventArgs e)
+    {
+        CurrentBox.Text = NewBox.Text = ConfirmBox.Text = string.Empty;
+        Close(false);
+    }
 }

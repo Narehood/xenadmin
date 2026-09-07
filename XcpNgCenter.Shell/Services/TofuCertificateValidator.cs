@@ -13,11 +13,14 @@ public sealed class TofuCertificateValidator
     private readonly TofuCertificateStore _store;
     private readonly ShellAppSettings _settings;
     private readonly object _gate = new();
+    private readonly Func<CertificateTrustRequest, bool> _prompt;
 
-    public TofuCertificateValidator(TofuCertificateStore store, ShellAppSettings settings)
+    public TofuCertificateValidator(TofuCertificateStore store, ShellAppSettings settings,
+        Func<CertificateTrustRequest, bool>? prompt = null)
     {
         _store = store;
         _settings = settings;
+        _prompt = prompt ?? TofuTrustPrompt.Prompt;
     }
 
     public string? LastMessage { get; private set; }
@@ -28,9 +31,6 @@ public sealed class TofuCertificateValidator
         X509Chain? chain,
         SslPolicyErrors sslPolicyErrors)
     {
-        if (sslPolicyErrors == SslPolicyErrors.None)
-            return true;
-
         if (certificate == null)
         {
             LastMessage = "TLS certificate missing.";
@@ -70,7 +70,7 @@ public sealed class TofuCertificateValidator
                 certificate,
                 previousFingerprint: pinned);
 
-            var acceptChanged = TofuTrustPrompt.Prompt(changedRequest);
+            var acceptChanged = _prompt(changedRequest);
             if (!acceptChanged)
             {
                 LastMessage = $"Certificate change for {hostname} was rejected.";
@@ -84,6 +84,11 @@ public sealed class TofuCertificateValidator
                 : $"Accepted certificate for {hostname}, but pin was not saved: {_store.LastSaveError}";
             return true;
         }
+
+        // Unpinned CA-valid hosts use OS trust and do not create a TOFU pin.
+        // Existing pins above always apply, regardless of chain validation.
+        if (sslPolicyErrors == SslPolicyErrors.None)
+            return true;
 
         if (!_settings.WarnUnrecognizedCertificates)
         {
@@ -100,7 +105,7 @@ public sealed class TofuCertificateValidator
             hostname,
             certificate);
 
-        var acceptFirst = TofuTrustPrompt.Prompt(firstSeenRequest);
+        var acceptFirst = _prompt(firstSeenRequest);
         if (!acceptFirst)
         {
             LastMessage = $"Certificate for {hostname} was not trusted.";

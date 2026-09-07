@@ -1,0 +1,34 @@
+XCP-ng Center Shell — portable install
+======================================
+
+This archive is a portable build. There is no setup wizard and nothing is
+written under Program Files unless you choose to put it there.
+
+Windows (.zip)
+--------------
+1. Extract the entire archive to a folder you own and can write to, for example:
+     %USERPROFILE%\Apps\XCP-ng Center Shell
+   Prefer a user-writable location. Installing under Program Files works, but
+   in-app updates will ask for Administrator approval each time.
+2. Open the XcpNgCenter.Shell folder inside the extract.
+3. Run XcpNgCenter.Shell.exe.
+
+Linux (.tar.gz)
+---------------
+1. Extract to a directory you own, for example:
+     mkdir -p ~/Apps
+     tar -xzf XcpNgCenter.Shell-linux-x64-*.tar.gz -C ~/Apps
+2. Make the binary executable if needed:
+     chmod +x ~/Apps/XcpNgCenter.Shell/XcpNgCenter.Shell
+3. Run:
+     ~/Apps/XcpNgCenter.Shell/XcpNgCenter.Shell
+
+Notes
+-----
+- Settings, passwords, and update caches live under your user profile, not
+  inside the application folder.
+- Keep the XcpNgCenter.Shell folder intact; do not move only the .exe.
+- In-app updates replace files inside that folder in place.
+- Optional (Windows): if antivirus quarantines unsigned binaries, add
+  exclusions for the install folder and:
+    %LOCALAPPDATA%\XCP-ng\XCP-ng Center Shell\Updates

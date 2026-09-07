@@ -39,6 +39,60 @@ public sealed class SavedServerStore
 
     private readonly string _path;
 
+    public string? LastSaveError { get; private set; }
+
+    public sealed record Document(int Version, MainPasswordMetadata? MainPassword, List<SavedServerEntry> Entries);
+
+    internal IDisposable AcquireVaultLock()
+    {
+        var path = Path.GetFullPath(_path) + ".lock";
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.OpenOrCreate,
+            Access = FileAccess.ReadWrite,
+            Share = FileShare.None
+        };
+        if (!OperatingSystem.IsWindows())
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        // Keep the lock file: deleting it would let another process lock a different inode.
+        var deadline = Environment.TickCount64 + 5000;
+        while (true)
+        {
+            try { return new FileStream(path, options); }
+            catch (IOException) when (Environment.TickCount64 < deadline) { Thread.Sleep(25); }
+        }
+    }
+
+    // An array is the legacy format. A v2 document, including one with no main
+    // password, is authoritative over obsolete settings after an interrupted migration.
+    public Document? ReadDocument()
+    {
+        if (!File.Exists(_path))
+            return null;
+        var json = File.ReadAllText(_path);
+        using var parsed = JsonDocument.Parse(json);
+        if (parsed.RootElement.ValueKind == JsonValueKind.Array)
+            return null;
+        var document = JsonSerializer.Deserialize<Document>(json);
+        if (document == null || document.Version != 2 || document.Entries == null)
+            throw new InvalidDataException("Unsupported saved credential file.");
+        return document;
+    }
+
+    public IReadOnlyList<SavedServerEntry> LoadRequired()
+    {
+        if (!File.Exists(_path))
+            return Array.Empty<SavedServerEntry>();
+        return ReadDocument()?.Entries
+            ?? JsonSerializer.Deserialize<List<SavedServerEntry>>(File.ReadAllText(_path))
+            ?? throw new InvalidDataException("Invalid saved credential file.");
+    }
+
+    public void Commit(Document document, CancellationToken cancellationToken = default)
+        => AtomicJsonFile.Write(_path, JsonSerializer.Serialize(document,
+            new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
+
     public SavedServerStore(string? path = null)
     {
         // Defer directory creation to Save / device-key persistence.
@@ -52,10 +106,7 @@ public sealed class SavedServerStore
             if (!File.Exists(_path))
                 return Array.Empty<SavedServerEntry>();
 
-            var json = File.ReadAllText(_path);
-            var loaded = JsonSerializer.Deserialize<List<SavedServerEntry>>(json);
-            if (loaded == null)
-                return Array.Empty<SavedServerEntry>();
+            var loaded = LoadRequired();
 
             return loaded
                 .Where(e => !string.IsNullOrWhiteSpace(e.Address))
@@ -86,20 +137,27 @@ public sealed class SavedServerStore
                 })
                 .ToList();
 
-            var directory = Path.GetDirectoryName(_path);
-            if (!string.IsNullOrEmpty(directory))
-                Directory.CreateDirectory(directory);
-
-            var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_path, json);
+            var document = ReadDocument();
+            if (document != null)
+                Commit(document with { Entries = list });
+            else
+                AtomicJsonFile.Write(_path, JsonSerializer.Serialize(list,
+                    new JsonSerializerOptions { WriteIndented = true }));
+            LastSaveError = null;
         }
-        catch
+        catch (Exception ex)
         {
-            // Persistence failures should not break the shell.
+            LastSaveError = ex.Message;
         }
     }
 
-    public static string? ProtectPassword(string? password)
+    public string? ProtectDevicePassword(string password)
+        => ProtectPassword(password, Path.GetDirectoryName(Path.GetFullPath(_path)));
+
+    public string? UnprotectDevicePassword(string? encrypted)
+        => UnprotectPassword(encrypted, Path.GetDirectoryName(Path.GetFullPath(_path)));
+
+    public static string? ProtectPassword(string? password, string? configRoot = null)
     {
         if (string.IsNullOrEmpty(password) || !CanPersistPasswords)
             return null;
@@ -109,7 +167,7 @@ public sealed class SavedServerStore
             if (OperatingSystem.IsWindows())
                 return EncryptionUtils.Protect(password);
 
-            return ProtectWithDeviceKey(password);
+            return ProtectWithDeviceKey(password, configRoot);
         }
         catch
         {
@@ -117,7 +175,7 @@ public sealed class SavedServerStore
         }
     }
 
-    public static string? UnprotectPassword(string? encrypted)
+    public static string? UnprotectPassword(string? encrypted, string? configRoot = null)
     {
         if (string.IsNullOrWhiteSpace(encrypted))
             return null;
@@ -130,7 +188,7 @@ public sealed class SavedServerStore
             if (OperatingSystem.IsWindows())
                 return EncryptionUtils.Unprotect(encrypted);
 
-            return UnprotectWithDeviceKey(encrypted);
+            return UnprotectWithDeviceKey(encrypted, configRoot);
         }
         catch
         {
@@ -143,28 +201,13 @@ public sealed class SavedServerStore
 
     public static bool IsMainPasswordProtected(string? encrypted)
         => !string.IsNullOrWhiteSpace(encrypted)
-           && encrypted.StartsWith(MainPasswordPrefix, StringComparison.Ordinal);
-
-    /// <summary>Encrypt a server password with the session main-password hash (AES).</summary>
-    public static string? ProtectPasswordWithMainPassword(string? password, byte[] mainPasswordHash)
-    {
-        if (string.IsNullOrEmpty(password) || mainPasswordHash.Length == 0)
-            return null;
-
-        try
-        {
-            return MainPasswordPrefix + EncryptionUtils.EncryptString(password, mainPasswordHash);
-        }
-        catch
-        {
-            return null;
-        }
-    }
+           && (encrypted.StartsWith(MainPasswordPrefix, StringComparison.Ordinal)
+               || encrypted.StartsWith("mp2:", StringComparison.Ordinal));
 
     /// <summary>Decrypt a main-password blob using the plaintext main password from unlock.</summary>
     public static string? UnprotectPasswordWithMainPassword(string? encrypted, string mainPasswordPlain)
     {
-        if (!IsMainPasswordProtected(encrypted) || string.IsNullOrEmpty(mainPasswordPlain))
+        if (encrypted?.StartsWith(MainPasswordPrefix, StringComparison.Ordinal) != true || string.IsNullOrEmpty(mainPasswordPlain))
             return null;
 
         try
@@ -177,9 +220,9 @@ public sealed class SavedServerStore
         }
     }
 
-    private static string ProtectWithDeviceKey(string password)
+    private static string ProtectWithDeviceKey(string password, string? configRoot)
     {
-        var key = LoadOrCreateDeviceKey();
+        var key = LoadOrCreateDeviceKey(configRoot);
         var nonce = RandomNumberGenerator.GetBytes(12);
         var plain = Encoding.UTF8.GetBytes(password);
         var cipher = new byte[plain.Length];
@@ -195,13 +238,13 @@ public sealed class SavedServerStore
         return Convert.ToBase64String(payload);
     }
 
-    private static string? UnprotectWithDeviceKey(string encrypted)
+    private static string? UnprotectWithDeviceKey(string encrypted, string? configRoot)
     {
         var payload = Convert.FromBase64String(encrypted);
         if (payload.Length < 1 + 12 + 16 + 1 || payload[0] != 1)
             return null;
 
-        var key = LoadOrCreateDeviceKey();
+        var key = LoadOrCreateDeviceKey(configRoot);
         var nonce = payload.AsSpan(1, 12);
         var tag = payload.AsSpan(13, 16);
         var cipher = payload.AsSpan(29);
@@ -211,9 +254,10 @@ public sealed class SavedServerStore
         return Encoding.UTF8.GetString(plain);
     }
 
-    private static byte[] LoadOrCreateDeviceKey()
+    private static byte[] LoadOrCreateDeviceKey(string? configRoot)
     {
-        var root = ShellPaths.GetConfigRoot(ensureExists: true);
+        var root = configRoot ?? ShellPaths.GetConfigRoot(ensureExists: true);
+        Directory.CreateDirectory(root);
         var keyPath = Path.Combine(root, "device.key");
         if (File.Exists(keyPath))
         {
@@ -223,10 +267,18 @@ public sealed class SavedServerStore
                 EnforceUserOnlyKeyPermissions(keyPath);
                 return existing;
             }
+            throw new CryptographicException("The saved credential device key is invalid.");
         }
 
         var key = RandomNumberGenerator.GetBytes(32);
-        File.WriteAllBytes(keyPath, key);
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
+        if (!OperatingSystem.IsWindows())
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using (var stream = new FileStream(keyPath, options))
+        {
+            stream.Write(key);
+            stream.Flush(flushToDisk: true);
+        }
         EnforceUserOnlyKeyPermissions(keyPath);
         return key;
     }

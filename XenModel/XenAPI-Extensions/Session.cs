@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-using Newtonsoft.Json.Linq;
 using XenAdmin;
 using XenAdmin.Network;
 
@@ -77,36 +76,12 @@ namespace XenAPI
                    call.StartsWith("task.get_");
         }
 
-        private void LogJsonRequest(string json)
+        private void LogJsonRequest(string methodName)
         {
-#if DEBUG
-            string methodName = "";
-            string parameters = "";
-
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                methodName = obj.Property("method").Value.ToString();
-                parameters = obj.Property("params").Value.ToString();
-            }
-            catch
-            {
-                //ignore
-            }
-
-            // only log the full parameters at Debug level because it may contain sensitive data
-            if (CanLogCall(methodName))
-                log.DebugFormat("Invoking JSON-RPC method '{0}' with params: {1}", methodName, parameters);
-            else
-                log.InfoFormat("Invoking JSON-RPC method '{0}'", methodName);
-#else
-            string methodName = json;
-
             if (CanLogCall(methodName))
                 log.DebugFormat("Invoking JSON-RPC method '{0}'", methodName);
             else
                 log.InfoFormat("Invoking JSON-RPC method '{0}'", methodName);
-#endif
         }
 
         /// <summary>

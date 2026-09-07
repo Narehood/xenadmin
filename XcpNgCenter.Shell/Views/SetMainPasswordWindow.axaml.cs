@@ -1,13 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using XenCenterLib;
 
 namespace XcpNgCenter.Shell.Views;
 
 public partial class SetMainPasswordWindow : Window
 {
-    public byte[]? NewPasswordHash { get; private set; }
-
     public string? PasswordPlain { get; private set; }
 
     public SetMainPasswordWindow()
@@ -24,7 +21,7 @@ public partial class SetMainPasswordWindow : Window
         if (!string.IsNullOrEmpty(password) && password == confirm)
         {
             PasswordPlain = password;
-            NewPasswordHash = EncryptionUtils.ComputeHash(password);
+            PasswordBox.Text = ConfirmBox.Text = string.Empty;
             Close(true);
             return;
         }
@@ -36,5 +33,9 @@ public partial class SetMainPasswordWindow : Window
         PasswordBox.Focus();
     }
 
-    private void OnCancelClick(object? sender, RoutedEventArgs e) => Close(false);
+    private void OnCancelClick(object? sender, RoutedEventArgs e)
+    {
+        PasswordBox.Text = ConfirmBox.Text = string.Empty;
+        Close(false);
+    }
 }

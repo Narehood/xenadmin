@@ -29,10 +29,10 @@ public sealed record PreparedShellUpdate(
 
 /// <summary>
 /// Downloads, verifies, and stages a shell release in the current user's local update cache.
-/// The staged new executable then waits for this process to exit, replaces the installed
-/// files (requesting Windows elevation only when required), and relaunches from the original directory.
+/// Installed code authenticates the archive again and creates a separate launch directory
+/// before any downloaded code runs. Elevated helpers use administrator-owned staging.
 /// </summary>
-public sealed class ShellUpdateInstaller
+public sealed partial class ShellUpdateInstaller
 {
     private const string UpdateDirectoryName = ".xcpng-update";
     private const string PayloadDirectoryName = "payload";
@@ -50,6 +50,9 @@ public sealed class ShellUpdateInstaller
     private const string FailureMarkerFileName = "update-failed.txt";
     private const string StickyUpdateErrorFileName = "last-update-error.txt";
     private const int ElevationCancelledError = 1223;
+    private const string CustomElevatedUpdateMessage = "Automatic installation with administrator privileges is available only for releases from "
+        + ShellGitHubUpdateChecker.DefaultOwner + "/" + ShellGitHubUpdateChecker.DefaultRepo
+        + ". Open the release page to install this custom build manually.";
     private const long MaximumExtractedBytes = 4L * 1024 * 1024 * 1024;
     private const int MaximumArchiveEntries = 50_000;
 
@@ -163,6 +166,13 @@ public sealed class ShellUpdateInstaller
             return false;
         }
 
+        if (_isWindows && (RequiresElevationForInstall || _processElevatedProbe())
+            && !ShellGitHubUpdateChecker.IsDefaultRepositoryConfigured)
+        {
+            reason = CustomElevatedUpdateMessage;
+            return false;
+        }
+
         reason = string.Empty;
         return true;
     }
@@ -262,20 +272,20 @@ public sealed class ShellUpdateInstaller
                 || version != offer.Version
                 || !PathEquals(manifest.InstallDirectory, _installDirectory)
                 || !string.Equals(manifest.ExecutableName, expectedExecutableName, StringComparison.Ordinal)
-                || (offer.Asset != null
-                    && !string.Equals(manifest.AssetName, offer.Asset.Name, StringComparison.OrdinalIgnoreCase)))
+                || offer.Asset == null
+                || !string.Equals(manifest.AssetName, offer.Asset.Name, StringComparison.Ordinal)
+                || !string.Equals(manifest.Digest, offer.Asset.Digest, StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
 
-            var payload = Path.Combine(updateRoot, PayloadDirectoryName);
-            var executable = Path.Combine(payload, manifest.ExecutableName);
-            var managedAssembly = Path.Combine(payload, "XcpNgCenter.Shell.dll");
-            if (!File.Exists(executable) || !File.Exists(managedAssembly))
+            // This is only a cache-availability check. No code from this directory is
+            // executable input to the installer; the bootstrap reauthenticates the archive.
+            var archive = ArchivePath.GetSafeExtractPath(updateRoot, manifest.AssetName);
+            if (!File.Exists(archive) || new FileInfo(archive).Length != offer.Asset.Size)
                 return null;
-            ValidatePayload(payload, manifest.ExecutableName, version);
-
-            return new PreparedShellUpdate(version, updateRoot, payload, manifest.ExecutableName);
+            return new PreparedShellUpdate(version, updateRoot,
+                Path.Combine(updateRoot, PayloadDirectoryName), manifest.ExecutableName);
         }
         catch
         {
@@ -297,7 +307,7 @@ public sealed class ShellUpdateInstaller
         var alreadyPrepared = TryGetPreparedUpdate(offer);
         if (alreadyPrepared != null)
         {
-            progress?.Report(new ShellUpdateProgress(offer.Asset.Size, offer.Asset.Size, "Update already downloaded and verified."));
+            progress?.Report(new ShellUpdateProgress(offer.Asset.Size, offer.Asset.Size, "Downloaded package ready for installation verification."));
             return alreadyPrepared;
         }
 
@@ -326,14 +336,17 @@ public sealed class ShellUpdateInstaller
             await ExtractArchiveAsync(archivePath, payloadDirectory, cancellationToken).ConfigureAwait(false);
 
             var executableName = GetExecutableName(_isWindows);
+            NormalizePortablePackageLayout(payloadDirectory, executableName);
             ValidatePayload(payloadDirectory, executableName, offer.Version);
-            TryDeleteFile(archivePath);
+            // Retain the authenticated archive, not executable code in the writable cache.
+            TryDeleteDirectory(payloadDirectory);
 
             var manifest = new PreparedManifest
             {
                 Version = offer.Version.ToString(4),
                 TagName = offer.TagName,
                 AssetName = offer.Asset.Name,
+                Digest = offer.Asset.Digest ?? string.Empty,
                 ExecutableName = executableName,
                 InstallDirectory = _installDirectory,
                 PreparedAt = DateTimeOffset.UtcNow
@@ -358,7 +371,7 @@ public sealed class ShellUpdateInstaller
             TryDeleteDirectory(expectedRoot);
     }
 
-    public void StartApplyHelper(PreparedShellUpdate update)
+    public async Task StartApplyHelperAsync(PreparedShellUpdate update)
     {
         ArgumentNullException.ThrowIfNull(update);
         var expectedRoot = GetUpdateRoot(update.Version);
@@ -366,34 +379,33 @@ public sealed class ShellUpdateInstaller
             || !string.Equals(update.ExecutableName, GetExecutableName(_isWindows), StringComparison.Ordinal))
             throw new InvalidOperationException("The prepared update directory is invalid.");
 
-        var stagedExecutable = Path.Combine(update.PayloadDirectory, update.ExecutableName);
-        if (!File.Exists(stagedExecutable))
-            throw new FileNotFoundException("The staged updater executable is missing.", stagedExecutable);
-
         var requiresElevation = RequiresElevationForInstall;
+        var protectedLaunch = _isWindows && (requiresElevation || _processElevatedProbe());
+        if (protectedLaunch && !ShellGitHubUpdateChecker.IsDefaultRepositoryConfigured)
+            throw new InvalidOperationException(CustomElevatedUpdateMessage);
+        var launchRoot = CreateLaunchRootPath(_installDirectory, protectedLaunch);
         Process? restartBroker = null;
-        var previousResult = Path.Combine(update.UpdateRoot, UpdateResultFileName);
-        if (File.Exists(previousResult))
-            File.Delete(previousResult);
         ClearApplyFailure(update);
         try
         {
-            var startInfo = CreateApplyStartInfo(
-                stagedExecutable,
-                update.PayloadDirectory,
-                Environment.ProcessId,
-                _installDirectory,
-                update.UpdateRoot,
-                requiresElevation,
-                deferRestart: requiresElevation);
-            // Process.Start(runas) blocks until the user accepts or cancels UAC. Start the
-            // unelevated restart broker only after that returns — otherwise the broker's
-            // parent-exit wait times out while the elevation prompt is still open.
-            using var process = Process.Start(startInfo)
-                ?? throw new InvalidOperationException("The update helper could not be started.");
-
-            if (requiresElevation)
-                restartBroker = StartRestartBroker(stagedExecutable, update, Environment.ProcessId, _installDirectory);
+            var startInfo = CreateBootstrapStartInfo(_currentExecutablePath, _installDirectory,
+                update.UpdateRoot, launchRoot, update.Version, Environment.ProcessId, requiresElevation);
+            // Launch only installed code across UAC. The bootstrap authenticates and
+            // stages the new helper before the original user's broker may execute it.
+            using var bootstrap = await Task.Run(() => Process.Start(startInfo)
+                ?? throw new InvalidOperationException("The installed update bootstrap could not be started."));
+            await WaitForBootstrapAsync(bootstrap, launchRoot).ConfigureAwait(false);
+            ValidateLaunchRoot(_installDirectory, launchRoot, requireProtected: protectedLaunch);
+            var launchUpdate = update with
+            {
+                UpdateRoot = launchRoot,
+                PayloadDirectory = Path.Combine(launchRoot, PayloadDirectoryName)
+            };
+            restartBroker = StartRestartBroker(Path.Combine(launchUpdate.PayloadDirectory, update.ExecutableName),
+                launchUpdate, Environment.ProcessId, _installDirectory);
+            var acknowledgement = GetBrokerAcknowledgementPath(update.UpdateRoot, launchRoot);
+            File.WriteAllText(acknowledgement + ".tmp", restartBroker.Id.ToString());
+            File.Move(acknowledgement + ".tmp", acknowledgement);
         }
         catch (Win32Exception ex) when (requiresElevation && ex.NativeErrorCode == ElevationCancelledError)
         {
@@ -450,38 +462,6 @@ public sealed class ShellUpdateInstaller
         TryDeleteFile(Path.Combine(ShellPaths.GetConfigRoot(ensureExists: false), StickyUpdateErrorFileName));
     }
 
-    internal static ProcessStartInfo CreateApplyStartInfo(
-        string stagedExecutable,
-        string payloadDirectory,
-        int parentProcessId,
-        string installDirectory,
-        string updateRoot,
-        bool elevate,
-        bool deferRestart)
-    {
-        if (deferRestart && !elevate)
-            throw new ArgumentException("Deferred restart requires an elevated apply helper.", nameof(deferRestart));
-
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = stagedExecutable,
-            WorkingDirectory = payloadDirectory,
-            UseShellExecute = elevate
-        };
-        if (elevate)
-            startInfo.Verb = "runas";
-        startInfo.ArgumentList.Add(ApplyArgument);
-        startInfo.ArgumentList.Add(WaitPidArgument);
-        startInfo.ArgumentList.Add(parentProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        startInfo.ArgumentList.Add(InstallDirectoryArgument);
-        startInfo.ArgumentList.Add(installDirectory);
-        startInfo.ArgumentList.Add(UpdateRootArgument);
-        startInfo.ArgumentList.Add(updateRoot);
-        if (deferRestart)
-            startInfo.ArgumentList.Add(DeferRestartArgument);
-        return startInfo;
-    }
-
     private static Process StartRestartBroker(
         string stagedExecutable,
         PreparedShellUpdate update,
@@ -512,6 +492,11 @@ public sealed class ShellUpdateInstaller
     /// original user's token after a protected-directory update finishes.
     /// </summary>
     public static bool TryRunRestartBrokerMode(string[] args, out int exitCode)
+        => TryRunRestartBrokerMode(args, out exitCode, WaitForProcessExit, TryRestartApplication);
+
+    internal static bool TryRunRestartBrokerMode(string[] args, out int exitCode,
+        Action<int> waitForExit,
+        Func<string, string, string, string, string?, bool> restartApplication)
     {
         if (!args.Contains(RestartBrokerArgument, StringComparer.Ordinal))
         {
@@ -522,6 +507,7 @@ public sealed class ShellUpdateInstaller
         var waitPid = 0;
         string? installDirectory = null;
         string? updateRoot = null;
+        var validatedContext = false;
         try
         {
             var waitPidText = GetArgumentValue(args, WaitPidArgument)
@@ -549,7 +535,8 @@ public sealed class ShellUpdateInstaller
             if (!PathEquals(Environment.ProcessPath ?? string.Empty, stagedExecutable))
                 throw new InvalidDataException("The update restart helper is not running from the prepared package.");
 
-            WaitForProcessExit(waitPid);
+            validatedContext = true;
+            waitForExit(waitPid);
             var result = WaitForUpdateResult(updateRoot);
             if (string.IsNullOrWhiteSpace(result.ErrorMessage)
                 && !string.Equals(result.Version, manifest.Version, StringComparison.Ordinal))
@@ -557,7 +544,7 @@ public sealed class ShellUpdateInstaller
                 throw new InvalidDataException("The update completion result has an unexpected version.");
             }
             var executable = Path.Combine(installDirectory, GetExecutableName(OperatingSystem.IsWindows()));
-            if (!TryRestartApplication(
+            if (!restartApplication(
                     executable,
                     installDirectory,
                     updateRoot,
@@ -572,13 +559,13 @@ public sealed class ShellUpdateInstaller
         catch (Exception ex)
         {
             Trace.WriteLine($"Shell update restart helper failed: {ex}");
-            if (waitPid > 0 && !string.IsNullOrWhiteSpace(installDirectory))
+            if (validatedContext && waitPid > 0 && !string.IsNullOrWhiteSpace(installDirectory))
             {
                 try
                 {
-                    WaitForProcessExit(waitPid);
+                    waitForExit(waitPid);
                     var executable = Path.Combine(installDirectory, GetExecutableName(OperatingSystem.IsWindows()));
-                    TryRestartApplication(
+                    restartApplication(
                         executable,
                         installDirectory,
                         updateRoot ?? string.Empty,
@@ -609,6 +596,7 @@ public sealed class ShellUpdateInstaller
         string? installDirectory = null;
         string? updateRoot = null;
         var deferRestart = args.Contains(DeferRestartArgument, StringComparer.Ordinal);
+        var validatedContext = false;
         try
         {
             var waitPidText = GetArgumentValue(args, WaitPidArgument)
@@ -620,26 +608,33 @@ public sealed class ShellUpdateInstaller
                 ?? throw new InvalidDataException("The update helper is missing the install directory."));
             updateRoot = NormalizeDirectory(GetArgumentValue(args, UpdateRootArgument)
                 ?? throw new InvalidDataException("The update helper is missing the staging directory."));
-
+            ValidatePreparedUpdateLocation(installDirectory, updateRoot);
+            var prepared = ReadManifest(updateRoot)
+                ?? throw new InvalidDataException("The update manifest is missing.");
+            if (!PathEquals(prepared.InstallDirectory, installDirectory)
+                || !PathEquals(Environment.ProcessPath ?? string.Empty,
+                    Path.Combine(updateRoot, PayloadDirectoryName, GetExecutableName(OperatingSystem.IsWindows()))))
+                throw new InvalidDataException("The update helper context does not match its installation.");
+            validatedContext = true;
             exitCode = ApplyPreparedUpdate(waitPid, installDirectory, updateRoot, deferRestart);
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"Shell update helper failed: {ex}");
-            if (!string.IsNullOrWhiteSpace(updateRoot))
+            if (validatedContext && !string.IsNullOrWhiteSpace(updateRoot))
             {
                 WriteApplyFailure(
                     updateRoot!,
                     $"The update could not be installed: {ex.Message}");
             }
-            if (deferRestart && !string.IsNullOrWhiteSpace(updateRoot))
+            if (validatedContext && deferRestart && !string.IsNullOrWhiteSpace(updateRoot))
             {
                 TryWriteUpdateResult(
                     updateRoot!,
                     string.Empty,
                     $"The update could not be installed: {ex.Message}");
             }
-            else if (waitPid > 0 && !string.IsNullOrWhiteSpace(installDirectory))
+            else if (validatedContext && waitPid > 0 && !string.IsNullOrWhiteSpace(installDirectory))
             {
                 try
                 {
@@ -667,7 +662,7 @@ public sealed class ShellUpdateInstaller
     public static string[] PrepareApplicationStartup(string[] args)
     {
         var remaining = new List<string>(args.Length);
-        string? cleanupDirectory = null;
+        var cleanupDirectories = new List<string>();
         string? updatedVersion = null;
         string? updateError = null;
 
@@ -679,7 +674,7 @@ public sealed class ShellUpdateInstaller
                 {
                     var value = args[++i];
                     if (args[i - 1] == CleanupArgument)
-                        cleanupDirectory = value;
+                        cleanupDirectories.Add(value);
                     else if (args[i - 1] == UpdatedVersionArgument)
                         updatedVersion = value;
                     else
@@ -703,8 +698,9 @@ public sealed class ShellUpdateInstaller
             _startupStatusMessage = updateError;
         }
 
-        if (!string.IsNullOrWhiteSpace(cleanupDirectory) && IsSafeCleanupDirectory(cleanupDirectory))
-            ScheduleCleanup(cleanupDirectory);
+        foreach (var cleanupDirectory in cleanupDirectories)
+            if (!string.IsNullOrWhiteSpace(cleanupDirectory) && IsSafeCleanupDirectory(cleanupDirectory))
+                ScheduleCleanup(cleanupDirectory);
 
         return remaining.ToArray();
     }
@@ -719,10 +715,11 @@ public sealed class ShellUpdateInstaller
             throw new InvalidDataException($"The update download is incomplete ({length:N0} of {asset.Size:N0} bytes).");
 
         if (string.IsNullOrWhiteSpace(asset.Digest))
-            return;
+            throw new InvalidDataException("The update has no authenticated SHA-256 digest.");
 
         var parts = asset.Digest.Split(':', 2, StringSplitOptions.TrimEntries);
-        if (parts.Length != 2 || !string.Equals(parts[0], "sha256", StringComparison.OrdinalIgnoreCase))
+        if (parts.Length != 2 || !string.Equals(parts[0], "sha256", StringComparison.OrdinalIgnoreCase)
+            || parts[1].Length != 64 || !parts[1].All(Uri.IsHexDigit))
             throw new InvalidDataException("The release uses an unsupported download digest.");
 
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024,
@@ -893,11 +890,13 @@ public sealed class ShellUpdateInstaller
         if (!PathEquals(processPath, stagedExecutable))
             throw new InvalidDataException("The update helper is not running from the prepared package.");
 
-        WaitForProcessExit(waitPid);
-
         string? errorMessage = null;
         try
         {
+            // A failed broker launch must not leave an installer armed to run when
+            // the user later closes the application normally.
+            WaitForRestartBroker(updateRoot, manifest.CacheRoot);
+            WaitForProcessExit(waitPid);
             if (!Version.TryParse(manifest.Version, out var expectedVersion))
                 throw new InvalidDataException("The prepared update version is invalid.");
             ApplyPayload(payloadDirectory, installDirectory, Path.Combine(updateRoot, "backup"), expectedVersion);
@@ -909,7 +908,7 @@ public sealed class ShellUpdateInstaller
             TryWriteAllText(logPath, ex.ToString());
             errorMessage =
                 $"The update could not be installed ({ex.GetType().Name}: {ex.Message}). " +
-                $"If Windows Security blocked the updater, allow XcpNgCenter.Shell.exe and add exclusions for the install folder and %LOCALAPPDATA%\\XCP-ng\\XCP-ng Center Shell\\Updates. Details: {logPath}";
+                $"Details: {logPath}";
             WriteApplyFailure(updateRoot, errorMessage);
         }
 
@@ -918,6 +917,11 @@ public sealed class ShellUpdateInstaller
         {
             if (!TryWriteUpdateResult(updateRoot, manifest.Version, errorMessage))
                 return 1;
+            if (errorMessage == null)
+            {
+                try { StartProtectedCleanup(installDirectory, updateRoot); }
+                catch (Exception ex) { Trace.WriteLine($"Could not schedule update staging cleanup: {ex}"); }
+            }
             return errorMessage == null ? 0 : 1;
         }
 
@@ -933,6 +937,9 @@ public sealed class ShellUpdateInstaller
         Version? expectedVersion = null)
     {
         ValidatePayload(payloadDirectory, GetExecutableName(OperatingSystem.IsWindows()), expectedVersion);
+        RejectPathLinks(payloadDirectory);
+        RejectPathLinks(installDirectory);
+        RejectPathLinks(backupDirectory);
         TryDeleteDirectory(backupDirectory);
         Directory.CreateDirectory(backupDirectory);
 
@@ -948,6 +955,7 @@ public sealed class ShellUpdateInstaller
             var relative = Path.GetRelativePath(payloadDirectory, source);
             RejectReservedUpdatePath(relative);
             var target = ArchivePath.GetSafeExtractPath(installDirectory, relative);
+            RejectPathLinks(target);
             if (!File.Exists(target))
                 continue;
 
@@ -963,6 +971,7 @@ public sealed class ShellUpdateInstaller
             {
                 var relative = Path.GetRelativePath(payloadDirectory, source);
                 var target = ArchivePath.GetSafeExtractPath(installDirectory, relative);
+                RejectPathLinks(target);
                 CopyFileAtomicallyWithRetry(source, target);
                 applied.Add(relative);
             }
@@ -1016,6 +1025,12 @@ public sealed class ShellUpdateInstaller
             {
                 startInfo.ArgumentList.Add(CleanupArgument);
                 startInfo.ArgumentList.Add(updateRoot);
+                var cacheRoot = ReadManifest(updateRoot)?.CacheRoot;
+                if (!string.IsNullOrWhiteSpace(cacheRoot) && IsSafeCleanupDirectory(cacheRoot))
+                {
+                    startInfo.ArgumentList.Add(CleanupArgument);
+                    startInfo.ArgumentList.Add(cacheRoot);
+                }
                 startInfo.ArgumentList.Add(UpdatedVersionArgument);
                 startInfo.ArgumentList.Add(version);
             }
@@ -1153,7 +1168,7 @@ public sealed class ShellUpdateInstaller
             var grandparent = parent == null ? null : Path.GetDirectoryName(parent);
             return grandparent != null
                    && PathEquals(grandparent, stagingRoot)
-                   && Path.GetFileName(normalized).StartsWith('v');
+                   && (Path.GetFileName(normalized).StartsWith('v') || HasRandomDirectoryName(normalized, LaunchPrefix));
         }
         catch
         {
@@ -1164,6 +1179,7 @@ public sealed class ShellUpdateInstaller
     private static void WriteApplyFailure(string updateRoot, string message)
     {
         TryWriteAllText(Path.Combine(updateRoot, FailureMarkerFileName), message);
+        if (IsCurrentProcessElevated()) return;
         try
         {
             var sticky = Path.Combine(ShellPaths.GetConfigRoot(), StickyUpdateErrorFileName);
@@ -1177,6 +1193,7 @@ public sealed class ShellUpdateInstaller
 
     private static void ClearStickyUpdateError()
     {
+        if (IsCurrentProcessElevated()) return;
         TryDeleteFile(Path.Combine(ShellPaths.GetConfigRoot(ensureExists: false), StickyUpdateErrorFileName));
     }
 
@@ -1233,6 +1250,60 @@ public sealed class ShellUpdateInstaller
     {
         TryDeleteDirectory(updateRoot);
         Directory.CreateDirectory(updateRoot);
+    }
+
+    /// <summary>
+    /// Release archives ship as INSTALL.TXT + XcpNgCenter.Shell/... for portable install.
+    /// In-place updates need the executable at the payload root, so unwrap that layout
+    /// (and keep supporting older flat archives).
+    /// </summary>
+    internal static void NormalizePortablePackageLayout(string payloadDirectory, string executableName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(payloadDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(executableName);
+
+        RemovePackagingFiles(payloadDirectory);
+
+        var rootExecutable = Path.Combine(payloadDirectory, executableName);
+        if (File.Exists(rootExecutable))
+            return;
+
+        var candidates = Directory.GetDirectories(payloadDirectory)
+            .Where(dir => File.Exists(Path.Combine(dir, executableName)))
+            .ToList();
+        if (candidates.Count != 1)
+            throw new InvalidDataException("The update package does not contain a recognizable shell payload.");
+
+        var nestedRoot = candidates[0];
+        foreach (var entry in Directory.EnumerateFileSystemEntries(nestedRoot))
+        {
+            var name = Path.GetFileName(entry);
+            var destination = Path.Combine(payloadDirectory, name);
+            if (File.Exists(destination) || Directory.Exists(destination))
+                throw new InvalidDataException($"The update package has a conflicting entry '{name}'.");
+
+            Directory.Move(entry, destination);
+        }
+
+        TryDeleteDirectory(nestedRoot);
+        RemovePackagingFiles(payloadDirectory);
+
+        if (!File.Exists(Path.Combine(payloadDirectory, executableName)))
+            throw new InvalidDataException("The update package is missing the shell executable after unpacking.");
+    }
+
+    private static void RemovePackagingFiles(string payloadDirectory)
+    {
+        foreach (var path in Directory.EnumerateFiles(payloadDirectory))
+        {
+            var name = Path.GetFileName(path);
+            if (name.Equals("INSTALL.TXT", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("README.TXT", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("README.md", StringComparison.OrdinalIgnoreCase))
+            {
+                TryDeleteFile(path);
+            }
+        }
     }
 
     private static void ValidatePayload(string payloadDirectory, string executableName, Version? expectedVersion = null)
@@ -1378,14 +1449,8 @@ public sealed class ShellUpdateInstaller
 
     private static void ValidatePreparedUpdateLocation(string installDirectory, string updateRoot)
     {
-        var normalizedRoot = NormalizeDirectory(updateRoot);
-        var updateBase = Path.GetDirectoryName(normalizedRoot) ?? string.Empty;
-        var expectedIdentity = GetInstallDirectoryIdentity(installDirectory, OperatingSystem.IsWindows());
-        if (!string.Equals(Path.GetFileName(updateBase), expectedIdentity, StringComparison.OrdinalIgnoreCase)
-            || !Path.GetFileName(normalizedRoot).StartsWith('v'))
-        {
-            throw new InvalidDataException("The update staging directory does not match this installation.");
-        }
+        ValidateLaunchRoot(installDirectory, updateRoot,
+            requireProtected: OperatingSystem.IsWindows() && IsCurrentProcessElevated());
     }
 
     private static string NormalizeDirectory(string path) =>
@@ -1471,6 +1536,12 @@ public sealed class ShellUpdateInstaller
 
         [JsonPropertyName("assetName")]
         public string AssetName { get; set; } = string.Empty;
+
+        [JsonPropertyName("digest")]
+        public string Digest { get; set; } = string.Empty;
+
+        [JsonPropertyName("cacheRoot")]
+        public string? CacheRoot { get; set; }
 
         [JsonPropertyName("executableName")]
         public string ExecutableName { get; set; } = string.Empty;

@@ -401,25 +401,13 @@ public sealed class ShellAppSettings
         set => SetBool(v => _state.RequireMainPassword = v, () => _state.RequireMainPassword, value);
     }
 
-    /// <summary>Base64-encoded SHA-256 hash of the main password, or null when unset.</summary>
+    /// <summary>Legacy mp1 unlock metadata, read only for migration. New vaults never persist a key here.</summary>
     public string? MainPasswordHashBase64
     {
         get
         {
             lock (_gate)
                 return _state.MainPasswordHashBase64;
-        }
-        set
-        {
-            lock (_gate)
-            {
-                if (_state.MainPasswordHashBase64 == value)
-                    return;
-                _state.MainPasswordHashBase64 = value;
-                SaveUnlocked();
-            }
-
-            Changed?.Invoke();
         }
     }
 
@@ -438,11 +426,28 @@ public sealed class ShellAppSettings
         }
     }
 
-    public void SetMainPasswordHash(byte[]? hash)
+    internal void ClearLegacyMainPassword()
     {
-        MainPasswordHashBase64 = hash == null || hash.Length == 0
-            ? null
-            : Convert.ToBase64String(hash);
+        lock (_gate)
+        {
+            if (_state.MainPasswordHashBase64 == null && !_state.RequireMainPassword)
+                return;
+            var oldHash = _state.MainPasswordHashBase64;
+            var oldRequired = _state.RequireMainPassword;
+            _state.MainPasswordHashBase64 = null;
+            _state.RequireMainPassword = false;
+            try
+            {
+                AtomicJsonFile.Write(_path, JsonSerializer.Serialize(_state,
+                    new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch
+            {
+                _state.MainPasswordHashBase64 = oldHash;
+                _state.RequireMainPassword = oldRequired;
+                throw;
+            }
+        }
     }
 
     private void SetBool(Action<bool> assign, Func<bool> current, bool value)
@@ -509,7 +514,7 @@ public sealed class ShellAppSettings
                 Directory.CreateDirectory(directory);
 
             var json = JsonSerializer.Serialize(_state, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_path, json);
+            AtomicJsonFile.Write(_path, json);
         }
         catch
         {
@@ -613,6 +618,7 @@ public sealed class ShellAppSettings
         public bool RequireMainPassword { get; set; }
 
         [JsonPropertyName("mainPasswordHash")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? MainPasswordHashBase64 { get; set; }
     }
 }

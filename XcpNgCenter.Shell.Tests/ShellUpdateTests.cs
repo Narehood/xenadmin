@@ -201,34 +201,31 @@ public sealed class ShellUpdateTests
     }
 
     [Fact]
-    public void CreateApplyStartInfo_RequestsUacAndDefersElevatedRestart()
+    public void CreateBootstrapStartInfo_ElevatesInstalledCode()
     {
-        var info = ShellUpdateInstaller.CreateApplyStartInfo(
-            @"C:\staging\XcpNgCenter.Shell.exe",
-            @"C:\staging",
-            1234,
+        var info = ShellUpdateInstaller.CreateBootstrapStartInfo(
+            @"C:\Program Files\XCP-ng Center\XcpNgCenter.Shell.exe",
             @"C:\Program Files\XCP-ng Center",
             @"C:\staging\v2026.8.14.4",
-            elevate: true,
-            deferRestart: true);
+            @"C:\Program Files\.xcpng-update-0123456789abcdef0123456789abcdef",
+            ReleaseVersion, 1234, elevate: true);
 
         Assert.True(info.UseShellExecute);
         Assert.Equal("runas", info.Verb);
-        Assert.Contains("--apply-shell-update", info.ArgumentList);
-        Assert.Contains("--defer-shell-update-restart", info.ArgumentList);
+        Assert.Equal(@"C:\Program Files\XCP-ng Center\XcpNgCenter.Shell.exe", info.FileName);
+        Assert.Contains("--prepare-shell-update", info.ArgumentList);
+        Assert.DoesNotContain("--apply-shell-update", info.ArgumentList);
     }
 
     [Fact]
-    public void CreateApplyStartInfo_UsesDirectLaunchForWritableInstall()
+    public void CreateBootstrapStartInfo_UsesInstalledCodeWithoutElevationForWritableInstall()
     {
-        var info = ShellUpdateInstaller.CreateApplyStartInfo(
-            @"C:\staging\XcpNgCenter.Shell.exe",
-            @"C:\staging",
-            1234,
+        var info = ShellUpdateInstaller.CreateBootstrapStartInfo(
+            @"C:\Tools\XCP-ng Center\XcpNgCenter.Shell.exe",
             @"C:\Tools\XCP-ng Center",
             @"C:\staging\v2026.8.14.4",
-            elevate: false,
-            deferRestart: false);
+            @"C:\staging\launch-0123456789abcdef0123456789abcdef",
+            ReleaseVersion, 1234, elevate: false);
 
         Assert.False(info.UseShellExecute);
         Assert.Empty(info.Verb);
@@ -339,6 +336,59 @@ public sealed class ShellUpdateTests
         await ShellUpdateInstaller.ExtractArchiveAsync(archivePath, destination, CancellationToken.None);
 
         Assert.Equal("content", await File.ReadAllTextAsync(Path.Combine(destination, "nested", "file.txt")));
+    }
+
+    [Fact]
+    public void NormalizePortablePackageLayout_UnwrapsAppFolderAndDropsInstallTxt()
+    {
+        using var temp = new TemporaryDirectory();
+        var payload = Path.Combine(temp.Path, "payload");
+        var appDir = Path.Combine(payload, "XcpNgCenter.Shell");
+        Directory.CreateDirectory(appDir);
+        File.WriteAllText(Path.Combine(payload, "INSTALL.TXT"), "portable install help");
+        CreateMinimumPayload(appDir);
+        var executableName = OperatingSystem.IsWindows() ? "XcpNgCenter.Shell.exe" : "XcpNgCenter.Shell";
+
+        ShellUpdateInstaller.NormalizePortablePackageLayout(payload, executableName);
+
+        Assert.True(File.Exists(Path.Combine(payload, executableName)));
+        Assert.True(File.Exists(Path.Combine(payload, "XcpNgCenter.Shell.dll")));
+        Assert.False(File.Exists(Path.Combine(payload, "INSTALL.TXT")));
+        Assert.False(Directory.Exists(appDir));
+    }
+
+    [Fact]
+    public void NormalizePortablePackageLayout_LeavesFlatPayloadAlone()
+    {
+        using var temp = new TemporaryDirectory();
+        var payload = Path.Combine(temp.Path, "payload");
+        Directory.CreateDirectory(payload);
+        CreateMinimumPayload(payload);
+        File.WriteAllText(Path.Combine(payload, "INSTALL.TXT"), "should be removed");
+        var executableName = OperatingSystem.IsWindows() ? "XcpNgCenter.Shell.exe" : "XcpNgCenter.Shell";
+
+        ShellUpdateInstaller.NormalizePortablePackageLayout(payload, executableName);
+
+        Assert.True(File.Exists(Path.Combine(payload, executableName)));
+        Assert.False(File.Exists(Path.Combine(payload, "INSTALL.TXT")));
+    }
+
+    [Fact]
+    public void NormalizePortablePackageLayout_RejectsAmbiguousLayout()
+    {
+        using var temp = new TemporaryDirectory();
+        var payload = Path.Combine(temp.Path, "payload");
+        Directory.CreateDirectory(payload);
+        var executableName = OperatingSystem.IsWindows() ? "XcpNgCenter.Shell.exe" : "XcpNgCenter.Shell";
+        foreach (var folder in new[] { "one", "two" })
+        {
+            var dir = Path.Combine(payload, folder);
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, executableName), "exe");
+        }
+
+        Assert.Throws<InvalidDataException>(() =>
+            ShellUpdateInstaller.NormalizePortablePackageLayout(payload, executableName));
     }
 
     [Fact]

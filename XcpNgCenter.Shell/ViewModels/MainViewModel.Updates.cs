@@ -229,10 +229,10 @@ public partial class MainViewModel
     {
         UpdateBannerTitle = $"Update ready — {offer.Version.ToString(4)}";
         UpdateBannerMessage = _updateInstaller.RequiresElevationForInstall
-            ? "The update was downloaded and verified. Windows administrator approval is required to replace files in this protected installation folder."
-            : "The update was downloaded and verified. Restart to install it in the current application directory.";
+            ? "The update is downloaded. Installation will verify it again and requires Windows administrator approval."
+            : "The update is downloaded. Restart to verify and install it in the current application directory.";
         UpdateDownloadProgress = 100;
-        UpdateProgressText = "Download verified.";
+        UpdateProgressText = "Download ready.";
         UpdateActionLabel = "Restart & install";
     }
 
@@ -248,7 +248,7 @@ public partial class MainViewModel
         var restart = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
         {
             Title = $"Restart to install {_pendingUpdate.Version.ToString(4)}?",
-            Message = $"The update is downloaded and verified. XCP-ng Center will close, replace the files in {_updateInstaller.InstallDirectory}, and reopen automatically. Active server sessions will be closed.{permissionMessage}",
+            Message = $"XCP-ng Center will verify the downloaded update, then close, replace the files in {_updateInstaller.InstallDirectory}, and reopen automatically. Active server sessions will be closed.{permissionMessage}",
             AcceptLabel = requiresElevation ? "Continue to approval" : "Restart & install",
             CancelLabel = "Later"
         }).ConfigureAwait(true);
@@ -260,7 +260,9 @@ public partial class MainViewModel
             if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
                 throw new InvalidOperationException("The desktop application lifetime is unavailable.");
 
-            _updateInstaller.StartApplyHelper(_preparedUpdate);
+            IsUpdateDownloading = true;
+            UpdateProgressText = "Verifying the package for installation…";
+            await _updateInstaller.StartApplyHelperAsync(_preparedUpdate).ConfigureAwait(true);
             StatusMessage = "Restarting to install the update…";
             desktop.Shutdown(0);
         }
@@ -277,6 +279,10 @@ public partial class MainViewModel
             UpdateBannerMessage = ex.Message;
             UpdateActionLabel = "Retry restart";
             StatusMessage = $"Could not start the update: {ex.Message}";
+        }
+        finally
+        {
+            IsUpdateDownloading = false;
         }
     }
 

@@ -59,7 +59,7 @@ public partial class SettingsViewModel : ViewModelBase
         _hideVmNames = settings.HideVmNames;
         _hideServerNames = settings.HideServerNames;
         _hideClusterNames = settings.HideClusterNames;
-        _requireMainPassword = settings.RequireMainPassword && settings.GetMainPasswordHash() != null;
+        _requireMainPassword = main.RequiresMainPassword;
         _suppressPrivacyNotify = false;
         VersionText = ShellVersionInfo.Display;
         BuildDateText = ShellVersionInfo.BuildDateDisplay;
@@ -216,7 +216,7 @@ public partial class SettingsViewModel : ViewModelBase
 
     public bool ShowProxyAuthentication => ShowCustomProxy && ProvideProxyAuthentication;
 
-    public bool CanChangeMainPassword => RequireMainPassword && _settings.GetMainPasswordHash() != null;
+    public bool CanChangeMainPassword => RequireMainPassword;
 
     public bool CanAutoReconnectSavedServers => RememberSavedServers;
 
@@ -424,39 +424,31 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task ToggleRequireMainPasswordAsync()
     {
-        var currentlyEnabled = _settings.RequireMainPassword && _settings.GetMainPasswordHash() != null;
-        if (currentlyEnabled)
+        string? next = null;
+        if (_main.RequiresMainPassword)
         {
-            var hash = _settings.GetMainPasswordHash();
-            if (hash == null)
+            if (!await _main.PromptEnterMainPasswordAsync().ConfigureAwait(true))
             {
-                await DisableMainPasswordAsync().ConfigureAwait(true);
-                return;
-            }
-
-            var ok = await _main.PromptEnterMainPasswordAsync(hash).ConfigureAwait(true);
-            if (!ok)
-            {
-                // Checkbox is OneWay; force UI to re-sync after cancel.
                 OnPropertyChanged(nameof(RequireMainPassword));
                 return;
             }
-
-            await DisableMainPasswordAsync().ConfigureAwait(true);
         }
         else
         {
-            var set = await _main.PromptSetMainPasswordAsync().ConfigureAwait(true);
-            if (set == null)
+            next = await _main.PromptSetMainPasswordAsync().ConfigureAwait(true);
+            if (next == null)
             {
                 OnPropertyChanged(nameof(RequireMainPassword));
                 return;
             }
-
-            _main.SetSessionMainPassword(set.Value.Hash, set.Value.Plain);
-            await EnableMainPasswordAsync(set.Value.Hash).ConfigureAwait(true);
         }
-
+        var changed = await _main.ChangeSavedPasswordProtectionAsync(next).ConfigureAwait(true);
+        _suppressPrivacyNotify = true;
+        RequireMainPassword = _main.RequiresMainPassword;
+        _suppressPrivacyNotify = false;
+        UpdateCheckStatus = changed
+            ? next == null ? "Main password disabled." : "Main password enabled. Saved credentials are protected."
+            : _main.StatusMessage;
         RefreshMainPasswordUi();
         RefreshPasswordStorageNote();
     }
@@ -464,50 +456,19 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task ChangeMainPasswordAsync()
     {
-        var current = _settings.GetMainPasswordHash();
-        if (current == null)
+        if (!_main.RequiresMainPassword)
             return;
-
-        var changed = await _main.PromptChangeMainPasswordAsync(current).ConfigureAwait(true);
-        if (changed == null)
+        var next = await _main.PromptChangeMainPasswordAsync().ConfigureAwait(true);
+        if (next == null)
             return;
-
-        await _main.ReencryptSavedPasswordsForMainPasswordChangeAsync(
-            changed.Value.CurrentPlain,
-            changed.Value.Hash).ConfigureAwait(true);
-        _settings.SetMainPasswordHash(changed.Value.Hash);
-        _main.SetSessionMainPassword(changed.Value.Hash, changed.Value.NewPlain);
+        var changed = await _main.ChangeSavedPasswordProtectionAsync(next).ConfigureAwait(true);
         RefreshMainPasswordUi();
-        UpdateCheckStatus = "Main password changed.";
-    }
-
-    private async Task EnableMainPasswordAsync(byte[] hash)
-    {
-        await _main.MigrateSavedPasswordsToMainPasswordAsync(hash).ConfigureAwait(true);
-        _settings.SetMainPasswordHash(hash);
-        _settings.RequireMainPassword = true;
-        _main.SetSessionMainPassword(hash);
-        _suppressPrivacyNotify = true;
-        RequireMainPassword = true;
-        _suppressPrivacyNotify = false;
-        UpdateCheckStatus = "Main password enabled. Saved credentials are protected.";
-    }
-
-    private async Task DisableMainPasswordAsync()
-    {
-        await _main.MigrateSavedPasswordsFromMainPasswordAsync().ConfigureAwait(true);
-        _settings.RequireMainPassword = false;
-        _settings.SetMainPasswordHash(null);
-        _main.ClearSessionMainPassword();
-        _suppressPrivacyNotify = true;
-        RequireMainPassword = false;
-        _suppressPrivacyNotify = false;
-        UpdateCheckStatus = "Main password disabled.";
+        UpdateCheckStatus = changed ? "Main password changed." : _main.StatusMessage;
     }
 
     private void RefreshMainPasswordUi()
     {
-        MainPasswordStatus = RequireMainPassword && _settings.GetMainPasswordHash() != null
+        MainPasswordStatus = RequireMainPassword
             ? "A main password is required at the start of each session to unlock saved credentials."
             : "When set, the main password protects all saved server login credentials.";
         OnPropertyChanged(nameof(CanChangeMainPassword));
@@ -515,10 +476,10 @@ public partial class SettingsViewModel : ViewModelBase
 
     private void RefreshPasswordStorageNote()
     {
-        if (_settings.RequireMainPassword && _settings.GetMainPasswordHash() != null)
+        if (_main.RequiresMainPassword)
         {
             PasswordStorageNote =
-                "Saved passwords are encrypted with your main password (AES). Enter it when the app starts to reconnect.";
+                "Saved passwords use authenticated encryption with a key derived from your main password. Enter it when the app starts to reconnect.";
             return;
         }
 

@@ -1,24 +1,22 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using XenAdmin.Core;
-using XenCenterLib;
 
 namespace XcpNgCenter.Shell.Views;
 
 public partial class EnterMainPasswordWindow : Window
 {
-    private readonly byte[] _expectedHash;
+    private readonly Func<string, Task<bool>> _unlock;
+    private bool _unlocking;
 
-    public string? Password { get; private set; }
-
-    public EnterMainPasswordWindow() : this(Array.Empty<byte>())
+    public EnterMainPasswordWindow() : this(_ => Task.FromResult(false))
     {
     }
 
-    public EnterMainPasswordWindow(byte[] expectedHash, string? title = null, string? message = null)
+    public EnterMainPasswordWindow(Func<string, Task<bool>> unlock, string? title = null, string? message = null)
     {
         InitializeComponent();
-        _expectedHash = expectedHash;
+        _unlock = unlock;
+        Closing += (_, e) => e.Cancel = _unlocking;
         if (!string.IsNullOrWhiteSpace(title))
             TitleText.Text = title;
         if (!string.IsNullOrWhiteSpace(message))
@@ -26,21 +24,34 @@ public partial class EnterMainPasswordWindow : Window
         ErrorText.IsVisible = false;
     }
 
-    private void OnOkClick(object? sender, RoutedEventArgs e)
+    private async void OnOkClick(object? sender, RoutedEventArgs e)
     {
-        var password = PasswordBox.Text ?? string.Empty;
-        if (!string.IsNullOrEmpty(password) &&
-            Helpers.ArrayElementsEqual(EncryptionUtils.ComputeHash(password), _expectedHash))
-        {
-            Password = password;
-            Close(true);
+        if (_unlocking)
             return;
+        _unlocking = true;
+        IsEnabled = false;
+        var password = PasswordBox.Text ?? string.Empty;
+        try
+        {
+            if (!string.IsNullOrEmpty(password) && await _unlock(password))
+            {
+                PasswordBox.Text = string.Empty;
+                _unlocking = false;
+                Close(true);
+                return;
+            }
+            ErrorText.Text = "Incorrect password.";
         }
-
+        catch (Exception ex) { ErrorText.Text = ex.Message; }
+        finally { _unlocking = false; IsEnabled = true; }
         ErrorText.IsVisible = true;
         PasswordBox.Focus();
         PasswordBox.SelectAll();
     }
 
-    private void OnCancelClick(object? sender, RoutedEventArgs e) => Close(false);
+    private void OnCancelClick(object? sender, RoutedEventArgs e)
+    {
+        PasswordBox.Text = string.Empty;
+        Close(false);
+    }
 }

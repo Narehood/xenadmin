@@ -12,6 +12,7 @@ public partial class OvfImportWindow : Window
     public OvfImportWindow()
     {
         InitializeComponent();
+        Closed += (_, _) => (DataContext as OvfImportViewModel)?.Dispose();
     }
 
     public OvfImportWindow(IXenConnection connection, Host? preferredHost, Action<string>? status = null) : this()

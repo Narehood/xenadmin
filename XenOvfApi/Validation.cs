@@ -138,14 +138,26 @@ namespace XenOvf
                 ValidateSchema(package.DescriptorXml, ref warnings);
 
             var files = package.OvfEnvelope?.References?.File ?? new File_Type[0];
+            if (files.Any(file => string.IsNullOrEmpty(file.id)) ||
+                files.GroupBy(file => file.id, StringComparer.Ordinal).Any(group => group.Count() > 1))
+            {
+                warnings.Add("OVF file IDs must be nonempty and unique.");
+                return false;
+            }
 
             if (validationFlags.HasFlag(ValidationFlags.Files))
             {
                 foreach (File_Type file in files)
                 {
-                    string ext = Path.GetExtension(file.href).ToLower();
-                    if (ext == Package.MANIFEST_EXT || ext == Package.CERTIFICATE_EXT)
-                        continue;
+                    try
+                    {
+                        package.ValidatePayloadReference(file.href);
+                    }
+                    catch (InvalidDataException ex)
+                    {
+                        warnings.Add(ex.Message);
+                        return false;
+                    }
 
                     if (!package.HasFile(file.href))
                     {
@@ -154,6 +166,7 @@ namespace XenOvf
                         return false;
                     }
                     
+                    string ext = Path.GetExtension(file.href).ToLowerInvariant();
                     if (!KnownFileExtensions.Contains(ext))
                         warnings.Add(string.Format(Messages.VALIDATION_FILE_UNSUPPORTED_EXTENSION, file.href));
                 }
@@ -164,10 +177,18 @@ namespace XenOvf
 
             foreach (var section in ovfEnv.Sections)
             {
-                if (section is DiskSection_Type diskSection)
-                    disks = diskSection.Disk;
-                else if (section is NetworkSection_Type netSection)
+                if (section is NetworkSection_Type netSection)
                     networks = netSection.Network;
+            }
+
+            disks = ovfEnv.Sections.OfType<DiskSection_Type>()
+                .SelectMany(section => section.Disk ?? new VirtualDiskDesc_Type[0]).ToArray();
+
+            if (disks != null && (disks.Any(disk => string.IsNullOrEmpty(disk.diskId)) ||
+                disks.GroupBy(disk => disk.diskId, StringComparer.Ordinal).Any(group => group.Count() > 1)))
+            {
+                warnings.Add("OVF disk IDs must be nonempty and unique.");
+                return false;
             }
 
             var systems = new Content_Type[0];
@@ -275,7 +296,7 @@ namespace XenOvf
 
             VirtualDiskDesc_Type disk;
             if (rasd.HostResource != null && rasd.HostResource.Length > 0)
-                disk = disks.FirstOrDefault(d => rasd.HostResource[0].Value.Contains(d.diskId));
+                disk = disks.FirstOrDefault(d => MatchesDiskReference(rasd.HostResource[0].Value, d.diskId));
             else
                 disk = disks.FirstOrDefault(d => rasd.InstanceID.Value == d.diskId);
 

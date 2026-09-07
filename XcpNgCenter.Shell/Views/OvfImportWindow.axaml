@@ -24,10 +24,13 @@
                      IsVisible="{Binding StatusMessage.Length}" />
 
           <TextBlock Text="Appliance file" Foreground="{StaticResource Brush.TextMuted}" />
-          <Grid ColumnDefinitions="*,Auto">
+          <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" Height="3" />
+          <Grid ColumnDefinitions="*,Auto,Auto">
             <TextBox Text="{Binding FilePath}" Watermark="/path/to/appliance.ova" />
             <Button Grid.Column="1" Classes="ghost" Content="Browse…"
                     Margin="8,0,0,0" Command="{Binding BrowseCommand}" />
+            <Button Grid.Column="2" Classes="ghost" Content="Load"
+                    Margin="8,0,0,0" Command="{Binding LoadCommand}" />
           </Grid>
 
           <TextBlock Text="Systems" Foreground="{StaticResource Brush.TextMuted}"

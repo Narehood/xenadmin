@@ -59,10 +59,17 @@ jobs:
           -o artifacts/shell-linux-x64
           --nologo
 
-      - name: Run unit tests
-        run: |
-          dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release --logger "trx;LogFileName=xencenterlib-test-results.trx"
-          dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release --logger "trx;LogFileName=shell-test-results.trx"
+      - name: Test shared libraries (.NET Framework)
+        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net481 --logger "trx;LogFileName=xencenterlib-net481.trx"
+
+      - name: Test shared libraries (.NET 8)
+        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net8.0 --logger "trx;LogFileName=xencenterlib-net8.trx"
+
+      - name: Test Avalonia shell (Release)
+        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release --logger "trx;LogFileName=shell-release.trx"
+
+      - name: Test Avalonia shell (Debug)
+        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Debug --logger "trx;LogFileName=shell-debug.trx"
 
       - name: Upload Release artifacts
         uses: actions/upload-artifact@v7

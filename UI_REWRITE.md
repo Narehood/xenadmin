@@ -30,10 +30,10 @@ rewrite reaches feature parity for your environment.
 - VM chrome: power toggles top-right, kind+name header, compact CD/DVD row, console-first layout
 - **Alerts** — always-visible sidebar badge; Copy on alert rows
 - **Performance** — RRD charts with hover + time axis; layout save
-- **Splash** / calendar **versioning** / verified GitHub **download, install, and restart updates**, with installer-only UAC elevation for protected Windows folders
+- **Splash** / calendar **versioning** / GitHub **download, install, and restart updates**: installed-code bootstrap, fresh release/package verification, and protected staging after UAC elevation. Real UAC/apply/restart validation remains outstanding; see the [remediation record](docs/reviews/2026-09-07-remediation.md).
 - **Settings** (beside alerts): saved-session/main-password controls; reconnect policy; direct/system/custom proxy with protected credentials and API timeout; graph/console/log display options and console shortcuts; TOFU/public-IP security policy; alert/OVF confirmations; privacy masking; About/update check
 - **OVF validation** — fatal validation failures block import; non-fatal warnings require per-appliance acceptance unless explicitly disabled in Settings
-- **Auto-reconnect** saved servers with stored passwords (DPAPI on Windows; AES key file on Linux)
+- **Auto-reconnect** saved servers with stored passwords (DPAPI on Windows or a private AES device key on Unix by default; optional main-password vault uses PBKDF2-SHA256 and AES-GCM, unlocked once per session)
 - **Linux soak hardening** — RFB cursor alpha preserved; GTK-friendly file pickers; XDG config paths; chart Outfit font via embedded family; update assets preserve executable modes
 
 ### Key shell layout
@@ -67,7 +67,7 @@ dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -
 
 Pins / prefs: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-ng Center Shell/`.
 
-**Linux notes:** saved passwords use a user-only AES `device.key` under the XDG config root. In-place updates require a writable portable install directory and preserve the shell executable mode.
+**Linux notes:** device-protected passwords use a user-only AES `device.key` under the XDG config root. Main-password protection instead keeps its encryption key in unlocked session memory. Legacy main-password credentials migrate on unlock to a new document format that older shells cannot read; old copied credential/settings pairs remain exposed. In-place updates require a writable portable install directory and preserve the shell executable mode. Linux runtime validation of the latest credential/update changes remains outstanding.
 
 ## Non-goals
 
