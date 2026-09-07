@@ -8,7 +8,8 @@ Read the [remediation record](reviews/2026-09-07-remediation.md) for the current
 source changes, regression coverage, migration details, and remaining validation.
 All thirteen initial findings now have corresponding source fixes on
 `development`. Shell tests pass in Release and Debug, and shared tests pass on
-both target frameworks; counts are below. Desktop, live-pool, Linux runtime,
+both target frameworks; counts are below. Landed on `development` as
+`0562401744055ecafd704776db8f0fcea8c69d46`. Desktop, live-pool, Linux runtime,
 and real UAC installation checks have not been completed by this pass.
 
 The [initial review](reviews/2026-09-07-initial-review.md) preserves the original

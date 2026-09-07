@@ -6,7 +6,8 @@ This records source changes made after the
 snapshot. All thirteen findings have corresponding source changes and the
 regression coverage described below. The current automated test suites pass as
 recorded below; this document does not claim full desktop or installation
-validation. The source changes land on `development` with this change set.
+validation. The source changes land on `development` as
+`0562401744055ecafd704776db8f0fcea8c69d46`.
 
 The user's existing portable-package layout changes in the publishing workflow,
 updater, tests, and `XcpNgCenter.Shell/packaging/` were preserved and incorporated.
