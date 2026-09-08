@@ -6,6 +6,12 @@ Last updated: 2026-09-07. Initial review followed by a remediation pass.
 
 ### Update restart and compact control follow-up (2026-09-08)
 
+Merged via [PR #41](https://github.com/Narehood/xenadmin/pull/41) as
+`7bc16a686` on `development`. CI run `34178319089` passed full Release/Debug
+builds, both self-contained platform publishes, shared tests on both frameworks,
+and shell tests in Release and Debug. CodeQL actions/C# analysis also passed.
+The release workflow for ALCYONE `2026.9.8.2` targets that merged source.
+
 The reported source build was DRAGON `2026.8.30.8` (`b01829b8e`). Its updater
 launches downloaded code from `<installation hash>/v<version>/payload`. The new
 bootstrap accepts only separately authenticated `launch-<guid>` or protected
