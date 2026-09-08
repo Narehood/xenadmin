@@ -4,6 +4,33 @@ Last updated: 2026-09-07. Initial review followed by a remediation pass.
 
 ## Start here
 
+### Saved-server startup and update hover follow-up (2026-09-08)
+
+The main view model now restores saved-server metadata and selects the first
+inventory placeholder before the main window is shown. Empty profiles retain
+the welcome page; saved servers appear even without a password, with a locked
+vault, or with auto-reconnect disabled. No credentials are decrypted or network
+connections started by restoration. The existing post-window unlock/reconnect
+path reuses the restored nodes. Invalid addresses are skipped and equivalent
+host/port entries are deduplicated.
+
+The update popup keeps light dismissal but passes overlay input through to its
+trigger. Previously the overlay intercepted the stationary pointer, causing
+trigger exit, delayed close, trigger entry, and repeated reopening. Keyboard
+focus on the trigger also now keeps the panel open; focus loss schedules closure.
+
+Validation: 185 shell Release tests; 73 shared tests on each of net481 and net8.0.
+Four new regression cases cover metadata-only restoration with missing/locked
+credentials, endpoint deduplication/invalid entries, and empty profiles. A desktop
+harness checked the actual main window before/after Show with disposable empty,
+saved, and locked profiles (auto-reconnect disabled). A five-second stationary
+hover reproduced 15+ opens with the previous overlay behavior and exactly one
+open/zero closes with the fix; entering notes kept the popup open and leaving
+closed it. Harness/evidence: `%LOCALAPPDATA%/Temp/xcpng-update-restart-fix/ui`,
+`%TEMP%/hover-regression.ps1`, `hover-events-*.log`, `startup-probe-results.log`.
+No live pool reconnection or Linux desktop interaction was exercised. Existing
+Windows ACL test analyzer warnings remain. Full platform builds run in GitHub CI.
+
 ### Update restart and compact control follow-up (2026-09-08)
 
 Merged via [PR #41](https://github.com/Narehood/xenadmin/pull/41) as

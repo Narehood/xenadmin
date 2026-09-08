@@ -14,11 +14,13 @@ public partial class ShellUpdateButton : UserControl
         _closeTimer.Tick += (_, _) =>
         {
             _closeTimer.Stop();
-            if (!UpdateTrigger.IsPointerOver && !DetailsPanel.IsPointerOver && !DetailsPanel.IsKeyboardFocusWithin)
+            if (!UpdateTrigger.IsPointerOver && !UpdateTrigger.IsKeyboardFocusWithin
+                && !DetailsPanel.IsPointerOver && !DetailsPanel.IsKeyboardFocusWithin)
                 DetailsPopup.IsOpen = false;
         };
         DetachedFromVisualTree += (_, _) => { _closeTimer.Stop(); DetailsPopup.IsOpen = false; };
         DetailsPanel.LostFocus += (_, _) => _closeTimer.Start();
+        UpdateTrigger.LostFocus += (_, _) => _closeTimer.Start();
     }
 
     private void OnTriggerEntered(object? sender, PointerEventArgs e) => OpenDetails();
