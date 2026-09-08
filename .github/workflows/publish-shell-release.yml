@@ -83,13 +83,15 @@ jobs:
 
       - name: Zip win-x64
         shell: pwsh
+        # Keep the shell files at the archive root. Updaters already deployed in the
+        # field validate that root directly, so wrapping the payload in a folder makes
+        # every released build un-installable from the in-app updater.
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $v = "${{ steps.ver.outputs.version }}"
           $packageRoot = "artifacts/package-win"
-          $appDir = Join-Path $packageRoot "XcpNgCenter.Shell"
-          New-Item -ItemType Directory -Force -Path $appDir | Out-Null
-          Copy-Item -Path "artifacts/shell-win-x64/*" -Destination $appDir -Recurse -Force
+          New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
+          Copy-Item -Path "artifacts/shell-win-x64/*" -Destination $packageRoot -Recurse -Force
           Copy-Item -Path "XcpNgCenter.Shell/packaging/INSTALL.TXT" -Destination (Join-Path $packageRoot "INSTALL.TXT") -Force
           Compress-Archive -Path "$packageRoot\*" -DestinationPath "dist/XcpNgCenter.Shell-win-x64-$v.zip"
 
@@ -155,15 +157,15 @@ jobs:
 
       - name: Tar linux-x64 (preserves executable bits)
         shell: bash
+        # Flat payload at the archive root, for the same reason as the win-x64 zip.
         run: |
           mkdir -p dist
           V="${{ steps.ver.outputs.version }}"
           PACKAGE_ROOT="artifacts/package-linux"
-          APP_DIR="${PACKAGE_ROOT}/XcpNgCenter.Shell"
-          mkdir -p "${APP_DIR}"
-          cp -a artifacts/shell-linux-x64/. "${APP_DIR}/"
+          mkdir -p "${PACKAGE_ROOT}"
+          cp -a artifacts/shell-linux-x64/. "${PACKAGE_ROOT}/"
           cp XcpNgCenter.Shell/packaging/INSTALL.TXT "${PACKAGE_ROOT}/INSTALL.TXT"
-          chmod +x "${APP_DIR}/XcpNgCenter.Shell" || true
+          chmod +x "${PACKAGE_ROOT}/XcpNgCenter.Shell" || true
           tar -C "${PACKAGE_ROOT}" -czf "dist/XcpNgCenter.Shell-linux-x64-${V}.tar.gz" .
 
       - uses: actions/upload-artifact@v7

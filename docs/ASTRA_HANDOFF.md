@@ -184,11 +184,14 @@ UAC cancellation, different-account elevation, staged-file permissions, rollback
 and an unelevated restart. Also exercise the writable portable path on Linux.
 Fresh release authentication requires network access during installation.
 
-Install the first fixed release manually on older deployed shells: their
-existing updater cannot acquire the new bootstrap safely by changing only the
-package it downloads. For custom repositories, administrator/elevated automatic
-installation is disabled with release-page guidance before UAC; use a manual
-installation for those builds.
+Keep the shell files at the root of every published archive. Older deployed
+shells validate the archive root, so a wrapped payload fails their preparation
+with "The update package is missing required shell files" and strands them.
+Their existing updater still cannot acquire the new bootstrap safely by changing
+only the package it downloads, so prefer a manual install for that first hop.
+For custom repositories, administrator/elevated automatic installation is
+disabled with release-page guidance before UAC; use a manual installation for
+those builds.
 
 Use disposable profiles/appliances for main-password migration and import tests.
 Do not open a migrated profile with an older shell that cannot understand the

@@ -123,6 +123,12 @@ uses its own vulnerable updater code; publishing a fixed package cannot repair
 that old installation path retroactively. Subsequent updates can use the new
 bootstrap after its Windows installation behavior has been exercised.
 
+This does not license a package-layout change. The `2026.9.7.1` archives wrapped
+the payload in an `XcpNgCenter.Shell/` folder, which every deployed updater
+rejects with "The update package is missing required shell files" — the release
+was undownloadable rather than merely untrusted. Published archives keep the
+shell files at the archive root.
+
 This trust design relies on the installed application, GitHub release/account
 integrity, Windows machine trust for elevated metadata requests, and effective
 staging ACLs. The tests inspect process
