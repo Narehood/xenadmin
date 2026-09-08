@@ -223,13 +223,16 @@
                        Margin="4,8,0,0" />
           </Grid>
 
-          <TextBlock Grid.Row="2"
+          <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,16,0,0">
+          <TextBlock Grid.Column="0"
                      Text="WinForms XCP-ng Center remains the supported client."
                      TextWrapping="Wrap"
                      FontSize="11"
                      Foreground="{StaticResource Brush.TextMuted}"
                      Opacity="0.85"
-                     Margin="0,16,0,0" />
+                     Margin="0,0,12,0" VerticalAlignment="Center" />
+          <controls:ShellUpdateButton Grid.Column="1" VerticalAlignment="Center" />
+          </Grid>
         </Grid>
       </Border>
 
@@ -1356,53 +1359,5 @@
       </Grid>
     </Grid>
 
-    <!-- GitHub Releases update/download notice (bottom-right). -->
-    <Border HorizontalAlignment="Right"
-            VerticalAlignment="Bottom"
-            Margin="24"
-            MaxWidth="440"
-            Padding="16"
-            CornerRadius="10"
-            BorderBrush="{StaticResource Brush.BrandOrange}"
-            BorderThickness="1"
-            Background="#F0161C22"
-            IsVisible="{Binding ShowUpdateBanner}"
-            ZIndex="100">
-      <StackPanel Spacing="10">
-        <TextBlock Text="{Binding UpdateBannerTitle}"
-                   FontSize="14"
-                   FontWeight="SemiBold"
-                   TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextPrimary}" />
-        <TextBlock Text="{Binding UpdateBannerMessage}"
-                   FontSize="12"
-                   TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}" />
-        <ProgressBar Minimum="0"
-                     Maximum="100"
-                     Value="{Binding UpdateDownloadProgress}"
-                     Height="6"
-                     IsVisible="{Binding ShowUpdateProgress}" />
-        <TextBlock Text="{Binding UpdateProgressText}"
-                   FontSize="11"
-                   TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}"
-                   IsVisible="{Binding ShowUpdateProgress}" />
-        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-          <Button Classes="ghost"
-                  Content="Dismiss"
-                  IsEnabled="{Binding CanDismissUpdate}"
-                  Command="{Binding DismissUpdateBannerCommand}" />
-          <Button Classes="ghost"
-                  Content="View release"
-                  Command="{Binding OpenUpdateReleaseCommand}" />
-          <Button Classes="cta"
-                  Content="{Binding UpdateActionLabel}"
-                  Padding="14,8"
-                  IsVisible="{Binding ShowUpdateAction}"
-                  Command="{Binding DownloadUpdateCommand}" />
-        </StackPanel>
-      </StackPanel>
-    </Border>
   </Grid>
 </Window>

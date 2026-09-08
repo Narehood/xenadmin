@@ -21,7 +21,17 @@ public sealed record ShellUpdateOffer(
     string Title,
     string HtmlUrl,
     DateTimeOffset? PublishedAt,
-    ShellUpdateAsset? Asset);
+    ShellUpdateAsset? Asset)
+{
+    public IReadOnlyList<ShellReleaseNotes> ReleaseNotes { get; init; } = [];
+    public string? ReleaseNotesError { get; init; }
+}
+
+public sealed record ShellReleaseNotes(Version Version, string Body, string HtmlUrl)
+{
+    public string Heading => $"Changes in {Version.ToString(4)}";
+    public string DisplayBody => ShellReleaseNotesText.ToPlainText(Body);
+}
 
 public enum ShellUpdateCheckStatus
 {
@@ -51,10 +61,13 @@ public sealed class ShellGitHubUpdateChecker
     private readonly string _owner;
     private readonly string _repo;
     private readonly ShellUpdatePreferences _preferences;
+    private readonly HttpClient _http;
 
-    public ShellGitHubUpdateChecker(ShellUpdatePreferences? preferences = null, string? owner = null, string? repo = null)
+    public ShellGitHubUpdateChecker(ShellUpdatePreferences? preferences = null, string? owner = null, string? repo = null,
+        HttpClient? httpClient = null)
     {
         _preferences = preferences ?? new ShellUpdatePreferences();
+        _http = httpClient ?? Http;
         ResolveRepo(owner, repo, out _owner, out _repo);
     }
 
@@ -127,6 +140,23 @@ public sealed class ShellGitHubUpdateChecker
                 OperatingSystem.IsLinux(),
                 RuntimeInformation.ProcessArchitecture);
             var offer = new ShellUpdateOffer(remote, tag, title, url, release.PublishedAt, asset);
+            try
+            {
+                var notes = await FetchReleaseNotesAsync(local, remote, cancellationToken).ConfigureAwait(false);
+                if (!notes.Any(note => note.Version == remote))
+                    notes = new[] { new ShellReleaseNotes(remote, release.Body ?? string.Empty, url) }.Concat(notes).ToArray();
+                offer = offer with { ReleaseNotes = notes };
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                // Notes are informational: their failure must not hide a valid update.
+                offer = offer with
+                {
+                    ReleaseNotes = [new ShellReleaseNotes(remote, release.Body ?? string.Empty, url)],
+                    ReleaseNotesError = $"Could not load the full release history: {ex.Message}. View all releases on GitHub."
+                };
+            }
 
             var dismissed = _preferences.GetDismissedVersion();
             if (!ignoreDismissed
@@ -157,6 +187,30 @@ public sealed class ShellGitHubUpdateChecker
     public void Dismiss(Version version) => _preferences.SetDismissedVersion(version.ToString(4));
 
     public void ClearDismissed() => _preferences.ClearDismissedVersion();
+
+    private async Task<IReadOnlyList<ShellReleaseNotes>> FetchReleaseNotesAsync(
+        Version local, Version latest, CancellationToken cancellationToken)
+    {
+        var notes = new Dictionary<Version, ShellReleaseNotes>();
+        for (var page = 1; ; page++)
+        {
+            var releases = await GetJsonAsync<List<GitHubRelease>>(
+                $"https://api.github.com/repos/{_owner}/{_repo}/releases?per_page=100&page={page}",
+                cancellationToken, allowNotFound: false, _http).ConfigureAwait(false) ?? [];
+            foreach (var release in releases)
+            {
+                if (release.Draft || release.Prerelease
+                    || !ShellVersionInfo.TryParse(release.TagName, out var version)
+                    || version <= local || version > latest) continue;
+                notes.TryAdd(version, new ShellReleaseNotes(version, release.Body ?? string.Empty,
+                    release.HtmlUrl ?? ReleasesPageUrl));
+            }
+            // GitHub orders by publication date, not version. An older version on
+            // this page doesn't prove that later pages contain no newer versions.
+            if (releases.Count < 100) break;
+        }
+        return notes.Values.OrderByDescending(note => note.Version).ToArray();
+    }
 
     internal static async Task<ShellUpdateAsset> GetPublishedAssetAsync(
         Version version, bool useDefaultRepository, CancellationToken cancellationToken)
@@ -227,14 +281,14 @@ public sealed class ShellGitHubUpdateChecker
         var latest = await GetJsonAsync<GitHubRelease>(
             $"https://api.github.com/repos/{_owner}/{_repo}/releases/latest",
             cancellationToken,
-            allowNotFound: true).ConfigureAwait(false);
+            allowNotFound: true, _http).ConfigureAwait(false);
         if (latest != null)
             return latest;
 
         var list = await GetJsonAsync<List<GitHubRelease>>(
             $"https://api.github.com/repos/{_owner}/{_repo}/releases?per_page=10",
             cancellationToken,
-            allowNotFound: true).ConfigureAwait(false);
+            allowNotFound: true, _http).ConfigureAwait(false);
         return list?
             .Where(r => r is { Draft: false, Prerelease: false })
             .OrderByDescending(r => r.PublishedAt ?? DateTimeOffset.MinValue)
@@ -337,6 +391,9 @@ public sealed class ShellGitHubUpdateChecker
 
     private sealed class GitHubRelease
     {
+        [JsonPropertyName("body")]
+        public string? Body { get; set; }
+
         [JsonPropertyName("tag_name")]
         public string? TagName { get; set; }
 

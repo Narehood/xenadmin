@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+             xmlns:svc="using:XcpNgCenter.Shell.Services"
+             x:Class="XcpNgCenter.Shell.Controls.ShellUpdateButton"
+             x:DataType="vm:MainViewModel"
+             x:Name="UpdateControl">
+  <Grid>
+    <Button x:Name="UpdateTrigger" Classes="ghost" Width="36" Height="36" Padding="7"
+            CornerRadius="18" AutomationProperties.Name="Check for updates"
+            Command="{Binding CheckForUpdatesCommand}"
+            PointerEntered="OnTriggerEntered" PointerExited="OnPointerExited"
+            GotFocus="OnTriggerFocused" KeyDown="OnTriggerKeyDown">
+      <Grid Width="22" Height="22">
+        <Path Data="M 11,2 L 11,13 M 6,8 L 11,13 L 16,8 M 3,14 L 3,19 L 19,19 L 19,14"
+              Stroke="{StaticResource Brush.TextPrimary}" StrokeThickness="1.7" />
+        <Ellipse Width="7" Height="7" Fill="{StaticResource Brush.BrandOrange}"
+                 Stroke="{StaticResource Brush.BgDeep}" StrokeThickness="1.5"
+                 HorizontalAlignment="Right" VerticalAlignment="Top"
+                 IsVisible="{Binding ShowUpdateIndicator}" />
+        <ProgressBar Height="3" VerticalAlignment="Bottom" IsIndeterminate="True"
+                     IsVisible="{Binding IsUpdateBusy}" />
+      </Grid>
+    </Button>
+    <Popup x:Name="DetailsPopup" PlacementTarget="{Binding #UpdateTrigger}" Placement="TopEdgeAlignedLeft"
+           VerticalOffset="-8" IsLightDismissEnabled="True">
+      <Border x:Name="DetailsPanel" Width="400" Padding="16" CornerRadius="10" Focusable="True"
+              Background="{StaticResource Brush.BgPanel}" BorderBrush="{StaticResource Brush.StrokeSubtle}"
+              BorderThickness="1" BoxShadow="0 8 28 0 #60000000"
+              PointerEntered="OnPanelEntered" PointerExited="OnPointerExited" KeyDown="OnPanelKeyDown">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" MaxHeight="510">
+          <TextBlock Text="{Binding UpdateBannerTitle}" FontSize="14" FontWeight="SemiBold"
+                     TextWrapping="Wrap" Foreground="{StaticResource Brush.TextPrimary}" />
+          <TextBlock Grid.Row="1" Text="{Binding UpdateBannerMessage}" Margin="0,5,0,12"
+                     FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+          <ProgressBar Grid.Row="2" Value="{Binding UpdateDownloadProgress}" Height="5"
+                       IsVisible="{Binding ShowUpdateProgress}" />
+          <TextBlock Grid.Row="3" Text="{Binding UpdateProgressText}" Margin="0,5,0,8" FontSize="11"
+                     IsVisible="{Binding ShowUpdateProgress}" Foreground="{StaticResource Brush.TextMuted}" />
+          <ScrollViewer Grid.Row="4" MaxHeight="310" HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+              <ItemsControl ItemsSource="{Binding UpdateReleaseNotes}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="svc:ShellReleaseNotes">
+                    <StackPanel Spacing="8" Margin="0,0,8,16">
+                      <Border Height="1" Background="{StaticResource Brush.StrokeSubtle}" />
+                      <TextBlock Text="{Binding Heading}" FontSize="12" FontWeight="SemiBold"
+                                 Foreground="{StaticResource Brush.TextPrimary}" />
+                      <SelectableTextBlock Text="{Binding DisplayBody}" TextWrapping="Wrap" FontSize="12"
+                                           LineHeight="20" Foreground="{StaticResource Brush.TextPrimary}" />
+                      <Button Classes="ghost" Content="View release on GitHub ↗" FontSize="11" Padding="0,4"
+                              Command="{Binding #UpdateControl.((vm:MainViewModel)DataContext).OpenReleaseNotesCommand}"
+                              CommandParameter="{Binding}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{Binding UpdateReleaseNotesMessage}" TextWrapping="Wrap" FontSize="11"
+                         Foreground="{StaticResource Brush.TextMuted}" />
+            </StackPanel>
+          </ScrollViewer>
+          <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+            <Button Classes="ghost" Content="Check again" Command="{Binding CheckForUpdatesCommand}" FontSize="12" />
+            <Button Classes="cta" Content="{Binding UpdateActionLabel}" FontSize="12"
+                    IsVisible="{Binding ShowUpdateAction}" Command="{Binding DownloadUpdateCommand}" />
+            <Button Classes="ghost" Content="Releases ↗" FontSize="12" Command="{Binding OpenUpdateReleaseCommand}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Popup>
+  </Grid>
+</UserControl>

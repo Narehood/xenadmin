@@ -17,6 +17,12 @@ internal static class Program
             return;
         }
 
+        if (ShellUpdateInstaller.TryRunUpdateProgressMode(args, out var progressExitCode))
+        {
+            Environment.ExitCode = progressExitCode;
+            return;
+        }
+
         // An unelevated broker relaunches the app after a protected-directory update.
         if (ShellUpdateInstaller.TryRunRestartBrokerMode(args, out var restartExitCode))
         {
