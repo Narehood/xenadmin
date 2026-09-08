@@ -1274,8 +1274,11 @@ public sealed partial class ShellUpdateInstaller
         if (candidates.Count != 1)
             throw new InvalidDataException("The update package does not contain a recognizable shell payload.");
 
-        var nestedRoot = candidates[0];
-        foreach (var entry in Directory.EnumerateFileSystemEntries(nestedRoot))
+        // Move the wrapper aside first: on Linux the folder and the executable share the
+        // name 'XcpNgCenter.Shell', so unwrapping in place would collide with itself.
+        var nestedRoot = Path.Combine(payloadDirectory, $".unwrap-{Guid.NewGuid():N}");
+        Directory.Move(candidates[0], nestedRoot);
+        foreach (var entry in Directory.GetFileSystemEntries(nestedRoot))
         {
             var name = Path.GetFileName(entry);
             var destination = Path.Combine(payloadDirectory, name);

@@ -37,8 +37,10 @@ RDP remains WinForms-only for now.
 The [security remediation record](docs/reviews/2026-09-07-remediation.md) describes
 current credential/update trust and regression coverage. Real desktop, Linux,
 and UAC/apply/restart validation of these changes remains outstanding.
-Install the first fixed release manually when upgrading an older deployed shell;
-its existing updater does not contain the new bootstrap.
+Release archives keep the shell files at the archive root so updaters already
+deployed in the field can install them. That first upgrade still runs the older
+shell's own updater, which does not contain the new bootstrap; install it
+manually if you want the hardened path to handle the transition.
 
 ## Getting builds
 

@@ -374,6 +374,29 @@ public sealed class ShellUpdateTests
     }
 
     [Fact]
+    public void NormalizePortablePackageLayout_UnwrapsFolderNamedLikeTheExecutable()
+    {
+        // The Linux payload folder and its executable are both 'XcpNgCenter.Shell'.
+        using var temp = new TemporaryDirectory();
+        var payload = Path.Combine(temp.Path, "payload");
+        const string executableName = "XcpNgCenter.Shell";
+        var appDir = Path.Combine(payload, executableName);
+        Directory.CreateDirectory(appDir);
+        File.WriteAllText(Path.Combine(payload, "INSTALL.TXT"), "portable install help");
+        File.WriteAllText(Path.Combine(appDir, executableName), "new executable");
+        File.WriteAllText(Path.Combine(appDir, "XcpNgCenter.Shell.dll"), "new assembly");
+        File.WriteAllText(Path.Combine(appDir, "XcpNgCenter.Shell.runtimeconfig.json"), "{}");
+
+        ShellUpdateInstaller.NormalizePortablePackageLayout(payload, executableName);
+
+        Assert.True(File.Exists(Path.Combine(payload, executableName)));
+        Assert.True(File.Exists(Path.Combine(payload, "XcpNgCenter.Shell.dll")));
+        Assert.True(File.Exists(Path.Combine(payload, "XcpNgCenter.Shell.runtimeconfig.json")));
+        Assert.False(Directory.Exists(appDir));
+        Assert.Empty(Directory.GetDirectories(payload));
+    }
+
+    [Fact]
     public void NormalizePortablePackageLayout_RejectsAmbiguousLayout()
     {
         using var temp = new TemporaryDirectory();

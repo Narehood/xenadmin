@@ -27,7 +27,7 @@ Protected Windows installations request UAC approval for that installed bootstra
 
 **View release** and remembered **Dismiss** options remain available; unsupported platforms or non-portable launch layouts fall back to the release page. Draft and prerelease tags are ignored. Publish complete assets with the manual workflow **Publish Shell Release** (`.github/workflows/publish-shell-release.yml`). The running binary must stamp a lower `year.month.day.revision` than the release tag for the banner to appear.
 
-Install the first release containing this bootstrap manually when upgrading an older deployed shell; that older executable still runs its original updater. Custom-repository builds also require manual installation when administrator privileges are needed or the app is elevated. The shell directs these builds to the release page before requesting UAC.
+Published archives keep the shell files (plus `INSTALL.TXT`) at the archive root: updaters already deployed in the field validate that root, so wrapping the payload in a folder makes a release un-installable for every existing installation. The first upgrade to a release containing this bootstrap still runs the older executable's original updater; install it manually to have the hardened path handle that transition. Custom-repository builds also require manual installation when administrator privileges are needed or the app is elevated. The shell directs these builds to the release page before requesting UAC.
 
 ### Plugins (opt-in, IE WebBrowser)
 
