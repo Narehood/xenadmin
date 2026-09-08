@@ -4,6 +4,52 @@ Last updated: 2026-09-07. Initial review followed by a remediation pass.
 
 ## Start here
 
+### Update restart and compact control follow-up (2026-09-08)
+
+The reported source build was DRAGON `2026.8.30.8` (`b01829b8e`). Its updater
+launches downloaded code from `<installation hash>/v<version>/payload`. The new
+bootstrap accepts only separately authenticated `launch-<guid>` or protected
+launch directories. Previously both new helper modes rejected DRAGON's arguments
+silently after DRAGON had already exited. Do not fix this by accepting the old
+writable cache as trusted installation input.
+
+The staged executable now recognizes that legacy invocation for a visible
+manual-upgrade explanation. It can reopen the original unelevated application
+when its live parent executable establishes the installation path; it never
+installs legacy cached code or restarts the full app using an elevated token.
+DRAGON still needs a one-time manual extraction into a new folder to acquire the
+trusted bootstrap. If its parent exits before it can be identified, the guidance
+window remains but the user must reopen the application themselves.
+
+For modern updates the original application waits for the broker's initialized
+signal and the apply helper's validated-context signal before acknowledging the
+broker and shutting down. A separate unelevated progress window survives the main
+app, reports installation/restart status, and retains errors. Immediate process
+exit after relaunch is treated as failure. This checks early process survival,
+not successful login or complete desktop initialization.
+
+The update notification is now a 36-pixel sidebar button inspired by the user's
+T3 Code screenshots and its `SidebarUpdatePill` / `SidebarUpdateReleaseNotes`
+components. Clicking checks again; an indicator marks updates/errors. Hover or
+keyboard focus opens a scrollable panel containing all stable release notes
+between the current and offered versions. GitHub history is paginated, sorted by
+version, and deduplicated. Failure to load history preserves the offer and latest
+notes with an explanation. Text is rendered without remote HTML/images. Downloads
+stay in this panel and no longer automatically open a restart confirmation;
+restart requires an explicit action.
+
+Validation: 181 shell Release tests passed; shared tests passed 73 on net481 and
+73 on net8.0. New tests cover helper readiness, legacy path recognition, paginated
+history, ordering/deduplication/filtering, history failure, and readable notes.
+Existing Windows ACL tests emit CA1416 analyzer warnings on this local build.
+Published Windows helper probes verified the legacy guidance/recovery and the
+modern broker's readiness, status window, and relaunch using disposable stub
+installations. A separate desktop harness verified the actual compact control's
+hover panel and multiple versions via UI Automation and a screenshot. Evidence:
+`%LOCALAPPDATA%/Temp/xcpng-update-restart-fix` (`probe.ps1`, `ui-probe.ps1`,
+`update-control.png`). The probes do not exercise real UAC, protected file
+replacement, a live pool, or Linux execution; those limitations remain.
+
 Read the [remediation record](reviews/2026-09-07-remediation.md) for the current
 source changes, regression coverage, migration details, and remaining validation.
 All thirteen initial findings now have corresponding source fixes on

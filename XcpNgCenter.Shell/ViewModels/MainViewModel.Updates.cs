@@ -17,19 +17,39 @@ public partial class MainViewModel
     private PreparedShellUpdate? _preparedUpdate;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUpdateBusy))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadUpdateCommand))]
+    private bool _isUpdateChecking;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUpdateIndicator))]
+    private bool _hasUpdateError;
+
+    [ObservableProperty]
+    private IReadOnlyList<ShellReleaseNotes> _updateReleaseNotes = [];
+
+    [ObservableProperty]
+    private string _updateReleaseNotesMessage = string.Empty;
+
+    public bool IsUpdateBusy => IsUpdateChecking || IsUpdateDownloading;
+    public bool ShowUpdateIndicator => UpdateAvailable || HasUpdateError;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowUpdateBanner))]
+    [NotifyPropertyChangedFor(nameof(ShowUpdateIndicator))]
     private bool _updateAvailable;
 
     [ObservableProperty]
-    private string _updateBannerTitle = string.Empty;
+    private string _updateBannerTitle = "Check for updates";
 
     [ObservableProperty]
-    private string _updateBannerMessage = string.Empty;
+    private string _updateBannerMessage = "Click the update button to check GitHub for a newer build.";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowUpdateProgress))]
     [NotifyPropertyChangedFor(nameof(CanDismissUpdate))]
     [NotifyCanExecuteChangedFor(nameof(DownloadUpdateCommand))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateBusy))]
     private bool _isUpdateDownloading;
 
     [ObservableProperty]
@@ -58,13 +78,12 @@ public partial class MainViewModel
         var token = _updateCheckCts.Token;
         _ = Task.Run(async () =>
         {
-            // Let the main window paint first.
-            await Task.Delay(2500, token).ConfigureAwait(false);
-            var offer = await _updateChecker.CheckForUpdateAsync(token).ConfigureAwait(false);
-            if (offer == null || token.IsCancellationRequested)
-                return;
-
-            Dispatcher.UIThread.Post(() => ApplyUpdateOffer(offer));
+            try
+            {
+                await Task.Delay(2500, token).ConfigureAwait(false);
+                await Dispatcher.UIThread.InvokeAsync(() => CheckForUpdatesManualAsync(token));
+            }
+            catch (OperationCanceledException) { }
         }, token);
     }
 
@@ -98,6 +117,9 @@ public partial class MainViewModel
     private void ApplyUpdateOffer(ShellUpdateOffer offer)
     {
         _pendingUpdate = offer;
+        HasUpdateError = false;
+        UpdateReleaseNotes = offer.ReleaseNotes;
+        UpdateReleaseNotesMessage = offer.ReleaseNotesError ?? string.Empty;
         _preparedUpdate = _updateInstaller.TryGetPreparedUpdate(offer);
         UpdateDownloadProgress = 0;
         UpdateProgressText = string.Empty;
@@ -114,6 +136,7 @@ public partial class MainViewModel
 
             if (!string.IsNullOrWhiteSpace(failure))
             {
+                HasUpdateError = true;
                 UpdateBannerTitle = $"Update install failed — {offer.Version.ToString(4)}";
                 UpdateBannerMessage = failure;
                 UpdateActionLabel = "Retry install";
@@ -159,7 +182,7 @@ public partial class MainViewModel
             StatusMessage = $"Could not open release page: {error}";
     }
 
-    private bool CanDownloadUpdate() => ShowUpdateAction && !IsUpdateDownloading;
+    private bool CanDownloadUpdate() => ShowUpdateAction && !IsUpdateBusy;
 
     [RelayCommand(CanExecute = nameof(CanDownloadUpdate))]
     private async Task DownloadUpdateAsync()
@@ -187,7 +210,8 @@ public partial class MainViewModel
             IsUpdateDownloading = true;
             UpdateActionLabel = "Downloading…";
             UpdateBannerTitle = $"Downloading {_pendingUpdate.Version.ToString(4)}";
-            UpdateBannerMessage = $"Staging the release asset under {_updateInstaller.StagingDirectory}.";
+            HasUpdateError = false;
+            UpdateBannerMessage = "Downloading and verifying the update. You can continue using XCP-ng Center.";
             var progress = new Progress<ShellUpdateProgress>(update =>
             {
                 UpdateDownloadProgress = update.Percentage;
@@ -203,6 +227,7 @@ public partial class MainViewModel
         }
         catch (Exception ex)
         {
+            HasUpdateError = true;
             UpdateBannerTitle = $"Could not download {_pendingUpdate.Version.ToString(4)}";
             UpdateBannerMessage = ex.Message;
             UpdateActionLabel = "Retry download";
@@ -222,7 +247,8 @@ public partial class MainViewModel
         ApplyPreparedUpdateState(_pendingUpdate);
         OnPropertyChanged(nameof(ShowUpdateAction));
         DownloadUpdateCommand.NotifyCanExecuteChanged();
-        await PromptToRestartForUpdateAsync().ConfigureAwait(true);
+        // The user chooses when to restart from the update control. Do not open
+        // a confirmation dialog as a side effect of completing a download.
     }
 
     private void ApplyPreparedUpdateState(ShellUpdateOffer offer)
@@ -261,6 +287,9 @@ public partial class MainViewModel
                 throw new InvalidOperationException("The desktop application lifetime is unavailable.");
 
             IsUpdateDownloading = true;
+            UpdateBannerTitle = "Preparing to install the update";
+            UpdateBannerMessage = "Verifying the package and starting the update progress window. This may take a few minutes.";
+            UpdateActionLabel = "Preparing installation…";
             UpdateProgressText = "Verifying the package for installation…";
             await _updateInstaller.StartApplyHelperAsync(_preparedUpdate).ConfigureAwait(true);
             StatusMessage = "Restarting to install the update…";
@@ -268,6 +297,7 @@ public partial class MainViewModel
         }
         catch (OperationCanceledException ex)
         {
+            HasUpdateError = true;
             UpdateBannerTitle = "Administrator approval cancelled";
             UpdateBannerMessage = ex.Message;
             UpdateActionLabel = "Retry install";
@@ -275,6 +305,7 @@ public partial class MainViewModel
         }
         catch (Exception ex)
         {
+            HasUpdateError = true;
             UpdateBannerTitle = "Could not start the update";
             UpdateBannerMessage = ex.Message;
             UpdateActionLabel = "Retry restart";
@@ -297,8 +328,12 @@ public partial class MainViewModel
     /// <summary>Manual update check used by Settings → About.</summary>
     public async Task<string> CheckForUpdatesManualAsync(CancellationToken cancellationToken = default)
     {
+        if (IsUpdateBusy) return "An update operation is already in progress.";
         try
         {
+            IsUpdateChecking = true;
+            HasUpdateError = false;
+            UpdateBannerTitle = "Checking for updates…";
             // Never treat a dismissed update or a network failure as "up to date".
             var result = await _updateChecker
                 .CheckForUpdateDetailedAsync(ignoreDismissed: true, cancellationToken)
@@ -309,15 +344,18 @@ public partial class MainViewModel
                 case ShellUpdateCheckStatus.Available when result.Offer != null:
                     _updateChecker.ClearDismissed();
                     ApplyUpdateOffer(result.Offer);
-                    return $"Update available: {result.Offer.Version.ToString(4)} — use the banner to download it or open the release page.";
+                    return $"Update available: {result.Offer.Version.ToString(4)} — use the update button to review and download it.";
 
                 case ShellUpdateCheckStatus.Dismissed when result.Offer != null:
                     // ignoreDismissed:true should not return Dismissed; keep a safe fallback.
                     _updateChecker.ClearDismissed();
                     ApplyUpdateOffer(result.Offer);
-                    return $"Update available: {result.Offer.Version.ToString(4)} — use the banner to download it or open the release page.";
+                    return $"Update available: {result.Offer.Version.ToString(4)} — use the update button to review and download it.";
 
                 case ShellUpdateCheckStatus.Failed:
+                    HasUpdateError = true;
+                    UpdateBannerTitle = "Could not check for updates";
+                    UpdateBannerMessage = result.Detail ?? "Click to retry the update check.";
                     return $"Update check failed: {result.Detail ?? "Unknown error."}";
 
                 case ShellUpdateCheckStatus.UpToDate:
@@ -325,6 +363,10 @@ public partial class MainViewModel
                     UpdateAvailable = false;
                     _pendingUpdate = null;
                     _preparedUpdate = null;
+                    UpdateReleaseNotes = [];
+                    UpdateReleaseNotesMessage = string.Empty;
+                    UpdateBannerTitle = "You're up to date";
+                    UpdateBannerMessage = result.Detail ?? $"Current build: {ShellVersionInfo.Display}.";
                     OnPropertyChanged(nameof(ShowUpdateAction));
                     DownloadUpdateCommand.NotifyCanExecuteChanged();
                     return result.Detail ?? $"You're up to date ({ShellVersionInfo.Display}).";
@@ -332,8 +374,23 @@ public partial class MainViewModel
         }
         catch (Exception ex)
         {
+            HasUpdateError = true;
+            UpdateBannerTitle = "Could not check for updates";
+            UpdateBannerMessage = ex.Message;
             return $"Update check failed: {ex.Message}";
         }
+        finally { IsUpdateChecking = false; }
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync() =>
+        StatusMessage = await CheckForUpdatesManualAsync(_updateCheckCts?.Token ?? CancellationToken.None);
+
+    [RelayCommand]
+    private void OpenReleaseNotes(ShellReleaseNotes? notes)
+    {
+        if (notes != null && !ShellExternalOpener.TryOpenUrl(notes.HtmlUrl, out var error))
+            StatusMessage = $"Could not open release notes: {error}";
     }
 
     [RelayCommand]

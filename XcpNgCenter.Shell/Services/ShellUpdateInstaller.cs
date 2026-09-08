@@ -403,6 +403,10 @@ public sealed partial class ShellUpdateInstaller
             };
             restartBroker = StartRestartBroker(Path.Combine(launchUpdate.PayloadDirectory, update.ExecutableName),
                 launchUpdate, Environment.ProcessId, _installDirectory);
+            await WaitForHelperReadyAsync(GetBrokerStartedPath(update.UpdateRoot, launchRoot),
+                () => restartBroker.HasExited, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await WaitForHelperReadyAsync(Path.Combine(launchRoot, ApplyReadyFile),
+                () => restartBroker.HasExited, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             var acknowledgement = GetBrokerAcknowledgementPath(update.UpdateRoot, launchRoot);
             File.WriteAllText(acknowledgement + ".tmp", restartBroker.Id.ToString());
             File.Move(acknowledgement + ".tmp", acknowledgement);
@@ -496,7 +500,8 @@ public sealed partial class ShellUpdateInstaller
 
     internal static bool TryRunRestartBrokerMode(string[] args, out int exitCode,
         Action<int> waitForExit,
-        Func<string, string, string, string, string?, bool> restartApplication)
+        Func<string, string, string, string, string?, bool> restartApplication,
+        Action<string>? reportProgress = null)
     {
         if (!args.Contains(RestartBrokerArgument, StringComparer.Ordinal))
         {
@@ -536,7 +541,11 @@ public sealed partial class ShellUpdateInstaller
                 throw new InvalidDataException("The update restart helper is not running from the prepared package.");
 
             validatedContext = true;
+            if (!string.IsNullOrWhiteSpace(manifest.CacheRoot))
+                File.WriteAllText(GetBrokerStartedPath(manifest.CacheRoot, updateRoot), "ready");
+            reportProgress?.Invoke("Waiting for XCP-ng Center to close…");
             waitForExit(waitPid);
+            reportProgress?.Invoke("Installing the update. XCP-ng Center will reopen automatically…");
             var result = WaitForUpdateResult(updateRoot);
             if (string.IsNullOrWhiteSpace(result.ErrorMessage)
                 && !string.Equals(result.Version, manifest.Version, StringComparison.Ordinal))
@@ -544,6 +553,8 @@ public sealed partial class ShellUpdateInstaller
                 throw new InvalidDataException("The update completion result has an unexpected version.");
             }
             var executable = Path.Combine(installDirectory, GetExecutableName(OperatingSystem.IsWindows()));
+            reportProgress?.Invoke(string.IsNullOrWhiteSpace(result.ErrorMessage)
+                ? "Reopening XCP-ng Center…" : result.ErrorMessage);
             if (!restartApplication(
                     executable,
                     installDirectory,
@@ -559,6 +570,7 @@ public sealed partial class ShellUpdateInstaller
         catch (Exception ex)
         {
             Trace.WriteLine($"Shell update restart helper failed: {ex}");
+            reportProgress?.Invoke($"The update could not complete: {ex.Message}");
             if (validatedContext && waitPid > 0 && !string.IsNullOrWhiteSpace(installDirectory))
             {
                 try
@@ -895,6 +907,7 @@ public sealed partial class ShellUpdateInstaller
         {
             // A failed broker launch must not leave an installer armed to run when
             // the user later closes the application normally.
+            File.WriteAllText(Path.Combine(updateRoot, ApplyReadyFile), "ready");
             WaitForRestartBroker(updateRoot, manifest.CacheRoot);
             WaitForProcessExit(waitPid);
             if (!Version.TryParse(manifest.Version, out var expectedVersion))
@@ -1041,7 +1054,7 @@ public sealed partial class ShellUpdateInstaller
             }
 
             using var process = Process.Start(startInfo);
-            return process != null;
+            return process != null && !process.WaitForExit(2000);
         }
         catch (Exception ex)
         {
