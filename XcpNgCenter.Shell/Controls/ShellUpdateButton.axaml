@@ -23,7 +23,8 @@
       </Grid>
     </Button>
     <Popup x:Name="DetailsPopup" PlacementTarget="{Binding #UpdateTrigger}" Placement="TopEdgeAlignedLeft"
-           VerticalOffset="-8" IsLightDismissEnabled="True">
+           VerticalOffset="-8" IsLightDismissEnabled="True"
+           OverlayInputPassThroughElement="{Binding #UpdateTrigger}">
       <Border x:Name="DetailsPanel" Width="400" Padding="16" CornerRadius="10" Focusable="True"
               Background="{StaticResource Brush.BgPanel}" BorderBrush="{StaticResource Brush.StrokeSubtle}"
               BorderThickness="1" BoxShadow="0 8 28 0 #60000000"

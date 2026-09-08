@@ -17,8 +17,8 @@ namespace XcpNgCenter.Shell.ViewModels;
 public partial class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly HostedConsoleSession _consoleSession = new();
-    private readonly SavedServerStore _savedServerStore = new();
-    private readonly ShellAppSettings _appSettings = ShellBootstrap.AppSettings;
+    private readonly SavedServerStore _savedServerStore;
+    private readonly ShellAppSettings _appSettings;
     private bool _disposed;
     private CancellationTokenSource? _autoReconnectCts;
 
@@ -244,8 +244,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public event Action? TreeLayoutChanged;
 
-    public MainViewModel()
+    public MainViewModel() : this(new SavedServerStore(), ShellBootstrap.AppSettings)
     {
+    }
+
+    internal MainViewModel(SavedServerStore savedServerStore, ShellAppSettings appSettings)
+    {
+        _savedServerStore = savedServerStore;
+        _appSettings = appSettings;
         // Opt-in: do not default RememberPassword just because the platform can persist.
         IdentifierPrivacy.Bind(_appSettings);
         _selectedDetailTabIndex = _appSettings.RememberLastSelectedTab
@@ -261,6 +267,15 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         InitializeActionHistoryUi();
         InitializeAlertsAndGraphsUi();
         InitializeUpdateCheck();
+        // Restore metadata before the first main-window frame. Credentials and live
+        // connections still wait for a visible owner for unlock / certificate dialogs.
+        foreach (var server in SavedServerInventory.Restore(SavedServers))
+        {
+            Servers.Add(server);
+            EnsureServerTreePlaceholder(server);
+        }
+        if (InfrastructureRoots.Count > 0)
+            SelectInfraNode(InfrastructureRoots[0]);
         // Password unlock / auto-reconnect runs after the main window is shown (StartPostWindowStartup).
     }
 
