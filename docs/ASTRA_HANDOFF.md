@@ -13,8 +13,14 @@ publishes, 209 shell tests in each configuration, and 73 shared tests on each
 framework (564 executions). CodeQL actions/C# analysis and automated PR checks
 also passed.
 
+Published [Sandy 2026.9.11.2](https://github.com/Narehood/xenadmin/releases/tag/v2026.9.11.2)
+from `9684c1d0520b96c9051c4dc21a9a329c97e020fe` via release run `34618991501`.
+Both Windows/Linux downloads were checked against their GitHub SHA-256 digests
+and required archive-root files. Reading each packaged shell assembly confirmed
+version `2026.9.11.2` and codename `Sandy`.
+
 The build codename defaults to `Sandy` in MSBuild and the release workflow. The
-shell window/About/assembly title is `XCP-NG Center (Unofficial Client)` and the
+shell window/About/project title is `XCP-NG Center (Unofficial Client)` and the
 sidebar footer is `Unofficial Client`.
 
 Memory archives now retain total and free values independently, normalized to
