@@ -21,8 +21,13 @@ public sealed class RrdSeries
         Id = id;
         DataSourceName = dataSourceName;
         FriendlyName = friendlyName;
-        Units = units ?? "";
-        MultiplyingFactor = ResolveFactor(units);
+        Units = string.IsNullOrWhiteSpace(units) ? dataSourceName switch
+        {
+            "memory_total_kib" or "memory_free_kib" or "memory_internal_free" => "KiB",
+            "memory" => "bytes",
+            _ => ""
+        } : units;
+        MultiplyingFactor = ResolveFactor(Units);
     }
 
     public string Id { get; }
@@ -51,36 +56,13 @@ public sealed class RrdSeries
         return false;
     }
 
-    public void AddRawValue(string raw, long currentTime, IReadOnlyList<RrdSeries> batch)
+    public void AddRawValue(string raw, long currentTime)
     {
         var value = XenAdmin.Core.Helpers.StringToDouble(raw);
-        var bad = double.IsNaN(value) || double.IsInfinity(value);
-        var y = bad ? NegativeValue : value * MultiplyingFactor;
-
-        // Convert free→used for memory pairs (same as WinForms DataSet).
-        if (DataSourceName is "memory_total_kib" or "memory")
-        {
-            var freeName = DataSourceName == "memory_total_kib" ? "memory_free_kib" : "memory_internal_free";
-            var other = batch.FirstOrDefault(s => s.DataSourceName == freeName);
-            if (other != null && other.Points.Count - 1 == Points.Count)
-            {
-                var otherY = other.Points[^1].Value;
-                y = bad || otherY < 0 ? NegativeValue : y - otherY;
-                other.Points[^1] = new RrdPoint(other.Points[^1].Ticks, y);
-            }
-        }
-        else if (DataSourceName is "memory_free_kib" or "memory_internal_free")
-        {
-            var totalName = DataSourceName == "memory_free_kib" ? "memory_total_kib" : "memory";
-            var other = batch.FirstOrDefault(s => s.DataSourceName == totalName);
-            if (other != null && other.Points.Count - 1 == Points.Count)
-            {
-                var otherY = other.Points[^1].Value;
-                y = bad || otherY < 0 ? NegativeValue : otherY - y;
-            }
-        }
-
-        Points.Add(new RrdPoint(currentTime, y));
+        var scaled = value * MultiplyingFactor;
+        // Preserve total and free independently. Pair them by object and timestamp
+        // in the graph builder, after all columns of the RRD response are read.
+        Points.Add(new RrdPoint(currentTime, double.IsFinite(scaled) && scaled >= 0 ? scaled : NegativeValue));
     }
 
     public void MergePoints(IEnumerable<RrdPoint> incoming, int maxPoints)

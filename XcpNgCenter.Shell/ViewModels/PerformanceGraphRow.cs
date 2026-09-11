@@ -11,13 +11,15 @@ public sealed class PerformanceSeriesView
         string name,
         string colorHex,
         IReadOnlyList<RrdPoint> points,
-        string? units = null)
+        string? units = null,
+        string? layoutId = null)
     {
         Id = id;
         Name = name;
         ColorHex = colorHex;
         Points = points;
         Units = units ?? "";
+        LayoutId = layoutId ?? id;
     }
 
     public string Id { get; }
@@ -25,6 +27,7 @@ public sealed class PerformanceSeriesView
     public string ColorHex { get; }
     public IReadOnlyList<RrdPoint> Points { get; }
     public string Units { get; }
+    public string LayoutId { get; }
 
     public bool IsPercentUnit =>
         Units is "percent" or "(fraction)"
@@ -72,22 +75,10 @@ public partial class PerformanceGraphRow : ObservableObject
                 continue;
             if (s.Points.Count == 0)
                 continue;
-            parts.Add($"{s.Name}: {FormatValue(latest.Value)}");
+            parts.Add($"{s.Name}: {PerformanceValueFormatter.Format(latest.Value, s.Units)}");
         }
 
         return parts.Count == 0 ? "Waiting for samples…" : string.Join(" · ", parts);
     }
 
-    private static string FormatValue(double value)
-    {
-        if (value < 0)
-            return "—";
-        if (value >= 1_000_000_000)
-            return $"{value / 1_000_000_000:0.##}G";
-        if (value >= 1_000_000)
-            return $"{value / 1_000_000:0.##}M";
-        if (value >= 1_000)
-            return $"{value / 1_000:0.##}K";
-        return $"{value:0.##}";
-    }
 }

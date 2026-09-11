@@ -124,7 +124,9 @@ public sealed class PerformanceChart : Control
         if (bounds.Width < 8 || bounds.Height < 8)
             return;
 
-        const double padL = 10;
+        var seriesList = Series?.Where(s => s.Points.Count > 1).ToList() ?? [];
+        var byteAxis = YAxisMax is > 0 && seriesList.Count > 0 && seriesList.All(s => s.Units == "bytes");
+        var padL = byteAxis ? 64 : 10;
         const double padR = 10;
         const double padT = 10;
         const double padB = 28; // room for time labels
@@ -136,7 +138,6 @@ public sealed class PerformanceChart : Control
 
         context.FillRectangle(new SolidColorBrush(Color.Parse("#1A222A")), plot, 4);
 
-        var seriesList = Series?.Where(s => s.Points.Count > 1).ToList() ?? [];
         if (seriesList.Count == 0)
         {
             var msg = new FormattedText(
@@ -169,7 +170,7 @@ public sealed class PerformanceChart : Control
         }
 
         if (fixedMax is > 0)
-            DrawPercentYAxis(context, plot, maxY);
+            DrawYAxis(context, plot, maxY, byteAxis);
 
         DrawTimeAxis(context, plot, minX, maxX);
 
@@ -231,7 +232,7 @@ public sealed class PerformanceChart : Control
             DrawHover(context, plot, seriesList, minX, maxX, maxY, pt);
     }
 
-    private static void DrawPercentYAxis(DrawingContext context, Rect plot, double maxY)
+    private static void DrawYAxis(DrawingContext context, Rect plot, double maxY, bool byteAxis)
     {
         var muted = new SolidColorBrush(Color.Parse("#9AA6B2"));
         for (var i = 0; i <= 4; i++)
@@ -239,7 +240,8 @@ public sealed class PerformanceChart : Control
             var fraction = i / 4.0;
             var value = maxY * (1.0 - fraction);
             var y = plot.Y + plot.Height * fraction;
-            var label = maxY <= 100 && Math.Abs(maxY - 100) < 0.01
+            var label = byteAxis ? PerformanceValueFormatter.Format(value, "bytes")
+                : maxY <= 100 && Math.Abs(maxY - 100) < 0.01
                 ? $"{value:0}%"
                 : $"{value:0.##}";
             var text = new FormattedText(
@@ -254,7 +256,7 @@ public sealed class PerformanceChart : Control
                 ty = plot.Y;
             else if (i == 4)
                 ty = plot.Bottom - text.Height;
-            context.DrawText(text, new Point(plot.X + 4, ty));
+            context.DrawText(text, new Point(byteAxis ? plot.X - text.Width - 8 : plot.X + 4, ty));
         }
     }
 
@@ -318,7 +320,7 @@ public sealed class PerformanceChart : Control
             var x = MapX(plot, sample.Ticks, minX, maxX);
             var y = MapY(plot, sample.Value, maxY);
             context.DrawEllipse(new SolidColorBrush(color), null, new Point(x, y), 3.5, 3.5);
-            lines.Add(($"{series.Name}: {FormatValue(sample.Value)}", color));
+            lines.Add(($"{series.Name}: {PerformanceValueFormatter.Format(sample.Value, series.Units)}", color));
         }
 
         DrawTooltip(context, plot, pt, lines);
@@ -401,16 +403,4 @@ public sealed class PerformanceChart : Control
     private static double MapY(Rect plot, double value, double maxY)
         => plot.Bottom - Math.Clamp(value / maxY, 0, 1) * plot.Height;
 
-    private static string FormatValue(double value)
-    {
-        if (value < 0)
-            return "—";
-        if (value >= 1_000_000_000)
-            return $"{value / 1_000_000_000:0.##}G";
-        if (value >= 1_000_000)
-            return $"{value / 1_000_000:0.##}M";
-        if (value >= 1_000)
-            return $"{value / 1_000:0.##}K";
-        return $"{value:0.##}";
-    }
 }

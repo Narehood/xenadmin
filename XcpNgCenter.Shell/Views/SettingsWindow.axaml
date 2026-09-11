@@ -288,7 +288,7 @@
 
       <TabItem Header="About">
         <StackPanel Spacing="10" Margin="0,16,0,0">
-          <TextBlock Text="XCP-ng Center (Preview)"
+          <TextBlock Text="XCP-NG Center (Unofficial Client)"
                      FontSize="16"
                      FontWeight="SemiBold" />
           <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">

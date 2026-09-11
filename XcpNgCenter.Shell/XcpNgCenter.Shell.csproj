@@ -8,8 +8,8 @@
     <ApplicationIcon>Assets\Images\AppIcon.ico</ApplicationIcon>
     <RootNamespace>XcpNgCenter.Shell</RootNamespace>
     <AssemblyName>XcpNgCenter.Shell</AssemblyName>
-    <Title>XCP-ng Center (Preview)</Title>
-    <Description>Avalonia UI rewrite preview for XCP-ng Center</Description>
+    <Title>XCP-NG Center (Unofficial Client)</Title>
+    <Description>Unofficial XCP-NG Center client</Description>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 

@@ -364,7 +364,7 @@ public sealed class ShellRrdMaintainer : IDisposable
             case "v":
             {
                 var set = _setsAdded[_valueCount];
-                set.AddRawValue(reader.ReadContentAsString(), _currentTime, _setsAdded);
+                set.AddRawValue(reader.ReadContentAsString(), _currentTime);
                 _valueCount++;
                 break;
             }
@@ -416,12 +416,12 @@ public sealed class ShellRrdMaintainer : IDisposable
             if (_setsAdded.Count <= _valueCount)
                 return;
             var set = _setsAdded[_valueCount];
-            set.AddRawValue(reader.ReadContentAsString(), _currentTime, _setsAdded);
+            set.AddRawValue(reader.ReadContentAsString(), _currentTime);
             _valueCount++;
         }
     }
 
-    private RrdSeries CreateSeries(IXenObject xo, string dataSourceName, bool hideForeign)
+    internal RrdSeries CreateSeries(IXenObject xo, string dataSourceName, bool hideForeign)
     {
         var id = xo switch
         {
@@ -431,16 +431,11 @@ public sealed class ShellRrdMaintainer : IDisposable
         };
 
         var units = _dataSources.FirstOrDefault(d => d.name_label == dataSourceName)?.units;
-        var friendly = dataSourceName switch
-        {
-            "memory_free_kib" => Helpers.GetFriendlyDataSourceName("memory_used_kib", xo),
-            "memory_internal_free" => Helpers.GetFriendlyDataSourceName("memory_internal_used", xo),
-            _ => Helpers.GetFriendlyDataSourceName(dataSourceName, xo)
-        };
+        var friendly = Helpers.GetFriendlyDataSourceName(dataSourceName, xo);
 
         return new RrdSeries(id, dataSourceName, friendly, units)
         {
-            Hide = dataSourceName is "memory" or "memory_total_kib" || hideForeign
+            Hide = hideForeign
         };
     }
 
