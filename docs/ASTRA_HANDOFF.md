@@ -6,6 +6,13 @@ Last updated: 2026-09-11. Initial review, remediation, and shell follow-up fixes
 
 ### Sandy branding and memory performance (2026-09-11)
 
+Merged via [PR #44](https://github.com/Narehood/xenadmin/pull/44) as
+`6aa06d0469679e1cb029d118ca5867bc6da97104` on `development`. PR CI run
+`34618281274` passed full Release/Debug builds, both self-contained platform
+publishes, 209 shell tests in each configuration, and 73 shared tests on each
+framework (564 executions). CodeQL actions/C# analysis and automated PR checks
+also passed.
+
 The build codename defaults to `Sandy` in MSBuild and the release workflow. The
 shell window/About/assembly title is `XCP-NG Center (Unofficial Client)` and the
 sidebar footer is `Unofficial Client`.
