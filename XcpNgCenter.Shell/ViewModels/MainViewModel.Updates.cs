@@ -18,6 +18,7 @@ public partial class MainViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUpdateBusy))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateProgressIndeterminate))]
     [NotifyCanExecuteChangedFor(nameof(DownloadUpdateCommand))]
     private bool _isUpdateChecking;
 
@@ -32,6 +33,9 @@ public partial class MainViewModel
     private string _updateReleaseNotesMessage = string.Empty;
 
     public bool IsUpdateBusy => IsUpdateChecking || IsUpdateDownloading;
+    public bool IsUpdateProgressIndeterminate => IsUpdateChecking
+        || (IsUpdateDownloading && (UpdateDownloadProgress <= 0 || UpdateDownloadProgress >= 100));
+    public double UpdateProgressSweepAngle => Math.Clamp(UpdateDownloadProgress, 0, 100) * 3.6;
     public bool ShowUpdateIndicator => UpdateAvailable || HasUpdateError;
 
     [ObservableProperty]
@@ -50,9 +54,12 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanDismissUpdate))]
     [NotifyCanExecuteChangedFor(nameof(DownloadUpdateCommand))]
     [NotifyPropertyChangedFor(nameof(IsUpdateBusy))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateProgressIndeterminate))]
     private bool _isUpdateDownloading;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UpdateProgressSweepAngle))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateProgressIndeterminate))]
     private double _updateDownloadProgress;
 
     [ObservableProperty]
@@ -207,6 +214,7 @@ public partial class MainViewModel
 
         try
         {
+            UpdateDownloadProgress = 0;
             IsUpdateDownloading = true;
             UpdateActionLabel = "Downloading…";
             UpdateBannerTitle = $"Downloading {_pendingUpdate.Version.ToString(4)}";

@@ -5,8 +5,22 @@
              x:Class="XcpNgCenter.Shell.Controls.ShellUpdateButton"
              x:DataType="vm:MainViewModel"
              x:Name="UpdateControl">
-  <Grid>
-    <Button x:Name="UpdateTrigger" Classes="ghost" Width="36" Height="36" Padding="7"
+  <UserControl.Styles>
+    <Style Selector="Arc.update-spinner.active">
+      <Style.Animations>
+        <Animation Duration="0:0:1" IterationCount="INFINITE">
+          <KeyFrame Cue="0%">
+            <Setter Property="RotateTransform.Angle" Value="0" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="RotateTransform.Angle" Value="360" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+  </UserControl.Styles>
+  <Grid Width="36" Height="36">
+    <Button x:Name="UpdateTrigger" Classes="ghost" Width="36" Height="36" Padding="6"
             CornerRadius="18" AutomationProperties.Name="Check for updates"
             Command="{Binding CheckForUpdatesCommand}"
             PointerEntered="OnTriggerEntered" PointerExited="OnPointerExited"
@@ -18,10 +32,23 @@
                  Stroke="{StaticResource Brush.BgDeep}" StrokeThickness="1.5"
                  HorizontalAlignment="Right" VerticalAlignment="Top"
                  IsVisible="{Binding ShowUpdateIndicator}" />
-        <ProgressBar Height="3" VerticalAlignment="Bottom" IsIndeterminate="True"
-                     IsVisible="{Binding IsUpdateBusy}" />
       </Grid>
     </Button>
+    <Grid x:Name="UpdateProgressRing" Width="34" Height="34" IsHitTestVisible="False"
+          IsVisible="{Binding IsUpdateBusy}">
+      <Ellipse Stroke="{StaticResource Brush.StrokeSubtle}" StrokeThickness="2" />
+      <Arc x:Name="UpdateDownloadArc" StartAngle="-90" SweepAngle="{Binding UpdateProgressSweepAngle}"
+           Stroke="{StaticResource Brush.BrandOrange}" StrokeThickness="2" StrokeLineCap="Round"
+           IsVisible="{Binding !IsUpdateProgressIndeterminate}" />
+      <Arc x:Name="UpdateSpinnerArc" Classes="update-spinner" Classes.active="{Binding IsUpdateProgressIndeterminate}"
+           StartAngle="-90" SweepAngle="90" RenderTransformOrigin="50%,50%"
+           Stroke="{StaticResource Brush.BrandOrange}" StrokeThickness="2" StrokeLineCap="Round"
+           IsVisible="{Binding IsUpdateProgressIndeterminate}">
+        <Arc.RenderTransform>
+          <RotateTransform />
+        </Arc.RenderTransform>
+      </Arc>
+    </Grid>
     <Popup x:Name="DetailsPopup" PlacementTarget="{Binding #UpdateTrigger}" Placement="TopEdgeAlignedLeft"
            VerticalOffset="-8" IsLightDismissEnabled="True"
            OverlayInputPassThroughElement="{Binding #UpdateTrigger}">
