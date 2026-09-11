@@ -51,6 +51,18 @@ public static class InfrastructureTreeBuilder
             .OrderBy(vm => Helpers.GetName(vm), StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        // XAPI also exposes an internal pool record for a standalone host. Use
+        // the shared visibility rule so a named one-host pool remains a pool.
+        if (hosts.Count == 1 && Helpers.GetPool(conn) == null)
+        {
+            var hostRoot = CreateHostNode(server, hosts[0], vms.Count, standalone: true);
+            foreach (var vm in vms)
+                hostRoot.Children.Add(CreateVmNode(server, vm));
+            foreach (var sr in VisibleSrs(conn))
+                hostRoot.Children.Add(CreateSrNode(server, sr));
+            return hostRoot;
+        }
+
         var (poolIcon, poolTip) = ShellStatusIcons.ForPool(conn);
         var root = new InfraTreeNode
         {
@@ -79,27 +91,7 @@ public static class InfrastructureTreeBuilder
             foreach (var vm in hostVms)
                 placed.Add(vm.opaque_ref);
 
-            var (hostIcon, hostTip) = ShellStatusIcons.ForHost(host);
-            var isCoordinator = Helpers.HostIsCoordinator(host);
-            var hostAddress = string.IsNullOrWhiteSpace(host.address) ? host.hostname : host.address;
-            var role = isCoordinator ? "Coordinator" : "Member";
-            // Surface reboot/offline state in the row text, not only the icon tooltip.
-            var detail = hostTip is "Connected" or "Connecting…"
-                ? $"{role} · {hostVms.Count} VM(s)"
-                : $"{hostTip} · {role} · {hostVms.Count} VM(s)";
-            var hostNode = new InfraTreeNode
-            {
-                Kind = InfraNodeKind.Host,
-                Title = IdentifierPrivacy.ServerName(Helpers.GetName(host)),
-                Subtitle = IdentifierPrivacy.Address(hostAddress),
-                Detail = detail,
-                Server = server,
-                OpaqueRef = host.opaque_ref,
-                IsExpanded = true,
-                ShowStatusIcon = true,
-                StatusIcon = hostIcon,
-                StatusTooltip = hostTip
-            };
+            var hostNode = CreateHostNode(server, host, hostVms.Count);
 
             foreach (var vm in hostVms)
                 hostNode.Children.Add(CreateVmNode(server, vm));
@@ -138,6 +130,30 @@ public static class InfrastructureTreeBuilder
             root.Children.Add(CreateSrNode(server, sr));
 
         return root;
+    }
+
+    private static InfraTreeNode CreateHostNode(ServerNode server, Host host, int vmCount, bool standalone = false)
+    {
+        var (icon, tip) = ShellStatusIcons.ForHost(host);
+        var address = string.IsNullOrWhiteSpace(host.address) ? host.hostname : host.address;
+        var role = standalone ? "Standalone" : Helpers.HostIsCoordinator(host) ? "Coordinator" : "Member";
+        // Surface reboot/offline state in the row text, not only the icon tooltip.
+        var detail = tip is "Connected" or "Connecting…"
+            ? $"{role} · {vmCount} VM(s)"
+            : $"{tip} · {role} · {vmCount} VM(s)";
+        return new InfraTreeNode
+        {
+            Kind = InfraNodeKind.Host,
+            Title = IdentifierPrivacy.ServerName(Helpers.GetName(host)),
+            Subtitle = IdentifierPrivacy.Address(address),
+            Detail = detail,
+            Server = server,
+            OpaqueRef = host.opaque_ref,
+            IsExpanded = true,
+            ShowStatusIcon = true,
+            StatusIcon = icon,
+            StatusTooltip = tip
+        };
     }
 
     private static IEnumerable<SR> VisibleSrs(IXenConnection conn) =>

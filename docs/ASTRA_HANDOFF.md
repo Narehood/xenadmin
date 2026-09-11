@@ -4,6 +4,36 @@ Last updated: 2026-09-07. Initial review followed by a remediation pass.
 
 ## Start here
 
+### Circular update progress and standalone inventory (2026-09-11)
+
+The compact update button now displays a 34-pixel progress ring inside its
+36-pixel footprint. Download percentage fills the ring clockwise; checking,
+unknown-length downloads, and preparation/verification use a rotating arc.
+Completion hides the ring. The overlay passes pointer input through, and the
+existing hover panel retains its detailed progress and release notes. The icon
+padding also now accounts for the button border. A retry resets stale progress.
+
+Infrastructure uses the shared visible-pool rule (`Helpers.GetPool`) to distinguish
+an unnamed standalone pool-of-one from a visible pool. A standalone connection
+returns the actual host as its root, with real VMs (including stopped VMs without
+a home host) and visible storage directly underneath. It retains host identity,
+status, privacy formatting, and selection/action resolution. Named one-host pools
+and all multi-host pools keep the cluster/host layout and existing VM/SR placement.
+
+Validation: 192 shell Release tests passed; shared tests passed 73 on net481 and
+73 on net8.0, all with locked restores. Seven new regression cases exercise the
+actual tree builder with synthetic caches and real status icons: standalone
+running/stopped VMs and VM filtering, local/shared storage without duplicates,
+named one-host and named/unnamed multi-host pools, topology changes preserving
+object identity, and an empty cache. An offscreen desktop harness rendered the
+actual update control in six states at 100/125/150/200% scale and checked geometry,
+animation, live progress bindings, completion, and popup/input behavior. Evidence:
+`%LOCALAPPDATA%/Temp/shell-ring-host-check` (`Program.cs`, and `bin/Release/net8.0`
+containing `results.log` and `ring-*.png`). Existing Windows ACL test analyzer
+warnings remain. Live server connections, real update installation, and Linux
+desktop interaction still require manual testing; GitHub CI supplies the full
+WinForms builds and both platform publishes.
+
 ### Saved-server startup and update hover follow-up (2026-09-08)
 
 The main view model now restores saved-server metadata and selects the first
