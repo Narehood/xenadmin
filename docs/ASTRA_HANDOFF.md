@@ -1,10 +1,16 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-07. Initial review followed by a remediation pass.
+Last updated: 2026-09-11. Initial review, remediation, and shell follow-up fixes.
 
 ## Start here
 
 ### Circular update progress and standalone inventory (2026-09-11)
+
+Merged via [PR #43](https://github.com/Narehood/xenadmin/pull/43) as
+`af4dc70f673a14fd4eaeb7320523a24e84184922` on `development`. PR CI run
+`34614312352` passed full Release/Debug builds, both self-contained platform
+publishes, 192 shell tests in each configuration, and 73 shared tests on each
+framework. CodeQL actions/C# analysis and the automated PR review also passed.
 
 The compact update button now displays a 34-pixel progress ring inside its
 36-pixel footprint. Download percentage fills the ring clockwise; checking,
