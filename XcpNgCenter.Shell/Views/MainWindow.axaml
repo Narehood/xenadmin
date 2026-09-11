@@ -10,7 +10,7 @@
         x:Class="XcpNgCenter.Shell.Views.MainWindow"
         x:Name="RootWindow"
         x:DataType="vm:MainViewModel"
-        Title="XCP-ng Center (Preview)"
+        Title="XCP-NG Center (Unofficial Client)"
         Width="1280" Height="800"
         MinWidth="960" MinHeight="640"
         TransparencyLevelHint="None"
@@ -225,7 +225,7 @@
 
           <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,16,0,0">
           <TextBlock Grid.Column="0"
-                     Text="WinForms XCP-ng Center remains the supported client."
+                     Text="Unofficial Client"
                      TextWrapping="Wrap"
                      FontSize="11"
                      Foreground="{StaticResource Brush.TextMuted}"

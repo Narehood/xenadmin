@@ -22,7 +22,7 @@
 		<FileVersion>$(Version)</FileVersion>
 		<InformationalVersion>$(Version)</InformationalVersion>
 		<!-- Release/CI builds may pass -p:Codename=<Label> for Settings → About. -->
-		<Codename Condition="'$(Codename)' == ''">Local</Codename>
+		<Codename Condition="'$(Codename)' == ''">Sandy</Codename>
 		<Lab>xcpngcenter_main</Lab>
 	</PropertyGroup>
 </Project>

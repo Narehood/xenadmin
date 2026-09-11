@@ -22,10 +22,10 @@ on:
         type: boolean
         default: false
       codename:
-        description: "Optional build label shown in Settings → About (defaults to Local if omitted)"
+        description: "Optional build label shown in Settings → About (defaults to Sandy if omitted)"
         required: false
         type: string
-        default: "Local"
+        default: "Sandy"
 
 permissions:
   contents: write
@@ -61,7 +61,7 @@ jobs:
           $tag = "v$version"
           $codename = "${{ inputs.codename }}".Trim()
           if ([string]::IsNullOrWhiteSpace($codename)) {
-            $codename = "Local"
+            $codename = "Sandy"
           }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -135,7 +135,7 @@ jobs:
           TAG="v${VERSION}"
           CODENAME="$(echo "${{ inputs.codename }}" | tr -d '[:space:]')"
           if [[ -z "$CODENAME" ]]; then
-            CODENAME="Local"
+            CODENAME="Sandy"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
@@ -275,7 +275,7 @@ jobs:
           TAG="v${VERSION}"
           CODENAME="$(echo "${{ inputs.codename }}" | tr -d '[:space:]')"
           if [[ -z "$CODENAME" ]]; then
-            CODENAME="Local"
+            CODENAME="Sandy"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"

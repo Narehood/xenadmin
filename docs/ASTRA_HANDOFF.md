@@ -4,6 +4,39 @@ Last updated: 2026-09-11. Initial review, remediation, and shell follow-up fixes
 
 ## Start here
 
+### Sandy branding and memory performance (2026-09-11)
+
+The build codename defaults to `Sandy` in MSBuild and the release workflow. The
+shell window/About/assembly title is `XCP-NG Center (Unofficial Client)` and the
+sidebar footer is `Unofficial Client`.
+
+Memory archives now retain total and free values independently, normalized to
+bytes. Previously the parser replaced free with used, discarded total, and the
+chart auto-scaled to the usage peak. It also paired columns by name/position,
+which could match another object's data or depend on column order. The graph now
+derives used only from the same object's matching timestamps, draws Used/Free/Total,
+and scales to the highest recorded capacity in the selected interval. Axis,
+summary, and hover labels use binary memory units (GiB/MiB). VM allocation in
+bytes is paired with guest free memory in KiB; without guest data, only allocation
+is displayed. Missing/invalid pairs do not fabricate usage. Missing total data
+leaves a correctly labelled free-only graph with no claimed capacity.
+
+Saved memory layouts also receive the corrected series. Saving a layout writes
+only real RRD source names, deduplicating the derived used/free source so it stays
+compatible with WinForms layouts. Shared WinForms graph code is unchanged.
+
+Validation: 209 shell Release tests and 73 shared tests on each of net481/net8.0
+passed with locked restores. Seventeen new regression cases cover 32 GiB capacity,
+RRD column order, all four intervals, saved-layout round trips, VM unit conversion,
+missing guest/total data, invalid samples, object/timestamp isolation, historical
+allocation changes, and CPU percentage scaling. An offscreen desktop harness
+checked the main/sidebar/About labels and Sandy splash/build name, and rendered
+the actual memory chart at 100/150/200% scale, with filled and hover variants.
+Evidence: `%LOCALAPPDATA%/Temp/sandy-memory-check` (`Program.cs` and
+`bin/Release/net8.0/results.log`, `memory-*.png`). Existing Windows ACL test analyzer
+warnings remain. Live host/guest RRD traffic and Linux desktop rendering still
+need manual testing; full WinForms builds and platform publishes run in CI.
+
 ### Circular update progress and standalone inventory (2026-09-11)
 
 Merged via [PR #43](https://github.com/Narehood/xenadmin/pull/43) as
