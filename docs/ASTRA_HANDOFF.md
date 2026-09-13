@@ -1,8 +1,49 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-11. Initial review, remediation, and shell follow-up fixes.
+Last updated: 2026-09-13. Initial review, remediation, and shell follow-up fixes.
 
 ## Start here
+
+### Sandy network management (2026-09-13)
+
+The Avalonia Network tab now exposes host/pool network creation, editing, and
+removal, plus VM interface add/edit/remove/connect/disconnect. The network editor
+supports private networks and VLANs on an existing physical NIC or bond, VLAN IDs
+(including supported VLAN 0), uplink changes, names/descriptions/tags, automatic
+inclusion on new VMs, and MTU. The VM editor selects an existing network/VLAN,
+generates or sets a MAC, and configures bandwidth limits in KB/s.
+
+`NetworkManagement` validates current cache objects and builds descriptors;
+`ShellNetworkAction` rechecks on the action worker and delegates to the existing
+NetworkAction, SaveChangesAction, UnplugPlugNetworkAction, and VIF actions.
+Dialogs retain drafts during inventory updates, keep failures visible, and
+report when hot-plug requires a VM shutdown/start. Unchanged VIF settings do not
+replace the interface. Row commands retain their original connection/object
+identity and resolve it again after confirmation. Advanced VIF settings and
+unknown QoS parameters survive edits. Dictionary copies are modified before
+assignment because generated equal-value setters otherwise retain shared data.
+
+Management, IPv4/IPv6-configured, disallow-unplug, and cluster PIFs are protected
+from topology changes/removal; active VM interfaces block VLAN/MTU changes.
+Network removal requires no VIF references, including stopped VMs. Physical,
+bond, tunnel, and SR-IOV topology changes are not offered. Those operations and
+host management-IP reconfiguration remain in WinForms. This adds VLAN and guest
+interface management without claiming parity with every legacy network wizard.
+
+Validation: 242 shell Release tests and 73 shared tests on each of net481/net8.0
+passed with locked restores. Thirty-three new cases cover VLAN/MTU bounds,
+coordinator uplinks and pool-wide duplicates, protection changes after opening an
+editor, VM state/operation/limit checks, missing targets, MAC/QoS validation,
+descriptor isolation, advanced settings, no-op VIF edits, and row action policy.
+An offscreen Windows harness exercised the actual editors and Network tab at
+100/150/200% and minimum window sizes, command/target bindings, busy enablement,
+protected removal, save-time close guards, and textbox-to-request updates.
+Evidence: `%LOCALAPPDATA%/Temp/sandy-network-check` (`Program.cs` and
+`bin/Release/net8.0/results.log`, PNGs). Existing Windows ACL test analyzer
+warnings remain. No live pool mutations or Linux desktop interaction were
+exercised. Shared actions perform sequential API calls; a partial failure can
+leave some settings changed or an old VIF removed, which the editors explain.
+Full WinForms builds and both platform publishes are validated in GitHub CI.
 
 ### Sandy branding and memory performance (2026-09-11)
 

@@ -7,13 +7,17 @@ public sealed class NetworkItemRow
         string secondary,
         string detail,
         string size,
-        string meta)
+        string meta,
+        XenAPI.IXenObject? target = null,
+        string tags = "")
     {
         Primary = primary;
         Secondary = secondary;
         Detail = detail;
         Size = size;
         Meta = meta;
+        Target = target;
+        Tags = tags;
     }
 
     public string Primary { get; }
@@ -21,4 +25,20 @@ public sealed class NetworkItemRow
     public string Detail { get; }
     public string Size { get; }
     public string Meta { get; }
+    public XenAPI.IXenObject? Target { get; }
+    public string Tags { get; }
+    public bool HasTags => Tags.Length > 0;
+    public bool HasActions => Target != null;
+    public bool IsVmInterface => Target is XenAPI.VIF;
+    public string ToggleLabel => Target is XenAPI.VIF { currently_attached: true } ? "Disconnect" : "Connect";
+    public string? EditError => Target switch
+    {
+        XenAPI.Network network => Services.NetworkManagement.EditNetworkError(network),
+        XenAPI.VIF vif => Services.NetworkManagement.VifError(vif),
+        _ => "Select a network or interface."
+    };
+    public string? RemoveError => Target is XenAPI.Network network ? Services.NetworkManagement.RemoveNetworkError(network) : EditError;
+    public bool CanEdit => EditError == null;
+    public bool CanRemove => RemoveError == null;
+    public bool CanToggle => Target is XenAPI.VIF vif && Services.NetworkManagement.VifError(vif, true) == null;
 }

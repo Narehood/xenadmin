@@ -7,7 +7,7 @@ using XcpNgCenter.Shell.ViewModels;
 namespace XcpNgCenter.Shell.Services;
 
 /// <summary>
-/// Read-only network summary for the Avalonia shell (networks / management PIFs / VIFs).
+/// Network rows with stable action targets for the Avalonia shell.
 /// </summary>
 public static class NetworkSummaryBuilder
 {
@@ -63,7 +63,7 @@ public static class NetworkSummaryBuilder
                 $"{nic} · VLAN {vlan}",
                 $"{link} · {auto}",
                 mtu == "—" ? "MTU —" : $"MTU {mtu}",
-                mac);
+                mac, network, string.Join(", ", network.tags));
         }).ToList();
 
         var mgmtRows = CollectManagementPifs(conn, host)
@@ -129,7 +129,7 @@ public static class NetworkSummaryBuilder
                 vif.NetworkName(),
                 attached,
                 ip,
-                $"{Helpers.GetMacString(vif.MAC)} · {limit}");
+                $"{Helpers.GetMacString(vif.MAC)} · {limit}", vif);
         }).ToList();
 
         var totals = new List<GeneralPropertyRow>

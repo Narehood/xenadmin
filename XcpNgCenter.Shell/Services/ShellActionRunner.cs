@@ -9,6 +9,19 @@ namespace XcpNgCenter.Shell.Services;
 /// </summary>
 public static class ShellActionRunner
 {
+    public static Task<bool> RunAndWaitAsync(AsyncAction action, Action<string>? status = null)
+    {
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Completed(ActionBase finished)
+        {
+            action.Completed -= Completed;
+            completion.TrySetResult(finished.Succeeded);
+        }
+        action.Completed += Completed;
+        Run(action, status);
+        return completion.Task;
+    }
+
     public static void Run(AsyncAction action, Action<string>? status = null)
     {
         ArgumentNullException.ThrowIfNull(action);
