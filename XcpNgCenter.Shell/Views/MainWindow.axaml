@@ -716,6 +716,10 @@
                 <TabItem Header="Network" IsVisible="{Binding ShowDetailNetwork}">
                   <ScrollViewer Margin="0,18,0,0" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="18" Margin="0,0,4,0">
+                      <StackPanel Spacing="10" IsEnabled="{Binding !IsNetworkActionBusy}">
+                        <Button Classes="cta" Content="{Binding AddNetworkLabel}" Command="{Binding AddNetworkCommand}" IsEnabled="{Binding CanAddNetwork}" />
+                        <TextBlock Text="{Binding NetworkScopeNotice}" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+                      </StackPanel>
                       <ItemsControl ItemsSource="{Binding NetworkTotals}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
@@ -765,7 +769,7 @@
                                     BorderThickness="0,0,0,1"
                                     Padding="0,0,8,12"
                                     Margin="0,0,0,12">
-                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                                 <TextBlock Text="{Binding Primary}"
                                            FontWeight="SemiBold"
                                            FontSize="14"
@@ -796,6 +800,17 @@
                                            Foreground="{StaticResource Brush.BrandOrange}"
                                            Margin="0,4,0,0"
                                            Opacity="0.9" />
+                                <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Text="{Binding Tags}" IsVisible="{Binding HasTags}"
+                                           TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" Margin="0,6,0,0" />
+                                <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
+                                            IsVisible="{Binding HasActions}" IsEnabled="{Binding !#RootWindow.((vm:MainViewModel)DataContext).IsNetworkActionBusy}">
+                                  <Button Classes="ghost" Content="Edit" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding EditError}"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).EditNetworkCommand}" CommandParameter="{Binding}" />
+                                  <Button Classes="ghost" Content="Remove" IsEnabled="{Binding CanRemove}" ToolTip.Tip="{Binding RemoveError}"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RemoveNetworkCommand}" CommandParameter="{Binding}" />
+                                  <Button Classes="ghost" Content="{Binding ToggleLabel}" IsVisible="{Binding IsVmInterface}" IsEnabled="{Binding CanToggle}"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).ToggleNetworkInterfaceCommand}" CommandParameter="{Binding}" />
+                                </StackPanel>
                               </Grid>
                             </Border>
                           </DataTemplate>

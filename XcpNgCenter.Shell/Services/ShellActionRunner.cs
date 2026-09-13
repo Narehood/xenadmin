@@ -9,7 +9,17 @@ namespace XcpNgCenter.Shell.Services;
 /// </summary>
 public static class ShellActionRunner
 {
+    public static Task<bool> RunAndWaitAsync(AsyncAction action, Action<string>? status = null)
+    {
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Start(action, status, () => completion.TrySetResult(action.Succeeded));
+        return completion.Task;
+    }
+
     public static void Run(AsyncAction action, Action<string>? status = null)
+        => Start(action, status, null);
+
+    private static void Start(AsyncAction action, Action<string>? status, Action? completed)
     {
         ArgumentNullException.ThrowIfNull(action);
 
@@ -25,7 +35,7 @@ public static class ShellActionRunner
 
         Report(action.Title ?? "Starting…");
 
-        action.Changed += a =>
+        void Changed(ActionBase a)
         {
             var text = string.IsNullOrWhiteSpace(a.Description)
                 ? a.Title
@@ -33,18 +43,31 @@ public static class ShellActionRunner
             if (a.ShowProgress && a.PercentComplete is > 0 and < 100)
                 text += $" ({a.PercentComplete}%)";
             Report(text ?? string.Empty);
-        };
+        }
 
-        action.Completed += a =>
+        void Completed(ActionBase a)
         {
+            // History retains actions. Release editor/status closures when the task ends.
+            action.Changed -= Changed;
+            action.Completed -= Completed;
             if (a.Succeeded)
                 Report(string.IsNullOrWhiteSpace(a.Description) ? $"{a.Title} — done." : a.Description);
             else if (a.IsCancelled)
                 Report($"{a.Title} — cancelled.");
             else
                 Report($"{a.Title} — failed: {a.Exception?.Message ?? "unknown error"}");
-        };
+            // Queue the final status before releasing an awaiting editor.
+            completed?.Invoke();
+        }
 
-        action.RunAsync();
+        action.Changed += Changed;
+        action.Completed += Completed;
+        try { action.RunAsync(); }
+        catch
+        {
+            action.Changed -= Changed;
+            action.Completed -= Completed;
+            throw;
+        }
     }
 }

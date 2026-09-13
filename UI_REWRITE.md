@@ -23,6 +23,7 @@ rewrite reaches feature parity for your environment.
 
 ## Done
 
+- **Network management** — host/pool private and VLAN network creation, VLAN/uplink editing, names/descriptions/tags, automatic VM inclusion, MTU, and removal of unused networks. VM interfaces support add/edit/remove/connect/disconnect, network selection, generated/custom MACs, and bandwidth limits. Management/IP/cluster networks are protected from disruptive changes. Physical NIC removal, bond creation/destruction, tunnels, SR-IOV provisioning, and host IP reconfiguration still use the WinForms client.
 - Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM with explicit host-aware storage placement; snapshot tree with disk, memory-checkpoint, and supported quiesced modes
 - **Host Properties** — general/autostart, custom fields, metric alerts + email delivery, out-of-band power, multipathing, syslog, GPU policy/integrated GPU, pool live-patching/IGMP/TLS policies, clustering, and NRPE
 - **VM Properties** — general/tags, custom fields, metric alerts, CPU/memory, boot/startup/HA, home server, GPU/USB, shadow-memory tuning, container integration, and cloud-config drive editing

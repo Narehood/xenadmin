@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.NetworkEditorWindow" x:DataType="vm:NetworkEditorViewModel"
+        Title="{Binding Title}" Width="620" Height="740" MinWidth="480" MinHeight="460"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource Brush.BgDeep}">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto,Auto" Background="{StaticResource Brush.BgDeep}">
+    <StackPanel Spacing="6" Margin="0,0,0,18">
+      <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" />
+      <TextBlock Text="Network settings apply across the pool." Foreground="{StaticResource Brush.TextMuted}" />
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10" Margin="0,0,8,0" IsEnabled="{Binding !IsSaving}">
+        <TextBlock Text="Name" /><TextBox Text="{Binding NameLabel}" />
+        <TextBlock Text="Description" /><TextBox Text="{Binding Description}" AcceptsReturn="True" MinHeight="64" TextWrapping="Wrap" />
+        <TextBlock Text="Tags (one per line)" /><TextBox Text="{Binding Tags}" AcceptsReturn="True" MinHeight="64" TextWrapping="Wrap" />
+        <CheckBox Content="Automatically add this network to new VMs" IsChecked="{Binding Automatic}" />
+        <Border BorderBrush="{StaticResource Brush.StrokeSubtle}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="10" IsVisible="{Binding CanEditTopology}">
+              <CheckBox Content="External network (VLAN on a physical interface or bond)" IsChecked="{Binding External}" />
+              <TextBlock Text="An unchecked network is private to each host." TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+              <StackPanel Spacing="8" IsVisible="{Binding External}">
+                <TextBlock Text="Physical interface / bond" />
+                <ComboBox ItemsSource="{Binding Uplinks}" SelectedItem="{Binding SelectedUplink}" HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:NetworkUplinkOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="VLAN ID" /><TextBox Text="{Binding Vlan}" />
+                <TextBlock Text="VLAN 0 uses untagged traffic when supported by the host." TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+              </StackPanel>
+            </StackPanel>
+            <TextBlock Text="{Binding CurrentTopology}" IsVisible="{Binding HasTopologyNotice}" />
+            <TextBlock Text="{Binding TopologyNotice}" IsVisible="{Binding HasTopologyNotice}" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBlock Text="MTU (bytes)" /><TextBox Text="{Binding Mtu}" IsEnabled="{Binding CanEditMtu}" />
+            <TextBlock Text="{Binding MtuNotice}" IsVisible="{Binding HasMtuNotice}" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{StaticResource Brush.BrandOrange}" />
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,18,0,0">
+      <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" IsEnabled="{Binding !IsSaving}" />
+      <Button Classes="cta" Content="Save" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsSaving}" />
+    </StackPanel>
+  </Grid>
+</Window>

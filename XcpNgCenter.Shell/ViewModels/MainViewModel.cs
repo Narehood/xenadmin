@@ -1503,6 +1503,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void RefreshNetworkProperties(InfraTreeNode? node)
     {
+        RefreshNetworkCommands(node);
         NetworkTotals.Clear();
         NetworkItems.Clear();
         NetworkMgmtItems.Clear();
