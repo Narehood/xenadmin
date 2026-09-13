@@ -6,6 +6,20 @@ Last updated: 2026-09-13. Initial review, remediation, and shell follow-up fixes
 
 ### Sandy network management (2026-09-13)
 
+Merged via [PR #45](https://github.com/Narehood/xenadmin/pull/45) as
+`5a7f1ad1def40e10ce64eb73bc97fb236d8a10f7` on `development`. PR CI run
+`34764152831` passed full Release/Debug builds, both self-contained platform
+publishes, 242 shell tests in each configuration, and 73 shared tests on each
+framework (630 executions). CodeQL actions/C# analysis also passed.
+
+Published [Sandy 2026.9.13.1](https://github.com/Narehood/xenadmin/releases/tag/v2026.9.13.1)
+from that merged commit via release run `34764406166`. Both Windows/Linux
+downloads matched their GitHub SHA-256 digests and contained the required files
+at the archive root. Linux executable permissions were retained. Reading each
+packaged shell assembly confirmed version `2026.9.13.1` and codename `Sandy`.
+Verification script and downloaded evidence:
+`%LOCALAPPDATA%/Temp/sandy-network-release-check`.
+
 The Avalonia Network tab now exposes host/pool network creation, editing, and
 removal, plus VM interface add/edit/remove/connect/disconnect. The network editor
 supports private networks and VLANs on an existing physical NIC or bond, VLAN IDs
