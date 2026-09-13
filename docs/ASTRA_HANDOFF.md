@@ -38,6 +38,9 @@ descriptor isolation, advanced settings, no-op VIF edits, and row action policy.
 An offscreen Windows harness exercised the actual editors and Network tab at
 100/150/200% and minimum window sizes, command/target bindings, busy enablement,
 protected removal, save-time close guards, and textbox-to-request updates.
+The harness also ran successful/failing asynchronous actions and verified final
+status delivery before the editor resumes. Completed action subscriptions are
+removed so task history does not retain closed editor view models.
 Evidence: `%LOCALAPPDATA%/Temp/sandy-network-check` (`Program.cs` and
 `bin/Release/net8.0/results.log`, PNGs). Existing Windows ACL test analyzer
 warnings remain. No live pool mutations or Linux desktop interaction were
