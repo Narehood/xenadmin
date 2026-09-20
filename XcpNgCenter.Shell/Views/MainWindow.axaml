@@ -940,6 +940,10 @@
                               VerticalAlignment="Center"
                               Command="{Binding ReattachConsoleCommand}"
                               IsVisible="{Binding ShowConsoleReattach}" />
+                      <Button Classes="ghost" Content="Paste text…"
+                              Margin="0,0,6,4" Padding="10,4"
+                              Command="{Binding PasteConsoleTextCommand}"
+                              ToolTip.Tip="Review clipboard text before sending. Requires a secure console connection." />
                       <Button Classes="ghost" Content="Ctrl+Alt+Del"
                               Margin="0,0,0,4" Padding="10,4"
                               VerticalAlignment="Center"
@@ -957,6 +961,9 @@
                       <Button Classes="ghost" Content="Reattach" Margin="0,0,8,0" Padding="10,4"
                               Command="{Binding ReattachConsoleCommand}"
                               IsVisible="{Binding ShowConsoleReattach}" />
+                      <Button Classes="ghost" Content="Paste text…" Margin="0,0,8,0" Padding="10,4"
+                              Command="{Binding PasteConsoleTextCommand}"
+                              ToolTip.Tip="Review clipboard text before sending. Requires a secure console connection." />
                       <Button Classes="ghost" Content="Ctrl+Alt+Del" Margin="0,0,8,0" Padding="10,4"
                               Command="{Binding SendCtrlAltDelCommand}"
                               IsVisible="{Binding HasConsoleFrame}" />

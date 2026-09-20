@@ -1,8 +1,43 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-13. Initial review, remediation, and shell follow-up fixes.
+Last updated: 2026-09-20. Initial review, remediation, and shell follow-up fixes.
 
 ## Start here
+
+### Secure console text paste (2026-09-20)
+
+The Sandy Avalonia app now offers **Paste text…** for VM/host consoles and the
+pop-out/full-screen toolbar. See [usage and limits](console-paste.md). The classic
+WinForms client is unchanged. Paste reads the local clipboard only after an
+explicit request, hides the draft until revealed, and sends a reviewed snapshot
+as paced RFB keystrokes. It accepts up to 4,096 ASCII characters, rejects hidden
+controls/non-ASCII without replacement or truncation, and requires explicit
+Enter/Tab acknowledgement. It never appends Enter or retries sent text.
+
+`ConsolePasteTarget` binds the draft to a captured transport generation. The
+session requires an authenticated/encrypted `SslStream` after HTTP redirects,
+blocks concurrent local input while sending, and drops the transport on write
+failure. Stop now invalidates generations, and stale connection callbacks cannot
+mark a replacement session connected. Existing guest/host retry policy remains.
+Sending/closing clears the draft and disables editor undo; payloads and provider
+exception details are not logged, persisted, or copied back to the local
+clipboard. Managed-memory erasure and guest application history are not promised.
+
+Validation: 274 shell Release tests passed, including 32 new paste cases; shared
+tests passed 73 on net481 and 73 on net8.0 with locked restores. Existing Windows
+ACL analyzer warnings remain. Synthetic streams cover real RFB bytes, write
+failure, cancellation, input suppression, transport replacement, and disposal;
+view-model tests cover clipboard snapshots, validation, consent, and privacy.
+An offscreen Windows harness exercised the actual dialog open/close handlers,
+bindings, hidden preview, disabled undo, Enter consent, exact text output, and
+draft clearing; rendered it at 100/150/200% and minimum size; and checked the
+host/VM pop-out toolbar at minimum size. Evidence:
+`%LOCALAPPDATA%/Temp/sandy-console-paste-check` (`Program.cs`, and
+`bin/Release/net8.0/results.log` plus PNGs). The harness used synthetic clipboard
+providers and transports, leaving the real system clipboard untouched.
+Live VM/host delivery, guest keyboard layouts, and Linux desktop interaction
+remain manual validation requirements. Full WinForms builds and platform
+publishes run in PR CI.
 
 ### Sandy network management (2026-09-13)
 

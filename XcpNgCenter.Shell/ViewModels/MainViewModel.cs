@@ -1654,6 +1654,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void OnConsoleSessionStateChanged()
     {
+        PasteConsoleTextCommand.NotifyCanExecuteChanged();
         var bitmap = _consoleSession.Bitmap;
         if (!ReferenceEquals(ConsoleBitmap, bitmap))
             ConsoleBitmap = bitmap;

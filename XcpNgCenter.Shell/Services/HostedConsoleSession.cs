@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Security;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -22,6 +23,14 @@ public sealed class HostedConsoleSession : IDisposable
     private Session? _session;
     private int _generation;
     private bool _disposed;
+    private bool _secureTransport;
+    private string _pasteLabel = "";
+    private object? _pasteOwner;
+
+    public bool CanPaste
+    {
+        get { lock (_gate) return !_disposed && IsConnected && _secureTransport && _client != null && _pasteOwner == null; }
+    }
 
     public WriteableBitmap? Bitmap => _framebuffer?.Bitmap;
 
@@ -59,6 +68,7 @@ public sealed class HostedConsoleSession : IDisposable
 
             _cts = cts;
             generation = ++_generation;
+            _pasteLabel = $"{target.ObjectLabel}\nServer: {IdentifierPrivacy.ServerName(target.Connection.Hostname)}\nUUID: {IdentifierPrivacy.Uuid(target.Uuid)}";
             framebuffer = new AvaloniaRfbFramebuffer(target.VmName, target.Uuid);
             framebuffer.FramePresented += OnFramePresented;
             framebuffer.DesktopResized += OnDesktopResized;
@@ -94,6 +104,8 @@ public sealed class HostedConsoleSession : IDisposable
 
             var uri = new Uri(target.Console.location);
             stream = HTTPHelper.CONNECT(uri, target.Connection, session.opaque_ref, false);
+            if (stream.CanTimeout)
+                stream.WriteTimeout = 5000;
             token.ThrowIfCancellationRequested();
 
             client = new RfbClient(framebuffer, stream, startPaused: false);
@@ -101,12 +113,12 @@ public sealed class HostedConsoleSession : IDisposable
             {
                 // Drop the HTTP CONNECT immediately. Holding an open dom0 console
                 // proxy against a rebooting host can stall orderly shutdown.
-                SetStatus($"Console error: {ex.Message}", connected: false);
+                SetStatus(generation, $"Console error: {ex.Message}", connected: false);
                 TearDownTransport(generation);
             };
             client.ConnectionSuccess += (_, _) =>
             {
-                SetStatus("Live console — click to focus for keyboard/mouse.", connected: true);
+                SetStatus(generation, "Live console — click to focus for keyboard/mouse.", connected: true);
             };
 
             RfbClient connectClient;
@@ -122,6 +134,9 @@ public sealed class HostedConsoleSession : IDisposable
 
                 _session = session;
                 _stream = stream;
+                // HTTP CONNECT can follow redirects. Check the resulting transport,
+                // not the original URI, before allowing clipboard content onto it.
+                _secureTransport = stream is SslStream { IsAuthenticated: true, IsEncrypted: true };
                 _client = client;
                 connectClient = client;
                 session = null;
@@ -142,7 +157,7 @@ public sealed class HostedConsoleSession : IDisposable
             SafeDispose(client);
             SafeDispose(stream);
             if (!_disposed && _generation == generation)
-                SetStatus($"Console connect failed: {ex.Message}", connected: false);
+                SetStatus(generation, $"Console connect failed: {ex.Message}", connected: false);
             Debug.WriteLine(ex);
         }
     }
@@ -191,11 +206,11 @@ public sealed class HostedConsoleSession : IDisposable
             Dispatcher.UIThread.Post(() => CursorChanged?.Invoke());
     }
 
-    private void SetStatus(string message, bool connected)
+    private void SetStatus(int generation, string message, bool connected)
     {
         lock (_gate)
         {
-            if (_disposed)
+            if (_disposed || generation != _generation)
                 return;
             StatusMessage = message;
             IsConnected = connected;
@@ -217,7 +232,7 @@ public sealed class HostedConsoleSession : IDisposable
     {
         RfbClient? client;
         lock (_gate)
-            client = IsConnected ? _client : null;
+            client = IsConnected && _pasteOwner == null ? _client : null;
         try { client?.PointerEvent(buttonMask, x, y); }
         catch { /* connection may have dropped */ }
     }
@@ -226,7 +241,7 @@ public sealed class HostedConsoleSession : IDisposable
     {
         RfbClient? client;
         lock (_gate)
-            client = IsConnected ? _client : null;
+            client = IsConnected && _pasteOwner == null ? _client : null;
         try { client?.PointerWheelEvent(x, y, steps); }
         catch { /* connection may have dropped */ }
     }
@@ -237,9 +252,66 @@ public sealed class HostedConsoleSession : IDisposable
             return;
         RfbClient? client;
         lock (_gate)
-            client = IsConnected ? _client : null;
+            client = IsConnected && _pasteOwner == null ? _client : null;
         try { client?.keyCodeEvent(down, keysym); }
         catch { /* connection may have dropped */ }
+    }
+
+    public ConsolePasteTarget? CapturePasteTarget()
+    {
+        lock (_gate)
+        {
+            if (!CanPaste || _cts == null || _client == null)
+                return null;
+            var generation = _generation;
+            var client = _client;
+            var owner = new object();
+            var firstKey = true;
+            bool IsCurrent()
+            {
+                lock (_gate)
+                    return !_disposed && IsConnected && _secureTransport
+                           && generation == _generation && ReferenceEquals(client, _client);
+            }
+            return new ConsolePasteTarget(_pasteLabel, IsCurrent,
+                () =>
+                {
+                    lock (_gate)
+                    {
+                        if (!IsCurrent() || _pasteOwner != null) return false;
+                        _pasteOwner = owner;
+                        firstKey = true;
+                        return true;
+                    }
+                },
+                () =>
+                {
+                    lock (_gate)
+                        if (ReferenceEquals(_pasteOwner, owner)) _pasteOwner = null;
+                    RaiseStateChanged();
+                },
+                key =>
+                {
+                    lock (_gate)
+                        if (!IsCurrent() || !ReferenceEquals(_pasteOwner, owner))
+                            throw new InvalidOperationException("Console changed or disconnected.");
+                    // Use the captured client, never resolve the current client after
+                    // releasing the gate. Stop can tear down a blocked network write.
+                    try
+                    {
+                        client.SendTextKey(key, releaseModifiers: firstKey);
+                    }
+                    catch
+                    {
+                        // A partial buffered write must never be reused or retried by
+                        // later console traffic. Drop this transport on paste failure.
+                        TearDownTransport(generation);
+                        SetStatus(generation, "Console disconnected after a text send failure.", connected: false);
+                        throw;
+                    }
+                    firstKey = false;
+                }, _cts.Token);
+        }
     }
 
     public void Stop()
@@ -251,6 +323,10 @@ public sealed class HostedConsoleSession : IDisposable
 
         lock (_gate)
         {
+            ++_generation;
+            _pasteOwner = null;
+            _secureTransport = false;
+            _pasteLabel = "";
             cts = _cts;
             _cts = null;
             client = _client;
