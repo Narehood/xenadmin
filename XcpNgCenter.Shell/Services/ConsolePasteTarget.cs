@@ -23,7 +23,11 @@ public sealed class ConsolePasteTarget
     public string Label { get; }
     public bool IsCurrent => !_connectionToken.IsCancellationRequested && _isCurrent();
 
-    public async Task SendAsync(string text, bool allowEnterAndTab, IProgress<int>? progress, CancellationToken token)
+    public Task SendAsync(string text, bool allowEnterAndTab, IProgress<int>? progress, CancellationToken token)
+        => SendAsync(text, allowEnterAndTab, progress, token, new ConsolePasteDelivery());
+
+    internal async Task SendAsync(string text, bool allowEnterAndTab, IProgress<int>? progress,
+        CancellationToken token, ConsolePasteDelivery delivery)
     {
         var error = ConsolePasteText.GetError(text, allowEnterAndTab);
         if (error != null)
@@ -44,7 +48,20 @@ public sealed class ConsolePasteTarget
                     linked.Token.ThrowIfCancellationRequested();
                     if (!IsCurrent)
                         throw new InvalidOperationException("The console changed or disconnected.");
-                    _sendKey(ConsolePasteText.KeySym(normalized[i]));
+                    delivery.UnconfirmedWrite = true;
+                    try
+                    {
+                        _sendKey(ConsolePasteText.KeySym(normalized[i]));
+                    }
+                    catch (ConsolePasteUnavailableException)
+                    {
+                        // The session can change between IsCurrent and its own guard.
+                        // That guard can certify that it did not attempt this write.
+                        delivery.UnconfirmedWrite = false;
+                        throw;
+                    }
+                    delivery.SentCharacters = i + 1;
+                    delivery.UnconfirmedWrite = false;
                     progress?.Report(i + 1);
                     await Task.Delay(10, linked.Token).ConfigureAwait(false);
                 }
@@ -55,4 +72,18 @@ public sealed class ConsolePasteTarget
             _end();
         }
     }
+}
+
+// Written synchronously by the sender and read only after awaiting SendAsync.
+// UI progress callbacks are queued and cannot establish whether a write occurred.
+internal sealed class ConsolePasteDelivery
+{
+    public int SentCharacters { get; set; }
+    public bool UnconfirmedWrite { get; set; }
+    public bool MayHaveSentText => SentCharacters > 0 || UnconfirmedWrite;
+}
+
+internal sealed class ConsolePasteUnavailableException : InvalidOperationException
+{
+    public ConsolePasteUnavailableException() : base("Console changed or disconnected before the write.") { }
 }

@@ -294,7 +294,7 @@ public sealed class HostedConsoleSession : IDisposable
                 {
                     lock (_gate)
                         if (!IsCurrent() || !ReferenceEquals(_pasteOwner, owner))
-                            throw new InvalidOperationException("Console changed or disconnected.");
+                            throw new ConsolePasteUnavailableException();
                     // Use the captured client, never resolve the current client after
                     // releasing the gate. Stop can tear down a blocked network write.
                     try

@@ -232,9 +232,183 @@ public sealed class ConsolePasteTests
         vm.Text = "different\n";
         Assert.False(vm.CanSend);
         await vm.LoadClipboardCommand.ExecuteAsync(null);
-        Assert.Equal("", vm.Text);
+        Assert.Equal("different\n", vm.Text);
         Assert.Contains("exceeds", vm.Status);
         Assert.Empty(fixture.Keys);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnsuccessfulClipboardReadPreservesReviewedDraft(bool cancel)
+    {
+        var clipboard = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => clipboard.Task);
+        vm.Text = "edited\n";
+        vm.ShowText = true;
+        vm.AllowEnterAndTab = true;
+        var read = vm.LoadClipboardCommand.ExecuteAsync(null);
+        if (cancel) vm.StopCommand.Execute(null);
+        else clipboard.SetException(new IOException("private provider details"));
+        await read.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("edited\n", vm.Text);
+        Assert.True(vm.ShowText);
+        Assert.True(vm.AllowEnterAndTab);
+        Assert.DoesNotContain("private provider details", vm.Status);
+    }
+
+    [Fact]
+    public async Task RejectedSendKeepsDraftAndReportsNoTransmission()
+    {
+        var writes = 0;
+        var target = new ConsolePasteTarget("VM", () => true, () => false, () => { }, _ => writes++, default);
+        using var vm = new ConsolePasteViewModel(target, () => Task.FromResult<string?>(null));
+        vm.Text = "edited\n";
+        vm.ShowText = true;
+        vm.AllowEnterAndTab = true;
+        await vm.SendCommand.ExecuteAsync(null);
+        Assert.Equal(0, writes);
+        Assert.Equal("edited\n", vm.Text);
+        Assert.True(vm.ShowText);
+        Assert.True(vm.AllowEnterAndTab);
+        Assert.Contains("Nothing was sent", vm.Status);
+    }
+
+    [Fact]
+    public void OversizedEditorAssignmentKeepsDraftInsteadOfStoringOrTruncatingInput()
+    {
+        using var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => Task.FromResult<string?>(null));
+        vm.Text = "draft";
+        vm.Text = new string('s', ConsolePasteText.MaxLength + 1);
+        Assert.Equal("draft", vm.Text);
+        Assert.Contains("exceeds", vm.Status);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StopOrTargetChangeBeforeFirstKeyKeepsDraft(bool cancel)
+    {
+        using var connection = new CancellationTokenSource();
+        var current = true;
+        var target = new ConsolePasteTarget("VM", () => current, () =>
+        {
+            if (cancel) connection.Cancel();
+            else current = false;
+            return true;
+        }, () => { }, _ => throw new Exception("Unexpected write"), connection.Token);
+        using var vm = new ConsolePasteViewModel(target, () => Task.FromResult<string?>(null));
+        vm.Text = "reviewed";
+        await vm.SendCommand.ExecuteAsync(null);
+        Assert.Equal("reviewed", vm.Text);
+        Assert.Contains("Nothing was sent", vm.Status);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PartialSendRetainsCountAndClearsDraft(bool cancel)
+    {
+        using var connection = new CancellationTokenSource();
+        var writes = 0;
+        var target = new ConsolePasteTarget("VM", () => true, () => true, () => { }, _ =>
+        {
+            writes++;
+            if (cancel && writes == 2) connection.Cancel();
+            else if (writes == 3) throw new IOException("private transport details");
+        }, connection.Token);
+        using var vm = new ConsolePasteViewModel(target, () => Task.FromResult<string?>(null));
+        vm.Text = "reviewed";
+        await vm.SendCommand.ExecuteAsync(null);
+        Assert.Equal("", vm.Text);
+        Assert.Contains("Sent 2 characters", vm.Status);
+        Assert.DoesNotContain("Nothing was sent", vm.Status);
+        Assert.DoesNotContain("private transport details", vm.Status);
+        Assert.Equal(!cancel, vm.Status.Contains("next character may"));
+        connection.Cancel();
+        vm.RefreshTarget();
+        Assert.Contains("Sent 2 characters", vm.Status);
+    }
+
+    [Fact]
+    public async Task FailedFirstWriteDoesNotClaimZeroDelivery()
+    {
+        var target = new ConsolePasteTarget("VM", () => true, () => true, () => { },
+            _ => throw new IOException("Failure after a possibly partial write"), default);
+        using var vm = new ConsolePasteViewModel(target, () => Task.FromResult<string?>(null));
+        vm.Text = "reviewed";
+        await vm.SendCommand.ExecuteAsync(null);
+        Assert.Equal("", vm.Text);
+        Assert.Contains("Sent 0 characters", vm.Status);
+        Assert.Contains("next character may", vm.Status);
+        Assert.DoesNotContain("Nothing was sent", vm.Status);
+    }
+
+    [Fact]
+    public async Task SessionGuardRejectionBeforeWireWritePreservesDraft()
+    {
+        var target = new ConsolePasteTarget("VM", () => true, () => true, () => { },
+            _ => throw new ConsolePasteUnavailableException(), default);
+        using var vm = new ConsolePasteViewModel(target, () => Task.FromResult<string?>(null));
+        vm.Text = "reviewed";
+        await vm.SendCommand.ExecuteAsync(null);
+        Assert.Equal("reviewed", vm.Text);
+        Assert.Contains("Nothing was sent", vm.Status);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("same\n")]
+    public async Task SuccessfulReloadReplacesDraftAndResetsConsentEvenForIdenticalText(string snapshot)
+    {
+        using var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => Task.FromResult<string?>(snapshot));
+        vm.Text = "same\n";
+        vm.ShowText = true;
+        vm.AllowEnterAndTab = true;
+        await vm.LoadClipboardCommand.ExecuteAsync(null);
+        Assert.Equal(snapshot, vm.Text);
+        Assert.False(vm.ShowText);
+        Assert.False(vm.AllowEnterAndTab);
+    }
+
+    [Theory]
+    [InlineData(4097, 0, 5)]
+    [InlineData(4096, 0, 0)]
+    public async Task EditorClipboardPasteRejectsOversizedSnapshotOrCombinedDraft(int length, int start, int end)
+    {
+        using var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => Task.FromResult<string?>(new string('x', length)));
+        vm.Text = "draft";
+        var caret = await vm.PasteClipboardIntoDraft(start, end);
+        Assert.Null(caret);
+        Assert.Equal("draft", vm.Text);
+        Assert.Contains("exceeds", vm.Status);
+    }
+
+    [Theory]
+    [InlineData(4, 1)]
+    [InlineData(1, 4)]
+    public async Task EditorClipboardPasteReplacesSelectionWithoutTruncation(int start, int end)
+    {
+        using var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => Task.FromResult<string?>(new string('x', 4094)));
+        vm.Text = "draft";
+        var caret = await vm.PasteClipboardIntoDraft(start, end);
+        Assert.Equal(4095, caret);
+        Assert.Equal("d" + new string('x', 4094) + "t", vm.Text);
+        Assert.Equal(4096, vm.Text.Length);
+    }
+
+    [Fact]
+    public async Task EditorClipboardPasteDoesNotOverwriteConcurrentDraftChange()
+    {
+        var clipboard = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => clipboard.Task);
+        vm.Text = "draft";
+        var paste = vm.PasteClipboardIntoDraft(0, 5);
+        vm.Text = "new draft";
+        clipboard.SetResult("snapshot");
+        Assert.Null(await paste);
+        Assert.Equal("new draft", vm.Text);
+        Assert.Contains("draft changed", vm.Status);
     }
 
     [Fact]

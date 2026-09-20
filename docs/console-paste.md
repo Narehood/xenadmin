@@ -9,12 +9,20 @@ toolbars, including popped-out and full-screen consoles.
 3. Select **Show and edit text** to inspect or edit the draft. Clipboard text is
    hidden initially. **Load clipboard** explicitly replaces the draft with a
    fresh snapshot; subsequent clipboard changes do not change the draft.
+   A failed, cancelled, or oversized read keeps the existing draft. Pasting into
+   the editor replaces its selection only when the complete result fits the
+   limit; oversized input is rejected in full instead of truncated.
 4. If the draft contains line breaks or tabs, review the counts and explicitly
    allow Enter and Tab keys. They can execute commands, trigger completion, or
    move focus. Editing or reloading resets this acknowledgement.
 5. Click **Send text**, then check the console. No additional Enter is appended.
    **Stop** or closing the dialog cancels the remaining text. Already sent text
    cannot be recalled, and an in-flight character may still arrive.
+   A rejection before any write keeps the draft and reports that nothing was
+   sent. A partial send reports the number of characters written; if a write
+   failed, the following character's delivery may be uncertain. Check the
+   console before retrying. Partial or uncertain sends clear the draft to avoid
+   replaying it.
 
 This types text as paced RFB key presses, so it also works with host terminals
 and VM consoles that have no clipboard service. It does not require guest tools
@@ -41,7 +49,8 @@ or invoke SSH, shell commands, or guest APIs. The wire format follows the
   transport, preventing later traffic from retrying a partial buffered paste.
 - There is no background clipboard monitoring, guest-to-local clipboard sync,
   clipboard history, payload logging, or draft persistence in the app. Drafts
-  are cleared after sending or closing, and editor undo is disabled. Managed
+  are cleared after successful, partial, or uncertain transmission or on closing;
+  failures before any write preserve the draft. Editor undo is disabled. Managed
   strings cannot be guaranteed to be immediately erased from process memory.
   The local system clipboard is left unchanged; guest applications can display
   or retain text that they receive.

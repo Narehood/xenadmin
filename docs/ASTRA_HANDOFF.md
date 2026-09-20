@@ -4,6 +4,56 @@ Last updated: 2026-09-20. Initial review, remediation, and shell follow-up fixes
 
 ## Start here
 
+### Console paste PR review verification (2026-09-20)
+
+Checked all [PR #46 review findings](https://github.com/Narehood/xenadmin/pull/46#pullrequestreview-5261117169)
+against the actual PR head `f421dfd56612c8c45e4651a5f626c3cfae5c5b8c` before
+editing. Confirmed three defects with five failing regression cases: failed,
+cancelled, and oversized clipboard loads erased the reviewed draft; rejected
+sends before the first write also erased it; and the editor accepted text beyond
+the cap. Only those defects were changed.
+
+Clipboard loads now replace the draft only after a usable snapshot arrives;
+failed reads preserve text, visibility, and Enter/Tab consent. Sending tracks
+completed characters synchronously rather than relying on queued UI progress.
+Rejection/cancellation before any write preserves the draft and reports nothing
+sent. Partial sends retain their count even after later connection notifications.
+An attempted write that throws can have partially reached the guest, so it still
+clears the draft and reports uncertain delivery; zero completed keys alone is
+not proof of no transmission. The session's final pre-write guard explicitly
+distinguishes a rejection that has not attempted network output.
+
+The editor enforces 4,096 characters for typing, native paste, and binding updates.
+Native paste is intercepted before Avalonia can truncate it; oversized snapshots
+or combined drafts are refused without modifying the prior draft. Selection and
+caret behavior is preserved for accepted paste. Empty successful Load clipboard
+still explicitly replaces the draft; empty editor paste leaves it unchanged.
+
+The duplicate-dialog report was **not confirmed**: the generated
+`AsyncRelayCommand` already disables execution for the entire awaited
+`ShowDialog` lifetime. An offscreen Windows probe on the original PR head opened
+the actual dialog from a popped-out console, verified that main/pop-out buttons
+were disabled, and invoked their click handlers without creating another dialog.
+They stayed disabled after Send and re-enabled after Close. Source search found
+no other callers bypassing `CanExecute`. Toolbar visibility and command behavior
+were therefore left unchanged. The generic docstring-coverage warning and the
+review's informational residual notes did not establish additional defects.
+
+Validation after the fixes: 291 shell Release tests passed (17 additional review
+regression cases, 49 paste cases total); shared tests passed 73 on net481 and 73
+on net8.0. Both suites used locked restores. Existing Windows ACL test analyzer
+warnings remain. Coverage includes failed/cancelled/oversized reads, no-write
+rejections, uncertain first writes, retained partial counts after disconnect,
+reload consent, and bounded editor selection replacement.
+
+Evidence: `%LOCALAPPDATA%/Temp/sandy-console-paste-review`, with original
+`Program.baseline.txt` / `bin/Release/net8.0/baseline.log` and updated `Program.cs`
+/ `review.log`. The updated desktop probe also verified oversized native paste,
+combined-length rejection, typing without truncation, restored editor bindings,
+and selection/caret updates. Both probes use synthetic clipboard providers and
+leave the real system clipboard untouched. Live guest/host and Linux limitations
+from the feature handoff remain.
+
 ### Secure console text paste (2026-09-20)
 
 The Sandy Avalonia app now offers **Paste text…** for VM/host consoles and the
@@ -19,7 +69,8 @@ session requires an authenticated/encrypted `SslStream` after HTTP redirects,
 blocks concurrent local input while sending, and drops the transport on write
 failure. Stop now invalidates generations, and stale connection callbacks cannot
 mark a replacement session connected. Existing guest/host retry policy remains.
-Sending/closing clears the draft and disables editor undo; payloads and provider
+Successful, partial, or uncertain sends and closing clear the draft; no-write
+rejections preserve it. Editor undo is disabled; payloads and provider
 exception details are not logged, persisted, or copied back to the local
 clipboard. Managed-memory erasure and guest application history are not promised.
 

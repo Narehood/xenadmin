@@ -11,6 +11,7 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _operation;
     private bool _disposed;
+    private bool _hasSendResult;
 
     public ConsolePasteViewModel(ConsolePasteTarget target, Func<Task<string?>> readClipboard)
     {
@@ -19,7 +20,28 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
     }
 
     public string Destination => _target.Label;
-    [ObservableProperty] private string _text = "";
+    private string _text = "";
+    public string Text
+    {
+        get => _text;
+        set
+        {
+            value ??= "";
+            if (value.Length > ConsolePasteText.MaxLength)
+            {
+                RejectOversizedEdit();
+                OnPropertyChanged();
+                return;
+            }
+            if (SetProperty(ref _text, value))
+            {
+                _hasSendResult = false;
+                AllowEnterAndTab = false;
+                OnPropertyChanged(nameof(Summary));
+                RefreshValidation();
+            }
+        }
+    }
     [ObservableProperty] private bool _showText;
     [ObservableProperty] private bool _allowEnterAndTab;
     [ObservableProperty] private bool _isBusy;
@@ -36,12 +58,8 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
     public bool CanSend => !_disposed && !IsBusy && _target.IsCurrent && ConsolePasteText.GetError(Text, AllowEnterAndTab) == null;
     public bool CanLoad => !_disposed && !IsBusy;
 
-    partial void OnTextChanged(string value)
-    {
-        AllowEnterAndTab = false;
-        OnPropertyChanged(nameof(Summary));
-        RefreshValidation();
-    }
+    public void RejectOversizedEdit()
+        => Status = $"The edit exceeds {ConsolePasteText.MaxLength:N0} characters. The draft was kept unchanged.";
     partial void OnAllowEnterAndTabChanged(bool value) => RefreshValidation();
     partial void OnIsBusyChanged(bool value)
     {
@@ -57,41 +75,67 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
     public void RefreshTarget()
     {
         if (_disposed) return;
-        if (!_target.IsCurrent && !IsBusy)
+        if (!_target.IsCurrent && !IsBusy && !_hasSendResult)
             Status = "The console changed or disconnected. Close this dialog and reopen Paste text for the intended destination.";
         SendCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanLoad))]
-    private async Task LoadClipboard()
+    private Task LoadClipboard() => ReadClipboard(null, null);
+
+    public Task<int?> PasteClipboardIntoDraft(int selectionStart, int selectionEnd)
+        => ReadClipboard(selectionStart, selectionEnd);
+
+    private async Task<int?> ReadClipboard(int? selectionStart, int? selectionEnd)
     {
-        if (!CanLoad) return;
+        if (!CanLoad) return null;
+        _hasSendResult = false;
+        var draft = Text;
+        var start = Math.Clamp(Math.Min(selectionStart ?? 0, selectionEnd ?? 0), 0, draft.Length);
+        var end = Math.Clamp(Math.Max(selectionStart ?? 0, selectionEnd ?? 0), 0, draft.Length);
         IsBusy = true;
-        Text = "";
-        ShowText = false;
-        AllowEnterAndTab = false;
         Status = "Reading clipboard...";
         using var reading = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _operation = reading;
         try
         {
             var text = await _readClipboard().WaitAsync(reading.Token);
-            if (_disposed) return;
+            if (_disposed) return null;
             if (text?.Length > ConsolePasteText.MaxLength)
-                Status = $"Clipboard text exceeds {ConsolePasteText.MaxLength:N0} characters. Nothing was loaded.";
+                Status = $"Clipboard text exceeds {ConsolePasteText.MaxLength:N0} characters. The draft was kept unchanged.";
+            else if (selectionStart.HasValue)
+            {
+                // Intercept native editor paste before TextBox can truncate it.
+                if (Text != draft)
+                    Status = "The draft changed while reading the clipboard. Nothing was inserted.";
+                else if (string.IsNullOrEmpty(text))
+                    Status = "The clipboard contains no text. The draft was kept unchanged.";
+                else if (draft.Length - (end - start) + text.Length > ConsolePasteText.MaxLength)
+                    RejectOversizedEdit();
+                else
+                {
+                    Text = draft.Remove(start, end - start).Insert(start, text);
+                    AllowEnterAndTab = false;
+                    Status = "Clipboard text inserted. Review the draft before sending.";
+                    return start + text.Length;
+                }
+            }
             else
             {
                 Text = text ?? "";
+                ShowText = false;
+                AllowEnterAndTab = false;
                 Status = Text.Length == 0 ? "The clipboard contains no text." : "Clipboard loaded. Text is hidden until you choose to show it.";
             }
         }
-        catch (OperationCanceledException) { Status = "Clipboard read stopped."; }
+        catch (OperationCanceledException) { Status = "Clipboard read stopped. The draft was kept unchanged."; }
         catch
         {
             // Clipboard providers and transports can include sensitive data in exceptions.
-            Status = "Could not read clipboard text. Try again or enter text below.";
+            Status = "Could not read clipboard text. The draft was kept unchanged.";
         }
         finally { _operation = null; IsBusy = false; }
+        return null;
     }
 
     [RelayCommand(CanExecute = nameof(CanSend))]
@@ -102,6 +146,8 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
         Status = "Sending text...";
         using var sending = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _operation = sending;
+        var delivery = new ConsolePasteDelivery();
+        var completed = false;
         var progress = new Progress<int>(count =>
         {
             if (!_disposed && ReferenceEquals(_operation, sending))
@@ -109,25 +155,38 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
         });
         try
         {
-            await _target.SendAsync(Text, AllowEnterAndTab, progress, sending.Token);
+            await _target.SendAsync(Text, AllowEnterAndTab, progress, sending.Token, delivery);
+            completed = true;
             Status = "Text sent. Check the console before continuing; no extra Enter was added.";
         }
         catch (OperationCanceledException)
         {
-            Status = "Paste stopped. Some text may already have reached the console. Check it before retrying.";
+            Status = SendFailureStatus("Paste stopped", delivery);
         }
         catch
         {
-            Status = "Paste failed or the console changed. Some text may already have been sent. Check the console before retrying.";
+            Status = SendFailureStatus("Paste failed or the console changed", delivery);
         }
         finally
         {
             _operation = null;
-            Text = "";
-            ShowText = false;
-            AllowEnterAndTab = false;
+            if (completed || delivery.MayHaveSentText || _disposed)
+            {
+                Text = "";
+                ShowText = false;
+                AllowEnterAndTab = false;
+            }
+            _hasSendResult = true;
             IsBusy = false;
         }
+    }
+
+    private static string SendFailureStatus(string reason, ConsolePasteDelivery delivery)
+    {
+        if (!delivery.MayHaveSentText)
+            return $"{reason}. Nothing was sent. The draft was kept unchanged.";
+        var uncertain = delivery.UnconfirmedWrite ? " The next character may also have reached the console." : "";
+        return $"{reason}. Sent {delivery.SentCharacters:N0} characters.{uncertain} Check the console before retrying.";
     }
 
     [RelayCommand] private void Stop() => _operation?.Cancel();
