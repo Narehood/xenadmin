@@ -63,7 +63,8 @@ public sealed class ConsolePasteTarget
                     delivery.SentCharacters = i + 1;
                     delivery.UnconfirmedWrite = false;
                     progress?.Report(i + 1);
-                    await Task.Delay(10, linked.Token).ConfigureAwait(false);
+                    if (i + 1 < normalized.Length)
+                        await Task.Delay(10, linked.Token).ConfigureAwait(false);
                 }
             }, linked.Token).ConfigureAwait(false);
         }

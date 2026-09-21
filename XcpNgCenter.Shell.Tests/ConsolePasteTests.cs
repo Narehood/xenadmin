@@ -71,6 +71,60 @@ public sealed class ConsolePasteTests
         Assert.Equal(1, fixture.Ends);
     }
 
+    [Theory]
+    [InlineData("x", false)]
+    [InlineData("x", true)]
+    [InlineData("done", false)]
+    [InlineData("a\r\n", true)]
+    public async Task CancellationAfterFinalCharacterPreservesSuccessfulCompletion(string text, bool cancelConnection)
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var connection = new CancellationTokenSource();
+        var keys = new List<int>();
+        var reported = new List<int>();
+        var ends = 0;
+        var expected = ConsolePasteText.Normalize(text).Select(ConsolePasteText.KeySym).ToArray();
+        var target = new ConsolePasteTarget("VM", () => true, () => true, () => ends++, keys.Add, connection.Token);
+        var delivery = new ConsolePasteDelivery();
+
+        await target.SendAsync(text, true, new InlineProgress(count =>
+        {
+            reported.Add(count);
+            if (count == expected.Length)
+                (cancelConnection ? connection : cancellation).Cancel();
+        }), cancellation.Token, delivery);
+
+        Assert.Equal(expected, keys);
+        Assert.Equal(Enumerable.Range(1, expected.Length), reported);
+        Assert.Equal(expected.Length, delivery.SentCharacters);
+        Assert.False(delivery.UnconfirmedWrite);
+        Assert.Equal(1, ends);
+    }
+
+    [Fact]
+    public async Task FinalWriteCancellationReportsSuccessAndClearsDraft()
+    {
+        using var connection = new CancellationTokenSource();
+        var keys = new List<int>();
+        var target = new ConsolePasteTarget("VM", () => true, () => true, () => { }, key =>
+        {
+            keys.Add(key);
+            if (keys.Count == 2) connection.Cancel();
+        }, connection.Token);
+        using var vm = new ConsolePasteViewModel(target, () => Task.FromResult<string?>(null));
+        vm.Text = "a\r\n";
+        vm.AllowEnterAndTab = true;
+
+        await vm.SendCommand.ExecuteAsync(null);
+        vm.RefreshTarget();
+
+        Assert.Equal(new[] { (int)'a', 0xff0d }, keys);
+        Assert.StartsWith("Text sent.", vm.Status);
+        Assert.Equal("", vm.Text);
+        Assert.False(vm.AllowEnterAndTab);
+        Assert.False(vm.IsBusy);
+    }
+
     [Fact]
     public async Task TargetChangeStopsRemainingText()
     {

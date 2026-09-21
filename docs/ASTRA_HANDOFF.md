@@ -1,8 +1,27 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-20. Initial review, remediation, and shell follow-up fixes.
+Last updated: 2026-09-21. Initial review, remediation, and shell follow-up fixes.
 
 ## Start here
+
+### Console paste completion review follow-up (2026-09-21)
+
+Confirmed the [final-character cancellation finding](https://github.com/Narehood/xenadmin/pull/46#discussion_r4057919290)
+against PR head `8310bd7f14d3e9ac0f05bd775b065b27b4656581`. The sender performed
+a cancellable pacing delay after its last successful write, allowing cancellation
+to turn a completed paste into a misleading "Paste stopped" result. Pacing now
+runs only between characters; final progress and delivery tracking still update
+before completion. Cancellation before a remaining character is unchanged.
+
+Five new regression cases exercise caller/connection cancellation on final
+progress for single-character, longer, and CRLF-normalized input, plus successful
+dialog status and draft cleanup when cancellation arrives on the final write.
+All five cases failed before the fix and pass afterward. Locked Release validation:
+**296 shell tests passed** (including 54 paste cases), plus **73 shared tests on
+net481** and **73 on net8.0**. Existing Windows ACL analyzer warnings remain.
+The earlier findings remain fixed or unconfirmed as recorded below; no changes
+were made to toolbar ownership, clipboard scope, retry behavior, or WinForms.
+Live guest/host delivery and Linux desktop checks remain outstanding.
 
 ### Console paste PR review verification (2026-09-20)
 
