@@ -1,8 +1,133 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-13. Initial review, remediation, and shell follow-up fixes.
+Last updated: 2026-09-22. Initial review, remediation, and shell follow-up fixes.
 
 ## Start here
+
+### Cursor console paste review recheck (2026-09-22)
+
+Rechecked all five Cursor inline comments in [PR #46](https://github.com/Narehood/xenadmin/pull/46)
+against `08bccac17eb750706f6e45216ece23763ea6ff1e`. No additional code defects
+were confirmed. The failed-read draft loss, rejected-send draft loss/status, and
+editor size-limit findings remain fixed by `8310bd7f14d3e9ac0f05bd775b065b27b4656581`.
+Both duplicate-dialog comments remain unconfirmed: the shared async command
+disables all bound paste buttons throughout the awaited dialog lifetime.
+
+Rebuilt and reran the Windows desktop probe against this head. Actual main and
+pop-out button clicks could not open a second dialog; buttons stayed disabled
+after Send and re-enabled after Close. Native paste/typing limits, rejected
+binding restoration, and selection/caret checks also passed. Fresh evidence is
+`%LOCALAPPDATA%/Temp/sandy-console-paste-review/bin/Release/net8.0/review-20260922.log`.
+The probe uses synthetic clipboard data and transport, leaving the system
+clipboard untouched. Locked Release suites passed again: **296 shell tests**
+(54 paste cases), **73 shared tests on net481**, and **73 on net8.0**. Existing
+Windows ACL analyzer warnings and live guest/host/Linux validation limits remain.
+Only the review record changed in this follow-up.
+
+### Console paste completion review follow-up (2026-09-21)
+
+Confirmed the [final-character cancellation finding](https://github.com/Narehood/xenadmin/pull/46#discussion_r4057919290)
+against PR head `8310bd7f14d3e9ac0f05bd775b065b27b4656581`. The sender performed
+a cancellable pacing delay after its last successful write, allowing cancellation
+to turn a completed paste into a misleading "Paste stopped" result. Pacing now
+runs only between characters; final progress and delivery tracking still update
+before completion. Cancellation before a remaining character is unchanged.
+
+Five new regression cases exercise caller/connection cancellation on final
+progress for single-character, longer, and CRLF-normalized input, plus successful
+dialog status and draft cleanup when cancellation arrives on the final write.
+All five cases failed before the fix and pass afterward. Locked Release validation:
+**296 shell tests passed** (including 54 paste cases), plus **73 shared tests on
+net481** and **73 on net8.0**. Existing Windows ACL analyzer warnings remain.
+The earlier findings remain fixed or unconfirmed as recorded below; no changes
+were made to toolbar ownership, clipboard scope, retry behavior, or WinForms.
+Live guest/host delivery and Linux desktop checks remain outstanding.
+
+### Console paste PR review verification (2026-09-20)
+
+Checked all [PR #46 review findings](https://github.com/Narehood/xenadmin/pull/46#pullrequestreview-5261117169)
+against the actual PR head `f421dfd56612c8c45e4651a5f626c3cfae5c5b8c` before
+editing. Confirmed three defects with five failing regression cases: failed,
+cancelled, and oversized clipboard loads erased the reviewed draft; rejected
+sends before the first write also erased it; and the editor accepted text beyond
+the cap. Only those defects were changed.
+
+Clipboard loads now replace the draft only after a usable snapshot arrives;
+failed reads preserve text, visibility, and Enter/Tab consent. Sending tracks
+completed characters synchronously rather than relying on queued UI progress.
+Rejection/cancellation before any write preserves the draft and reports nothing
+sent. Partial sends retain their count even after later connection notifications.
+An attempted write that throws can have partially reached the guest, so it still
+clears the draft and reports uncertain delivery; zero completed keys alone is
+not proof of no transmission. The session's final pre-write guard explicitly
+distinguishes a rejection that has not attempted network output.
+
+The editor enforces 4,096 characters for typing, native paste, and binding updates.
+Native paste is intercepted before Avalonia can truncate it; oversized snapshots
+or combined drafts are refused without modifying the prior draft. Selection and
+caret behavior is preserved for accepted paste. Empty successful Load clipboard
+still explicitly replaces the draft; empty editor paste leaves it unchanged.
+
+The duplicate-dialog report was **not confirmed**: the generated
+`AsyncRelayCommand` already disables execution for the entire awaited
+`ShowDialog` lifetime. An offscreen Windows probe on the original PR head opened
+the actual dialog from a popped-out console, verified that main/pop-out buttons
+were disabled, and invoked their click handlers without creating another dialog.
+They stayed disabled after Send and re-enabled after Close. Source search found
+no other callers bypassing `CanExecute`. Toolbar visibility and command behavior
+were therefore left unchanged. The generic docstring-coverage warning and the
+review's informational residual notes did not establish additional defects.
+
+Validation after the fixes: 291 shell Release tests passed (17 additional review
+regression cases, 49 paste cases total); shared tests passed 73 on net481 and 73
+on net8.0. Both suites used locked restores. Existing Windows ACL test analyzer
+warnings remain. Coverage includes failed/cancelled/oversized reads, no-write
+rejections, uncertain first writes, retained partial counts after disconnect,
+reload consent, and bounded editor selection replacement.
+
+Evidence: `%LOCALAPPDATA%/Temp/sandy-console-paste-review`, with original
+`Program.baseline.txt` / `bin/Release/net8.0/baseline.log` and updated `Program.cs`
+/ `review.log`. The updated desktop probe also verified oversized native paste,
+combined-length rejection, typing without truncation, restored editor bindings,
+and selection/caret updates. Both probes use synthetic clipboard providers and
+leave the real system clipboard untouched. Live guest/host and Linux limitations
+from the feature handoff remain.
+
+### Secure console text paste (2026-09-20)
+
+The Sandy Avalonia app now offers **Paste text…** for VM/host consoles and the
+pop-out/full-screen toolbar. See [usage and limits](console-paste.md). The classic
+WinForms client is unchanged. Paste reads the local clipboard only after an
+explicit request, hides the draft until revealed, and sends a reviewed snapshot
+as paced RFB keystrokes. It accepts up to 4,096 ASCII characters, rejects hidden
+controls/non-ASCII without replacement or truncation, and requires explicit
+Enter/Tab acknowledgement. It never appends Enter or retries sent text.
+
+`ConsolePasteTarget` binds the draft to a captured transport generation. The
+session requires an authenticated/encrypted `SslStream` after HTTP redirects,
+blocks concurrent local input while sending, and drops the transport on write
+failure. Stop now invalidates generations, and stale connection callbacks cannot
+mark a replacement session connected. Existing guest/host retry policy remains.
+Successful, partial, or uncertain sends and closing clear the draft; no-write
+rejections preserve it. Editor undo is disabled; payloads and provider
+exception details are not logged, persisted, or copied back to the local
+clipboard. Managed-memory erasure and guest application history are not promised.
+
+Validation: 274 shell Release tests passed, including 32 new paste cases; shared
+tests passed 73 on net481 and 73 on net8.0 with locked restores. Existing Windows
+ACL analyzer warnings remain. Synthetic streams cover real RFB bytes, write
+failure, cancellation, input suppression, transport replacement, and disposal;
+view-model tests cover clipboard snapshots, validation, consent, and privacy.
+An offscreen Windows harness exercised the actual dialog open/close handlers,
+bindings, hidden preview, disabled undo, Enter consent, exact text output, and
+draft clearing; rendered it at 100/150/200% and minimum size; and checked the
+host/VM pop-out toolbar at minimum size. Evidence:
+`%LOCALAPPDATA%/Temp/sandy-console-paste-check` (`Program.cs`, and
+`bin/Release/net8.0/results.log` plus PNGs). The harness used synthetic clipboard
+providers and transports, leaving the real system clipboard untouched.
+Live VM/host delivery, guest keyboard layouts, and Linux desktop interaction
+remain manual validation requirements. Full WinForms builds and platform
+publishes run in PR CI.
 
 ### Sandy network management (2026-09-13)
 

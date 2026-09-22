@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        xmlns:services="using:XcpNgCenter.Shell.Services"
+        x:Class="XcpNgCenter.Shell.Views.ConsolePasteWindow" x:DataType="vm:ConsolePasteViewModel"
+        Title="Paste text to console" Width="620" Height="570" MinWidth="460" MinHeight="430"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource Brush.BgDeep}">
+  <Grid Margin="24" RowDefinitions="*,Auto">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="12">
+        <TextBlock Text="Paste text to console" FontSize="24" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding Destination}" TextWrapping="Wrap" FontWeight="SemiBold" />
+        <TextBlock Text="Text is typed into the currently focused field in this console. Check the destination first. Guest keyboard layouts can affect the result."
+                   TextWrapping="Wrap" />
+        <StackPanel Spacing="10" IsEnabled="{Binding !IsBusy}">
+          <Button Content="Load clipboard" Classes="ghost" Command="{Binding LoadClipboardCommand}" />
+          <CheckBox Content="Show and edit text" IsChecked="{Binding ShowText}" />
+          <TextBox x:Name="DraftEditor" Text="{Binding Text}" IsVisible="{Binding ShowText}" AcceptsReturn="True" AcceptsTab="True"
+                   MaxLength="{x:Static services:ConsolePasteText.MaxLength}" PastingFromClipboard="OnEditorPasting"
+                   TextChanging="OnEditorTextChanging"
+                   IsUndoEnabled="False" MinHeight="110" MaxHeight="200" TextWrapping="Wrap"
+                   Watermark="Enter text (maximum 4,096 characters)" />
+          <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+          <CheckBox IsChecked="{Binding AllowEnterAndTab}">
+            <TextBlock Text="Allow Enter and Tab keys in this text. These may execute commands or change focus."
+                       TextWrapping="Wrap" />
+          </CheckBox>
+        </StackPanel>
+        <TextBlock Text="{Binding Validation}" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Foreground="{StaticResource Brush.BrandOrange}" />
+        <TextBlock Text="One-way text only, up to 4,096 ASCII characters. No clipboard synchronization or history."
+                   TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,18,0,0">
+      <Button Classes="ghost" Content="Close" IsCancel="True" Click="OnCloseClick" />
+      <Button Classes="ghost" Content="Stop" Command="{Binding StopCommand}" IsVisible="{Binding IsBusy}" />
+      <Button Classes="cta" Content="Send text" Command="{Binding SendCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>

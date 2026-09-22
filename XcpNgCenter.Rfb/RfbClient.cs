@@ -492,6 +492,41 @@ namespace XcpNgCenter.Rfb
             }
         }
 
+        /// <summary>
+        /// Sends one paste character as an atomic down/up pair. Unlike interactive
+        /// key input, failures propagate so a paste stops without retrying text.
+        /// </summary>
+        public void SendTextKey(int key, bool releaseModifiers = false)
+        {
+            if (!(key >= 0x20 && key <= 0x7e) && key != 0xff0d && key != 0xff09)
+                throw new ArgumentOutOfRangeException(nameof(key));
+            lock (writeLock)
+            {
+                if (!running)
+                    throw new IOException("Console is disconnected.");
+                try
+                {
+                    if (releaseModifiers)
+                    {
+                        // Focus loss normally releases these. Also clear stale modifiers
+                        // before paste, including when initiated from another window.
+                        foreach (var modifier in new[] { 0xffe1, 0xffe2, 0xffe3, 0xffe4, 0xffe9, 0xffea, 0xffeb, 0xffec })
+                            WriteKey(KEY_EVENT, false, modifier);
+                    }
+                    WriteKey(KEY_EVENT, true, key);
+                    WriteKey(KEY_EVENT, false, key);
+                    stream.Flush();
+                }
+                catch
+                {
+                    // Abort while still holding writeLock, before another producer
+                    // can flush the failed buffer. Close never replays buffered input.
+                    Close();
+                    throw;
+                }
+            }
+        }
+
         public void PointerEvent(int buttonMask, int x, int y)
         {
             if (x < 0)

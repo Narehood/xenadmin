@@ -1328,6 +1328,18 @@ public partial class MainViewModel
         window?.ToggleFullScreen();
     }
 
+    private bool CanPasteConsoleText => _consoleSession.CanPaste;
+
+    [RelayCommand(CanExecute = nameof(CanPasteConsoleText))]
+    private async Task PasteConsoleText()
+    {
+        var target = _consoleSession.CapturePasteTarget();
+        var owner = _consolePopOut ?? GetMainWindow();
+        if (target == null || owner == null) return;
+        var dialog = new ConsolePasteWindow(target, _consoleSession);
+        await dialog.ShowDialog(owner);
+    }
+
     [RelayCommand]
     private void SendCtrlAltDel()
     {

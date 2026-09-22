@@ -40,12 +40,14 @@ public sealed class RfbStream
 
     private readonly Stream _inStream;
     private readonly Stream _outStream;
+    private readonly Stream _transport;
     private readonly byte[] _readbuf = new byte[4];
     private readonly byte[] _writebuf = new byte[4];
     private readonly byte[] _zerobuf = new byte[4];
 
     public RfbStream(Stream stream)
     {
+        _transport = stream;
         _outStream = new BufferedStream(stream, 1024);
         _inStream = new BufferedStream(stream, 65536);
     }
@@ -136,5 +138,8 @@ public sealed class RfbStream
 
     public void Write(byte[] data, int offset, int count) => _outStream.Write(data, offset, count);
 
-    public void Close() => _outStream.Close();
+    // All successful messages explicitly flush. Closing the BufferedStream after
+    // a failed write could retry buffered input, including a partial text paste.
+    // Abort the underlying connection directly; never flush on teardown.
+    public void Close() => _transport.Close();
 }
