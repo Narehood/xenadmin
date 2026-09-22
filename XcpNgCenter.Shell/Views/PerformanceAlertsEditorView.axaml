@@ -7,15 +7,15 @@
     <TextBlock Text="Performance alerts" FontWeight="SemiBold" FontSize="16" />
     <TextBlock Text="Generate an alert when a metric remains beyond its threshold for the configured duration."
                TextWrapping="Wrap"
-               Foreground="{StaticResource Brush.TextMuted}" />
+               Foreground="{DynamicResource Brush.TextMuted}" />
 
     <ItemsControl ItemsSource="{Binding Rules}">
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="vm:PerformanceAlertRule">
           <Border Padding="12"
                   Margin="0,0,0,10"
-                  Background="#55252C34"
-                  BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                  Background="{DynamicResource Brush.BgElevated}"
+                  BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                   BorderThickness="1"
                   CornerRadius="6">
             <StackPanel Spacing="8">
@@ -25,7 +25,7 @@
               <TextBlock Text="{Binding Description}"
                          TextWrapping="Wrap"
                          FontSize="11"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
               <Grid ColumnDefinitions="Auto,120,Auto,Auto,100,Auto"
                     IsEnabled="{Binding Enabled}">
                 <TextBlock Grid.Column="0" Text="Threshold" VerticalAlignment="Center" />
@@ -54,8 +54,8 @@
     </ItemsControl>
 
     <Border Padding="12"
-            Background="#55252C34"
-            BorderBrush="{StaticResource Brush.StrokeSubtle}"
+            Background="{DynamicResource Brush.BgElevated}"
+            BorderBrush="{DynamicResource Brush.StrokeSubtle}"
             BorderThickness="1"
             CornerRadius="6">
       <Grid ColumnDefinitions="*,120,Auto">
@@ -64,7 +64,7 @@
           <TextBlock Text="Wait this long before repeating an alert. Use a multiple of five minutes."
                      TextWrapping="Wrap"
                      FontSize="11"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
         </StackPanel>
         <NumericUpDown Grid.Column="1"
                        Margin="8,0,0,0"

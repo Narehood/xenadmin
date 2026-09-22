@@ -8,22 +8,22 @@
         Width="820" Height="620"
         MinWidth="640" MinHeight="480"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="16"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="168,*">
       <StackPanel Grid.ColumnSpan="2" Spacing="4" Margin="0,0,0,12">
         <TextBlock Text="VM Properties" FontSize="22" FontWeight="SemiBold" />
         <TextBlock Text="{Binding NameLabel}"
-                   Foreground="{StaticResource Brush.BrandOrange}"
+                   Foreground="{DynamicResource Brush.AccentText}"
                    FontSize="14"
                    TextTrimming="CharacterEllipsis" />
         <TextBlock Text="{Binding StatusMessage}"
                    TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}"
+                   Foreground="{DynamicResource Brush.TextMuted}"
                    IsVisible="{Binding StatusMessage.Length}" />
       </StackPanel>
 
@@ -62,7 +62,7 @@
             <TextBlock Text="Tags help organize VMs in the infrastructure tree and searches."
                        FontSize="11"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
           </StackPanel>
 
           <!-- Custom fields -->
@@ -83,7 +83,7 @@
             <TextBlock Text="CPU/memory changes on a running VM may require a reboot to fully apply."
                        FontSize="11"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
           </StackPanel>
 
           <!-- Boot -->
@@ -94,7 +94,7 @@
 
             <StackPanel Spacing="8" IsVisible="{Binding ShowHvmBoot}">
               <TextBlock Text="Boot order (enabled devices, top first)"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
               <ListBox ItemsSource="{Binding BootDevices}"
                        SelectedItem="{Binding SelectedBootDevice}"
                        MaxHeight="140"
@@ -116,7 +116,7 @@
             </StackPanel>
 
             <StackPanel Spacing="8" IsVisible="{Binding ShowPvBoot}">
-              <TextBlock Text="Boot device" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Text="Boot device" Foreground="{DynamicResource Brush.TextMuted}" />
               <ComboBox ItemsSource="{Binding PvBootDevices}"
                         SelectedItem="{Binding SelectedPvBootDevice}" />
               <TextBox Watermark="OS boot parameters (PV_args)" Text="{Binding PvArgs}" />
@@ -128,7 +128,7 @@
             <TextBlock Text="Startup options" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="{Binding HaStatusText}"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <TextBox Watermark="Start order" Text="{Binding OrderText}" />
             <TextBox Watermark="Start delay (seconds)" Text="{Binding StartDelayText}" />
             <ComboBox ItemsSource="{Binding HaPriorities}"
@@ -148,7 +148,7 @@
             <TextBlock Text="Home server" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Preferred host for this VM when starting in a pool."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <ComboBox ItemsSource="{Binding HomeServers}"
                       SelectedItem="{Binding SelectedHomeServer}">
               <ComboBox.ItemTemplate>
@@ -164,24 +164,24 @@
             <TextBlock Text="Shadow-memory optimization" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Tune the HVM shadow-memory multiplier for the guest workload. Most VMs should use the general-purpose setting."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <ComboBox ItemsSource="{Binding ShadowOptimizationModes}"
                       SelectedItem="{Binding SelectedShadowOptimizationMode}"
                       IsEnabled="{Binding CanEditAdvanced}" />
             <StackPanel Spacing="6" IsVisible="{Binding ShowCustomShadowMultiplier}">
-              <TextBlock Text="Custom multiplier" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Text="Custom multiplier" Foreground="{DynamicResource Brush.TextMuted}" />
               <TextBox Watermark="1.0 or greater"
                        Text="{Binding ShadowMultiplierText}"
                        IsEnabled="{Binding CanEditAdvanced}" />
             </StackPanel>
             <Border Padding="12"
-                    Background="#55252C34"
-                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    Background="{DynamicResource Brush.BgElevated}"
+                    BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                     BorderThickness="1"
                     CornerRadius="6">
               <TextBlock Text="{Binding AdvancedStatusText}"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </Border>
           </StackPanel>
 
@@ -190,13 +190,13 @@
             <TextBlock Text="Container integration" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Register this VM with the host container-management plugin so container information can be discovered and monitored."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <CheckBox Content="Enable container management for this VM"
                       IsChecked="{Binding ContainerIntegrationEnabled}" />
             <TextBlock Text="This setting calls the xscontainer plugin on the pool coordinator when changes are applied."
                        FontSize="11"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
           </StackPanel>
 
           <!-- Cloud config -->
@@ -204,7 +204,7 @@
             <TextBlock Text="Cloud config" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Edit the metadata and user-data template used to regenerate this VM's config drive."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <ProgressBar IsIndeterminate="True"
                          Height="4"
                          IsVisible="{Binding IsLoadingCloudConfig}" />
@@ -217,13 +217,13 @@
                      MinHeight="260"
                      IsReadOnly="{Binding !CanEditCloudConfig}" />
             <Border Padding="12"
-                    Background="#55252C34"
-                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    Background="{DynamicResource Brush.BgElevated}"
+                    BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                     BorderThickness="1"
                     CornerRadius="6">
               <TextBlock Text="{Binding CloudConfigStatusText}"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </Border>
           </StackPanel>
 
@@ -232,8 +232,8 @@
             <TextBlock Text="GPU" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="{Binding GpuHint}"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
-            <TextBlock Text="Assigned" Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
+            <TextBlock Text="Assigned" Foreground="{DynamicResource Brush.TextMuted}" />
             <ListBox ItemsSource="{Binding AssignedGpus}"
                      SelectedItem="{Binding SelectedAssignedGpu}"
                      MaxHeight="120"
@@ -247,7 +247,7 @@
             <Button Classes="ghost" Content="Remove selected"
                     Command="{Binding RemoveGpuCommand}"
                     IsEnabled="{Binding CanEditGpu}" />
-            <TextBlock Text="Add GPU" Foreground="{StaticResource Brush.TextMuted}" Margin="0,8,0,0" />
+            <TextBlock Text="Add GPU" Foreground="{DynamicResource Brush.TextMuted}" Margin="0,8,0,0" />
             <ComboBox ItemsSource="{Binding GpuChoices}"
                       SelectedItem="{Binding SelectedGpuChoice}"
                       IsEnabled="{Binding CanEditGpu}">
@@ -267,8 +267,8 @@
             <TextBlock Text="USB" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="{Binding UsbHint}"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
-            <TextBlock Text="Attached" Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
+            <TextBlock Text="Attached" Foreground="{DynamicResource Brush.TextMuted}" />
             <ListBox ItemsSource="{Binding AttachedUsbs}"
                      SelectedItem="{Binding SelectedAttachedUsb}"
                      MaxHeight="100"
@@ -282,7 +282,7 @@
             <Button Classes="ghost" Content="Detach selected"
                     Command="{Binding DetachUsbCommand}"
                     IsEnabled="{Binding CanEditUsb}" />
-            <TextBlock Text="Available" Foreground="{StaticResource Brush.TextMuted}" Margin="0,8,0,0" />
+            <TextBlock Text="Available" Foreground="{DynamicResource Brush.TextMuted}" Margin="0,8,0,0" />
             <ListBox ItemsSource="{Binding AvailableUsbs}"
                      SelectedItem="{Binding SelectedAvailableUsb}"
                      MaxHeight="100"

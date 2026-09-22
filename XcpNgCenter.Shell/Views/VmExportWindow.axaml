@@ -6,10 +6,10 @@
         Title="Export VM"
         Width="520" Height="400"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="20"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <Grid RowDefinitions="*,Auto">
@@ -17,13 +17,13 @@
         <TextBlock Text="Export VM" FontSize="20" FontWeight="SemiBold" />
         <TextBlock Text="{Binding Hint}"
                    TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}" />
+                   Foreground="{DynamicResource Brush.TextMuted}" />
         <TextBlock Text="{Binding StatusMessage}"
                    TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}"
+                   Foreground="{DynamicResource Brush.TextMuted}"
                    IsVisible="{Binding StatusMessage.Length}" />
 
-        <TextBlock Text="VM" Foreground="{StaticResource Brush.TextMuted}" />
+        <TextBlock Text="VM" Foreground="{DynamicResource Brush.TextMuted}" />
         <ComboBox ItemsSource="{Binding Vms}" SelectedItem="{Binding SelectedVm}">
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="vm:ExportVmOption">
@@ -32,7 +32,7 @@
           </ComboBox.ItemTemplate>
         </ComboBox>
 
-        <TextBlock Text="Destination .xva" Foreground="{StaticResource Brush.TextMuted}" />
+        <TextBlock Text="Destination .xva" Foreground="{DynamicResource Brush.TextMuted}" />
         <Grid ColumnDefinitions="*,Auto">
           <TextBox Text="{Binding FilePath}" Watermark="/path/to/backup.xva" />
           <Button Grid.Column="1" Classes="ghost" Content="Browse…"

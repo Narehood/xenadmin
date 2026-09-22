@@ -6,10 +6,10 @@
         Title="Attach ISO"
         Width="520" Height="480"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="16"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <Grid RowDefinitions="Auto,*,Auto,Auto">
@@ -19,7 +19,7 @@
                    FontWeight="SemiBold" />
         <TextBlock Text="{Binding StatusMessage}"
                    TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}"
+                   Foreground="{DynamicResource Brush.TextMuted}"
                    IsVisible="{Binding StatusMessage.Length}" />
       </StackPanel>
 
@@ -31,7 +31,7 @@
           <DataTemplate x:DataType="vm:IsoOption">
             <StackPanel Spacing="2" Margin="4">
               <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>
@@ -40,7 +40,7 @@
       <TextBlock Grid.Row="2"
                  Text="No ISO libraries found. Create an ISO SR first."
                  IsVisible="{Binding !HasIsos}"
-                 Foreground="{StaticResource Brush.TextMuted}"
+                 Foreground="{DynamicResource Brush.TextMuted}"
                  Margin="0,0,0,12" />
 
       <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">

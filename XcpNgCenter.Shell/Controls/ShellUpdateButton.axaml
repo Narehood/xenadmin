@@ -27,22 +27,22 @@
             GotFocus="OnTriggerFocused" KeyDown="OnTriggerKeyDown">
       <Grid Width="22" Height="22">
         <Path Data="M 11,2 L 11,13 M 6,8 L 11,13 L 16,8 M 3,14 L 3,19 L 19,19 L 19,14"
-              Stroke="{StaticResource Brush.TextPrimary}" StrokeThickness="1.7" />
-        <Ellipse Width="7" Height="7" Fill="{StaticResource Brush.BrandOrange}"
-                 Stroke="{StaticResource Brush.BgDeep}" StrokeThickness="1.5"
+              Stroke="{DynamicResource Brush.TextPrimary}" StrokeThickness="1.7" />
+        <Ellipse Width="7" Height="7" Fill="{DynamicResource Brush.BrandOrange}"
+                 Stroke="{DynamicResource Brush.BgDeep}" StrokeThickness="1.5"
                  HorizontalAlignment="Right" VerticalAlignment="Top"
                  IsVisible="{Binding ShowUpdateIndicator}" />
       </Grid>
     </Button>
     <Grid x:Name="UpdateProgressRing" Width="34" Height="34" IsHitTestVisible="False"
           IsVisible="{Binding IsUpdateBusy}">
-      <Ellipse Stroke="{StaticResource Brush.StrokeSubtle}" StrokeThickness="2" />
+      <Ellipse Stroke="{DynamicResource Brush.StrokeSubtle}" StrokeThickness="2" />
       <Arc x:Name="UpdateDownloadArc" StartAngle="-90" SweepAngle="{Binding UpdateProgressSweepAngle}"
-           Stroke="{StaticResource Brush.BrandOrange}" StrokeThickness="2" StrokeLineCap="Round"
+           Stroke="{DynamicResource Brush.BrandOrange}" StrokeThickness="2" StrokeLineCap="Round"
            IsVisible="{Binding !IsUpdateProgressIndeterminate}" />
       <Arc x:Name="UpdateSpinnerArc" Classes="update-spinner" Classes.active="{Binding IsUpdateProgressIndeterminate}"
            StartAngle="-90" SweepAngle="90" RenderTransformOrigin="50%,50%"
-           Stroke="{StaticResource Brush.BrandOrange}" StrokeThickness="2" StrokeLineCap="Round"
+           Stroke="{DynamicResource Brush.BrandOrange}" StrokeThickness="2" StrokeLineCap="Round"
            IsVisible="{Binding IsUpdateProgressIndeterminate}">
         <Arc.RenderTransform>
           <RotateTransform />
@@ -53,18 +53,18 @@
            VerticalOffset="-8" IsLightDismissEnabled="True"
            OverlayInputPassThroughElement="{Binding #UpdateTrigger}">
       <Border x:Name="DetailsPanel" Width="400" Padding="16" CornerRadius="10" Focusable="True"
-              Background="{StaticResource Brush.BgPanel}" BorderBrush="{StaticResource Brush.StrokeSubtle}"
+              Background="{DynamicResource Brush.BgPanel}" BorderBrush="{DynamicResource Brush.StrokeSubtle}"
               BorderThickness="1" BoxShadow="0 8 28 0 #60000000"
               PointerEntered="OnPanelEntered" PointerExited="OnPointerExited" KeyDown="OnPanelKeyDown">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" MaxHeight="510">
           <TextBlock Text="{Binding UpdateBannerTitle}" FontSize="14" FontWeight="SemiBold"
-                     TextWrapping="Wrap" Foreground="{StaticResource Brush.TextPrimary}" />
+                     TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextPrimary}" />
           <TextBlock Grid.Row="1" Text="{Binding UpdateBannerMessage}" Margin="0,5,0,12"
-                     FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+                     FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
           <ProgressBar Grid.Row="2" Value="{Binding UpdateDownloadProgress}" Height="5"
                        IsVisible="{Binding ShowUpdateProgress}" />
           <TextBlock Grid.Row="3" Text="{Binding UpdateProgressText}" Margin="0,5,0,8" FontSize="11"
-                     IsVisible="{Binding ShowUpdateProgress}" Foreground="{StaticResource Brush.TextMuted}" />
+                     IsVisible="{Binding ShowUpdateProgress}" Foreground="{DynamicResource Brush.TextMuted}" />
           <ScrollViewer Grid.Row="4" MaxHeight="310" HorizontalScrollBarVisibility="Disabled"
                         VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="12">
@@ -72,11 +72,11 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="svc:ShellReleaseNotes">
                     <StackPanel Spacing="8" Margin="0,0,8,16">
-                      <Border Height="1" Background="{StaticResource Brush.StrokeSubtle}" />
+                      <Border Height="1" Background="{DynamicResource Brush.StrokeSubtle}" />
                       <TextBlock Text="{Binding Heading}" FontSize="12" FontWeight="SemiBold"
-                                 Foreground="{StaticResource Brush.TextPrimary}" />
+                                 Foreground="{DynamicResource Brush.TextPrimary}" />
                       <SelectableTextBlock Text="{Binding DisplayBody}" TextWrapping="Wrap" FontSize="12"
-                                           LineHeight="20" Foreground="{StaticResource Brush.TextPrimary}" />
+                                           LineHeight="20" Foreground="{DynamicResource Brush.TextPrimary}" />
                       <Button Classes="ghost" Content="View release on GitHub ↗" FontSize="11" Padding="0,4"
                               Command="{Binding #UpdateControl.((vm:MainViewModel)DataContext).OpenReleaseNotesCommand}"
                               CommandParameter="{Binding}" />
@@ -85,7 +85,7 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               <TextBlock Text="{Binding UpdateReleaseNotesMessage}" TextWrapping="Wrap" FontSize="11"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </StackPanel>
           </ScrollViewer>
           <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">

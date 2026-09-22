@@ -4,6 +4,37 @@ Last updated: 2026-09-22. Initial review, remediation, and shell follow-up fixes
 
 ## Start here
 
+### Settings tabs and appearance (2026-09-22)
+
+The Avalonia Settings window now uses 14px tab labels and a single horizontal
+header row. All seven tabs fit at the default 760px width; narrower windows
+scroll the headers. Display has a scrollable Appearance section with Dark,
+Light, and System themes, an opaque RGB/HSV/palette color picker, and Reset
+appearance. Preferences apply immediately and persist in `app-settings.json`;
+existing profiles keep the original dark/orange defaults. Accent previews update
+live while picker changes are debounced into one durable write after interaction;
+application shutdown flushes any remaining change.
+
+`ShellThemeManager` updates live resources and Fluent accents before the splash
+opens and when settings or the system theme change. Shell windows, dialogs,
+gradients, and chart chrome use the live palette. Accent labels and button text
+adapt for contrast. Chart series and console framebuffer colors retain their
+meaning. The classic WinForms client is unchanged.
+
+Validation: **315 shell Release tests**, including 19 new appearance cases,
+and **73 shared tests on each of net481/net8.0**, with locked restores. Coverage
+includes older/invalid preferences, reopen/reset, preserving unrelated settings,
+opaque color normalization, debounced and shutdown-flushed persistence, and
+contrast for extreme accents in both themes.
+An offscreen Windows probe exercised actual Settings and picker popup bindings,
+live main-window/gradient/chart updates, reset, default/minimum-size header
+layout and scrolling, and rendered at 100/150/200%. Evidence and probe source:
+`%LOCALAPPDATA%/Temp/sandy-appearance-check` (`bin/Release/net8.0/results.log`
+and PNGs). It used synthetic settings and no live servers. System mode was
+checked for platform delegation; changing the OS theme and Linux desktop
+interaction remain manual checks. Existing Windows ACL test analyzer warnings
+remain.
+
 ### Sandy console paste release (2026-09-22)
 
 Merged [PR #46](https://github.com/Narehood/xenadmin/pull/46) into `development`

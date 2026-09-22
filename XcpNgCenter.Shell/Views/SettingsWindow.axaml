@@ -9,7 +9,15 @@
         MinWidth="440"
         MinHeight="400"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
+
+  <Window.Styles>
+    <Style Selector="TabControl.settings-tabs > TabItem">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="MinHeight" Value="36" />
+    </Style>
+  </Window.Styles>
 
   <Grid Margin="24" RowDefinitions="Auto,*,Auto">
     <TextBlock Text="Settings"
@@ -17,7 +25,29 @@
                FontWeight="SemiBold"
                Margin="0,0,0,16" />
 
-    <TabControl Grid.Row="1">
+    <TabControl Grid.Row="1" Classes="settings-tabs" x:Name="SettingsTabs">
+      <TabControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </TabControl.ItemsPanel>
+      <TabControl.Template>
+        <ControlTemplate>
+          <Grid RowDefinitions="Auto,*">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled">
+              <ItemsPresenter Name="PART_ItemsPresenter"
+                              ItemsPanel="{TemplateBinding ItemsPanel}" />
+            </ScrollViewer>
+            <ContentPresenter Grid.Row="1" Name="PART_SelectedContentHost"
+                              Margin="{TemplateBinding Padding}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                              Content="{TemplateBinding SelectedContent}"
+                              ContentTemplate="{TemplateBinding SelectedContentTemplate}" />
+          </Grid>
+        </ControlTemplate>
+      </TabControl.Template>
       <TabItem Header="General">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                       VerticalScrollBarVisibility="Auto">
@@ -28,7 +58,7 @@
           <TextBlock Text="Turning this off deletes the saved server list and stored server credentials. Active connections are not closed."
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
 
           <CheckBox Content="Reconnect saved servers on startup"
                     IsChecked="{Binding AutoReconnectSavedServers}"
@@ -36,7 +66,7 @@
           <TextBlock Text="When enabled, the shell signs into every saved server that has a stored password."
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
 
           <CheckBox Content="Automatically retry lost connections"
                     IsChecked="{Binding AutoRetryLostConnections}"
@@ -44,7 +74,7 @@
           <TextBlock Text="When disabled (default), a server that drops offline stays in the list as disconnected until you reconnect. A failed first-time add never auto-retries."
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
 
           <TextBlock Text="Main password"
                      FontSize="14"
@@ -56,7 +86,7 @@
           <TextBlock Text="{Binding MainPasswordStatus}"
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
           <Button Classes="ghost"
                   Content="Change main password…"
                   HorizontalAlignment="Left"
@@ -66,7 +96,7 @@
           <TextBlock Text="{Binding PasswordStorageNote}"
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}"
+                     Foreground="{DynamicResource Brush.TextMuted}"
                      Margin="0,8,0,0" />
 
         </StackPanel>
@@ -83,7 +113,7 @@
             <Grid ColumnDefinitions="*,120,Auto">
               <TextBlock Text="Wait for a server API connection before timing out."
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}"
+                         Foreground="{DynamicResource Brush.TextMuted}"
                          VerticalAlignment="Center" />
               <TextBox Grid.Column="1"
                        Margin="8,0,0,0"
@@ -127,14 +157,14 @@
                 <TextBlock Text="Digest is recommended when supported. Credentials are protected in the local settings store."
                            FontSize="11"
                            TextWrapping="Wrap"
-                           Foreground="{StaticResource Brush.TextMuted}" />
+                           Foreground="{DynamicResource Brush.TextMuted}" />
               </StackPanel>
             </StackPanel>
 
             <TextBlock Text="System and custom proxy settings apply to downloads and transfers. The bypass option keeps direct API connections to managed servers."
                        FontSize="12"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <Button Classes="cta"
                     Content="Save connection settings"
                     HorizontalAlignment="Left"
@@ -144,22 +174,48 @@
                        IsVisible="{Binding HasProxyStatusMessage}"
                        FontSize="12"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>
 
       <TabItem Header="Display">
-        <StackPanel Spacing="14" Margin="0,16,0,0">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="14" Margin="0,16,10,12">
+          <TextBlock Text="Appearance" FontSize="14" FontWeight="SemiBold" />
+          <TextBlock Text="Theme" />
+          <ComboBox ItemsSource="{Binding Appearance.Themes}"
+                    SelectedItem="{Binding Appearance.SelectedTheme}"
+                    AutomationProperties.Name="Theme"
+                    HorizontalAlignment="Left" MinWidth="180" />
+          <TextBlock Text="Accent color" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <ColorPicker Color="{Binding Appearance.AccentColor, Mode=TwoWay}"
+                         IsAlphaEnabled="False" IsAlphaVisible="False"
+                         IsAccentColorsVisible="False"
+                         AutomationProperties.Name="Accent color"
+                         ToolTip.Tip="Choose an accent color" />
+            <TextBlock Text="{Binding Appearance.AccentHex}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource Brush.TextMuted}" />
+          </StackPanel>
+          <TextBlock Text="Changes apply immediately and are saved for next time. System follows your device's light or dark theme."
+                     FontSize="12" TextWrapping="Wrap"
+                     Foreground="{DynamicResource Brush.TextMuted}" />
+          <Button Classes="ghost" Content="Reset appearance"
+                  Command="{Binding Appearance.ResetAppearanceCommand}"
+                  HorizontalAlignment="Left" />
+
           <TextBlock Text="Performance graphs"
                      FontSize="14"
+                     Margin="0,10,0,0"
                      FontWeight="SemiBold" />
           <CheckBox Content="Fill the area under graph lines"
                     IsChecked="{Binding FillPerformanceGraphAreas}" />
           <TextBlock Text="Filled graphs make volume changes easier to scan; line-only graphs remain less visually dense."
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
 
           <TextBlock Text="Console"
                      FontSize="14"
@@ -170,7 +226,7 @@
           <TextBlock Text="Uses DPI-aware integer pixel scaling when possible so terminal fonts stay crisp on high-DPI displays. Disable to show the remote framebuffer at native 1 device-pixel size."
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBlock Text="Release keyboard and mouse capture with" />
           <ComboBox ItemsSource="{Binding ConsoleReleaseShortcuts}"
                     SelectedItem="{Binding SelectedConsoleReleaseShortcut}" />
@@ -193,6 +249,7 @@
           <CheckBox Content="Show timestamps in action logs"
                     IsChecked="{Binding ShowTimestampsInLogs}" />
         </StackPanel>
+        </ScrollViewer>
       </TabItem>
 
       <TabItem Header="Security">
@@ -205,7 +262,7 @@
             <TextBlock Text="Certificates are pinned per server. Secure prompting is enabled by default; disabling a warning automatically accepts and pins the affected certificate."
                        FontSize="12"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <CheckBox Content="Warn before trusting a certificate for the first time"
                       IsChecked="{Binding WarnUnrecognizedCertificates}" />
             <CheckBox Content="Warn when a server certificate changes"
@@ -218,7 +275,7 @@
             <TextBlock Text="Clearing pins makes each server a first-time certificate on its next connection."
                        FontSize="12"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
 
             <TextBlock Text="Connection safety"
                        FontSize="14"
@@ -229,12 +286,12 @@
             <TextBlock Text="A VPN, tunnel, or private management network is recommended for host and pool APIs."
                        FontSize="12"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <TextBlock Text="{Binding SecurityStatusMessage}"
                        IsVisible="{Binding HasSecurityStatusMessage}"
                        FontSize="12"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>
@@ -249,7 +306,7 @@
           <TextBlock Text="Dismissed server alerts cannot always be restored."
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
 
           <TextBlock Text="Appliance import"
                      FontSize="14"
@@ -260,7 +317,7 @@
           <TextBlock Text="Fatal OVF errors still block import. Leave this off to review and explicitly accept non-fatal compatibility warnings for each appliance."
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
         </StackPanel>
       </TabItem>
 
@@ -272,7 +329,7 @@
           <TextBlock Text="Useful for screenshots and demos. Raw values stay available for connections; only displayed text is masked."
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
           <CheckBox Content="Hide IP addresses / hostnames"
                     IsChecked="{Binding HideIpAddresses}" />
           <CheckBox Content="Hide UUIDs"
@@ -293,14 +350,14 @@
                      FontWeight="SemiBold" />
           <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Text="Version"
-                       Foreground="{StaticResource Brush.TextMuted}"
+                       Foreground="{DynamicResource Brush.TextMuted}"
                        FontSize="13" />
             <TextBlock Grid.Column="1"
                        Text="{Binding VersionText}"
                        FontSize="13" />
             <TextBlock Grid.Row="1"
                        Text="Build date"
-                       Foreground="{StaticResource Brush.TextMuted}"
+                       Foreground="{DynamicResource Brush.TextMuted}"
                        FontSize="13"
                        Margin="0,6,0,0" />
             <TextBlock Grid.Row="1"
@@ -310,7 +367,7 @@
                        Margin="0,6,0,0" />
             <TextBlock Grid.Row="2"
                        Text="Codename"
-                       Foreground="{StaticResource Brush.TextMuted}"
+                       Foreground="{DynamicResource Brush.TextMuted}"
                        FontSize="13"
                        Margin="0,6,0,0" />
             <TextBlock Grid.Row="2"
@@ -328,7 +385,7 @@
           <TextBlock Text="{Binding UpdateCheckStatus}"
                      FontSize="12"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}"
+                     Foreground="{DynamicResource Brush.TextMuted}"
                      IsVisible="{Binding HasUpdateCheckStatus}" />
         </StackPanel>
       </TabItem>

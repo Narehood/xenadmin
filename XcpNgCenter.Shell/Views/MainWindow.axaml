@@ -14,11 +14,11 @@
         Width="1280" Height="800"
         MinWidth="960" MinHeight="640"
         TransparencyLevelHint="None"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
 
   <Window.Styles>
     <Style Selector="CheckBox">
-      <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+      <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}" />
     </Style>
     <Style Selector="TreeView">
       <Setter Property="Background" Value="Transparent" />
@@ -29,29 +29,29 @@
       <Setter Property="Padding" Value="2,1" />
       <Setter Property="Margin" Value="0" />
       <Setter Property="MinHeight" Value="0" />
-      <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+      <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
     </Style>
     <Style Selector="TreeViewItem:selected /template/ Border#SelectionBorder">
-      <Setter Property="Background" Value="{StaticResource Brush.BgHover}" />
+      <Setter Property="Background" Value="{DynamicResource Brush.BgHover}" />
     </Style>
     <Style Selector="TreeViewItem:pointerover /template/ Border#SelectionBorder">
-      <Setter Property="Background" Value="#33273139" />
+      <Setter Property="Background" Value="{DynamicResource Brush.BgElevated}" />
     </Style>
   </Window.Styles>
 
   <Grid>
     <Grid.Background>
       <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-        <GradientStop Offset="0" Color="#0E1216" />
-        <GradientStop Offset="0.55" Color="#12181E" />
-        <GradientStop Offset="1" Color="#1A140F" />
+        <GradientStop Offset="0" Color="{DynamicResource BgDeep}" />
+        <GradientStop Offset="0.55" Color="{DynamicResource BgGradientMid}" />
+        <GradientStop Offset="1" Color="{DynamicResource BgGradientEnd}" />
       </LinearGradientBrush>
     </Grid.Background>
 
     <Grid ColumnDefinitions="320,*">
       <Border Grid.Column="0"
-              Background="#99161C22"
-              BorderBrush="{StaticResource Brush.StrokeSubtle}"
+              Background="{DynamicResource Brush.BgPanel}"
+              BorderBrush="{DynamicResource Brush.StrokeSubtle}"
               BorderThickness="0,0,1,0"
               Padding="20">
         <Grid RowDefinitions="Auto,*,Auto">
@@ -64,11 +64,11 @@
                 <TextBlock Text="{Binding BrandName}"
                            FontSize="18"
                            FontWeight="Bold"
-                           Foreground="{StaticResource Brush.TextPrimary}"
+                           Foreground="{DynamicResource Brush.TextPrimary}"
                            TextTrimming="CharacterEllipsis" />
                 <TextBlock Text="{Binding VersionDisplay}"
                            FontSize="12"
-                           Foreground="{StaticResource Brush.BrandOrange}" />
+                           Foreground="{DynamicResource Brush.AccentText}" />
               </StackPanel>
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" Margin="0,2,0,0">
                 <Button Classes="alert-badge"
@@ -110,7 +110,7 @@
             <TextBlock Text="INFRASTRUCTURE"
                        FontSize="11"
                        LetterSpacing="1.2"
-                       Foreground="{StaticResource Brush.TextMuted}"
+                       Foreground="{DynamicResource Brush.TextMuted}"
                        Margin="4,0,0,8" />
 
             <TreeView Grid.Row="1"
@@ -203,12 +203,12 @@
                                  FontWeight="SemiBold"
                                  FontSize="12"
                                  LineHeight="16"
-                                 Foreground="{StaticResource Brush.TextPrimary}"
+                                 Foreground="{DynamicResource Brush.TextPrimary}"
                                  TextTrimming="CharacterEllipsis" />
                       <TextBlock Text="{Binding Subtitle}"
                                  FontSize="10"
                                  LineHeight="13"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                   </StackPanel>
@@ -219,7 +219,7 @@
             <TextBlock Grid.Row="1"
                        IsVisible="{Binding ShowWelcome}"
                        Text="No servers yet"
-                       Foreground="{StaticResource Brush.TextMuted}"
+                       Foreground="{DynamicResource Brush.TextMuted}"
                        Margin="4,8,0,0" />
           </Grid>
 
@@ -228,7 +228,7 @@
                      Text="Unofficial Client"
                      TextWrapping="Wrap"
                      FontSize="11"
-                     Foreground="{StaticResource Brush.TextMuted}"
+                     Foreground="{DynamicResource Brush.TextMuted}"
                      Opacity="0.85"
                      Margin="0,0,12,0" VerticalAlignment="Center" />
           <controls:ShellUpdateButton Grid.Column="1" VerticalAlignment="Center" />
@@ -266,13 +266,13 @@
                          FontSize="40"
                          FontWeight="Bold"
                          LineHeight="46"
-                         Foreground="{StaticResource Brush.TextPrimary}"
+                         Foreground="{DynamicResource Brush.TextPrimary}"
                          TextWrapping="Wrap" />
 
               <TextBlock Text="{Binding Tagline}"
                          FontSize="16"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
 
               <StackPanel Spacing="10" Margin="0,8,0,0" Width="360" MaxWidth="360" HorizontalAlignment="Left">
                 <TextBox Watermark="host.example or 10.0.0.5"
@@ -295,7 +295,7 @@
                   <TextBlock Text="Saved servers"
                              FontSize="11"
                              LetterSpacing="1.1"
-                             Foreground="{StaticResource Brush.TextMuted}" />
+                             Foreground="{DynamicResource Brush.TextMuted}" />
                   <ItemsControl ItemsSource="{Binding SavedServers}">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="svc:SavedServerEntry">
@@ -309,11 +309,11 @@
                             <StackPanel Spacing="2">
                               <TextBlock Text="{Binding DisplayAddress}"
                                          FontSize="13"
-                                         Foreground="{StaticResource Brush.TextPrimary}"
+                                         Foreground="{DynamicResource Brush.TextPrimary}"
                                          TextTrimming="CharacterEllipsis" />
                               <TextBlock Text="{Binding Subtitle}"
                                          FontSize="11"
-                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         Foreground="{DynamicResource Brush.TextMuted}"
                                          TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                           </Button>
@@ -333,7 +333,7 @@
                   <TextBlock Text="{Binding PasswordVaultHint}"
                              FontSize="11"
                              TextWrapping="Wrap"
-                             Foreground="{StaticResource Brush.TextMuted}"
+                             Foreground="{DynamicResource Brush.TextMuted}"
                              Opacity="0.9" />
                 </StackPanel>
 
@@ -348,7 +348,7 @@
               <TextBlock IsVisible="{Binding ShowPublicIpWarning}"
                          Text="Public IP detected — prefer VPN, SSH tunnel, or a private path before exposing the management plane."
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.BrandOrange}"
+                         Foreground="{DynamicResource Brush.AccentText}"
                          MaxWidth="360" />
               <CheckBox IsVisible="{Binding ShowPublicIpWarning}"
                         IsChecked="{Binding AcknowledgePublicIp}"
@@ -357,7 +357,7 @@
 
               <TextBlock Text="{Binding StatusMessage}"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}"
+                         Foreground="{DynamicResource Brush.TextMuted}"
                          MaxWidth="360" />
             </StackPanel>
           </ScrollViewer>
@@ -370,8 +370,8 @@
                   ClipToBounds="True">
             <Border.Background>
               <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Offset="0" Color="#00F07318" />
-                <GradientStop Offset="0.45" Color="#33F07318" />
+                <GradientStop Offset="0" Color="{DynamicResource AccentTransparent}" />
+                <GradientStop Offset="0.45" Color="{DynamicResource BrandGlow}" />
                 <GradientStop Offset="1" Color="#14000000" />
               </LinearGradientBrush>
             </Border.Background>
@@ -413,21 +413,21 @@
             </DockPanel>
             <TextBlock Text="All messages from every connected pool and server, newest first."
                        FontSize="13"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <TextBlock Text="{Binding PropertyCopyFeedback}"
                        FontSize="12"
-                       Foreground="{StaticResource Brush.Ok}"
+                       Foreground="{DynamicResource Brush.Ok}"
                        IsVisible="{Binding PropertyCopyFeedback.Length}" />
           </StackPanel>
           <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="8" Margin="0,0,4,0">
               <TextBlock Text="No alerts. Messages from all connected pools appear here."
-                         Foreground="{StaticResource Brush.TextMuted}"
+                         Foreground="{DynamicResource Brush.TextMuted}"
                          IsVisible="{Binding !HasAlertItems}" />
               <ItemsControl ItemsSource="{Binding AlertItems}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:AlertItemRow">
-                    <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    <Border BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                             BorderThickness="0,0,0,1"
                             Padding="0,0,0,10"
                             Margin="0,0,0,6">
@@ -445,17 +445,17 @@
                             <TextBlock DockPanel.Dock="Right"
                                        Text="{Binding PriorityLabel}"
                                        FontSize="11"
-                                       Foreground="{StaticResource Brush.BrandOrange}"
+                                       Foreground="{DynamicResource Brush.AccentText}"
                                        Margin="12,0,0,0" />
                           </DockPanel>
                           <TextBlock Text="{Binding Description}"
                                      FontSize="12"
                                      TextWrapping="Wrap"
-                                     Foreground="{StaticResource Brush.TextMuted}" />
+                                     Foreground="{DynamicResource Brush.TextMuted}" />
                           <DockPanel Margin="0,2,0,0">
                             <TextBlock Text="{Binding SourceLabel}"
                                        FontSize="11"
-                                       Foreground="{StaticResource Brush.TextMuted}"
+                                       Foreground="{DynamicResource Brush.TextMuted}"
                                        TextTrimming="CharacterEllipsis" />
                             <StackPanel DockPanel.Dock="Right"
                                         Orientation="Horizontal"
@@ -478,7 +478,7 @@
                                       CommandParameter="{Binding}" />
                               <TextBlock Text="{Binding TimestampText}"
                                          FontSize="11"
-                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         Foreground="{DynamicResource Brush.TextMuted}"
                                          VerticalAlignment="Center" />
                             </StackPanel>
                           </DockPanel>
@@ -518,7 +518,7 @@
                            FontSize="24"
                            FontWeight="Bold"
                            LetterSpacing="0.6"
-                           Foreground="{StaticResource Brush.BrandOrange}"
+                           Foreground="{DynamicResource Brush.AccentText}"
                            VerticalAlignment="Center" />
                 <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Select a pool, host, or VM'}"
                            FontSize="22"
@@ -527,16 +527,16 @@
                            VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Text="{Binding SelectedInfraNode.Subtitle, FallbackValue=''}"
-                         Foreground="{StaticResource Brush.TextMuted}"
+                         Foreground="{DynamicResource Brush.TextMuted}"
                          FontSize="13" />
               <TextBlock Text="{Binding ActionStatusMessage}"
                          FontSize="12"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}"
+                         Foreground="{DynamicResource Brush.TextMuted}"
                          IsVisible="{Binding ActionStatusMessage.Length}" />
               <TextBlock Text="Right-click a pool, host, or VM in the tree for actions."
                          FontSize="12"
-                         Foreground="{StaticResource Brush.TextMuted}"
+                         Foreground="{DynamicResource Brush.TextMuted}"
                          Opacity="0.85"
                          IsVisible="{Binding !ShowVmActionBar}" />
             </StackPanel>
@@ -548,15 +548,15 @@
                 <TabControl.Styles>
                   <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="13" />
-                    <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}" />
                     <Setter Property="Padding" Value="12,6" />
                     <Setter Property="Margin" Value="0,0,6,0" />
                   </Style>
                   <Style Selector="TabItem:selected">
-                    <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
                   </Style>
                   <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
-                    <Setter Property="Background" Value="{StaticResource Brush.BrandOrange}" />
+                    <Setter Property="Background" Value="{DynamicResource Brush.BrandOrange}" />
                     <Setter Property="Height" Value="3" />
                   </Style>
                   <!-- Keep tab content clear of the vertical scrollbar thumb. -->
@@ -584,13 +584,13 @@
                                     Background="Transparent">
                               <Grid ColumnDefinitions="160,*,Auto">
                                 <TextBlock Text="{Binding Label}"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            FontSize="12"
                                            VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Value}"
                                            TextWrapping="Wrap"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           Foreground="{DynamicResource Brush.TextPrimary}"
                                            FontSize="12"
                                            VerticalAlignment="Center"
                                            Margin="0,0,8,0" />
@@ -610,7 +610,7 @@
                       <TextBlock Text="{Binding PropertyCopyFeedback}"
                                  FontSize="12"
                                  Margin="0,4,0,0"
-                                 Foreground="{StaticResource Brush.Ok}"
+                                 Foreground="{DynamicResource Brush.Ok}"
                                  IsVisible="{Binding PropertyCopyFeedback.Length}" />
                     </StackPanel>
                   </ScrollViewer>
@@ -630,14 +630,14 @@
                                     Background="Transparent">
                               <Grid ColumnDefinitions="160,*,Auto">
                                 <TextBlock Text="{Binding Label}"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            FontSize="13"
                                            VerticalAlignment="Top"
                                            Margin="0,2,0,0" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Value}"
                                            TextWrapping="Wrap"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           Foreground="{DynamicResource Brush.TextPrimary}"
                                            FontSize="13"
                                            VerticalAlignment="Top"
                                            Margin="0,2,8,0" />
@@ -658,13 +658,13 @@
                       <TextBlock Text="Repositories"
                                  FontSize="11"
                                  LetterSpacing="1.2"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  IsVisible="{Binding HasStorageItems}" />
 
                       <ItemsControl ItemsSource="{Binding StorageItems}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:StorageItemRow">
-                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                            <Border BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                                     BorderThickness="0,0,0,1"
                                     Padding="0,0,8,12"
                                     Margin="0,0,0,12">
@@ -674,29 +674,29 @@
                                            FontSize="14"
                                            TextTrimming="CharacterEllipsis"
                                            Margin="0,0,12,0"
-                                           Foreground="{StaticResource Brush.TextPrimary}" />
+                                           Foreground="{DynamicResource Brush.TextPrimary}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Size}"
                                            FontSize="13"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           Foreground="{DynamicResource Brush.TextPrimary}"
                                            Margin="8,0,0,0" />
                                 <TextBlock Grid.Row="1"
                                            Text="{Binding Secondary}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            Margin="0,4,12,0" />
                                 <TextBlock Grid.Row="1"
                                            Grid.Column="1"
                                            Text="{Binding Meta}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            Margin="8,4,0,0"
                                            HorizontalAlignment="Right" />
                                 <TextBlock Grid.Row="2"
                                            Grid.ColumnSpan="2"
                                            Text="{Binding Detail}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.BrandOrange}"
+                                           Foreground="{DynamicResource Brush.AccentText}"
                                            Margin="0,4,0,0"
                                            Opacity="0.9" />
                               </Grid>
@@ -706,7 +706,7 @@
                       </ItemsControl>
 
                       <TextBlock Text="No storage objects for this selection."
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  FontSize="13"
                                  IsVisible="{Binding !HasStorageItems}" />
                     </StackPanel>
@@ -718,7 +718,7 @@
                     <StackPanel Spacing="18" Margin="0,0,4,0">
                       <StackPanel Spacing="10" IsEnabled="{Binding !IsNetworkActionBusy}">
                         <Button Classes="cta" Content="{Binding AddNetworkLabel}" Command="{Binding AddNetworkCommand}" IsEnabled="{Binding CanAddNetwork}" />
-                        <TextBlock Text="{Binding NetworkScopeNotice}" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+                        <TextBlock Text="{Binding NetworkScopeNotice}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
                       </StackPanel>
                       <ItemsControl ItemsSource="{Binding NetworkTotals}">
                         <ItemsControl.ItemTemplate>
@@ -731,14 +731,14 @@
                                     Background="Transparent">
                               <Grid ColumnDefinitions="180,*,Auto">
                                 <TextBlock Text="{Binding Label}"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            FontSize="13"
                                            VerticalAlignment="Top"
                                            Margin="0,2,0,0" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Value}"
                                            TextWrapping="Wrap"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           Foreground="{DynamicResource Brush.TextPrimary}"
                                            FontSize="13"
                                            VerticalAlignment="Top"
                                            Margin="0,2,8,0" />
@@ -759,13 +759,13 @@
                       <TextBlock Text="Networks"
                                  FontSize="11"
                                  LetterSpacing="1.2"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  IsVisible="{Binding HasNetworkItems}" />
 
                       <ItemsControl ItemsSource="{Binding NetworkItems}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:NetworkItemRow">
-                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                            <Border BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                                     BorderThickness="0,0,0,1"
                                     Padding="0,0,8,12"
                                     Margin="0,0,0,12">
@@ -775,33 +775,33 @@
                                            FontSize="14"
                                            TextTrimming="CharacterEllipsis"
                                            Margin="0,0,12,0"
-                                           Foreground="{StaticResource Brush.TextPrimary}" />
+                                           Foreground="{DynamicResource Brush.TextPrimary}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Size}"
                                            FontSize="13"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           Foreground="{DynamicResource Brush.TextPrimary}"
                                            Margin="8,0,0,0" />
                                 <TextBlock Grid.Row="1"
                                            Text="{Binding Secondary}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            Margin="0,4,12,0" />
                                 <TextBlock Grid.Row="1"
                                            Grid.Column="1"
                                            Text="{Binding Meta}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            Margin="8,4,0,0"
                                            HorizontalAlignment="Right" />
                                 <TextBlock Grid.Row="2"
                                            Grid.ColumnSpan="2"
                                            Text="{Binding Detail}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.BrandOrange}"
+                                           Foreground="{DynamicResource Brush.AccentText}"
                                            Margin="0,4,0,0"
                                            Opacity="0.9" />
                                 <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Text="{Binding Tags}" IsVisible="{Binding HasTags}"
-                                           TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" Margin="0,6,0,0" />
+                                           TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" Margin="0,6,0,0" />
                                 <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
                                             IsVisible="{Binding HasActions}" IsEnabled="{Binding !#RootWindow.((vm:MainViewModel)DataContext).IsNetworkActionBusy}">
                                   <Button Classes="ghost" Content="Edit" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding EditError}"
@@ -820,13 +820,13 @@
                       <TextBlock Text="Management interfaces"
                                  FontSize="11"
                                  LetterSpacing="1.2"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  IsVisible="{Binding HasNetworkMgmtItems}" />
 
                       <ItemsControl ItemsSource="{Binding NetworkMgmtItems}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:NetworkItemRow">
-                            <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                            <Border BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                                     BorderThickness="0,0,0,1"
                                     Padding="0,0,8,12"
                                     Margin="0,0,0,12">
@@ -836,29 +836,29 @@
                                            FontSize="14"
                                            TextTrimming="CharacterEllipsis"
                                            Margin="0,0,12,0"
-                                           Foreground="{StaticResource Brush.TextPrimary}" />
+                                           Foreground="{DynamicResource Brush.TextPrimary}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Size}"
                                            FontSize="13"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
+                                           Foreground="{DynamicResource Brush.TextPrimary}"
                                            Margin="8,0,0,0" />
                                 <TextBlock Grid.Row="1"
                                            Text="{Binding Secondary}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            Margin="0,4,12,0" />
                                 <TextBlock Grid.Row="1"
                                            Grid.Column="1"
                                            Text="{Binding Meta}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            Margin="8,4,0,0"
                                            HorizontalAlignment="Right" />
                                 <TextBlock Grid.Row="2"
                                            Grid.ColumnSpan="2"
                                            Text="{Binding Detail}"
                                            FontSize="12"
-                                           Foreground="{StaticResource Brush.BrandOrange}"
+                                           Foreground="{DynamicResource Brush.AccentText}"
                                            Margin="0,4,0,0"
                                            Opacity="0.9" />
                               </Grid>
@@ -868,7 +868,7 @@
                       </ItemsControl>
 
                       <TextBlock Text="No network objects for this selection."
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  FontSize="13"
                                  IsVisible="{Binding !HasAnyNetworkContent}" />
                     </StackPanel>
@@ -884,12 +884,12 @@
                       <TextBlock Text="CD/DVD"
                                  FontSize="12"
                                  FontWeight="SemiBold"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  VerticalAlignment="Center"
                                  Margin="0,0,10,4" />
                       <TextBlock Text="{Binding AttachedIsoLabel}"
                                  FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  TextTrimming="CharacterEllipsis"
                                  VerticalAlignment="Center"
                                  MaxWidth="240"
@@ -909,7 +909,7 @@
                               <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                               <TextBlock Text="{Binding Subtitle}"
                                          FontSize="11"
-                                         Foreground="{StaticResource Brush.TextMuted}"
+                                         Foreground="{DynamicResource Brush.TextMuted}"
                                          TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                           </DataTemplate>
@@ -974,8 +974,8 @@
                                   HorizontalScrollBarVisibility="Disabled"
                                   VerticalScrollBarVisibility="Auto">
                       <StackPanel Spacing="8">
-                        <Border Background="#33161C22"
-                                BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                        <Border Background="{DynamicResource Brush.BgPanel}"
+                                BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="6"
@@ -992,12 +992,12 @@
                                          FontWeight="SemiBold"
                                          FontSize="14"
                                          HorizontalAlignment="Center"
-                                         Foreground="{StaticResource Brush.TextPrimary}" />
+                                         Foreground="{DynamicResource Brush.TextPrimary}" />
                               <TextBlock Text="{Binding ConsolePlaceholderMessage}"
                                          TextWrapping="Wrap"
                                          TextAlignment="Center"
                                          FontSize="13"
-                                         Foreground="{StaticResource Brush.TextMuted}" />
+                                         Foreground="{DynamicResource Brush.TextMuted}" />
                             </StackPanel>
 
                             <StackPanel Spacing="8"
@@ -1032,12 +1032,12 @@
                               <DataTemplate x:DataType="vm:GeneralPropertyRow">
                                 <Grid ColumnDefinitions="120,*" Margin="0,0,0,2">
                                   <TextBlock Text="{Binding Label}"
-                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             Foreground="{DynamicResource Brush.TextMuted}"
                                              FontSize="12" />
                                   <TextBlock Grid.Column="1"
                                              Text="{Binding Value}"
                                              TextWrapping="Wrap"
-                                             Foreground="{StaticResource Brush.TextPrimary}"
+                                             Foreground="{DynamicResource Brush.TextPrimary}"
                                              FontSize="12" />
                                 </Grid>
                               </DataTemplate>
@@ -1047,17 +1047,17 @@
                           <TextBlock Text="{Binding ConsoleStatusMessage}"
                                      TextWrapping="Wrap"
                                      FontSize="12"
-                                     Foreground="{StaticResource Brush.BrandOrange}"
+                                     Foreground="{DynamicResource Brush.AccentText}"
                                      IsVisible="{Binding ConsoleStatusMessage.Length}" />
                           <TextBlock Text="{Binding ConsoleViewerStatus}"
                                      TextWrapping="Wrap"
                                      FontSize="12"
-                                     Foreground="{StaticResource Brush.TextMuted}"
+                                     Foreground="{DynamicResource Brush.TextMuted}"
                                      IsVisible="{Binding ConsoleViewerStatus.Length}" />
                           <TextBlock Text="{Binding ConsoleInputHint}"
                                      TextWrapping="Wrap"
                                      FontSize="12"
-                                     Foreground="{StaticResource Brush.BrandOrange}"
+                                     Foreground="{DynamicResource Brush.AccentText}"
                                      IsVisible="{Binding ConsoleInputHint.Length}" />
 
                           <StackPanel Spacing="8"
@@ -1065,7 +1065,7 @@
                             <TextBlock Text="Console endpoints"
                                        FontSize="11"
                                        LetterSpacing="1.2"
-                                       Foreground="{StaticResource Brush.TextMuted}" />
+                                       Foreground="{DynamicResource Brush.TextMuted}" />
                             <ItemsControl ItemsSource="{Binding ConsoleItems}">
                               <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ConsoleItemRow">
@@ -1080,7 +1080,7 @@
                                                  FontWeight="SemiBold"
                                                  FontSize="13"
                                                  Margin="0,0,12,0"
-                                                 Foreground="{StaticResource Brush.TextPrimary}" />
+                                                 Foreground="{DynamicResource Brush.TextPrimary}" />
                                       <Button Grid.Column="1"
                                               Classes="copy"
                                               Content="Copy"
@@ -1093,7 +1093,7 @@
                                                  Grid.ColumnSpan="2"
                                                  Text="{Binding Location}"
                                                  FontSize="11"
-                                                 Foreground="{StaticResource Brush.TextMuted}"
+                                                 Foreground="{DynamicResource Brush.TextMuted}"
                                                  Margin="0,4,0,0"
                                                  TextWrapping="Wrap"
                                                  TextTrimming="CharacterEllipsis"
@@ -1105,7 +1105,7 @@
                             </ItemsControl>
                             <TextBlock Text="{Binding ConsoleCopyFeedback}"
                                        FontSize="12"
-                                       Foreground="{StaticResource Brush.Ok}"
+                                       Foreground="{DynamicResource Brush.Ok}"
                                        IsVisible="{Binding ConsoleCopyFeedback.Length}" />
                           </StackPanel>
                         </StackPanel>
@@ -1120,7 +1120,7 @@
                       <TextBlock Text="Snapshots form a tree from the VM base. NOW marks the current branch tip. Available modes follow the VM's current server permissions and license."
                                  TextWrapping="Wrap"
                                  FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}" />
+                                 Foreground="{DynamicResource Brush.TextMuted}" />
                       <TextBox Watermark="Snapshot name" Text="{Binding NewSnapshotName}" />
                       <TextBox Watermark="Description (optional)" Text="{Binding NewSnapshotDescription}" />
                       <ComboBox ItemsSource="{Binding SnapshotTypeOptions}"
@@ -1134,7 +1134,7 @@
                       <TextBlock Text="{Binding SnapshotTypeHint}"
                                  TextWrapping="Wrap"
                                  FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}" />
+                                 Foreground="{DynamicResource Brush.TextMuted}" />
                       <Button Classes="cta"
                               Content="Take snapshot"
                               HorizontalAlignment="Left"
@@ -1143,13 +1143,13 @@
                       <TextBlock Text="{Binding SnapshotStatusMessage}"
                                  TextWrapping="Wrap"
                                  FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  IsVisible="{Binding SnapshotStatusMessage.Length}" />
 
                       <TextBlock Text="Snapshot tree"
                                  FontSize="11"
                                  LetterSpacing="1.2"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  Margin="0,8,0,0" />
                       <TreeView ItemsSource="{Binding SnapshotItems}"
                                 MinHeight="160">
@@ -1174,12 +1174,12 @@
                                            TextTrimming="CharacterEllipsis" />
                                 <TextBlock Text="{Binding Description}"
                                            FontSize="11"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            TextTrimming="CharacterEllipsis"
                                            IsVisible="{Binding Description.Length}" />
                                 <TextBlock Text="{Binding Created}"
                                            FontSize="11"
-                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           Foreground="{DynamicResource Brush.TextMuted}"
                                            IsVisible="{Binding Created.Length}" />
                               </StackPanel>
                               <StackPanel Grid.Column="2"
@@ -1208,7 +1208,7 @@
                     </StackPanel>
                     <TextBlock Text="Select a VM to manage snapshots."
                                IsVisible="{Binding !CanManageSnapshots}"
-                               Foreground="{StaticResource Brush.TextMuted}" />
+                               Foreground="{DynamicResource Brush.TextMuted}" />
                   </Panel>
                 </TabItem>
 
@@ -1236,16 +1236,16 @@
                       </DockPanel>
                       <TextBlock Text="{Binding PerformanceStatusMessage}"
                                  FontSize="12"
-                                 Foreground="{StaticResource Brush.TextMuted}"
+                                 Foreground="{DynamicResource Brush.TextMuted}"
                                  TextWrapping="Wrap" />
                     </StackPanel>
                     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
                       <StackPanel Spacing="16" Margin="0,0,4,0">
                         <TextBlock Text="Select a host or running VM to load RRD graphs."
-                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   Foreground="{DynamicResource Brush.TextMuted}"
                                    IsVisible="{Binding !CanShowPerformance}" />
                         <TextBlock Text="Waiting for graph series…"
-                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   Foreground="{DynamicResource Brush.TextMuted}"
                                    IsVisible="{Binding ShowPerformanceWaiting}" />
                         <ItemsControl ItemsSource="{Binding PerformanceGraphs}"
                                       IsVisible="{Binding HasPerformanceGraphs}">
@@ -1259,7 +1259,7 @@
                                   <TextBlock DockPanel.Dock="Right"
                                              Text="{Binding LatestSummary}"
                                              FontSize="11"
-                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             Foreground="{DynamicResource Brush.TextMuted}"
                                              TextTrimming="CharacterEllipsis"
                                              Margin="12,0,0,0"
                                              MaxWidth="420"
@@ -1289,7 +1289,7 @@
                                    VerticalAlignment="Center" />
                         <TextBlock Text="{Binding PropertyCopyFeedback}"
                                    FontSize="12"
-                                   Foreground="{StaticResource Brush.Ok}"
+                                   Foreground="{DynamicResource Brush.Ok}"
                                    VerticalAlignment="Center"
                                    IsVisible="{Binding PropertyCopyFeedback.Length}" />
                       </StackPanel>
@@ -1302,12 +1302,12 @@
                     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
                       <StackPanel Spacing="8" Margin="0,0,4,0">
                         <TextBlock Text="No actions yet. Power, create, and storage operations appear here."
-                                   Foreground="{StaticResource Brush.TextMuted}"
+                                   Foreground="{DynamicResource Brush.TextMuted}"
                                    IsVisible="{Binding !HasActionLogRows}" />
                         <ItemsControl ItemsSource="{Binding ActionLogRows}">
                           <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ActionLogRow">
-                              <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                              <Border BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                                       BorderThickness="0,0,0,1"
                                       Padding="0,0,0,10"
                                       Margin="0,0,0,6">
@@ -1319,19 +1319,19 @@
                                   <TextBlock Grid.Column="1"
                                              Text="{Binding Status}"
                                              FontSize="12"
-                                             Foreground="{StaticResource Brush.BrandOrange}"
+                                             Foreground="{DynamicResource Brush.AccentText}"
                                              Margin="12,0,0,0" />
                                   <TextBlock Grid.Row="1"
                                              Text="{Binding Description}"
                                              FontSize="12"
                                              TextWrapping="Wrap"
-                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             Foreground="{DynamicResource Brush.TextMuted}"
                                              Margin="0,4,0,0" />
                                   <TextBlock Grid.Row="2"
                                              Text="{Binding StartedText}"
                                              IsVisible="{Binding #RootWindow.((vm:MainViewModel)DataContext).ShowLogTimestamps}"
                                              FontSize="11"
-                                             Foreground="{StaticResource Brush.TextMuted}"
+                                             Foreground="{DynamicResource Brush.TextMuted}"
                                              Margin="0,4,0,0" />
                                   <StackPanel Grid.Row="2"
                                               Grid.Column="1"
@@ -1376,7 +1376,7 @@
                      Margin="12,8,12,0"
                      Text="{Binding StatusMessage}"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
         </Grid>
       </Grid>
     </Grid>

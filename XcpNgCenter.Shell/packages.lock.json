@@ -13,6 +13,16 @@
           "MicroCom.Runtime": "0.11.0"
         }
       },
+      "Avalonia.Controls.ColorPicker": {
+        "type": "Direct",
+        "requested": "[11.3.20, )",
+        "resolved": "11.3.20",
+        "contentHash": "1TMGXUYBFN9sWE2dh/yPOVtPtfJ1Cg0noToMvo+CMGqiwqH8pwab3vkrg+LJ9U6s9GSScsM/A9BaXJS02qABaA==",
+        "dependencies": {
+          "Avalonia": "11.3.20",
+          "Avalonia.Remote.Protocol": "11.3.20"
+        }
+      },
       "Avalonia.Desktop": {
         "type": "Direct",
         "requested": "[11.3.20, )",

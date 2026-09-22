@@ -8,22 +8,22 @@
         Width="760" Height="570"
         MinWidth="620" MinHeight="460"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="16"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="156,*">
       <StackPanel Grid.ColumnSpan="2" Spacing="4" Margin="0,0,0,12">
         <TextBlock Text="Host Properties" FontSize="22" FontWeight="SemiBold" />
         <TextBlock Text="{Binding NameLabel}"
-                   Foreground="{StaticResource Brush.BrandOrange}"
+                   Foreground="{DynamicResource Brush.AccentText}"
                    FontSize="14"
                    TextTrimming="CharacterEllipsis" />
         <TextBlock Text="{Binding StatusMessage}"
                    TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}"
+                   Foreground="{DynamicResource Brush.TextMuted}"
                    IsVisible="{Binding StatusMessage.Length}" />
       </StackPanel>
 
@@ -61,19 +61,19 @@
             <TextBlock Text="Host details" FontWeight="SemiBold" FontSize="16" Margin="0,12,0,0" />
             <StackPanel Spacing="8">
               <Grid ColumnDefinitions="120,*">
-                <TextBlock Text="Address" Foreground="{StaticResource Brush.TextMuted}" />
+                <TextBlock Text="Address" Foreground="{DynamicResource Brush.TextMuted}" />
                 <TextBlock Grid.Column="1" Text="{Binding Address}" TextWrapping="Wrap" />
               </Grid>
               <Grid ColumnDefinitions="120,*">
-                <TextBlock Text="Role" Foreground="{StaticResource Brush.TextMuted}" />
+                <TextBlock Text="Role" Foreground="{DynamicResource Brush.TextMuted}" />
                 <TextBlock Grid.Column="1" Text="{Binding Role}" />
               </Grid>
               <Grid ColumnDefinitions="120,*">
-                <TextBlock Text="Product" Foreground="{StaticResource Brush.TextMuted}" />
+                <TextBlock Text="Product" Foreground="{DynamicResource Brush.TextMuted}" />
                 <TextBlock Grid.Column="1" Text="{Binding Product}" TextWrapping="Wrap" />
               </Grid>
               <Grid ColumnDefinitions="120,*">
-                <TextBlock Text="UUID" Foreground="{StaticResource Brush.TextMuted}" />
+                <TextBlock Text="UUID" Foreground="{DynamicResource Brush.TextMuted}" />
                 <TextBlock Grid.Column="1" Text="{Binding Uuid}" TextWrapping="Wrap" FontSize="12" />
               </Grid>
             </StackPanel>
@@ -91,7 +91,7 @@
             <TextBlock Text="Alert delivery" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Send performance and system alerts by email. These settings apply to the entire pool."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <CheckBox Content="Send email alert notifications"
                       IsChecked="{Binding EmailNotificationsEnabled}" />
             <StackPanel Spacing="8" IsEnabled="{Binding CanEditAlertDelivery}">
@@ -117,7 +117,7 @@
             <TextBlock Text="Pool policies" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="These settings apply to the pool. They are exposed here on a standalone host or pool coordinator."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
 
             <StackPanel Spacing="5" IsVisible="{Binding ShowLivePatchingPolicy}">
               <CheckBox Content="Enable live patching"
@@ -125,7 +125,7 @@
               <TextBlock Text="Allow supported hotfixes to be applied without rebooting hosts."
                          FontSize="11"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </StackPanel>
 
             <StackPanel Spacing="5" IsVisible="{Binding ShowIgmpSnoopingPolicy}">
@@ -134,7 +134,7 @@
               <TextBlock Text="Limit multicast traffic on Open vSwitch networks to interested receivers."
                          FontSize="11"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </StackPanel>
 
             <StackPanel Spacing="5" IsVisible="{Binding ShowLegacySslPolicy}">
@@ -143,7 +143,7 @@
               <TextBlock Text="Changing this compatibility setting can temporarily disrupt management connections. Prefer TLS-only mode whenever possible."
                          FontSize="11"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </StackPanel>
           </StackPanel>
 
@@ -151,7 +151,7 @@
             <TextBlock Text="Clustering" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Enable Corosync clustering for clustered storage and related pool services."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <CheckBox Content="Enable clustering"
                       IsChecked="{Binding ClusteringEnabled}"
                       IsEnabled="{Binding CanEditClustering}" />
@@ -166,18 +166,18 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
             <Border Padding="12"
-                    Background="#55252C34"
-                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    Background="{DynamicResource Brush.BgElevated}"
+                    BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                     BorderThickness="1"
                     CornerRadius="6">
               <TextBlock Text="{Binding ClusteringStatusText}"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </Border>
             <TextBlock Text="A three-host minimum is recommended for reliable cluster quorum."
                        IsVisible="{Binding ShowClusterHostCountWarning}"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.BrandOrange}" />
+                       Foreground="{DynamicResource Brush.AccentText}" />
           </StackPanel>
 
           <Panel IsVisible="{Binding ShowNrpe}" Margin="0,0,0,8">
@@ -191,7 +191,7 @@
               <TextBlock Text="vGPU placement policy" FontWeight="SemiBold" />
               <TextBlock Text="Choose whether new vGPUs favor consolidating workloads or spreading them for performance."
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
               <ComboBox ItemsSource="{Binding GpuPlacementPolicies}"
                         SelectedItem="{Binding SelectedGpuPlacementPolicy}" />
             </StackPanel>
@@ -200,13 +200,13 @@
               <TextBlock Text="Integrated GPU pass-through" FontWeight="SemiBold" />
               <TextBlock Text="{Binding IntegratedGpuCurrentStatus}"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
               <CheckBox Content="Use the integrated GPU after the next host reboot"
                         IsChecked="{Binding IntegratedGpuEnabledOnNextReboot}" />
               <TextBlock Text="This change takes effect on the next reboot and changes control-domain access to the system display device."
                          FontSize="11"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </StackPanel>
           </StackPanel>
 
@@ -214,7 +214,7 @@
             <TextBlock Text="Out-of-band power on" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Configure how the pool starts this host when it is powered off. Availability depends on the server hardware and management controller."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <ProgressBar IsIndeterminate="True"
                          Height="4"
                          IsVisible="{Binding IsLoadingPowerOnSettings}" />
@@ -249,13 +249,13 @@
             </StackPanel>
 
             <Border Padding="12"
-                    Background="#55252C34"
-                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    Background="{DynamicResource Brush.BgElevated}"
+                    BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                     BorderThickness="1"
                     CornerRadius="6">
               <TextBlock Text="{Binding PowerOnStatusText}"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </Border>
           </StackPanel>
 
@@ -263,18 +263,18 @@
             <TextBlock Text="Storage multipathing" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Use multiple physical paths to supported storage for redundancy and throughput."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <CheckBox Content="Enable multipathing on this host"
                       IsChecked="{Binding MultipathingEnabled}"
                       IsEnabled="{Binding CanEditMultipathing}" />
             <Border Padding="12"
-                    Background="#55252C34"
-                    BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                    Background="{DynamicResource Brush.BgElevated}"
+                    BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                     BorderThickness="1"
                     CornerRadius="6">
               <TextBlock Text="{Binding MultipathStatusText}"
                          TextWrapping="Wrap"
-                         Foreground="{StaticResource Brush.TextMuted}" />
+                         Foreground="{DynamicResource Brush.TextMuted}" />
             </Border>
           </StackPanel>
 
@@ -282,7 +282,7 @@
             <TextBlock Text="Remote logging" FontWeight="SemiBold" FontSize="16" />
             <TextBlock Text="Keep local logs and optionally forward host logs to a remote syslog server."
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <CheckBox Content="Send logs to a remote syslog server"
                       IsChecked="{Binding RemoteLoggingEnabled}" />
             <TextBox Watermark="Syslog hostname or IPv4 address"
@@ -291,7 +291,7 @@
             <TextBlock Text="The host applies the new destination immediately after the settings are saved."
                        FontSize="11"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
           </StackPanel>
         </StackPanel>
       </ScrollViewer>

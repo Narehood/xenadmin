@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.Services.Performance;
 using XcpNgCenter.Shell.ViewModels;
 
@@ -24,6 +25,60 @@ public sealed class PerformanceChart : Control
     public static readonly StyledProperty<bool> FillAreaProperty =
         AvaloniaProperty.Register<PerformanceChart, bool>(nameof(FillArea));
 
+    public static readonly StyledProperty<Color> PlotColorProperty =
+        AvaloniaProperty.Register<PerformanceChart, Color>(nameof(PlotColor), Color.Parse("#1A222A"));
+
+    public Color PlotColor
+    {
+        get => GetValue(PlotColorProperty);
+        set => SetValue(PlotColorProperty, value);
+    }
+
+    public static readonly StyledProperty<Color> GridColorProperty =
+        AvaloniaProperty.Register<PerformanceChart, Color>(nameof(GridColor), Color.Parse("#2E3943"));
+
+    public Color GridColor
+    {
+        get => GetValue(GridColorProperty);
+        set => SetValue(GridColorProperty, value);
+    }
+
+    public static readonly StyledProperty<Color> LabelColorProperty =
+        AvaloniaProperty.Register<PerformanceChart, Color>(nameof(LabelColor), Color.Parse("#9AA6B2"));
+
+    public Color LabelColor
+    {
+        get => GetValue(LabelColorProperty);
+        set => SetValue(LabelColorProperty, value);
+    }
+
+    public static readonly StyledProperty<Color> TitleColorProperty =
+        AvaloniaProperty.Register<PerformanceChart, Color>(nameof(TitleColor), Color.Parse("#F2F4F6"));
+
+    public Color TitleColor
+    {
+        get => GetValue(TitleColorProperty);
+        set => SetValue(TitleColorProperty, value);
+    }
+
+    public static readonly StyledProperty<Color> AccentColorProperty =
+        AvaloniaProperty.Register<PerformanceChart, Color>(nameof(AccentColor), Color.Parse("#F07318"));
+
+    public Color AccentColor
+    {
+        get => GetValue(AccentColorProperty);
+        set => SetValue(AccentColorProperty, value);
+    }
+
+    public static readonly StyledProperty<Color> TooltipColorProperty =
+        AvaloniaProperty.Register<PerformanceChart, Color>(nameof(TooltipColor), Color.Parse("#F0161C22"));
+
+    public Color TooltipColor
+    {
+        get => GetValue(TooltipColorProperty);
+        set => SetValue(TooltipColorProperty, value);
+    }
+
     private Point? _pointer;
     private bool _pointerInside;
     private static FontFamily? _chartFontFamily;
@@ -35,6 +90,12 @@ public sealed class PerformanceChart : Control
             IntervalProperty,
             YAxisMaxProperty,
             FillAreaProperty,
+            PlotColorProperty,
+            GridColorProperty,
+            LabelColorProperty,
+            TitleColorProperty,
+            AccentColorProperty,
+            TooltipColorProperty,
             BoundsProperty);
         ClipToBoundsProperty.OverrideDefaultValue<PerformanceChart>(true);
     }
@@ -136,7 +197,7 @@ public sealed class PerformanceChart : Control
             Math.Max(1, bounds.Width - padL - padR),
             Math.Max(1, bounds.Height - padT - padB));
 
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#1A222A")), plot, 4);
+        context.FillRectangle(new SolidColorBrush(PlotColor), plot, 4);
 
         if (seriesList.Count == 0)
         {
@@ -146,7 +207,7 @@ public sealed class PerformanceChart : Control
                 FlowDirection.LeftToRight,
                 ChartTypeface,
                 12,
-                new SolidColorBrush(Color.Parse("#9AA6B2")));
+                new SolidColorBrush(LabelColor));
             context.DrawText(msg, new Point(plot.X + 12, plot.Y + plot.Height / 2 - 6));
             return;
         }
@@ -162,7 +223,7 @@ public sealed class PerformanceChart : Control
         if (maxX <= minX)
             maxX = minX + 1;
 
-        var gridPen = new Pen(new SolidColorBrush(Color.Parse("#2E3943")), 1);
+        var gridPen = new Pen(new SolidColorBrush(GridColor), 1);
         for (var i = 1; i < 4; i++)
         {
             var y = plot.Y + plot.Height * i / 4.0;
@@ -232,9 +293,9 @@ public sealed class PerformanceChart : Control
             DrawHover(context, plot, seriesList, minX, maxX, maxY, pt);
     }
 
-    private static void DrawYAxis(DrawingContext context, Rect plot, double maxY, bool byteAxis)
+    private void DrawYAxis(DrawingContext context, Rect plot, double maxY, bool byteAxis)
     {
-        var muted = new SolidColorBrush(Color.Parse("#9AA6B2"));
+        var muted = new SolidColorBrush(LabelColor);
         for (var i = 0; i <= 4; i++)
         {
             var fraction = i / 4.0;
@@ -264,8 +325,8 @@ public sealed class PerformanceChart : Control
     {
         var span = TimeSpan.FromTicks(Math.Max(1, maxX - minX));
         var (tickCount, format) = ResolveAxisStyle(Interval, span);
-        var muted = new SolidColorBrush(Color.Parse("#9AA6B2"));
-        var tickPen = new Pen(new SolidColorBrush(Color.Parse("#2E3943")), 1);
+        var muted = new SolidColorBrush(LabelColor);
+        var tickPen = new Pen(new SolidColorBrush(GridColor), 1);
 
         for (var i = 0; i <= tickCount; i++)
         {
@@ -302,12 +363,12 @@ public sealed class PerformanceChart : Control
         Point pt)
     {
         var hoverTicks = minX + (long)((pt.X - plot.X) / plot.Width * (maxX - minX));
-        var crossPen = new Pen(new SolidColorBrush(Color.Parse("#80F07318")), 1.25);
+        var crossPen = new Pen(new SolidColorBrush(Color.FromArgb(128, AccentColor.R, AccentColor.G, AccentColor.B)), 1.25);
         context.DrawLine(crossPen, new Point(pt.X, plot.Y), new Point(pt.X, plot.Bottom));
 
         var lines = new List<(string Text, Color Color)>();
         var stamp = new DateTime(hoverTicks, DateTimeKind.Local);
-        lines.Add((FormatHoverTime(stamp), Color.Parse("#F2F4F6")));
+        lines.Add((FormatHoverTime(stamp), TitleColor));
 
         foreach (var series in seriesList)
         {
@@ -326,7 +387,7 @@ public sealed class PerformanceChart : Control
         DrawTooltip(context, plot, pt, lines);
     }
 
-    private static void DrawTooltip(
+    private void DrawTooltip(
         DrawingContext context,
         Rect plot,
         Point pt,
@@ -343,7 +404,7 @@ public sealed class PerformanceChart : Control
             FlowDirection.LeftToRight,
             ChartTypeface,
             11,
-            new SolidColorBrush(l.Color))).ToList();
+            new SolidColorBrush(ShellAppearance.ReadableColor(l.Color, TooltipColor)))).ToList();
 
         var width = texts.Max(t => t.Width) + pad * 2;
         var height = texts.Count * lineH + pad * 2 - 2;
@@ -360,8 +421,8 @@ public sealed class PerformanceChart : Control
             boxY = plot.Bottom - height - 4;
 
         var box = new Rect(boxX, boxY, width, height);
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#F0161C22")), box, 6);
-        context.DrawRectangle(new Pen(new SolidColorBrush(Color.Parse("#F07318")), 1), box, 6);
+        context.FillRectangle(new SolidColorBrush(TooltipColor), box, 6);
+        context.DrawRectangle(new Pen(new SolidColorBrush(AccentColor), 1), box, 6);
 
         for (var i = 0; i < texts.Count; i++)
             context.DrawText(texts[i], new Point(boxX + pad, boxY + pad + i * lineH - 1));

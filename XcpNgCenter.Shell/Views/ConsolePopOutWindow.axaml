@@ -7,7 +7,7 @@
         Title="Console"
         Width="1024" Height="768"
         MinWidth="640" MinHeight="480"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Grid RowDefinitions="Auto,*" Margin="12">
     <WrapPanel Margin="0,0,0,10">
       <TextBlock Text="{Binding SelectedInfraNode.Title, FallbackValue='Console'}"
@@ -59,7 +59,7 @@
 
     <Border Grid.Row="1"
             Background="#0B0F12"
-            BorderBrush="{StaticResource Brush.StrokeSubtle}"
+            BorderBrush="{DynamicResource Brush.StrokeSubtle}"
             BorderThickness="1"
             CornerRadius="8"
             Padding="8"

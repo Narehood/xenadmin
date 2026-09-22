@@ -20,6 +20,7 @@ public partial class SettingsViewModel : ViewModelBase
     {
         _main = main;
         _settings = settings;
+        Appearance = new AppearanceViewModel(settings);
         _close = close;
         _suppressPrivacyNotify = true;
         // Assign backing fields so On*Changed does not rewrite settings on open.
@@ -67,6 +68,8 @@ public partial class SettingsViewModel : ViewModelBase
         RefreshPasswordStorageNote();
         RefreshMainPasswordUi();
     }
+
+    public AppearanceViewModel Appearance { get; }
 
     [ObservableProperty]
     private bool _autoReconnectSavedServers;
