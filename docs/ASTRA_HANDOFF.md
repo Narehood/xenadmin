@@ -4,6 +4,27 @@ Last updated: 2026-09-22. Initial review, remediation, and shell follow-up fixes
 
 ## Start here
 
+### Sandy appearance release (2026-09-22)
+
+Merged [PR #47](https://github.com/Narehood/xenadmin/pull/47) into `development`
+as `2edd2edbac72bf7e8417eb994d5e3a162da43fe6` and published
+[Sandy 2026.9.22.2](https://github.com/Narehood/xenadmin/releases/tag/v2026.9.22.2)
+from that commit via [release run 35754905742](https://github.com/Narehood/xenadmin/actions/runs/35754905742).
+The tag resolves to the merged commit. The release is stable and is the latest
+published build. Revision `2` was required because `v2026.9.22.1` was already
+published earlier the same UTC day.
+
+The merge commit's build-and-test, CodeQL, and dependency-submission checks
+passed before publish. Downloaded both public Windows/Linux assets and verified
+their GitHub SHA-256 digests (`50384eff75516a0a36fd563e58b9c09de240567a7947ec156bb36a7455aa43e5`
+and `4520962ed3c532a651760a3ff8197fe6c98b507f7d9599f931713a03af667a57`). Both
+archives keep the shell, `INSTALL.TXT`, and runtime files at the archive root.
+The Linux executable is mode `0755`. Both packaged `XcpNgCenter.Shell.dll`
+files report file version `2026.9.22.2` and include the `Sandy` codename.
+Informational version is `2026.9.22.2+2edd2edb-dirty`; the displayed calendar
+version stays the four-part number. Light-theme chart readability, OS theme
+changes in System mode, and Linux desktop interaction remain manual checks.
+
 ### Settings tabs and appearance (2026-09-22)
 
 Opened [PR #47](https://github.com/Narehood/xenadmin/pull/47) from implementation
