@@ -6,6 +6,9 @@ Last updated: 2026-09-22. Initial review, remediation, and shell follow-up fixes
 
 ### Settings tabs and appearance (2026-09-22)
 
+Opened [PR #47](https://github.com/Narehood/xenadmin/pull/47) from implementation
+commit `c61aba71790a6104a20df77386ce80b17ae58557` against `development`.
+
 The Avalonia Settings window now uses 14px tab labels and a single horizontal
 header row. All seven tabs fit at the default 760px width; narrower windows
 scroll the headers. Display has a scrollable Appearance section with Dark,
