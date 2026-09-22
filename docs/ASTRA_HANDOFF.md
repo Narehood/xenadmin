@@ -4,6 +4,35 @@ Last updated: 2026-09-22. Initial review, remediation, and shell follow-up fixes
 
 ## Start here
 
+### Sandy console paste release (2026-09-22)
+
+Merged [PR #46](https://github.com/Narehood/xenadmin/pull/46) into `development`
+as `7d232efb936c81b919e65c6c8f631ed7f9c0eb2e` and published
+[Sandy 2026.9.22.1](https://github.com/Narehood/xenadmin/releases/tag/v2026.9.22.1)
+from that commit via [release run 35724382382](https://github.com/Narehood/xenadmin/actions/runs/35724382382).
+The tag resolves to the merged commit and the release is the latest stable build.
+
+[CI run 35724354529](https://github.com/Narehood/xenadmin/actions/runs/35724354529)
+passed full Release/Debug builds, both self-contained platform publishes, **296
+shell tests in each configuration**, and **73 shared tests on each framework**
+(738 passing executions, none failed or skipped). CodeQL actions/C# analysis and
+dependency submission also passed for the merged commit. Existing Windows ACL
+test analyzer warnings remain.
+
+Downloaded both public Windows/Linux assets and verified their GitHub SHA-256
+digests, required files at the archive root, and self-contained runtime payloads.
+The Linux executable retains mode `0755`. Metadata inspection of both packaged
+shell assemblies confirmed version `2026.9.22.1`, codename `Sandy`, and the console
+paste window/view-model types. Release notes describe the feature, limits, and
+platform downloads. Verification scripts, release metadata, downloads, and results:
+`%LOCALAPPDATA%/Temp/sandy-console-release-check` (`verify.py`, `Program.cs`, and
+`v2026.9.22.1/verification.json`).
+
+All Cursor review threads have recorded dispositions and are resolved. The earlier
+regression coverage and Windows desktop checks remain documented below. Live
+guest/host paste, guest keyboard layouts, and Linux desktop interaction remain
+manual validation limits; package inspection does not claim to exercise them.
+
 ### Cursor console paste review recheck (2026-09-22)
 
 Rechecked all five Cursor inline comments in [PR #46](https://github.com/Narehood/xenadmin/pull/46)
