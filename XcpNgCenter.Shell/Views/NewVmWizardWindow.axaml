@@ -7,24 +7,24 @@
         Title="New VM"
         Width="640" Height="560"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="20"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <Grid RowDefinitions="Auto,*,Auto,Auto">
       <StackPanel Spacing="4">
         <TextBlock Text="New VM" FontSize="22" FontWeight="SemiBold" />
-        <TextBlock Text="{Binding StepTitle}" Foreground="{StaticResource Brush.BrandOrange}" />
+        <TextBlock Text="{Binding StepTitle}" Foreground="{DynamicResource Brush.AccentText}" />
         <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}"
+                   Foreground="{DynamicResource Brush.TextMuted}"
                    IsVisible="{Binding StatusMessage.Length}" />
       </StackPanel>
 
       <Panel Grid.Row="1" Margin="0,16,0,16">
         <StackPanel IsVisible="{Binding ShowTemplateStep}" Spacing="8">
-          <TextBlock Text="Select a template" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="Select a template" Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBox Watermark="Filter templates…" Text="{Binding TemplateFilter}" />
           <ListBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" MaxHeight="280">
             <ListBox.ItemTemplate>
@@ -40,7 +40,7 @@
                                TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding Description}"
                                FontSize="11"
-                               Foreground="{StaticResource Brush.TextMuted}"
+                               Foreground="{DynamicResource Brush.TextMuted}"
                                TextTrimming="CharacterEllipsis"
                                MaxHeight="28" />
                   </StackPanel>
@@ -49,7 +49,7 @@
                              FontSize="11"
                              Margin="12,0,0,0"
                              VerticalAlignment="Center"
-                             Foreground="{StaticResource Brush.BrandOrange}" />
+                             Foreground="{DynamicResource Brush.AccentText}" />
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -57,11 +57,11 @@
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowNameStep}" Spacing="10">
-          <TextBlock Text="VM name" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="VM name" Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBox Watermark="VM name" Text="{Binding VmName}" />
-          <TextBlock Text="Description" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="Description" Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBox Watermark="Description" Text="{Binding VmDescription}" AcceptsReturn="True" Height="80" TextWrapping="Wrap" />
-          <TextBlock Text="Home / placement host" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="Home / placement host" Foreground="{DynamicResource Brush.TextMuted}" />
           <ComboBox ItemsSource="{Binding Hosts}" SelectedItem="{Binding SelectedHost}" PlaceholderText="Select a placement host">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="xena:Host">
@@ -72,7 +72,7 @@
           <TextBlock Text="Storage choices will be limited to repositories visible from this host."
                      FontSize="11"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowComputeStep}" Spacing="10">
@@ -82,12 +82,12 @@
 
         <StackPanel IsVisible="{Binding ShowStorageStep}" Spacing="10">
           <Border Padding="12,9"
-                  Background="{StaticResource Brush.BgElevated}"
-                  BorderBrush="{StaticResource Brush.StrokeSubtle}"
+                  Background="{DynamicResource Brush.BgElevated}"
+                  BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                   BorderThickness="1"
                   CornerRadius="6">
             <Grid ColumnDefinitions="Auto,*">
-              <TextBlock Text="Placement host" Foreground="{StaticResource Brush.TextMuted}" />
+              <TextBlock Text="Placement host" Foreground="{DynamicResource Brush.TextMuted}" />
               <TextBlock Grid.Column="1"
                          Margin="16,0,0,0"
                          Text="{Binding PlacementHostText}"
@@ -95,7 +95,7 @@
                          TextTrimming="CharacterEllipsis" />
             </Grid>
           </Border>
-          <TextBlock Text="Storage repository" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="Storage repository" Foreground="{DynamicResource Brush.TextMuted}" />
           <ComboBox ItemsSource="{Binding StorageRepositories}"
                     SelectedItem="{Binding SelectedStorage}"
                     PlaceholderText="Select a compatible storage repository">
@@ -108,8 +108,8 @@
           <TextBlock Text="{Binding StoragePlacementText}"
                      FontSize="11"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.BrandOrange}" />
-          <TextBlock Text="Disk size" Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.AccentText}" />
+          <TextBlock Text="Disk size" Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBox Watermark="Disk size (GiB)" Text="{Binding DiskGibText}" />
         </StackPanel>
 

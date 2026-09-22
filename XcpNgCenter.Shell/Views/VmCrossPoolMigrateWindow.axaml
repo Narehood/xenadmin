@@ -8,10 +8,10 @@
         Width="640" Height="640"
         MinWidth="520" MinHeight="480"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="16"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <Grid RowDefinitions="*,Auto">
@@ -20,13 +20,13 @@
           <TextBlock Text="{Binding Heading}" FontSize="20" FontWeight="SemiBold" />
           <TextBlock Text="{Binding Hint}"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBlock Text="{Binding StatusMessage}"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}"
+                     Foreground="{DynamicResource Brush.TextMuted}"
                      IsVisible="{Binding StatusMessage.Length}" />
 
-          <TextBlock Text="Destination host" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="Destination host" Foreground="{DynamicResource Brush.TextMuted}" />
           <ComboBox ItemsSource="{Binding Hosts}" SelectedItem="{Binding SelectedHost}">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:CrossPoolHostOption">
@@ -36,7 +36,7 @@
           </ComboBox>
 
           <StackPanel Spacing="8" IsVisible="{Binding ShowTransferNetwork}">
-            <TextBlock Text="Transfer network" Foreground="{StaticResource Brush.TextMuted}" />
+            <TextBlock Text="Transfer network" Foreground="{DynamicResource Brush.TextMuted}" />
             <ComboBox ItemsSource="{Binding TransferNetworks}" SelectedItem="{Binding SelectedTransferNetwork}">
               <ComboBox.ItemTemplate>
                 <DataTemplate x:DataType="xena:Network">
@@ -67,7 +67,7 @@
                                TextWrapping="Wrap"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"
-                               Foreground="{StaticResource Brush.TextMuted}" />
+                               Foreground="{DynamicResource Brush.TextMuted}" />
                     <ComboBox Grid.Column="1"
                               ItemsSource="{Binding StorageOptions}"
                               SelectedItem="{Binding SelectedStorage}">
@@ -104,7 +104,7 @@
                                TextWrapping="Wrap"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"
-                               Foreground="{StaticResource Brush.TextMuted}" />
+                               Foreground="{DynamicResource Brush.TextMuted}" />
                     <ComboBox Grid.Column="1"
                               ItemsSource="{Binding NetworkOptions}"
                               SelectedItem="{Binding SelectedNetwork}">

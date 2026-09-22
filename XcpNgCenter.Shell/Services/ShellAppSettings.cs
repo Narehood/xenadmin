@@ -19,20 +19,65 @@ public enum ShellProxyAuthentication
 /// <summary>
 /// App-level preferences for the Avalonia shell (auto-reconnect, privacy, main password).
 /// </summary>
-public sealed class ShellAppSettings
+public sealed class ShellAppSettings : IDisposable
 {
+    private static readonly TimeSpan AccentSaveDelay = TimeSpan.FromMilliseconds(250);
     private readonly string _path;
     private readonly object _gate = new();
+    private readonly Timer _accentSaveTimer;
     private State _state;
+    private bool _accentSavePending;
+    private bool _disposed;
 
     public ShellAppSettings(string? path = null)
     {
         // Defer directory creation to SaveUnlocked().
         _path = path ?? Path.Combine(ShellPaths.GetConfigRoot(ensureExists: false), "app-settings.json");
         _state = Load();
+        _accentSaveTimer = new Timer(
+            _ => SavePendingAccent(),
+            null,
+            Timeout.InfiniteTimeSpan,
+            Timeout.InfiniteTimeSpan);
     }
 
     public event Action? Changed;
+
+    public ShellThemeMode ThemeMode
+    {
+        get
+        {
+            lock (_gate)
+                return Enum.IsDefined(typeof(ShellThemeMode), _state.ThemeMode)
+                    ? (ShellThemeMode)_state.ThemeMode : ShellThemeMode.Dark;
+        }
+        set => SetInt(v => _state.ThemeMode = v, () => _state.ThemeMode,
+            Enum.IsDefined(value) ? (int)value : (int)ShellThemeMode.Dark);
+    }
+
+    public string AccentColor
+    {
+        get
+        {
+            lock (_gate)
+                return ShellAppearance.NormalizeAccent(_state.AccentColor);
+        }
+        set
+        {
+            var normalized = ShellAppearance.NormalizeAccent(value);
+            lock (_gate)
+            {
+                if (string.Equals(_state.AccentColor, normalized, StringComparison.Ordinal))
+                    return;
+                _state.AccentColor = normalized;
+                _accentSavePending = true;
+                _accentSaveTimer.Change(AccentSaveDelay, Timeout.InfiniteTimeSpan);
+            }
+
+            // Live resources update immediately; only the durable write is debounced.
+            Changed?.Invoke();
+        }
+    }
 
     public bool AutoReconnectSavedServers
     {
@@ -490,6 +535,16 @@ public sealed class ShellAppSettings
         Changed?.Invoke();
     }
 
+    private void SavePendingAccent()
+    {
+        lock (_gate)
+        {
+            if (_disposed || !_accentSavePending)
+                return;
+            SaveUnlocked();
+        }
+    }
+
     private State Load()
     {
         try
@@ -507,6 +562,9 @@ public sealed class ShellAppSettings
 
     private void SaveUnlocked()
     {
+        _accentSavePending = false;
+        if (!_disposed)
+            _accentSaveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         try
         {
             var directory = Path.GetDirectoryName(_path);
@@ -522,8 +580,27 @@ public sealed class ShellAppSettings
         }
     }
 
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+            if (_accentSavePending)
+                SaveUnlocked();
+            _disposed = true;
+            _accentSaveTimer.Dispose();
+        }
+    }
+
     private sealed class State
     {
+        [JsonPropertyName("themeMode")]
+        public int ThemeMode { get; set; } = (int)ShellThemeMode.Dark;
+
+        [JsonPropertyName("accentColor")]
+        public string AccentColor { get; set; } = ShellAppearance.DefaultAccent;
+
         [JsonPropertyName("autoReconnectSavedServers")]
         public bool AutoReconnectSavedServers { get; set; } = true;
 

@@ -8,18 +8,18 @@
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgPanel}">
-  <Border Padding="28" Background="{StaticResource Brush.BgPanel}">
+        Background="{DynamicResource Brush.BgPanel}">
+  <Border Padding="28" Background="{DynamicResource Brush.BgPanel}">
     <StackPanel Spacing="16">
       <TextBlock Text="{Binding Title}"
                  FontSize="20"
                  FontWeight="SemiBold"
-                 Foreground="{StaticResource Brush.TextPrimary}"
+                 Foreground="{DynamicResource Brush.TextPrimary}"
                  TextWrapping="Wrap" />
       <TextBlock Text="{Binding Message}"
                  TextWrapping="Wrap"
                  FontSize="14"
-                 Foreground="{StaticResource Brush.TextMuted}" />
+                 Foreground="{DynamicResource Brush.TextMuted}" />
       <StackPanel Orientation="Horizontal"
                   HorizontalAlignment="Right"
                   Spacing="10"

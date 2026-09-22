@@ -6,10 +6,10 @@
         Title="Delete VM"
         Width="460" Height="340"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="20" Padding="20"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <StackPanel Spacing="12">
@@ -18,7 +18,7 @@
                  TextWrapping="Wrap" />
       <TextBlock Text="{Binding StatusMessage}"
                  TextWrapping="Wrap"
-                 Foreground="{StaticResource Brush.TextMuted}"
+                 Foreground="{DynamicResource Brush.TextMuted}"
                  IsVisible="{Binding StatusMessage.Length}" />
       <CheckBox Content="Delete virtual disks owned by this VM"
                 IsChecked="{Binding DeleteDisks}" />
@@ -28,7 +28,7 @@
       <TextBlock Text="The VM must be shut down. Snapshots and disks cannot be recovered after delete."
                  FontSize="11"
                  TextWrapping="Wrap"
-                 Foreground="{StaticResource Brush.TextMuted}" />
+                 Foreground="{DynamicResource Brush.TextMuted}" />
       <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,8,0,0">
         <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
         <Button Classes="cta" Content="Delete" IsDefault="True" Command="{Binding DeleteCommand}" />

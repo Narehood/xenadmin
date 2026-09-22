@@ -3,7 +3,7 @@
         xmlns:services="using:XcpNgCenter.Shell.Services"
         x:Class="XcpNgCenter.Shell.Views.ConsolePasteWindow" x:DataType="vm:ConsolePasteViewModel"
         Title="Paste text to console" Width="620" Height="570" MinWidth="460" MinHeight="430"
-        WindowStartupLocation="CenterOwner" Background="{StaticResource Brush.BgDeep}">
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Brush.BgDeep}">
   <Grid Margin="24" RowDefinitions="*,Auto">
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
       <StackPanel Spacing="12">
@@ -25,10 +25,10 @@
                        TextWrapping="Wrap" />
           </CheckBox>
         </StackPanel>
-        <TextBlock Text="{Binding Validation}" TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
-        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Foreground="{StaticResource Brush.BrandOrange}" />
+        <TextBlock Text="{Binding Validation}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.AccentText}" />
         <TextBlock Text="One-way text only, up to 4,096 ASCII characters. No clipboard synchronization or history."
-                   TextWrapping="Wrap" Foreground="{StaticResource Brush.TextMuted}" />
+                   TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
       </StackPanel>
     </ScrollViewer>
     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,18,0,0">

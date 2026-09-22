@@ -13,15 +13,23 @@ namespace XcpNgCenter.Shell;
 
 public partial class App : Application
 {
+    private ShellThemeManager? _themeManager;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        _themeManager = new ShellThemeManager(this, ShellBootstrap.AppSettings);
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            desktop.Exit += (_, _) =>
+            {
+                _themeManager?.Dispose();
+                ShellBootstrap.AppSettings.Dispose();
+            };
             // Prevent "last window closed" from exiting while we swap splash → main.
             // That race shows the splash, then immediately quits with no error dialog.
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;

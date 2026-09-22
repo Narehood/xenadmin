@@ -7,10 +7,10 @@
         Title="Migrate VM"
         Width="500" Height="460"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="20"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <Grid RowDefinitions="*,Auto">
@@ -19,13 +19,13 @@
           <TextBlock Text="Migrate VM" FontSize="20" FontWeight="SemiBold" />
           <TextBlock Text="{Binding Hint}"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}" />
+                     Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBlock Text="{Binding StatusMessage}"
                      TextWrapping="Wrap"
-                     Foreground="{StaticResource Brush.TextMuted}"
+                     Foreground="{DynamicResource Brush.TextMuted}"
                      IsVisible="{Binding StatusMessage.Length}" />
 
-          <TextBlock Text="Destination host" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="Destination host" Foreground="{DynamicResource Brush.TextMuted}" />
           <ComboBox ItemsSource="{Binding Hosts}"
                     SelectedItem="{Binding SelectedHost}"
                     PlaceholderText="Destination host">
@@ -38,7 +38,7 @@
 
           <StackPanel Spacing="8" IsVisible="{Binding ShowStoragePicker}">
             <TextBlock Text="Destination storage"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
             <ComboBox ItemsSource="{Binding StorageRepositories}"
                       SelectedItem="{Binding SelectedStorage}"
                       PlaceholderText="Destination SR">
@@ -51,7 +51,7 @@
             <TextBlock Text="Labels show shared vs host-local with free space. Required when disks are on local storage — leave empty for live pool migrate on shared disks."
                        FontSize="11"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource Brush.TextMuted}" />
+                       Foreground="{DynamicResource Brush.TextMuted}" />
           </StackPanel>
         </StackPanel>
       </ScrollViewer>

@@ -6,10 +6,10 @@
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.BgDeep}">
+        Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="20"
-          Background="#99161C22"
-          BorderBrush="{StaticResource Brush.StrokeSubtle}"
+          Background="{DynamicResource Brush.BgPanel}"
+          BorderBrush="{DynamicResource Brush.StrokeSubtle}"
           BorderThickness="1"
           CornerRadius="10">
     <StackPanel Spacing="14">
@@ -18,7 +18,7 @@
                  FontWeight="SemiBold" />
       <TextBlock Text="Choose XVA for a single-VM backup, or OVF/OVA for appliance packages."
                  TextWrapping="Wrap"
-                 Foreground="{StaticResource Brush.TextMuted}" />
+                 Foreground="{DynamicResource Brush.TextMuted}" />
       <StackPanel Spacing="8" Margin="0,4,0,0">
         <Button Classes="cta" Content="Import XVA…"
                 HorizontalAlignment="Stretch"

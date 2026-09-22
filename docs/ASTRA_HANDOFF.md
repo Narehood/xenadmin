@@ -4,6 +4,53 @@ Last updated: 2026-09-22. Initial review, remediation, and shell follow-up fixes
 
 ## Start here
 
+### Settings tabs and appearance (2026-09-22)
+
+Opened [PR #47](https://github.com/Narehood/xenadmin/pull/47) from implementation
+commit `c61aba71790a6104a20df77386ce80b17ae58557` against `development`.
+
+The Avalonia Settings window now uses 14px tab labels and a single horizontal
+header row. All seven tabs fit at the default 760px width; narrower windows
+scroll the headers. Display has a scrollable Appearance section with Dark,
+Light, and System themes, an opaque RGB/HSV/palette color picker, and Reset
+appearance. Preferences apply immediately and persist in `app-settings.json`;
+existing profiles keep the original dark/orange defaults. Accent previews update
+live while picker changes are debounced into one durable write after interaction;
+application shutdown flushes any remaining change.
+
+`ShellThemeManager` updates live resources and Fluent accents before the splash
+opens and when settings or the system theme change. Shell windows, dialogs,
+gradients, and chart chrome use the live palette. Accent labels, button text,
+and performance-chart series ink adapt for contrast. Series strokes, fills, and
+hover markers use `ReadableSeriesColor`, which keeps a configured hue and shifts
+it only enough to read against the plot. Tooltip text is still adjusted against
+the tooltip surface. Console framebuffer colors retain their meaning. The
+classic WinForms client is unchanged.
+
+PR #47 review: the chart comment cited the plot fill, but the missing contrast
+adjustment was the two `ColorHex` parses used for pens and hover markers. Light
+`BgElevated` is under 3:1 against every configured series color, so that change
+stays. The docstring-coverage warning scored 0% because all 41 touched functions
+were skipped as unsupported. C# XML docs cannot move that check, so those
+methods were left as they were. `ReadableSeriesColor` has a summary because the
+contrast shift is not obvious at the call site.
+
+Validation: **317 shell Release tests**, including 21 appearance cases,
+and **73 shared tests on each of net481/net8.0**, with locked restores. Coverage
+includes older/invalid preferences, reopen/reset, preserving unrelated settings,
+opaque color normalization, debounced and shutdown-flushed persistence, contrast
+for extreme accents in both themes, and chart series ink against light and dark
+plot surfaces.
+An offscreen Windows probe exercised actual Settings and picker popup bindings,
+live main-window/gradient/chart updates, reset, default/minimum-size header
+layout and scrolling, and rendered at 100/150/200%. Evidence and probe source:
+`%LOCALAPPDATA%/Temp/sandy-appearance-check` (`bin/Release/net8.0/results.log`
+and PNGs). It used synthetic settings and no live servers. System mode was
+checked for platform delegation; changing the OS theme and Linux desktop
+interaction remain manual checks. That probe predates the series-ink adjustment,
+so light-theme chart readability still needs a visual check. Existing Windows
+ACL test analyzer warnings remain.
+
 ### Sandy console paste release (2026-09-22)
 
 Merged [PR #46](https://github.com/Narehood/xenadmin/pull/46) into `development`

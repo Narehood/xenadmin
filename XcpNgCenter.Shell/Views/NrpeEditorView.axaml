@@ -7,17 +7,17 @@
     <TextBlock Text="NRPE monitoring" FontWeight="SemiBold" FontSize="16" />
     <TextBlock Text="Expose host and control-domain health checks to authorized NRPE clients."
                TextWrapping="Wrap"
-               Foreground="{StaticResource Brush.TextMuted}" />
+               Foreground="{DynamicResource Brush.TextMuted}" />
     <ProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding IsLoading}" />
     <Border Padding="12"
-            Background="#55252C34"
-            BorderBrush="{StaticResource Brush.StrokeSubtle}"
+            Background="{DynamicResource Brush.BgElevated}"
+            BorderBrush="{DynamicResource Brush.StrokeSubtle}"
             BorderThickness="1"
             CornerRadius="6">
       <StackPanel Spacing="8">
         <TextBlock Text="{Binding StatusMessage}"
                    TextWrapping="Wrap"
-                   Foreground="{StaticResource Brush.TextMuted}" />
+                   Foreground="{DynamicResource Brush.TextMuted}" />
         <Button Classes="ghost"
                 Content="Retry"
                 HorizontalAlignment="Left"
@@ -40,14 +40,14 @@
 
         <TextBlock Text="Check thresholds" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="*,110,110" Margin="8,0,8,2">
-          <TextBlock Text="Check" Foreground="{StaticResource Brush.TextMuted}" />
-          <TextBlock Grid.Column="1" Text="Warning" Foreground="{StaticResource Brush.TextMuted}" />
-          <TextBlock Grid.Column="2" Text="Critical" Foreground="{StaticResource Brush.TextMuted}" />
+          <TextBlock Text="Check" Foreground="{DynamicResource Brush.TextMuted}" />
+          <TextBlock Grid.Column="1" Text="Warning" Foreground="{DynamicResource Brush.TextMuted}" />
+          <TextBlock Grid.Column="2" Text="Critical" Foreground="{DynamicResource Brush.TextMuted}" />
         </Grid>
         <ItemsControl ItemsSource="{Binding Checks}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:NrpeCheckRow">
-              <Border BorderBrush="{StaticResource Brush.StrokeSubtle}"
+              <Border BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                       BorderThickness="0,0,0,1"
                       Padding="8,6">
                 <Grid ColumnDefinitions="*,110,110" RowDefinitions="Auto,Auto">
@@ -57,7 +57,7 @@
                   <TextBlock Grid.Row="1" Grid.ColumnSpan="3"
                              Text="{Binding Hint}"
                              FontSize="10"
-                             Foreground="{StaticResource Brush.TextMuted}"
+                             Foreground="{DynamicResource Brush.TextMuted}"
                              Margin="0,3,0,0" />
                 </Grid>
               </Border>

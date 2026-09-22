@@ -12,14 +12,14 @@
         Background="Transparent">
   <Border CornerRadius="12"
           ClipToBounds="True"
-          BorderBrush="#66F07318"
+          BorderBrush="{DynamicResource Brush.BrandGlow}"
           BorderThickness="1"
           BoxShadow="0 12 40 0 #66000000">
     <Border.Background>
       <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-        <GradientStop Offset="0" Color="#12181E" />
-        <GradientStop Offset="0.55" Color="#161C22" />
-        <GradientStop Offset="1" Color="#24160E" />
+        <GradientStop Offset="0" Color="{DynamicResource BgGradientMid}" />
+        <GradientStop Offset="0.55" Color="{DynamicResource BgPanel}" />
+        <GradientStop Offset="1" Color="{DynamicResource BgGradientEnd}" />
       </LinearGradientBrush>
     </Border.Background>
     <Grid Margin="28">
@@ -36,14 +36,14 @@
           <TextBlock Text="XCP-ng Center"
                      FontSize="26"
                      FontWeight="Bold"
-                     Foreground="{StaticResource Brush.TextPrimary}" />
+                     Foreground="{DynamicResource Brush.TextPrimary}" />
           <TextBlock x:Name="BuildTagText"
                      FontSize="13"
-                     Foreground="{StaticResource Brush.BrandOrange}" />
+                     Foreground="{DynamicResource Brush.AccentText}" />
           <TextBlock x:Name="VersionText"
                      FontSize="12"
                      FontWeight="SemiBold"
-                     Foreground="{StaticResource Brush.TextMuted}"
+                     Foreground="{DynamicResource Brush.TextMuted}"
                      Margin="0,4,0,0" />
         </StackPanel>
       </StackPanel>
@@ -51,7 +51,7 @@
       <Grid Grid.Row="1" Margin="0,18,0,0">
         <TextBlock Text="Starting…"
                    FontSize="12"
-                   Foreground="{StaticResource Brush.TextMuted}"
+                   Foreground="{DynamicResource Brush.TextMuted}"
                    VerticalAlignment="Center" />
       </Grid>
     </Grid>
