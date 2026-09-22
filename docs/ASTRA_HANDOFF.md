@@ -1,8 +1,28 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-21. Initial review, remediation, and shell follow-up fixes.
+Last updated: 2026-09-22. Initial review, remediation, and shell follow-up fixes.
 
 ## Start here
+
+### Cursor console paste review recheck (2026-09-22)
+
+Rechecked all five Cursor inline comments in [PR #46](https://github.com/Narehood/xenadmin/pull/46)
+against `08bccac17eb750706f6e45216ece23763ea6ff1e`. No additional code defects
+were confirmed. The failed-read draft loss, rejected-send draft loss/status, and
+editor size-limit findings remain fixed by `8310bd7f14d3e9ac0f05bd775b065b27b4656581`.
+Both duplicate-dialog comments remain unconfirmed: the shared async command
+disables all bound paste buttons throughout the awaited dialog lifetime.
+
+Rebuilt and reran the Windows desktop probe against this head. Actual main and
+pop-out button clicks could not open a second dialog; buttons stayed disabled
+after Send and re-enabled after Close. Native paste/typing limits, rejected
+binding restoration, and selection/caret checks also passed. Fresh evidence is
+`%LOCALAPPDATA%/Temp/sandy-console-paste-review/bin/Release/net8.0/review-20260922.log`.
+The probe uses synthetic clipboard data and transport, leaving the system
+clipboard untouched. Locked Release suites passed again: **296 shell tests**
+(54 paste cases), **73 shared tests on net481**, and **73 on net8.0**. Existing
+Windows ACL analyzer warnings and live guest/host/Linux validation limits remain.
+Only the review record changed in this follow-up.
 
 ### Console paste completion review follow-up (2026-09-21)
 
