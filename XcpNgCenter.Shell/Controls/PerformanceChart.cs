@@ -237,7 +237,7 @@ public sealed class PerformanceChart : Control
 
         foreach (var series in seriesList)
         {
-            var color = Color.Parse(series.ColorHex);
+            var color = ReadableSeriesColor(series.ColorHex, PlotColor);
             var pen = new Pen(new SolidColorBrush(color), 1.75);
             var points = series.Points
                 .Where(p => p.Value >= 0)
@@ -377,7 +377,7 @@ public sealed class PerformanceChart : Control
                 continue;
 
             var sample = Nearest(points, hoverTicks);
-            var color = Color.Parse(series.ColorHex);
+            var color = ReadableSeriesColor(series.ColorHex, PlotColor);
             var x = MapX(plot, sample.Ticks, minX, maxX);
             var y = MapY(plot, sample.Value, maxY);
             context.DrawEllipse(new SolidColorBrush(color), null, new Point(x, y), 3.5, 3.5);
@@ -463,5 +463,12 @@ public sealed class PerformanceChart : Control
 
     private static double MapY(Rect plot, double value, double maxY)
         => plot.Bottom - Math.Clamp(value / maxY, 0, 1) * plot.Height;
+
+    /// <summary>
+    /// Series ink for lines, area fills, and hover markers. Shifts <paramref name="colorHex"/>
+    /// only as far as needed to stay readable on <paramref name="plotColor"/>.
+    /// </summary>
+    internal static Color ReadableSeriesColor(string colorHex, Color plotColor) =>
+        ShellAppearance.ReadableColor(Color.Parse(colorHex), plotColor);
 
 }

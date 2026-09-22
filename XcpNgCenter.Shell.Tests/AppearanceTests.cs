@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using XcpNgCenter.Shell.Controls;
 using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.ViewModels;
 using Xunit;
@@ -145,6 +146,27 @@ public sealed class AppearanceTests : IDisposable
                 AssertContrast(palette["TextPrimary"], palette[surface]);
                 AssertContrast(palette["TextMuted"], palette[surface]);
             }
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ChartSeriesStayReadableOnThePlot(bool light)
+    {
+        var plot = ShellAppearance.CreatePalette(light, ShellAppearance.DefaultAccent)["BgElevated"];
+        foreach (var color in new[]
+        {
+            "#F07318", "#3DBE7A", "#5B9BD5", "#E35D5D", "#C9A227",
+            "#9B7EDE", "#4ECDC4", "#FF8FAB", "#9AA6B2"
+        })
+        {
+            var ink = PerformanceChart.ReadableSeriesColor(color, plot);
+            AssertContrast(ink, plot);
+            if (light)
+                Assert.NotEqual(Color.Parse(color), ink);
+            else if (color is "#F07318" or "#9AA6B2")
+                Assert.Equal(Color.Parse(color), ink);
         }
     }
 
