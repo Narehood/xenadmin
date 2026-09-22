@@ -4,7 +4,7 @@ Windows and Linux management client for [XCP-ng](https://xcp-ng.org) environment
 
 The published app is **XCP-ng Center Shell** (codename Sandy), an Avalonia client for Windows and Linux. The classic WinForms client, `XenAdmin`, remains in this repository for Windows. The official graphical client for XCP-ng is [Xen Orchestra](https://xen-orchestra.com). XCP-ng Center is maintained by community members and hosted by the XCP-ng project.
 
-![XCP-ng Center](branding-xcp-ng/Images/XCP-ng_Center_Screenshot.png)
+![XCP-ng Center Shell](branding-xcp-ng/Images/XCP-ng_Center_Screenshot.png)
 
 ## Get the app
 
@@ -15,7 +15,9 @@ Download the latest stable release from [GitHub Releases](https://github.com/Nar
 | Windows x64 | `XcpNgCenter.Shell-win-x64-<version>.zip` |
 | Linux x64 | `XcpNgCenter.Shell-linux-x64-<version>.tar.gz` |
 
-There is no setup wizard. The archive includes the .NET runtime. Extract the whole archive into a folder you can write to, and run it from there. In-app updates replace files in that folder. A folder under Program Files works, and each update will ask for administrator approval.
+There is no setup wizard. The archive includes the .NET runtime. Extract the whole archive into a folder you can write to, and run it from there. Leave the shell files at the root of that folder, next to `INSTALL.TXT`.
+
+In-app updates replace files in that folder once the installed shell includes the current updater. A shell from before that updater still runs its own update code, so extract a current release into the same folder once. Later updates can replace files in place. A folder under Program Files works, and each update will ask for administrator approval.
 
 Draft and prerelease tags are ignored by the in-app updater. An update offer appears only when the running build’s `year.month.day.revision` is lower than the release tag.
 
@@ -51,13 +53,13 @@ Settings, saved servers, certificate pins, and the optional main password stay i
 | Windows | `%APPDATA%\XCP-ng\XCP-ng Center Shell\` | `%LOCALAPPDATA%\XCP-ng\XCP-ng Center Shell\Updates` |
 | Linux | `$XDG_CONFIG_HOME/XCP-ng/XCP-ng Center Shell/` or `~/.config/XCP-ng/XCP-ng Center Shell/` | `$XDG_CACHE_HOME/XCP-ng/XCP-ng Center Shell/Updates` or `~/.cache/XCP-ng/XCP-ng Center Shell/Updates` |
 
-If the shell fails before the window opens, check `startup-crash.log` in `%LOCALAPPDATA%\XCP-ng\XCP-ng Center Shell\` on Windows, or `~/.local/share/XCP-ng/XCP-ng Center Shell/` on Linux.
+If the shell fails before the window opens, check `startup-crash.log`. On Windows it is in `%LOCALAPPDATA%\XCP-ng\XCP-ng Center Shell\`. On Linux it is in `$XDG_DATA_HOME/XCP-ng/XCP-ng Center Shell/` when that variable is set, and `~/.local/share/XCP-ng/XCP-ng Center Shell/` otherwise.
 
 ## What’s included
 
 Sandy connects to pools and hosts, with a prompt the first time a management certificate is seen and again if that certificate changes. From there you can work with VMs, storage, networks (including VLANs and VM interfaces), the RFB console, alerts, performance graphs, and logs.
 
-Day-to-day operations in the shell include power actions, snapshots, clone, copy, migrate, move, delete, new VM and storage, and XVA/OVF import and export. **Paste text…** on a console types a reviewed clipboard draft as keystrokes. Settings cover connection and proxy options, Dark/Light/System appearance with a custom accent, security prompts, confirmations, and privacy masking. Saved passwords can be protected by Windows DPAPI, a Linux device key, or an optional main password.
+Day-to-day operations in the shell include power actions, snapshots, clone, copy, migrate, move, delete, new VM and storage, and XVA/OVF import and export. **Paste text…** on a console types a reviewed clipboard draft as keystrokes. Settings cover connection and proxy options, Dark/Light/System appearance with a custom accent, security prompts, confirmations, and privacy masking. Saved passwords can be protected by Windows DPAPI, a per-user AES key file (`device.key`) in the settings directory, or an optional main password. On Linux that key file is limited to user read and write.
 
 The classic WinForms client is still the Windows build that includes RDP, and it still hosts the wizards that have not moved: HA, Active Directory, disaster recovery, NIC bonds, SR-IOV, and host IP changes. CI publishes that client as the `drop-release` and `drop-debug` artifacts on the Test Builds workflow. Shell CI artifacts are `drop-shell-win-x64` and `drop-shell-linux-x64`.
 
@@ -67,10 +69,19 @@ Shell and WinForms settings are separate. Installing Sandy does not import an ol
 
 Shared libraries target `net481` and `net8.0`. WinForms is `net8.0-windows`. The shell is `net8.0`. Integration happens on the `development` branch.
 
+`XenAdmin.sln` includes the WinForms app, so build it on Windows:
+
 ```bash
 dotnet build XenAdmin.sln -c Release -p:BuildRevision=1
 dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release
 dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release
+```
+
+On Linux, build and test the shell and the shared library without the WinForms app. The shared tests use `net8.0` there; `net481` is the Windows target.
+
+```bash
+dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release
+dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net8.0
 ```
 
 To produce the same portable layout as a release:
@@ -84,7 +95,7 @@ Contributor notes: [`CONTRIBUTING.md`](./CONTRIBUTING.md), [`UI_REWRITE.md`](./U
 
 ## Reporting bugs
 
-Use the issue tracker. For the shell, include the settings directory above and `startup-crash.log` when the window never opens. For the WinForms client, attach `XCP-ng Center.log` from `%APPDATA%\XCP-ng\XCP-ng Center\logs\` when you have it.
+Use the issue tracker. For the shell, attach `startup-crash.log` from the log directory above when the window never opens. Leave the settings directory out of the report: it holds saved servers, certificate pins, and password material. If a settings file is needed, send that one file after removing passwords, certificate data, and other credentials. For the WinForms client, attach `XCP-ng Center.log` from `%APPDATA%\XCP-ng\XCP-ng Center\logs\` when you have it.
 
 ## Contributions
 
