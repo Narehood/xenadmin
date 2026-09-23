@@ -89,6 +89,29 @@ public partial class MainWindow : Window
         return InfraTree.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
     }
 
+    private void OnConsoleFoldScrollSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        ApplyConsoleFoldHeight(e.NewSize.Height);
+    }
+
+    private void OnConsoleFoldScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        // A scrollbar can shrink the viewport without changing the scroll viewer's outer size.
+        if (Math.Abs(e.ViewportDelta.Y) <= 0.5)
+            return;
+        ApplyConsoleFoldHeight(ConsoleFoldScroll.Bounds.Height);
+    }
+
+    private void ApplyConsoleFoldHeight(double arrangedHeight)
+    {
+        var height = ConsoleFoldLayout.SelectFoldHeight(ConsoleFoldScroll.Viewport.Height, arrangedHeight);
+        if (height is not double next)
+            return;
+        if (!double.IsNaN(ConsoleFold.Height) && Math.Abs(ConsoleFold.Height - next) <= 0.5)
+            return;
+        ConsoleFold.Height = next;
+    }
+
     private void OnConsoleFocusCaptureChanged(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel vm || sender is not RfbConsoleView view)

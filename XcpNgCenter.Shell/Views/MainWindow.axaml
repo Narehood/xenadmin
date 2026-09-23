@@ -969,18 +969,22 @@
                               IsVisible="{Binding HasConsoleFrame}" />
                     </WrapPanel>
 
-                    <!-- Console fills the fold; Object / Power state / hints sit below (scroll to see). -->
-                    <ScrollViewer Grid.Row="1"
+                    <!-- Host matches the visible fold so the framebuffer fits without scrolling.
+                         Object / Power state / hints sit below (scroll to see). -->
+                    <ScrollViewer x:Name="ConsoleFoldScroll"
+                                  Grid.Row="1"
                                   HorizontalScrollBarVisibility="Disabled"
-                                  VerticalScrollBarVisibility="Auto">
+                                  VerticalScrollBarVisibility="Auto"
+                                  SizeChanged="OnConsoleFoldScrollSizeChanged"
+                                  ScrollChanged="OnConsoleFoldScrollChanged">
                       <StackPanel Spacing="8">
-                        <Border Background="{DynamicResource Brush.BgPanel}"
+                        <Border x:Name="ConsoleFold"
+                                Background="{DynamicResource Brush.BgPanel}"
                                 BorderBrush="{DynamicResource Brush.StrokeSubtle}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="6"
-                                MinHeight="600"
-                                Height="600"
+                                VerticalAlignment="Top"
                                 ClipToBounds="True">
                           <Grid ClipToBounds="True">
                             <StackPanel Spacing="8"
