@@ -1,6 +1,6 @@
-# Paste text into a Sandy console
+# Paste text into an Awa console
 
-The Avalonia Sandy app has a **Paste text…** button on VM and host console
+The Avalonia Awa app has a **Paste text…** button on VM and host console
 toolbars, including popped-out and full-screen consoles.
 
 1. Focus the intended terminal or input field inside the console.

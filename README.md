@@ -2,7 +2,7 @@
 
 Windows and Linux management client for [XCP-ng](https://xcp-ng.org) environments — manage hosts, pools, storage, networks, and virtual machines.
 
-The published app is **XCP-ng Center Shell** (codename Sandy), an Avalonia client for Windows and Linux. The classic WinForms client, `XenAdmin`, remains in this repository for Windows. The official graphical client for XCP-ng is [Xen Orchestra](https://xen-orchestra.com). XCP-ng Center is maintained by community members and hosted by the XCP-ng project.
+The published app is **XCP-ng Center Shell** (codename Awa), an Avalonia client for Windows and Linux. The classic WinForms client, `XenAdmin`, remains in this repository for Windows. The official graphical client for XCP-ng is [Xen Orchestra](https://xen-orchestra.com). XCP-ng Center is maintained by community members and hosted by the XCP-ng project.
 
 ![XCP-ng Center Shell](branding-xcp-ng/Images/XCP-ng_Center_Screenshot.png)
 
@@ -31,7 +31,7 @@ Keep the extracted folder intact. If antivirus quarantines the unsigned build, a
 
 ### Linux
 
-A normal desktop session already has the libraries Sandy needs. On a minimal system, install the [Avalonia desktop libraries](https://docs.avaloniaui.net/docs/deployment/linux) `libx11-6`, `libice6`, `libsm6`, and `libfontconfig1` (Debian/Ubuntu names; other distributions ship the same libraries under their own package names).
+A normal desktop session already has the libraries Awa needs. On a minimal system, install the [Avalonia desktop libraries](https://docs.avaloniaui.net/docs/deployment/linux) `libx11-6`, `libice6`, `libsm6`, and `libfontconfig1` (Debian/Ubuntu names; other distributions ship the same libraries under their own package names).
 
 1. Extract into a directory you own:
 
@@ -57,13 +57,13 @@ If the shell fails before the window opens, check `startup-crash.log`. On Window
 
 ## What’s included
 
-Sandy connects to pools and hosts, with a prompt the first time a management certificate is seen and again if that certificate changes. From there you can work with VMs, storage, networks (including VLANs and VM interfaces), the RFB console, alerts, performance graphs, and logs.
+Awa connects to pools and hosts, with a prompt the first time a management certificate is seen and again if that certificate changes. From there you can work with VMs, storage, networks (including VLANs and VM interfaces), the RFB console, alerts, performance graphs, and logs.
 
 Day-to-day operations in the shell include power actions, snapshots, clone, copy, migrate, move, delete, new VM and storage, and XVA/OVF import and export. **Paste text…** on a console types a reviewed clipboard draft as keystrokes. Settings cover connection and proxy options, Dark/Light/System appearance with a custom accent, security prompts, confirmations, and privacy masking. Saved passwords can be protected by Windows DPAPI, a per-user AES key file (`device.key`) in the settings directory, or an optional main password. On Linux that key file is limited to user read and write.
 
 The classic WinForms client is still the Windows build that includes RDP, and it still hosts the wizards that have not moved: HA, Active Directory, disaster recovery, NIC bonds, SR-IOV, and host IP changes. CI publishes that client as the `drop-release` and `drop-debug` artifacts on the Test Builds workflow. Shell CI artifacts are `drop-shell-win-x64` and `drop-shell-linux-x64`.
 
-Shell and WinForms settings are separate. Installing Sandy does not import an older WinForms profile.
+Shell and WinForms settings are separate. Installing Awa does not import an older WinForms profile.
 
 ## Building from source
 
