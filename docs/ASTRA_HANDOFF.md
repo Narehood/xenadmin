@@ -8,8 +8,11 @@ Last updated: 2026-09-23. Initial review, remediation, and shell follow-up fixes
 
 The embedded console host was fixed at 600px inside the detail scroll viewer. At the
 default 1280×800 window that fold is shorter, so the bottom of the guest screen
-sat below the visible area. The host now matches the scroll viewport and follows
-window resizes. Object, power state, and endpoint details stay below the fold.
+sat below the visible area. With scale-to-fit on, the host matches the scroll
+viewport and follows window resizes. With scale-to-fit off, the host grows to the
+1:1 desktop height in DIPs (at least the viewport) so the same scroller can reach
+the rest of the frame. It recomputes when the setting, desktop size, or DPI changes.
+Object, power state, and endpoint details stay below the fold.
 
 The default build codename is `Awa` in `Directory.Build.props` and the publish
 workflow. Splash and Settings → About read that stamp. Previously published Sandy
