@@ -1,8 +1,27 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-22. Initial review, remediation, and shell follow-up fixes.
+Last updated: 2026-09-23. Initial review, remediation, and shell follow-up fixes.
 
 ## Start here
+
+### Awa console fold (2026-09-23)
+
+The embedded console host was fixed at 600px inside the detail scroll viewer. At the
+default 1280×800 window that fold is shorter, so the bottom of the guest screen
+sat below the visible area. With scale-to-fit on, the host matches the scroll
+viewport and follows window resizes. With scale-to-fit off, the host grows to the
+1:1 desktop height in DIPs (at least the viewport) so the same scroller can reach
+the rest of the frame. It recomputes when the setting, desktop size, or DPI changes.
+Object, power state, and endpoint details stay below the fold.
+
+The default build codename is `Awa` in `Directory.Build.props` and the publish
+workflow. Splash and Settings → About read that stamp. Previously published Sandy
+releases keep the Sandy name.
+
+Validation: **325 shell tests** and **73 shared tests on each of net481/net8.0**.
+An offscreen layout of the main window at 1280×800 and 1280×700 showed the console
+host bottom flush with the scroll viewport (578px, then 478px). Live guest consoles
+remain a manual check.
 
 ### Sandy appearance release (2026-09-22)
 

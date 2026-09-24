@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -12,6 +13,8 @@ namespace XcpNgCenter.Shell.Views;
 public partial class MainWindow : Window
 {
     private MainViewModel? _boundVm;
+    private HostedConsoleSession? _consoleSession;
+    private int _appliedDesktopHeight = -1;
     private double _savedInfraScrollOffset;
     private bool _hasSavedInfraScroll;
 
@@ -20,6 +23,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         AddHandler(KeyDownEvent, OnConsoleShortcutKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += OnDataContextChanged;
+        ScalingChanged += (_, _) => ApplyConsoleFoldHeight(ConsoleFoldScroll.Bounds.Height);
     }
 
     private void OnConsoleShortcutKeyDown(object? sender, KeyEventArgs e)
@@ -47,14 +51,25 @@ public partial class MainWindow : Window
         {
             _boundVm.TreeLayoutChanging -= OnTreeLayoutChanging;
             _boundVm.TreeLayoutChanged -= OnTreeLayoutChanged;
+            _boundVm.PropertyChanged -= OnBoundVmPropertyChanged;
         }
 
+        if (_consoleSession != null)
+        {
+            _consoleSession.StateChanged -= OnConsoleSessionStateChanged;
+            _consoleSession = null;
+        }
+
+        _appliedDesktopHeight = -1;
         _boundVm = DataContext as MainViewModel;
         if (_boundVm == null)
             return;
 
         _boundVm.TreeLayoutChanging += OnTreeLayoutChanging;
         _boundVm.TreeLayoutChanged += OnTreeLayoutChanged;
+        _boundVm.PropertyChanged += OnBoundVmPropertyChanged;
+        _consoleSession = _boundVm.ConsoleSession;
+        _consoleSession.StateChanged += OnConsoleSessionStateChanged;
     }
 
     private void OnTreeLayoutChanging()
@@ -87,6 +102,55 @@ public partial class MainWindow : Window
         if (InfraTree == null)
             return null;
         return InfraTree.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+    }
+
+    private void OnConsoleFoldScrollSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        ApplyConsoleFoldHeight(e.NewSize.Height);
+    }
+
+    private void OnConsoleFoldScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        // A scrollbar can shrink the viewport without changing the scroll viewer's outer size.
+        if (Math.Abs(e.ViewportDelta.Y) <= 0.5)
+            return;
+        ApplyConsoleFoldHeight(ConsoleFoldScroll.Bounds.Height);
+    }
+
+    private void OnBoundVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.ScaleConsoleToFit))
+            ApplyConsoleFoldHeight(ConsoleFoldScroll.Bounds.Height);
+    }
+
+    private void OnConsoleSessionStateChanged()
+    {
+        var desktopHeight = _consoleSession?.DesktopHeight ?? 0;
+        if (desktopHeight == _appliedDesktopHeight)
+            return;
+        _appliedDesktopHeight = desktopHeight;
+        if (Dispatcher.UIThread.CheckAccess())
+            ApplyConsoleFoldHeight(ConsoleFoldScroll.Bounds.Height);
+        else
+            Dispatcher.UIThread.Post(() => ApplyConsoleFoldHeight(ConsoleFoldScroll.Bounds.Height));
+    }
+
+    private void ApplyConsoleFoldHeight(double arrangedHeight)
+    {
+        var vm = DataContext as MainViewModel;
+        var native = ConsoleFoldLayout.NativeHostDipHeight(
+            vm?.ConsoleSession.DesktopHeight ?? 0,
+            RenderScaling);
+        var height = ConsoleFoldLayout.SelectHostHeight(
+            ConsoleFoldScroll.Viewport.Height,
+            arrangedHeight,
+            vm?.ScaleConsoleToFit ?? true,
+            native);
+        if (height is not double next)
+            return;
+        if (!double.IsNaN(ConsoleFold.Height) && Math.Abs(ConsoleFold.Height - next) <= 0.5)
+            return;
+        ConsoleFold.Height = next;
     }
 
     private void OnConsoleFocusCaptureChanged(object? sender, RoutedEventArgs e)
