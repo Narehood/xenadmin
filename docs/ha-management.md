@@ -111,6 +111,47 @@ There is no automatic rollback or durable recovery journal in this milestone.
 The action history and server state are the evidence for determining what
 completed.
 
+### Reconcile intermediate states
+
+Before applying, record the pool UUID, coordinator, original and intended HA
+state/tolerance, heartbeat SR/VDI identities, and each affected VM's UUID, raw
+restart policy, start order and delay. Include hidden VMs in the protection
+review. Keep this record outside the dialog: the shell does not persist its
+draft as a recovery journal.
+
+After an interrupted change, use a freshly connected client or the existing
+authenticated administration tools to read the actual pool and VM records.
+Record the task reference/status when available, pool `ha_enabled`,
+`ha_host_failures_to_tolerate`, `ha_plan_exists_for`, `ha_overcommitted`, and
+`ha_statefiles`, plus member and heartbeat-storage health. Compare each VM's
+current policy/order/delay with both the original and intended values. Do not
+infer an outcome from the last progress message, a missing task record, or the
+absence of a response: the server may have accepted that request.
+
+The stages below follow the actual shared
+[enable](../XenModel/Actions/Pool/EnableHAAction.cs),
+[configure](../XenModel/Actions/VM/SetHaPrioritiesAction.cs), and
+[disable](../XenModel/Actions/Pool/DisableHAAction.cs) actions. Several stages may
+be indistinguishable after a disconnect; reconcile every applicable row.
+
+| Interrupted stage | Possible intermediate state | Required reconciliation |
+| --- | --- | --- |
+| Read-only review or worker preflight | This attempt has issued no configuration writes. Another client or an earlier attempt may still have changed the pool. | Refresh and compare current state. Reopen a stale editor; do not treat failed review as proof that HA is disabled or that earlier changes were undone. |
+| Enable: VM writes, then pool tolerance | Some changed VMs may have their new policy while others retain the original value; tolerance may also have changed while HA remains disabled. For each VM, the shared action writes policy, order, then delay separately. The shell submits the captured order/delay unchanged. | Compare every affected VM and the pool tolerance, including the request whose response was lost. These settings alone do not establish HA protection. Once no operation remains active, either finish the intended enablement or restore the recorded settings through a newly reviewed configuration. |
+| Enable: server task submission or completion | VM settings and tolerance may be applied, while HA enablement is active, failed, successful, or unconfirmed. | Check the task, current pool state, member health and resolved heartbeat VDIs/SRs. If the intended state is already established, record it rather than enabling again. Investigate an active or inconsistent transition before any retry; a pool flag alone is insufficient evidence of member/heartbeat health. |
+| Configure: policies changing to Best effort or Do not restart | Some VMs may have lost guaranteed restart protection before the tolerance write or any requested Restart additions. | Identify exactly which VMs now lack their former policy and compare the current plan with the requested protection. Do not assume planned Restart additions compensate for those changes. Recompute capacity for a fresh draft before completing or restoring policies. |
+| Configure: tolerance write, then Restart policies | Tolerance may be new while only a subset of the requested Restart policies has been applied. Each VM's policy/order/delay writes remain separate. | Read tolerance and every affected VM, then check current plan/overcommit status. Preserve valid changes made by other administrators. Review the remaining intended changes, or the recorded original configuration, against current agility and capacity before applying. |
+| Configure: database synchronization | All requested settings may be visible on the coordinator, but completion of the final synchronization to pool members is unconfirmed. | Inspect the synchronization task and member health. Matching UI values do not prove synchronization completed. If no settings differ, the shell disables Apply and has no synchronization-only command; have the pool administrator verify or repair synchronization through the supported administration/recovery procedure. Do not toggle policies or HA solely to enable Apply. |
+| Disable: server task submission or completion | HA may still be enabled, disabling, disabled, or inconsistent across members after an interrupted server operation. The client action does not change VM restart-policy values. | Verify task outcome and pool/member state before treating automatic recovery as stopped. If normal disable is still needed and no transition remains active, reopen and review Disable. Do not interpret retained VM policy values as proof HA is enabled, or a lost response as proof it is disabled. Use the deployment's administrative recovery procedure when normal pool access/recovery is unavailable. |
+
+Only start another mutation after accounting for active tasks and reconciling
+the actual state. Restoring original values is a new change requiring current
+capacity, eligibility and permission checks; it is not an automatic rollback.
+Unknown outcomes or missing original values require administrator investigation.
+The shell does not issue emergency host commands or delete statefiles as part
+of reconciliation. Real interruption/recovery tests for these stages remain
+manual acceptance work.
+
 ## Automated validation
 
 The HA milestone passes 681 shell tests in each of Windows Release and Debug.

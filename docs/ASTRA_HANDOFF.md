@@ -4,6 +4,26 @@ Last updated: 2026-09-26 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### HA review follow-up (2026-09-26)
+
+Rechecked PR #50's completed review against HA commit `9815110b3`. There are no
+new inline findings; the five earlier threads remain resolved. The latest
+summary's request for recovery guidance at each intermediate HA state is valid.
+The [HA guide](ha-management.md#reconcile-intermediate-states) now maps the shared
+actions' actual write order to possible partial outcomes and required checks,
+including policy removal before additions, changed tolerance, unconfirmed
+database synchronization, and interrupted enable/disable tasks. It describes
+capturing original/intended values and explicitly distinguishes matching UI
+values from confirmed member synchronization.
+
+This is a documentation change; runtime behavior and regression coverage from
+`9815110b3` are retained. Local Release validation passed all 681 shell tests and
+all 73 shared tests on each of `net481`/`net10.0`, using the unchanged binaries.
+No automatic rollback or recovery journal was
+added, and live interruption/failover validation remains manual. The generic
+docstring score identifies no further concrete defect. Review dispositions are
+recorded in the [review log](reviews/2026-09-25-pr50-review.md#ha-milestone-review-2026-09-26).
+
 ### Pool HA follow-up (2026-09-26)
 
 Following graph milestone `d3b8c9a61`, [PR #50](https://github.com/Narehood/xenadmin/pull/50)
