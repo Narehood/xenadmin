@@ -15,6 +15,7 @@ desktop and live-pool acceptance work.
 | Advanced networking | NIC bond creation/mode changes/removal, host IP configuration, SR-IOV provisioning/removal | Capability/topology validation, exact object identity, worker revalidation, dependency protection, visible partial-failure/reconnect guidance |
 | Performance | Reproducible large-pool/console probes and measured CopyRect improvement | [Recorded before/after evidence](performance-baseline.md), overlap/clipping pixel regressions, unchanged presentation behavior |
 | Graph editor | Add/remove/reorder graphs and sources, compatible saved layouts, retained missing sources, isolated Cancel, honest ranges and UTC history | [Graph editor](graph-editor.md), worker/RPC and draft regressions, long-range/DST fixtures; live data and physical desktop acceptance remain pending |
+| Pool HA | Enable/disable, heartbeat selection, failover-capacity and VM restart-policy review through shared HA actions | [HA management](ha-management.md), server prerequisite checks, reviewed identity/configuration guards and partial-result handling; live failover and recovery remain pending |
 | SDK review | Assess the retained XenAPI update separately | Preserve transport, TLS, redaction, action, and import security fixes before any SDK integration |
 | Real installation/desktop | Repeatable [platform acceptance checklist](platform-acceptance.md) | Manual Windows UAC/rollback/restart, Linux desktop/updater, and live-pool checks |
 
@@ -52,9 +53,8 @@ most. Reorder when a concrete deployment requirement is supplied.
 
 | Order | Gap and existing foundation | Required outcome before shipping |
 | --- | --- | --- |
-| 1 | HA: VM HA settings exist, but the HA alert fix-link still directs users to WinForms | Pool enable/disable and capacity/protection review through shared HA actions; resolve stale pools, role restrictions, storage/heartbeat prerequisites; verify planned host-failure recovery in a disposable pool |
-| 2 | AD and RBAC: shared enable/disable and subject/role actions exist | Domain join/leave plus subject/role management; redact credentials, preserve a tested administrative recovery path, validate restricted-user behavior and partial failures |
-| 3 | DR: shared metadata/recovery actions exist without a shell workflow | Discover and inspect recovery metadata before any mutation; map SRs/networks, distinguish recovery/rehearsal, report partial completion, and verify recovery and cleanup using disposable storage/VMs |
+| 1 | AD and RBAC: shared enable/disable and subject/role actions exist | Domain join/leave plus subject/role management; redact credentials, preserve a tested administrative recovery path, validate restricted-user behavior and partial failures |
+| 2 | DR: shared metadata/recovery actions exist without a shell workflow | Discover and inspect recovery metadata before any mutation; map SRs/networks, distinguish recovery/rehearsal, report partial completion, and verify recovery and cleanup using disposable storage/VMs |
 
 Each feature should adapt the corresponding `XenModel/Actions` implementation.
 Keep the user-visible plan separate from action execution and resolve current

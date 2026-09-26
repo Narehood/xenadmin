@@ -111,6 +111,7 @@ evidence than a dismissed UI dialog.
 | Import/export | Import/export an expendable VM as XVA and supported OVF/OVA; verify disks, boot, manifests, cancellation, temporary-file cleanup, and unchanged source appliance after failure. Include a large OVA without UI stalls. |
 | Performance/history | On a representative large inventory, capture tree refresh/selection responsiveness, allocations/GC, console activity, and long-range RRD polling. Record workload and timings before proposing a performance refactor. |
 | Graph editor | Add/remove/reorder graphs and sources on a host and running VM; rename, save, reopen in both clients, and confirm Cancel leaves the saved layout unchanged. Retain an unavailable source, select empty and populated week/year ranges, and compare timestamps with the server, including DST transitions. Confirm denied/stale saves retain the draft. |
+| Pool HA | Review candidate heartbeat storage, protected VM eligibility, and server-calculated failover capacity. Enable HA, change restart policies/tolerance, reopen in both clients, and disable normally. Verify permitted/restricted roles, stale pool/host/SR/VM rejection, and invalidated review after draft edits. In a disposable pool only, exercise a planned host failure and verify actual VM restart and heartbeat recovery. Record partial or unconfirmed action outcomes and reconcile server state before retry; loss of the client response is not proof HA was disabled. |
 
 ### Host IP editor scope
 

@@ -1,8 +1,43 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-25 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-09-26 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Pool HA follow-up (2026-09-26)
+
+Following graph milestone `d3b8c9a61`, [PR #50](https://github.com/Narehood/xenadmin/pull/50)
+adds [pool high availability](ha-management.md) before merge. Open the editor
+from a pool/host's General tab or context menu, or from an HA alert. Alert links
+retain the original pool identity and cannot redirect to a different selection
+or a replaced pool. Enable HA with reviewed heartbeat storage, configure VM
+restart policies and failure tolerance, or disable normally. Existing startup
+order/delay are preserved; unknown policies require an explicit supported choice.
+
+Read-only server review checks storage suitability, VM agility and hypothetical
+failover capacity. Draft changes invalidate approval. The action rechecks the
+reviewed pool/inventory and permissions before using shared `EnableHAAction`,
+`SetHaPrioritiesAction`, or `DisableHAAction`. Normal disable has separate gates
+so unhealthy hosts, licensing or heartbeat/capacity problems do not block the
+recovery request. Changes are sequential, with no automatic rollback or retry;
+lost responses require inspecting actual server state and reopening the editor.
+Long confirmation messages scroll while their buttons remain available.
+
+HA-milestone validation: 681 shell tests passed in each of Release/Debug,
+including 83 new HA cases (49 backend/loopback RPC, 20 editor, 14 alert routing).
+Coverage includes successful shared enable/configure/disable task completion,
+task cleanup, revoked nested permissions, cancellation, stale configuration,
+capacity/agility failures and partial or unconfirmed mutation outcomes. All 73
+shared tests passed on each of `net481`/`net10.0`. An actual-window probe passed
+24 interaction/layout checks at default/minimum sizes, including a scrolling
+confirmation containing 200 VM changes. The temporary harness and screenshots
+are in ignored `artifacts/ha-editor-ui-probe`. Existing Windows ACL analyzer
+warnings remain; no new production or test warnings were introduced.
+
+The [roadmap](modernization-roadmap.md) now lists AD/RBAC and DR as subsequent
+feature work. Live enable/failover/recovery and desktop acceptance remain pending
+the user's manual test environment; automated coverage does not establish those
+deployment outcomes. Hosted results for this follow-up are recorded in the PR.
 
 ### Graph editor follow-up (2026-09-25)
 

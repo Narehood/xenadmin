@@ -27,6 +27,7 @@ rewrite reaches feature parity for your environment.
 - Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM with explicit host-aware storage placement; snapshot tree with disk, memory-checkpoint, and supported quiesced modes
 - **Host Properties** — general/autostart, custom fields, metric alerts + email delivery, out-of-band power, multipathing, syslog, GPU policy/integrated GPU, pool live-patching/IGMP/TLS policies, clustering, and NRPE
 - **VM Properties** — general/tags, custom fields, metric alerts, CPU/memory, boot/startup/HA, home server, GPU/USB, shadow-memory tuning, container integration, and cloud-config drive editing
+- **Pool HA** — enable/disable, heartbeat-storage selection, failover-capacity and VM restart-policy review, with shared actions and HA alert integration. See [HA management](docs/ha-management.md); live failover/recovery acceptance remains pending.
 - Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA + OVF/OVA
 - VM chrome: power toggles top-right, kind+name header, compact CD/DVD row, console-first layout
 - **Alerts** — always-visible sidebar badge; Copy on alert rows
@@ -56,7 +57,7 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 
 1. Complete the [platform acceptance checklist](docs/platform-acceptance.md): **Linux/Windows desktop soak** and live multi-server, migration, import/export, advanced networking, alerts, graphs, and RFB checks. Native Linux CI covers automated tests and packaged desktop startup.
 2. Verify download/apply/restart updates between published **`vYYYY.M.D.N`** builds. The starting binary must stamp a **lower** version than the release tag.
-3. Follow the prioritized [modernization roadmap](docs/modernization-roadmap.md): HA/AD/DR wizards and WinForms designer metadata maintenance.
+3. Follow the prioritized [modernization roadmap](docs/modernization-roadmap.md): AD/RBAC, DR, and WinForms designer metadata maintenance.
 4. WinForms plugin tabs, Windows-specific external-tool launchers, and RDP stay in the production client.
 
 ## How to try

@@ -75,6 +75,11 @@ public partial class MainViewModel
 
         Alert.RegisterAlertCollectionChanged(OnAlertCollectionChanged);
         ShellAlertFixActions.ReportStatus = msg => StatusMessage = msg;
+        ShellAlertFixActions.OpenHaConfiguration = pool =>
+        {
+            CloseGlobalAlerts();
+            _ = OpenHaEditorAsync(pool);
+        };
         ShellAlertFixActions.OpenLogs = () =>
         {
             StatusMessage = "See the Logs tab for recent actions and host messages.";
@@ -105,6 +110,7 @@ public partial class MainViewModel
         Alert.DeregisterAlertCollectionChanged(OnAlertCollectionChanged);
         ShellAlertFixActions.ReportStatus = null;
         ShellAlertFixActions.OpenLogs = null;
+        ShellAlertFixActions.OpenHaConfiguration = null;
         StopPerformancePolling();
         _alertHub.Dispose();
         _alertRows.Clear();

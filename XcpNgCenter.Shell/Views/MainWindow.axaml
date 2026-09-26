@@ -130,6 +130,9 @@
                   <MenuItem Header="Refresh storage"
                             Command="{Binding RefreshStorageCommand}"
                             IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="High availability…"
+                            Command="{Binding ConfigureHaCommand}"
+                            IsVisible="{Binding ShowHaConfiguration}" />
                   <Separator IsVisible="{Binding ShowPoolContextActions}" />
                   <MenuItem Header="Reconnect"
                             Command="{Binding ReconnectSelectedCommand}"
@@ -573,6 +576,11 @@
                               HorizontalAlignment="Left"
                               Command="{Binding EditVmCommand}"
                               IsVisible="{Binding CanEditVm}" />
+                      <Button Classes="ghost"
+                              Content="High availability…"
+                              HorizontalAlignment="Left"
+                              Command="{Binding ConfigureHaCommand}"
+                              IsVisible="{Binding ShowHaConfiguration}" />
                       <ItemsControl ItemsSource="{Binding GeneralProperties}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
