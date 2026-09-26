@@ -1243,9 +1243,9 @@
                                     SelectedItem="{Binding SelectedPerformanceRange}"
                                     IsEnabled="{Binding CanShowPerformance}" />
                           <Button Classes="ghost"
-                                  Content="Save layout"
-                                  Command="{Binding SavePerformanceLayoutCommand}"
-                                  IsEnabled="{Binding CanSavePerformanceLayout}" />
+                                  Content="Edit graphs…"
+                                  Command="{Binding EditPerformanceLayoutCommand}"
+                                  IsEnabled="{Binding CanEditPerformanceLayout}" />
                         </StackPanel>
                       </DockPanel>
                       <TextBlock Text="{Binding PerformanceStatusMessage}"
@@ -1279,6 +1279,10 @@
                                              MaxWidth="420"
                                              HorizontalAlignment="Right" />
                                 </DockPanel>
+                                <TextBlock Text="{Binding AvailabilityNotice}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Brush.TextMuted}" />
                                  <controls:PerformanceChart Height="180"
                                                             Series="{Binding Series}"
                                                             Interval="{Binding Interval}"

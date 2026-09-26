@@ -4,6 +4,34 @@ Last updated: 2026-09-25 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Graph editor follow-up (2026-09-25)
+
+Following review update `adcb021c4` on [PR #50](https://github.com/Narehood/xenadmin/pull/50),
+the next implemented milestone is the [performance graph editor](graph-editor.md).
+The Performance tab now opens an isolated draft for adding/removing/reordering
+graphs and sources, changing titles, and saving compatible layouts. Missing
+sources remain visible and persist; Cancel and window close do not save. The
+save worker copies the draft, declares `pool.set_gui_config`, checks reviewed
+identities/layout against cache and server, and merges only exact target keys
+into fresh server configuration. Separate get/set calls are not atomic across
+different clients, and a lost save response can leave an uncertain outcome.
+
+Week/year selections no longer show short archives under long-range labels.
+RRD sample IDs and polling cursors keep UTC ticks, with local conversion only at
+chart display, preventing shifted history and duplicate-hour loss across DST.
+No persisted layout format or server-side source recording policy changes.
+The [roadmap](modernization-roadmap.md) now lists HA, AD/RBAC and DR as subsequent
+milestones. Live graph history and the user's other manual acceptance remain
+pending; this follow-up does not complete those deployment gates.
+
+Graph-milestone validation: 598 shell tests passed in each of Release/Debug;
+73 shared tests passed on each of `net481`/`net10.0`. The 70 new graph cases cover
+layout storage/RPC behavior (36), editor drafts and binding feedback (18), and
+history/DST behavior (16). An isolated actual-window probe passed 20 keyboard,
+layout, failure/retry, save/close, and Cancel checks at default/minimum sizes.
+Evidence and its temporary harness are in ignored `artifacts/graph-editor-ui-probe`.
+Existing Windows ACL analyzer warnings remain; the shell builds cleanly.
+
 ### PR #50 comment follow-up (2026-09-25)
 
 The [review record](reviews/2026-09-25-pr50-review.md) maps every inline finding
@@ -24,13 +52,13 @@ concrete per-host recovery procedure for partial bond/SR-IOV changes. Automatic
 rollback and a durable action journal remain unimplemented; live failure/recovery
 and the user's other manual acceptance gates remain pending.
 
-Validation: 528 shell tests passed in each of Release/Debug, including 72
+Validation of review update `adcb021c4`: 528 shell tests passed in each of Release/Debug, including 72
 host-IP cases; 73 shared tests passed on each of `net481`/`net10.0`; all 12
 loopback proxy cases passed on .NET 10.0.12. WinForms Release built using the
 existing RDP interop; 32,240 resources in 290 sets loaded. Actual settings layouts
 passed at three WinForms widths and two shell sizes. Existing warnings remain.
 
-### .NET 10 and advanced networking (2026-09-25)
+### .NET 10 and advanced networking (2026-09-25, snapshot `7cb543d9c`)
 
 Implementation: [PR #50](https://github.com/Narehood/xenadmin/pull/50), initial
 commit `9d107d46b`. Check the PR's current hosted results before merging.
@@ -72,7 +100,8 @@ it changes transport contracts and removes the XCP-ng 2.16 API mapping. Four
 loopback TLS cases preserve the current certificate-validation boundary; see
 the [SDK compatibility review](reviews/2026-09-25-sdk-compatibility.md).
 
-Local validation: full Release/Debug solution builds; 524 shell tests in each;
+Validation of `7cb543d9c`, before review update `adcb021c4`: full local
+Release/Debug solution builds; 524 shell tests in each;
 73 shared tests on each of net481/net10.0 in both configurations; all 32,239
 WinForms resources in 290 sets load on .NET 10.0.12 in both configurations;
 Settings initialization and fragmented RFB reads pass. The local machine lacks

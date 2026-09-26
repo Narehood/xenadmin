@@ -30,7 +30,7 @@ rewrite reaches feature parity for your environment.
 - Clone/Copy/Migrate/Cross-pool/Move/Delete; New SR; Import/Export XVA + OVF/OVA
 - VM chrome: power toggles top-right, kind+name header, compact CD/DVD row, console-first layout
 - **Alerts** — always-visible sidebar badge; Copy on alert rows
-- **Performance** — RRD charts with hover + time axis; layout save
+- **Performance** — RRD charts with hover + local time axis; [graph editor](docs/graph-editor.md) for graph/source ordering and compatible layout saves, retained missing sources, and Cancel without persistence. RRD samples keep UTC identities through DST transitions and use the selected history archive.
 - **Splash** / calendar **versioning** / GitHub **download, install, and restart updates**: installed-code bootstrap, fresh release/package verification, and protected staging after UAC elevation. Real UAC/apply/restart validation remains outstanding; see the [remediation record](docs/reviews/2026-09-07-remediation.md).
 - **Settings** (beside alerts): saved-session/main-password controls; reconnect policy; direct/system/custom proxy with protected credentials and API timeout; graph/console/log display options and console shortcuts; TOFU/public-IP security policy; alert/OVF confirmations; privacy masking; About/update check
 - **OVF validation** — fatal validation failures block import; non-fatal warnings require per-appliance acceptance unless explicitly disabled in Settings
@@ -56,7 +56,7 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 
 1. Complete the [platform acceptance checklist](docs/platform-acceptance.md): **Linux/Windows desktop soak** and live multi-server, migration, import/export, advanced networking, alerts, graphs, and RFB checks. Native Linux CI covers automated tests and packaged desktop startup.
 2. Verify download/apply/restart updates between published **`vYYYY.M.D.N`** builds. The starting binary must stamp a **lower** version than the release tag.
-3. Follow the prioritized [modernization roadmap](docs/modernization-roadmap.md): graph editor, HA/AD/DR wizards, and WinForms designer metadata maintenance.
+3. Follow the prioritized [modernization roadmap](docs/modernization-roadmap.md): HA/AD/DR wizards and WinForms designer metadata maintenance.
 4. WinForms plugin tabs, Windows-specific external-tool launchers, and RDP stay in the production client.
 
 ## How to try

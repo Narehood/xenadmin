@@ -33,9 +33,9 @@ public sealed class PerformancePollingTests
         var points = archive.SeriesById["host:test:cpu0"].Points;
         Assert.Equal(archive.MaxPoints, points.Count);
         Assert.Equal((archive.MaxPoints - 1L) * seconds,
-            TimeSpan.FromTicks(UtcTicks(points[0]) - UtcTicks(points[^1])).TotalSeconds);
+            TimeSpan.FromTicks(points[0].Ticks - points[^1].Ticks).TotalSeconds);
         Assert.All(points.Zip(points.Skip(1)), pair =>
-            Assert.Equal(seconds, TimeSpan.FromTicks(UtcTicks(pair.First) - UtcTicks(pair.Second)).TotalSeconds));
+            Assert.Equal(seconds, TimeSpan.FromTicks(pair.First.Ticks - pair.Second.Ticks).TotalSeconds));
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class PerformancePollingTests
         });
         var points = maintainer.Archives[RrdArchiveInterval.OneMinute].SeriesById["host:test:cpu0"].Points;
         Assert.Equal(120, points.Count);
-        Assert.Equal(now.AddMinutes(2).ToLocalTime().Ticks, points[0].Ticks);
+        Assert.Equal(now.AddMinutes(2).Ticks, points[0].Ticks);
     }
 
     [Fact]
@@ -72,9 +72,8 @@ public sealed class PerformancePollingTests
     {
         var series = new RrdSeries("host:test:cpu0", "cpu0", "CPU", "(fraction)");
         series.Points.AddRange(Enumerable.Range(0, count).Select(i =>
-            new RrdPoint(latest.AddSeconds(-(long)i * seconds).ToLocalTime().Ticks, 50)));
+            new RrdPoint(latest.AddSeconds(-(long)i * seconds).Ticks, 50)));
         return series;
     }
 
-    private static long UtcTicks(RrdPoint point) => new DateTime(point.Ticks, DateTimeKind.Local).ToUniversalTime().Ticks;
 }

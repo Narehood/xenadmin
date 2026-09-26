@@ -1,4 +1,3 @@
-using XenAdmin.Core;
 using XenAPI;
 using XcpNgCenter.Shell.ViewModels;
 
@@ -27,26 +26,34 @@ public static class PerformanceGraphBuilder
         ShellRrdMaintainer? maintainer,
         RrdArchiveInterval preferredInterval)
     {
-        if (xo == null || maintainer == null)
+        if (xo == null)
             return Array.Empty<PerformanceGraphRow>();
+        return BuildFromLayout(xo, maintainer, preferredInterval, ShellGraphLayout.Read(xo, maintainer));
+    }
 
-        var archive = PickArchive(maintainer, preferredInterval);
-        if (archive == null || archive.SeriesById.Count == 0)
-            return Array.Empty<PerformanceGraphRow>();
-
-        // Prefer the interval the user selected for axis labels even if we fell back to another archive.
-        var axisInterval = preferredInterval;
-
-        var fromConfig = TryBuildFromGuiConfig(xo, archive, axisInterval);
-        if (fromConfig.Count > 0)
-            return fromConfig;
-
-        return xo switch
+    /// <summary>Renders the specified selection using only the requested archive; absent data never rewrites the layout.</summary>
+    public static IReadOnlyList<PerformanceGraphRow> BuildFromLayout(IXenObject xo, ShellRrdMaintainer? maintainer,
+        RrdArchiveInterval interval, IReadOnlyList<GraphLayoutDefinition> layout)
+    {
+        var archive = maintainer != null && maintainer.Archives.TryGetValue(interval, out var selected)
+            ? selected : new RrdArchive(0);
+        var prefix = $"{ShellGraphLayoutKeys.ObjectKind(xo)}:{ShellGraphLayoutKeys.ObjectUuid(xo)}:";
+        var catalog = ShellGraphLayout.Catalog(xo, maintainer, layout).ToDictionary(option => option.Leaf, StringComparer.Ordinal);
+        return layout.Select(definition =>
         {
-            Host host => BuildHostDefaults(host, archive, axisInterval),
-            VM vm => BuildVmDefaults(vm, archive, axisInterval),
-            _ => Array.Empty<PerformanceGraphRow>()
-        };
+            var series = MatchSeries(archive, definition.DataSourceLeaves.Select(leaf => prefix + leaf));
+            var unavailable = definition.DataSourceLeaves.Where(leaf => !catalog[leaf].IsAvailable).Distinct(StringComparer.Ordinal).ToArray();
+            var kind = ShellGraphLayoutKeys.ObjectKind(xo);
+            var missingSamples = definition.DataSourceLeaves.Where(leaf => catalog[leaf].IsAvailable
+                && !series.Any(view => view.Points.Count > 0 && (view.Id == prefix + leaf
+                    || ShellGraphLayout.IsMemoryLeaf(leaf, kind) && ShellGraphLayout.IsMemoryLeaf(view.Id[prefix.Length..], kind))))
+                .Distinct(StringComparer.Ordinal).ToArray();
+            var notices = new List<string>();
+            if (unavailable.Length > 0) notices.Add($"Unavailable data sources: {string.Join(", ", unavailable)}. Saved selections are retained.");
+            if (missingSamples.Length > 0) notices.Add($"No samples in the selected range: {string.Join(", ", missingSamples)}.");
+            if (definition.DataSourceLeaves.Count == 0) notices.Add("This saved graph has no data sources. Edit the layout to select a source.");
+            return MakeGraph(definition.Title, series, interval, definition, string.Join(" ", notices));
+        }).ToArray();
     }
 
     public static IReadOnlyList<(string Title, IReadOnlyList<string> Leaves)> DescribeLayout(
@@ -54,123 +61,15 @@ public static class PerformanceGraphBuilder
     {
         return rows.Select(r => (
             r.Title,
-            (IReadOnlyList<string>)r.Series
+            (IReadOnlyList<string>)(r.Layout?.DataSourceLeaves ?? []).Concat(r.Series
                 .Select(s =>
                 {
                     var parts = s.LayoutId.Split(':');
                     return parts.Length >= 3 ? parts[^1] : s.LayoutId;
-                })
+                }))
                 .Distinct(StringComparer.Ordinal)
                 .ToList()
         )).ToList();
-    }
-
-    private static RrdArchive? PickArchive(ShellRrdMaintainer maintainer, RrdArchiveInterval preferred)
-    {
-        if (maintainer.Archives.TryGetValue(preferred, out var preferredArchive)
-            && preferredArchive.SeriesById.Count > 0)
-            return preferredArchive;
-
-        foreach (var key in new[]
-                 {
-                     RrdArchiveInterval.FiveSecond,
-                     RrdArchiveInterval.OneMinute,
-                     RrdArchiveInterval.OneHour,
-                     RrdArchiveInterval.OneDay
-                 })
-        {
-            if (maintainer.Archives.TryGetValue(key, out var a) && a.SeriesById.Count > 0)
-                return a;
-        }
-
-        return null;
-    }
-
-    private static IReadOnlyList<PerformanceGraphRow> TryBuildFromGuiConfig(
-        IXenObject xo,
-        RrdArchive archive,
-        RrdArchiveInterval interval)
-    {
-        var gui = ShellGraphLayoutKeys.GetGuiConfig(xo);
-        var rows = new List<PerformanceGraphRow>();
-        var prefix = xo is Host ? "host" : "vm";
-        var uuid = ShellGraphLayoutKeys.ObjectUuid(xo);
-
-        for (var i = 0; ; i++)
-        {
-            var layoutKey = ShellGraphLayoutKeys.GetLayoutKey(i, xo);
-            if (!gui.TryGetValue(layoutKey, out var csv) || string.IsNullOrWhiteSpace(csv))
-                break;
-
-            var ids = csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(leaf => $"{prefix}:{uuid}:{leaf}")
-                .ToList();
-            var title = gui.TryGetValue(ShellGraphLayoutKeys.GetGraphNameKey(i, xo), out var name) && !string.IsNullOrWhiteSpace(name)
-                ? name
-                : $"Graph {i + 1}";
-            var series = MatchSeries(archive, ids);
-            if (series.Count > 0)
-                rows.Add(MakeGraph(title, series, interval));
-        }
-
-        return rows;
-    }
-
-    private static IReadOnlyList<PerformanceGraphRow> BuildHostDefaults(
-        Host host,
-        RrdArchive archive,
-        RrdArchiveInterval interval)
-    {
-        var rows = new List<PerformanceGraphRow>();
-
-        var cpuIds = host.Connection.ResolveAll(host.host_CPUs)
-            .Select(cpu => $"host:{host.uuid}:cpu{cpu.number}")
-            .ToList();
-        rows.Add(MakeGraph("CPU", MatchSeries(archive, cpuIds), interval));
-
-        rows.Add(MakeGraph("Memory", MatchSeries(archive, [$"host:{host.uuid}:memory_free_kib"]), interval));
-
-        var netIds = new List<string>();
-        foreach (var pif in host.Connection.ResolveAll(host.PIFs))
-        {
-            netIds.Add($"host:{host.uuid}:pif_{pif.device}_tx");
-            netIds.Add($"host:{host.uuid}:pif_{pif.device}_rx");
-        }
-        rows.Add(MakeGraph("Network", MatchSeries(archive, netIds), interval));
-
-        return rows.Where(r => r.Series.Count > 0).ToList();
-    }
-
-    private static IReadOnlyList<PerformanceGraphRow> BuildVmDefaults(
-        VM vm,
-        RrdArchive archive,
-        RrdArchiveInterval interval)
-    {
-        var rows = new List<PerformanceGraphRow>();
-
-        var cpuIds = Enumerable.Range(0, (int)Math.Max(1, vm.VCPUs_at_startup))
-            .Select(i => $"vm:{vm.uuid}:cpu{i}")
-            .ToList();
-        rows.Add(MakeGraph("CPU", MatchSeries(archive, cpuIds), interval));
-        rows.Add(MakeGraph("Memory", MatchSeries(archive, [$"vm:{vm.uuid}:memory_internal_free"]), interval));
-
-        var netIds = new List<string>();
-        foreach (var vif in vm.Connection.ResolveAll(vm.VIFs))
-        {
-            netIds.Add($"vm:{vm.uuid}:vif_{vif.device}_tx");
-            netIds.Add($"vm:{vm.uuid}:vif_{vif.device}_rx");
-        }
-        rows.Add(MakeGraph("Network", MatchSeries(archive, netIds), interval));
-
-        var diskIds = new List<string>();
-        foreach (var vbd in vm.Connection.ResolveAll(vm.VBDs))
-        {
-            diskIds.Add($"vm:{vm.uuid}:vbd_{vbd.device}_read");
-            diskIds.Add($"vm:{vm.uuid}:vbd_{vbd.device}_write");
-        }
-        rows.Add(MakeGraph("Disk", MatchSeries(archive, diskIds), interval));
-
-        return rows.Where(r => r.Series.Count > 0).ToList();
     }
 
     private static List<PerformanceSeriesView> MatchSeries(RrdArchive archive, IEnumerable<string> ids)
@@ -180,9 +79,13 @@ public static class PerformanceGraphBuilder
         var i = 0;
         foreach (var id in ids)
         {
-            if (RrdSeries.TryParseId(id, out var kind, out var uuid, out var source)
-                && source is "memory_total_kib" or "memory_free_kib" or "memory_used_kib"
-                    or "memory" or "memory_internal_free" or "memory_internal_used")
+            var identity = id.Split(':');
+            // Layout entries are source leaves, not full or prefixed RRD IDs.
+            // Retain malformed saved entries in the editor without interpreting
+            // them as another object's memory group.
+            if (identity.Length != 3) continue;
+            var (kind, uuid, source) = (identity[0], identity[1], identity[2]);
+            if (ShellGraphLayout.IsMemoryLeaf(source, kind))
             {
                 var prefix = $"{kind}:{uuid}:";
                 if (memoryObjects.Add(prefix))
@@ -231,10 +134,11 @@ public static class PerformanceGraphBuilder
             yield return new PerformanceSeriesView(total.Id, "Total", "#9AA6B2", total.Points.ToList(), "bytes");
     }
 
-    private static PerformanceGraphRow MakeGraph(string title, List<PerformanceSeriesView> series, RrdArchiveInterval interval)
+    private static PerformanceGraphRow MakeGraph(string title, List<PerformanceSeriesView> series, RrdArchiveInterval interval,
+        GraphLayoutDefinition? layout = null, string availabilityNotice = "")
     {
         double? yAxisMax = null;
-        if (IsCpuGraph(title) || series.Count > 0 && series.All(s => s.IsPercentUnit))
+        if (series.Count > 0 && series.All(s => s.IsPercentUnit))
             yAxisMax = 100;
         else if (series.Count > 0 && series.All(s => s.Units == "bytes"))
         {
@@ -245,11 +149,9 @@ public static class PerformanceGraphBuilder
             if (capacity > 0) yAxisMax = capacity;
         }
 
-        return new PerformanceGraphRow(title, series, interval, yAxisMax);
+        return new PerformanceGraphRow(title, series, interval, yAxisMax, layout, availabilityNotice);
     }
 
-    private static bool IsCpuGraph(string title)
-        => title.Contains("CPU", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed record PerformanceRangeOption(RrdArchiveInterval Interval, string Label, string Hint)

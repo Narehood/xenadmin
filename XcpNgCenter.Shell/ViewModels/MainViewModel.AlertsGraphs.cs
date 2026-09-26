@@ -10,6 +10,7 @@ using XcpNgCenter.Shell.Actions;
 using XcpNgCenter.Shell.Alerts;
 using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.Services.Performance;
+using XcpNgCenter.Shell.Views;
 using Task = System.Threading.Tasks.Task;
 
 namespace XcpNgCenter.Shell.ViewModels;
@@ -54,7 +55,12 @@ public partial class MainViewModel
 
     public bool ShowPerformanceWaiting => CanShowPerformance && !HasPerformanceGraphs;
 
-    public bool CanSavePerformanceLayout => HasPerformanceGraphs && CanShowPerformance;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEditPerformanceLayout))]
+    [NotifyCanExecuteChangedFor(nameof(EditPerformanceLayoutCommand))]
+    private bool _isPerformanceLayoutOpen;
+
+    public bool CanEditPerformanceLayout => CanShowPerformance && _rrdMaintainer != null && !IsPerformanceLayoutOpen;
 
     private void InitializeAlertsAndGraphsUi()
     {
@@ -272,11 +278,13 @@ public partial class MainViewModel
                 : "Select a host or running VM to view performance graphs.";
             OnPropertyChanged(nameof(HasPerformanceGraphs));
             OnPropertyChanged(nameof(ShowPerformanceWaiting));
+            RefreshPerformanceLayoutCommand();
             return;
         }
 
-        var key = $"{xo.GetType().Name}:{xo.opaque_ref}";
-        if (_rrdObjectKey != key || _rrdMaintainer == null)
+        var key = $"{xo.GetType().Name}:{xo.opaque_ref}:{ShellGraphLayoutKeys.ObjectUuid(xo)}";
+        if (_rrdObjectKey != key || _rrdMaintainer == null
+            || !ReferenceEquals(_rrdMaintainer.XenObject.Connection, xo.Connection))
         {
             StopPerformancePolling();
             _rrdObjectKey = key;
@@ -287,6 +295,7 @@ public partial class MainViewModel
             OnPropertyChanged(nameof(HasPerformanceGraphs));
             OnPropertyChanged(nameof(ShowPerformanceWaiting));
             _rrdMaintainer.Start();
+            RefreshPerformanceLayoutCommand();
             return;
         }
 
@@ -319,23 +328,31 @@ public partial class MainViewModel
         RebuildPerformanceGraphs();
     }
 
-    private void RebuildPerformanceGraphs()
+    private void RebuildPerformanceGraphs(IReadOnlyList<GraphLayoutDefinition>? savedLayout = null)
     {
         var xo = ResolvePerformanceTarget(SelectedInfraNode ?? _pinnedInfraNode);
         var interval = SelectedPerformanceRange?.Interval ?? RrdArchiveInterval.FiveSecond;
         PerformanceGraphs.Clear();
-        foreach (var row in PerformanceGraphBuilder.Build(xo, _rrdMaintainer, interval))
+        var rows = savedLayout == null || xo == null
+            ? PerformanceGraphBuilder.Build(xo, _rrdMaintainer, interval)
+            : PerformanceGraphBuilder.BuildFromLayout(xo, _rrdMaintainer, interval, savedLayout);
+        foreach (var row in rows)
             PerformanceGraphs.Add(row);
 
         OnPropertyChanged(nameof(HasPerformanceGraphs));
         OnPropertyChanged(nameof(ShowPerformanceWaiting));
-        OnPropertyChanged(nameof(CanSavePerformanceLayout));
-        SavePerformanceLayoutCommand.NotifyCanExecuteChanged();
+        RefreshPerformanceLayoutCommand();
 
         var rangeLabel = SelectedPerformanceRange?.Label ?? "Last ~10 minutes";
-        PerformanceStatusMessage = PerformanceGraphs.Count == 0
-            ? "Waiting for RRD samples from the host…"
+        PerformanceStatusMessage = !PerformanceGraphs.Any(graph => graph.HasData)
+            ? $"No RRD samples for {rangeLabel}. Choose another range or wait for new samples."
             : $"Updated {DateTime.Now:T} — {rangeLabel}.";
+    }
+
+    private void RefreshPerformanceLayoutCommand()
+    {
+        OnPropertyChanged(nameof(CanEditPerformanceLayout));
+        EditPerformanceLayoutCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedPerformanceRangeChanged(PerformanceRangeOption? value)
@@ -344,19 +361,54 @@ public partial class MainViewModel
             RebuildPerformanceGraphs();
     }
 
-    [RelayCommand(CanExecute = nameof(CanSavePerformanceLayout))]
-    private void SavePerformanceLayout()
+    [RelayCommand(CanExecute = nameof(CanEditPerformanceLayout))]
+    private async Task EditPerformanceLayoutAsync()
     {
         var xo = ResolvePerformanceTarget(SelectedInfraNode ?? _pinnedInfraNode);
-        if (xo == null || PerformanceGraphs.Count == 0)
+        var owner = GetMainWindow();
+        if (xo == null || _rrdMaintainer == null || owner == null || IsPerformanceLayoutOpen)
             return;
 
-        var layout = PerformanceGraphBuilder.DescribeLayout(PerformanceGraphs);
-        ShellActionRunner.Run(new SaveShellGraphLayoutAction(xo, layout), msg =>
+        IsPerformanceLayoutOpen = true;
+        try
         {
-            StatusMessage = msg;
-            PerformanceStatusMessage = msg;
-        });
+            // Capture the reviewed target and persisted keys before opening the
+            // draft. Inventory updates must not redirect or overwrite this edit.
+            var snapshot = ShellGraphLayout.Snapshot(xo);
+            var targetReference = xo.opaque_ref;
+            var targetUuid = ShellGraphLayoutKeys.ObjectUuid(xo);
+            var layout = ShellGraphLayout.Read(xo, _rrdMaintainer);
+            var sources = ShellGraphLayout.Catalog(xo, _rrdMaintainer, layout);
+            var targetName = xo is Host host ? host.name_label : ((VM)xo).name_label;
+            var dialog = new GraphLayoutEditorWindow { Title = $"Edit performance graphs — {targetName}" };
+            dialog.DataContext = new GraphLayoutEditorViewModel(layout, sources, async draft =>
+            {
+                var action = new SaveShellGraphLayoutAction(xo, draft, snapshot);
+                if (!await ShellActionRunner.RunAndWaitAsync(action, message => StatusMessage = message))
+                    throw new InvalidOperationException(action.Exception?.Message ?? "Saving the performance layout was cancelled.");
+
+                var current = ResolvePerformanceTarget(SelectedInfraNode ?? _pinnedInfraNode);
+                if (current != null && ReferenceEquals(current.Connection, xo.Connection)
+                    && current.GetType() == xo.GetType() && current.opaque_ref == targetReference
+                    && ShellGraphLayoutKeys.ObjectUuid(current) == targetUuid)
+                {
+                    // Display the acknowledged layout immediately. Later cache
+                    // and RRD updates continue to use the server's saved layout.
+                    RebuildPerformanceGraphs(draft);
+                    PerformanceStatusMessage = "Performance layout saved.";
+                }
+            }, dialog.Close);
+            await dialog.ShowDialog(owner);
+        }
+        catch (Exception error)
+        {
+            StatusMessage = $"Unable to edit performance graphs: {error.Message}";
+            PerformanceStatusMessage = StatusMessage;
+        }
+        finally
+        {
+            IsPerformanceLayoutOpen = false;
+        }
     }
 
     [RelayCommand]
