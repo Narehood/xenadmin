@@ -6,6 +6,9 @@ Last updated: 2026-09-25 (local date). Initial review, remediation, and moderniz
 
 ### .NET 10 and advanced networking (2026-09-25)
 
+Implementation: [PR #50](https://github.com/Narehood/xenadmin/pull/50), initial
+commit `9d107d46b`. Check the PR's current hosted results before merging.
+
 The modernization follow-up targets .NET 10 with SDK 10.0.401 pinned in
 `global.json`, while preserving shared `net481` compatibility. System packages
 are centrally pinned to 10.0.12 and portable lockfiles are refreshed. The
@@ -43,7 +46,7 @@ it changes transport contracts and removes the XCP-ng 2.16 API mapping. Four
 loopback TLS cases preserve the current certificate-validation boundary; see
 the [SDK compatibility review](reviews/2026-09-25-sdk-compatibility.md).
 
-Local validation: full Release/Debug solution builds; 513 shell tests in each;
+Local validation: full Release/Debug solution builds; 514 shell tests in each;
 73 shared tests on each of net481/net10.0 in both configurations; all 32,239
 WinForms resources in 290 sets load on .NET 10.0.12 in both configurations;
 Settings initialization and fragmented RFB reads pass. The local machine lacks
@@ -56,6 +59,12 @@ The local self-contained Windows ZIP also passed all four malformed-updater
 invocations with startup hooks disabled, using bundled .NET 10.0.12; SHA-256
 `8cf6bafdf10dc04de96c4f559c2a6f762fe63ef540f4feeccca942b557ac9d03`.
 Portable lockfile hashes were unchanged by publishing.
+The first hosted pass exposed an environment-dependent implicit `net481`
+reference-assembly dependency. It is now explicit and centrally pinned so
+installed targeting packs do not change the locked dependency graph. Native
+Linux also exposed old updater tests using Windows-only path literals; those
+fixtures now use native paths; only Windows-specific checks are explicitly
+skipped on Linux, without relaxing updater validation.
 
 The user has no disposable pool/VM/test machines and explicitly deferred live
 and UAC checks. Keep those gates pending in [platform acceptance](platform-acceptance.md).

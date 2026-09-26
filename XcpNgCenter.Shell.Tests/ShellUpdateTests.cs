@@ -97,7 +97,7 @@ public sealed class ShellUpdateTests
                 processElevated));
     }
 
-    [Theory]
+    [WindowsTheory]
     [InlineData(@"C:\Program Files\XCP-ng Center", true)]
     [InlineData(@"C:\Program Files (x86)\XCP-ng Center", true)]
     [InlineData(@"C:\Tools\XCP-ng Center", false)]
@@ -132,7 +132,7 @@ public sealed class ShellUpdateTests
         Assert.StartsWith(Path.GetFullPath(staging), installer.StagingDirectory, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [WindowsFact]
     public void VirtualStoreWritableProgramFiles_StillRequiresElevation()
     {
         // UAC VirtualStore can make a create-file probe succeed under Program Files.
@@ -167,40 +167,51 @@ public sealed class ShellUpdateTests
         Assert.False(installer.RequiresElevationForInstall);
     }
 
-    [Fact]
-    public void StagingDirectory_IsStablePerInstallAndWindowsCaseInsensitive()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void StagingDirectory_IsStablePerInstallAndUsesPlatformCaseRules(bool isWindows)
     {
         using var temp = new TemporaryDirectory();
+        var install = Path.Combine(temp.Path, "install", "XCP-ng Center");
         var first = ShellUpdateInstaller.GetStagingBaseDirectory(
-            @"C:\Program Files\XCP-ng Center",
+            install,
             temp.Path,
-            isWindows: true);
+            isWindows);
         var same = ShellUpdateInstaller.GetStagingBaseDirectory(
-            @"c:\program files\xcp-NG center\",
+            install + Path.DirectorySeparatorChar,
             temp.Path,
-            isWindows: true);
+            isWindows);
+        var differentCase = ShellUpdateInstaller.GetStagingBaseDirectory(
+            Path.Combine(temp.Path, "install", "xcp-NG center"),
+            temp.Path,
+            isWindows);
         var other = ShellUpdateInstaller.GetStagingBaseDirectory(
-            @"C:\Tools\XCP-ng Center",
+            Path.Combine(temp.Path, "other", "XCP-ng Center"),
             temp.Path,
-            isWindows: true);
+            isWindows);
 
-        Assert.Equal(first, same, ignoreCase: true);
+        Assert.Equal(first, same);
+        if (isWindows) Assert.Equal(first, differentCase);
+        else Assert.NotEqual(first, differentCase);
         Assert.NotEqual(first, other);
     }
 
     [Fact]
     public void ResolveInstallDirectory_PrefersProcessPathFolder()
     {
+        using var temp = new TemporaryDirectory();
+        var install = Path.Combine(temp.Path, "XCP-ng Center");
+        var executableName = OperatingSystem.IsWindows() ? "XcpNgCenter.Shell.exe" : "XcpNgCenter.Shell";
         var resolved = ShellUpdateInstaller.ResolveInstallDirectory(
-            @"C:\Wrong\Base",
-            @"C:\Program Files\XCP-ng Center\XcpNgCenter.Shell.exe");
+            Path.Combine(temp.Path, "wrong-base"),
+            Path.Combine(install, executableName));
         Assert.Equal(
-            Path.GetFullPath(@"C:\Program Files\XCP-ng Center"),
-            Path.GetFullPath(resolved),
-            ignoreCase: true);
+            Path.GetFullPath(install),
+            Path.GetFullPath(resolved));
     }
 
-    [Fact]
+    [WindowsFact]
     public void CreateBootstrapStartInfo_ElevatesInstalledCode()
     {
         var info = ShellUpdateInstaller.CreateBootstrapStartInfo(
@@ -220,15 +231,22 @@ public sealed class ShellUpdateTests
     [Fact]
     public void CreateBootstrapStartInfo_UsesInstalledCodeWithoutElevationForWritableInstall()
     {
+        using var temp = new TemporaryDirectory();
+        var install = Path.Combine(temp.Path, "XCP-ng Center");
+        var executableName = OperatingSystem.IsWindows() ? "XcpNgCenter.Shell.exe" : "XcpNgCenter.Shell";
+        var executable = Path.Combine(install, executableName);
         var info = ShellUpdateInstaller.CreateBootstrapStartInfo(
-            @"C:\Tools\XCP-ng Center\XcpNgCenter.Shell.exe",
-            @"C:\Tools\XCP-ng Center",
-            @"C:\staging\v2026.8.14.4",
-            @"C:\staging\launch-0123456789abcdef0123456789abcdef",
+            executable,
+            install,
+            Path.Combine(temp.Path, "staging", "v2026.8.14.4"),
+            Path.Combine(temp.Path, "staging", "launch-0123456789abcdef0123456789abcdef"),
             ReleaseVersion, 1234, elevate: false);
 
         Assert.False(info.UseShellExecute);
         Assert.Empty(info.Verb);
+        Assert.Equal(executable, info.FileName);
+        Assert.Equal(install, info.WorkingDirectory);
+        Assert.Contains("--prepare-shell-update", info.ArgumentList);
         Assert.DoesNotContain("--defer-shell-update-restart", info.ArgumentList);
     }
 

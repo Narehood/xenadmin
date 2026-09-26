@@ -25,4 +25,8 @@
 		<Codename Condition="'$(Codename)' == ''">Awa</Codename>
 		<Lab>xcpngcenter_main</Lab>
 	</PropertyGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+		<!-- Keep locked restores identical with or without a locally installed targeting pack. -->
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="All" />
+	</ItemGroup>
 </Project>

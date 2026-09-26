@@ -8,6 +8,9 @@ the new portable dependency graphs. WinForms uses the configuration, permission
 and resource assemblies supplied by its desktop framework instead of redundant
 direct package references. The portable graph still pins ConfigurationManager
 for consumers that need it through a transitive dependency.
+The shared `net481` graph explicitly references the centrally pinned Framework
+reference-assembly package. Otherwise the SDK adds it only when a targeting pack
+is absent, making locked restores differ between developer and hosted machines.
 
 .NET 8 support ends November 10, 2026. .NET 10 LTS is supported through
 November 14, 2028. Self-contained releases carry their own runtime, so servicing
