@@ -33,6 +33,11 @@ updated system runtime. See Microsoft's [support policy](https://dotnet.microsof
   shared HTTP tunnel still receives the selected Basic/Digest mode and the session
   proxy. Modern .NET's HTTP handler negotiates HTTP authentication independently;
   process-wide AuthenticationManager registration cannot constrain it.
+  This is not a newly removed constraint: the [.NET 8 implementation](https://github.com/dotnet/runtime/blob/v8.0.0/src/libraries/System.Net.Requests/src/System/Net/AuthenticationManager.cs)
+  already returned an empty module list and did not register authentication
+  handlers. [.NET 10](https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Net.Requests/src/System/Net/AuthenticationManager.cs)
+  retains that behavior. The legacy Basic/Digest selection controls the custom
+  transfer tunnel; it is not a client-wide restriction on proxy negotiation.
 - Retain the existing application TOFU callbacks while the shared XenAPI transport
   still uses HttpWebRequest. Narrow obsolete-API suppressions identify this boundary;
   migration does not replace certificate validation with permissive defaults.

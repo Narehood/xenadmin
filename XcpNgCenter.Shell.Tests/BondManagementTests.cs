@@ -191,6 +191,90 @@ public sealed class BondManagementTests
         Assert.All(f.Connection.Cache.PIFs, p => Assert.False(p.Locked));
     }
 
+    [Theory]
+    [InlineData(bond_mode.unknown, null, "unknown")]
+    [InlineData(bond_mode.lacp, "future_hash", "future_hash")]
+    [InlineData(bond_mode.lacp, null, "not reported")]
+    public async System.Threading.Tasks.Task UnknownExistingModeRequiresExplicitSupportedChoice(bond_mode mode, string? hashing, string reported)
+    {
+        var f = new Fixture();
+        var network = f.CreateExistingBond();
+        foreach (var bond in f.Connection.Cache.Bonds)
+        {
+            bond.mode = mode;
+            bond.properties = hashing == null ? [] : new() { ["hashing_algorithm"] = hashing };
+        }
+        var editor = new BondEditorViewModel(f.Connection, network, () => throw new InvalidOperationException("Unexpected close"));
+        Assert.Null(editor.SelectedMode);
+        Assert.False(editor.CanSave);
+        Assert.False(editor.SaveCommand.CanExecute(null));
+        Assert.Contains(reported, editor.CurrentModeNotice);
+        Assert.Contains("explicitly", editor.CurrentModeNotice);
+        await editor.SaveCommand.ExecuteAsync(null);
+        Assert.Empty(editor.StatusMessage);
+        Assert.False(editor.IsSaving);
+
+        editor.SelectedMode = BondManagement.Modes[0];
+        Assert.True(editor.CanSave);
+        Assert.True(editor.SaveCommand.CanExecute(null));
+        Assert.Contains(reported, editor.CurrentModeNotice);
+        editor.IsSaving = true;
+        Assert.False(editor.CanSave);
+        Assert.False(editor.SaveCommand.CanExecute(null));
+        editor.IsSaving = false;
+        editor.SelectedMode = null;
+        Assert.False(editor.CanSave);
+        Assert.False(editor.SaveCommand.CanExecute(null));
+        Assert.All(f.Connection.Cache.Bonds, bond => Assert.Equal(mode, bond.mode));
+    }
+
+    [Fact]
+    public void SupportedExistingModesArePreservedAndNewBondsKeepTheirDefault()
+    {
+        var f = new Fixture();
+        var creating = new BondEditorViewModel(f.Connection, null, () => { });
+        Assert.Equal(BondManagement.Modes[0], creating.SelectedMode);
+        Assert.Empty(creating.CurrentModeNotice);
+        var network = f.CreateExistingBond();
+        foreach (var mode in BondManagement.Modes)
+        {
+            foreach (var bond in f.Connection.Cache.Bonds)
+            {
+                bond.mode = mode.Mode;
+                bond.properties = new() { ["hashing_algorithm"] = Bond.HashingAlgoritmToString(mode.Hashing) };
+            }
+            var editing = new BondEditorViewModel(f.Connection, network, () => { });
+            Assert.Equal(mode, editing.SelectedMode);
+            Assert.True(editing.CanSave);
+            Assert.True(editing.SaveCommand.CanExecute(null));
+            Assert.Contains(mode.Label, editing.CurrentModeNotice);
+        }
+    }
+
+    [Theory]
+    [InlineData(bond_mode.balance_slb, "", "Balance SLB")]
+    [InlineData(bond_mode.lacp, "future_hash", "future_hash")]
+    public void DifferentOrUnsupportedModeOnAnotherHostRequiresExplicitChoice(bond_mode mode, string hashing, string reported)
+    {
+        var f = new Fixture();
+        var network = f.CreateExistingBond();
+        var otherBond = f.Connection.Resolve(new XenRef<Bond>("bond1"));
+        otherBond.mode = mode;
+        otherBond.properties = new() { ["hashing_algorithm"] = hashing };
+        var editor = new BondEditorViewModel(f.Connection, network, () => { });
+        Assert.Null(editor.SelectedMode);
+        Assert.False(editor.CanSave);
+        Assert.False(editor.SaveCommand.CanExecute(null));
+        Assert.Contains("Active-backup", editor.CurrentModeNotice);
+        Assert.Contains(reported, editor.CurrentModeNotice);
+        editor.SelectedMode = new BondModeOption("unsupported", bond_mode.unknown, Bond.hashing_algoritm.unknown);
+        Assert.False(editor.CanSave);
+        Assert.False(editor.SaveCommand.CanExecute(null));
+        editor.SelectedMode = BondManagement.Modes[0];
+        Assert.True(editor.CanSave);
+        Assert.True(editor.SaveCommand.CanExecute(null));
+    }
+
     private sealed class Fixture
     {
         public XenConnection Connection { get; } = new();

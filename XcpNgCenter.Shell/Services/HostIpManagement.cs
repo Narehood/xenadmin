@@ -243,7 +243,7 @@ public sealed class HostIpConfigurationAction : AsyncAction
     {
         _request = request;
         ApiMethodsToRoleCheck.Add(request.Family == HostIpFamily.IPv4 ? "pif.reconfigure_ip" : "pif.reconfigure_ipv6");
-        if (request.Family == HostIpFamily.IPv4)
+        if (request.Family == HostIpFamily.IPv4 && request.Mode != HostIpMode.None)
             ApiMethodsToRoleCheck.AddRange("pif.set_other_config", "pif.plug");
         AddCommonAPIMethodsToRoleCheck();
     }
@@ -253,7 +253,7 @@ public sealed class HostIpConfigurationAction : AsyncAction
         if (!Connection.IsConnected) throw new InvalidOperationException("The server disconnected. Reconnect and review the interface before trying again.");
         var plan = HostIpManagement.Plan(Connection, _request);
         if (!plan.Changed) { Description = "The IP configuration is unchanged."; return; }
-        if (plan.Family == HostIpFamily.IPv4)
+        if (plan.Family == HostIpFamily.IPv4 && plan.Descriptor.ip_configuration_mode != ip_configuration_mode.None)
         {
             // Same single-host path as the supported WinForms IP editor. Passing
             // no new/down management PIF preserves the management interface.
@@ -261,15 +261,20 @@ public sealed class HostIpConfigurationAction : AsyncAction
         }
         else
         {
-            // XenModel has no IPv6 editor action; use its existing async API and
-            // task polling without changing primary_address_type or topology.
+            // Shared BringUp keeps the old IPv4 address for non-static modes.
+            // None must send the reviewed empty fields directly. IPv6 also has
+            // no shared editor action. Neither path changes topology or family.
             plan.Current.Locked = true;
             Connection.ExpectDisruption = !plan.ManagementAddressChanged;
             try
             {
-                RelatedTask = PIF.async_reconfigure_ipv6(Session, plan.Current.opaque_ref,
-                    plan.Descriptor.ipv6_configuration_mode, plan.Descriptor.IPv6.FirstOrDefault() ?? "",
-                    plan.Descriptor.ipv6_gateway, plan.Descriptor.DNS);
+                RelatedTask = plan.Family == HostIpFamily.IPv4
+                    ? PIF.async_reconfigure_ip(Session, plan.Current.opaque_ref,
+                        plan.Descriptor.ip_configuration_mode, plan.Descriptor.IP,
+                        plan.Descriptor.netmask, plan.Descriptor.gateway, plan.Descriptor.DNS)
+                    : PIF.async_reconfigure_ipv6(Session, plan.Current.opaque_ref,
+                        plan.Descriptor.ipv6_configuration_mode, plan.Descriptor.IPv6.FirstOrDefault() ?? "",
+                        plan.Descriptor.ipv6_gateway, plan.Descriptor.DNS);
                 PollToCompletion();
             }
             finally

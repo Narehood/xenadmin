@@ -124,7 +124,7 @@ jobs:
           global-json-file: global.json
 
       - name: Install native desktop smoke dependencies
-        run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool libice6 libsm6 libfontconfig1
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool openbox x11-utils libice6 libsm6 libfontconfig1
 
       - name: Validate revision and compute version
         id: ver
@@ -172,7 +172,7 @@ jobs:
       - name: Verify packaged Linux executable and native desktop startup
         env:
           RELEASE_VERSION: ${{ steps.ver.outputs.version }}
-        run: xvfb-run -a python3 scripts/verify-shell-package.py --archive "dist/XcpNgCenter.Shell-linux-x64-$RELEASE_VERSION.tar.gz" --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop
+        run: xvfb-run -a python3 scripts/verify-shell-package.py --archive "dist/XcpNgCenter.Shell-linux-x64-$RELEASE_VERSION.tar.gz" --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop --window-manager
 
       - name: Confirm checked-in lockfiles were preserved
         run: git diff --exit-code -- '*/packages.lock.json'

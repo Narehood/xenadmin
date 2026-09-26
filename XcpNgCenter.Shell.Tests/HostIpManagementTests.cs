@@ -1,4 +1,8 @@
+using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
 using XenAdmin.Core;
 using XenAdmin.Network;
 using XenAPI;
@@ -6,6 +10,7 @@ using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.ViewModels;
 using Xunit;
 using Network = XenAPI.Network;
+using Task = System.Threading.Tasks.Task;
 
 namespace XcpNgCenter.Shell.Tests;
 
@@ -303,6 +308,89 @@ public sealed class HostIpManagementTests
         Assert.False(f.Pif.Locked);
     }
 
+    [Theory]
+    [InlineData(false, "OPERATION_NOT_ALLOWED")]
+    [InlineData(true, "OPERATION_NOT_ALLOWED")]
+    [InlineData(false, "SESSION_INVALID")]
+    public async Task DisablingIPv4SendsEmptyAddressFieldsAndPreservesIPv6WithoutRetry(bool ipv6Management, string failure)
+    {
+        var f = new Fixture();
+        f.Pif.management = ipv6Management;
+        f.Pif.primary_address_type = primary_address_type.IPv6;
+        var request = f.IPv4 with { Mode = HostIpMode.None };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var responseTask = Task.Run(async () =>
+        {
+            using var peer = await listener.AcceptTcpClientAsync(timeout.Token);
+            await using var stream = peer.GetStream();
+            using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+            var length = 0;
+            while (await reader.ReadLineAsync(timeout.Token) is { Length: > 0 } header)
+                if (header.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                    length = int.Parse(header.Split(':', 2)[1]);
+            var body = new char[length];
+            var read = 0;
+            while (read < length)
+            {
+                var count = await reader.ReadAsync(body.AsMemory(read), timeout.Token);
+                if (count == 0) throw new EndOfStreamException();
+                read += count;
+            }
+            // Stop at the mutation boundary: a server rejection must be reported
+            // without another request, and must release the worker's local locks.
+            var rejection = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, error = new { code = 1, message = failure, data = new[] { "loopback regression" } } });
+            var reply = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {rejection.Length}\r\nConnection: close\r\n\r\n{rejection}");
+            await stream.WriteAsync(reply, timeout.Token);
+            return new string(body);
+        }, timeout.Token);
+        var session = new Session($"http://127.0.0.1:{port}/") { Timeout = 3000, opaque_ref = "OpaqueRef:synthetic-session" };
+        f.MarkConnected(session);
+        var action = new HostIpConfigurationAction(f.Connection, request);
+        var methods = action.GetApiMethodsToRoleCheck.Select(method => method.Method).ToArray();
+        Assert.Contains("pif.reconfigure_ip", methods);
+        Assert.DoesNotContain("pif.reconfigure_ipv6", methods);
+        Assert.DoesNotContain("pif.set_other_config", methods);
+        Assert.DoesNotContain("pif.plug", methods);
+        var error = await Assert.ThrowsAsync<Failure>(() => Task.Run(() => action.RunSync(session), timeout.Token));
+        Assert.Equal(failure, error.ErrorDescription[0]);
+        using var wire = JsonDocument.Parse(await responseTask);
+        Assert.Equal("Async.PIF.reconfigure_ip", wire.RootElement.GetProperty("method").GetString());
+        Assert.Equal(new[] { session.opaque_ref, f.Pif.opaque_ref, "None", "", "", "", f.Pif.DNS },
+            wire.RootElement.GetProperty("params").EnumerateArray().Select(value => value.GetString()));
+        Assert.False(listener.Pending());
+        Assert.False(f.Pif.Locked);
+        Assert.False(f.Connection.ExpectDisruption);
+        Assert.True(action.IsError);
+        Assert.Equal(ipv6Management, f.Pif.management);
+        Assert.Equal(primary_address_type.IPv6, f.Pif.primary_address_type);
+        Assert.Equal(new[] { "2001:db8::10/64" }, f.Pif.IPv6);
+        Assert.Equal("2001:db8::1", f.Pif.ipv6_gateway);
+        Assert.Equal("192.0.2.10", f.Pif.IP);
+    }
+
+    [Fact]
+    public void DisablingIPv4RevalidatesTheReviewedIdentityOnTheWorkerBeforeSending()
+    {
+        var f = new Fixture();
+        f.Pif.management = false;
+        var request = f.IPv4 with { Mode = HostIpMode.None };
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var session = new Session($"http://127.0.0.1:{port}/") { Timeout = 3000 };
+        f.MarkConnected(session);
+        var action = new HostIpConfigurationAction(f.Connection, request);
+        f.Pif.uuid = "replacement-interface";
+
+        Assert.Throws<InvalidOperationException>(() => action.RunSync(session));
+        Assert.False(listener.Pending());
+        Assert.False(f.Pif.Locked);
+        Assert.False(f.Connection.ExpectDisruption);
+    }
+
     private sealed class Fixture
     {
         public XenConnection Connection { get; } = new();
@@ -330,6 +418,18 @@ public sealed class HostIpManagementTests
 
         public HostIpEdit IPv4 => new(HostIpManagement.Capture(Host, Pif), HostIpFamily.IPv4, HostIpMode.Static, Pif.IP, Pif.netmask, Pif.gateway, "192.0.2.53");
         public HostIpEdit IPv6 => new(HostIpManagement.Capture(Host, Pif), HostIpFamily.IPv6, HostIpMode.Static, Pif.IPv6[0], "", Pif.ipv6_gateway, "2001:db8::53");
+
+        public void MarkConnected(Session session)
+        {
+            // Supply only connection state; never start XenConnection's real
+            // connection/event workers or change process-wide configuration.
+            var field = typeof(XenConnection).GetField("connectTask", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var state = Activator.CreateInstance(field.FieldType, BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null, args: ["127.0.0.1", 1], culture: null)!;
+            field.FieldType.GetField("Connected")!.SetValue(state, true);
+            field.FieldType.GetField("Session")!.SetValue(state, session);
+            field.SetValue(Connection, state);
+        }
 
         public T Add<T>(string reference, T value) where T : XenObject<T>
         {

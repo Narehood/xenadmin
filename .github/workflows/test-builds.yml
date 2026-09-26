@@ -105,7 +105,7 @@ jobs:
           global-json-file: global.json
 
       - name: Install native desktop smoke dependencies
-        run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool libice6 libsm6 libfontconfig1
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool openbox x11-utils libice6 libsm6 libfontconfig1
 
       - name: Test shared libraries on Linux (.NET 10)
         run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net10.0 -p:RestoreLockedMode=true --logger "trx;LogFileName=xencenterlib-linux-net10.trx"
@@ -121,7 +121,7 @@ jobs:
         run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath artifacts/XcpNgCenter.Shell-linux-x64.tar.gz -BuildRevision '${{ github.run_number }}'
 
       - name: Exercise packaged Linux executable and native desktop startup
-        run: xvfb-run -a python3 scripts/verify-shell-package.py --archive artifacts/XcpNgCenter.Shell-linux-x64.tar.gz --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop
+        run: xvfb-run -a python3 scripts/verify-shell-package.py --archive artifacts/XcpNgCenter.Shell-linux-x64.tar.gz --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop --window-manager
 
       - name: Confirm checked-in lockfiles were preserved
         run: git diff --exit-code -- '*/packages.lock.json'

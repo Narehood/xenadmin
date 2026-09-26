@@ -19,7 +19,7 @@ compatibility.
 | Self-contained package | win-x64 ZIP | linux-x64 tar.gz |
 | Package execution | Four malformed updater helper modes reject with exit 1 | Same, using the native Linux executable |
 | Runtime boundary | Bundled .NET 10; startup hooks remain disabled even with a hostile hook environment | Same |
-| Desktop startup | Manual acceptance below | Real Avalonia main window becomes visible under Xvfb, completes post-window startup, and survives three seconds |
+| Desktop startup | Manual acceptance below | Real Avalonia main window becomes visible under Xvfb/Openbox, completes post-window startup, and survives three seconds |
 
 `scripts/Publish-Shell.ps1` seeds RID-specific lockfiles under each project's
 `obj` directory and leaves checked-in portable locks unchanged. CI checks that
@@ -27,6 +27,16 @@ invariant after publishing. It packages a fresh publish directory, keeps shell
 and runtime files at the archive root for deployed updaters, and preserves Linux
 executable permissions. Download the nested ZIP/tar.gz from Actions; uploading a
 bare Linux directory would lose its executable modes.
+
+The isolated CI desktop starts Openbox on its private Xvfb display to exercise a
+normal X11 window-manager session. The verifier still requires the exact visible
+main-window title, its owning process ID, completed startup, and a surviving
+process; starting a window manager does not bypass those checks. Failed window
+discovery includes raw X11 window identities in the uploaded evidence.
+Avalonia 11.3.20 [looks up existing X11 atoms](https://github.com/AvaloniaUI/Avalonia/blob/11.3.20/src/tools/DevGenerators/X11AtomsGenerator.cs);
+a bare Xvfb display can lack the PID atom required for process identification.
+[Openbox creates that metadata](https://github.com/danakj/openbox/blob/master/obt/prop.c).
+The verifier waits for its EWMH readiness property before starting Avalonia.
 
 `scripts/verify-shell-package.py` extracts and **executes a trusted local build**.
 It checks archive-root contents, bundled runtime metadata, Linux executable mode,
@@ -50,12 +60,13 @@ python scripts/verify-shell-package.py --archive artifacts/shell.zip --rid win-x
 
 ```bash
 pwsh ./scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath artifacts/shell.tar.gz
-xvfb-run -a python3 scripts/verify-shell-package.py --archive artifacts/shell.tar.gz --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop
+xvfb-run -a python3 scripts/verify-shell-package.py --archive artifacts/shell.tar.gz --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop --window-manager
 ```
 
-The verifier requires Python 3.12+; Linux also needs `xvfb`, `xauth`, `xdotool`,
+The verifier requires Python 3.12+; Linux also needs `xvfb`, `xauth`, `xdotool`, `openbox`, `x11-utils`,
 `libice6`, `libsm6`, and `libfontconfig1`. Run each package on its native OS.
-An existing desktop session may be used in place of Xvfb for a local smoke.
+An existing desktop session may be used in place of Xvfb for a local smoke;
+omit `--window-manager` when that session already has a window manager.
 
 ## Desktop and updater acceptance: pending user validation
 
@@ -119,12 +130,17 @@ operation: inspect the host's address and reconnect manually, verifying its
 certificate, before retrying. Automatic rollback or reconnect to an unverified
 new address is not promised.
 
-IPv4 uses the same single-host `ChangeNetworkingAction` as WinForms. IPv6 uses
-the existing `PIF.async_reconfigure_ipv6` API and shared task polling; the shared
-library has no pre-existing IPv6 editor action. The planner is covered with
+IPv4 Static/DHCP uses the same single-host `ChangeNetworkingAction` as WinForms.
+Disabling IPv4 calls `PIF.async_reconfigure_ip` directly with the reviewed empty
+address, mask, and gateway; the shared bring-up path retains the previous address
+for non-static modes. IPv6 uses `PIF.async_reconfigure_ipv6`; both direct paths
+use shared task polling. The planner is covered with
 synthetic-cache regression cases for stale identities/config, management-family
 protection, address/mask/gateway/DNS validation, duplicate addresses, unchanged
 settings, family preservation, DHCP/autoconf, protected topology, and drafts.
+Loopback JSON-RPC tests execute the IPv4-disable worker and verify its exact
+request, preserved DNS/IPv6/management state, stale-identity rejection, cleanup,
+and no mutation retry after a server rejection or invalid session.
 Actual connectivity and server task behavior remain the user's manual check.
 The [XAPI interface reference](https://xapi-project.github.io/new-docs/xen-api/classes/index.print.html#pif)
 documents the configuration calls; current [XAPI implementation](https://github.com/xapi-project/xen-api/blob/master/ocaml/xapi/xapi_pif.ml)

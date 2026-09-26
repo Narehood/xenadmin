@@ -41,10 +41,13 @@ public partial class BondEditorViewModel : ViewModelBase
         Title = IsCreating ? "Create NIC bond" : "Change bond mode";
         NameLabel = network?.Name() ?? "New bond";
         Members = IsCreating ? BondManagement.Candidates(connection).Select(p => new BondMemberOption(p)).ToList() : [];
-        var currentBond = network == null ? null : NetworkManagement.Pifs(network)
-            .SelectMany(p => p.bond_master_of).Select(connection.Resolve).FirstOrDefault(b => b != null);
-        SelectedMode = Modes.FirstOrDefault(m => m.Mode == currentBond?.mode
-            && (m.Mode != bond_mode.lacp || m.Hashing == currentBond.HashingAlgoritm())) ?? Modes[0];
+        var currentBonds = network == null ? [] : NetworkManagement.Pifs(network)
+            .SelectMany(p => p.bond_master_of).Select(connection.Resolve).Where(b => b != null).ToArray();
+        var currentBond = currentBonds.FirstOrDefault();
+        var currentMode = currentBond == null ? null : KnownMode(currentBond);
+        if (currentBonds.Any(b => KnownMode(b) != currentMode)) currentMode = null;
+        SelectedMode = IsCreating ? Modes[0] : currentMode;
+        CurrentModeNotice = IsCreating ? "" : DescribeCurrentModes(currentBonds, currentMode);
         MembersSummary = currentBond == null ? "" : string.Join(", ", connection.ResolveAll(currentBond.slaves).Select(p => p.device));
         if (!IsCreating) StatusMessage = BondManagement.ExistingError(network!) ?? "";
         else if (!Members.Any(m => m.IsAvailable)) StatusMessage = "No unused NICs are available across every host. Review the reasons below.";
@@ -53,20 +56,42 @@ public partial class BondEditorViewModel : ViewModelBase
     public string Title { get; }
     public bool IsCreating { get; }
     public string MembersSummary { get; }
+    public string CurrentModeNotice { get; }
+    public bool CanSave => !IsSaving && SelectedMode != null && Modes.Contains(SelectedMode);
     public IReadOnlyList<BondMemberOption> Members { get; }
     public IReadOnlyList<BondModeOption> Modes => BondManagement.Modes;
     [ObservableProperty] private string _nameLabel = "";
     [ObservableProperty] private string _mtu = "1500";
     [ObservableProperty] private bool _automatic;
-    [ObservableProperty] private BondModeOption? _selectedMode;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSave))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    private BondModeOption? _selectedMode;
     [ObservableProperty] private string _statusMessage = "";
-    [ObservableProperty] private bool _isSaving;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSave))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    private bool _isSaving;
     public bool IsLacp => SelectedMode?.Mode == bond_mode.lacp;
     partial void OnSelectedModeChanged(BondModeOption? value) => OnPropertyChanged(nameof(IsLacp));
 
-    [RelayCommand]
+    private static BondModeOption? KnownMode(Bond bond) => BondManagement.Modes.FirstOrDefault(m => m.Mode == bond.mode
+        && (m.Mode != bond_mode.lacp || m.Hashing == bond.HashingAlgoritm()));
+
+    private static string DescribeCurrentModes(IReadOnlyList<Bond> bonds, BondModeOption? knownMode)
+    {
+        if (bonds.Count == 0) return "The current bond mode is unavailable. Refresh the pool before changing this bond.";
+        if (knownMode != null) return $"Current mode: {knownMode.Label}.";
+        var descriptions = bonds.Select(bond => KnownMode(bond)?.Label ?? (bond.mode == bond_mode.lacp
+            ? $"LACP with hashing algorithm '{(bond.properties.TryGetValue("hashing_algorithm", out var hashing) && !string.IsNullOrWhiteSpace(hashing) ? hashing : "not reported")}'"
+            : bond.mode.ToString())).Distinct();
+        return $"Current configuration across the pool: {string.Join("; ", descriptions)}. Select a supported mode explicitly to change it.";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
+        if (!CanSave) return;
         IsSaving = true;
         try
         {

@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -21,6 +22,32 @@ import zipfile
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
+
+
+def stop_process(process):
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=10)
+
+
+def wait_window_manager(manager, environment, evidence):
+    # Avalonia caches existing X11 atoms during startup. Wait for Openbox to
+    # create EWMH metadata (including _NET_WM_PID) before starting the shell.
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        require(manager.poll() is None, "The isolated window manager failed to start.")
+        result = subprocess.run(["xprop", "-root", "_NET_SUPPORTING_WM_CHECK"], env=environment,
+                                capture_output=True, text=True, timeout=5)
+        (evidence / "window-manager-ready.log").write_text(result.stdout + result.stderr, encoding="utf-8")
+        ready = re.search(r"window id # (0x[0-9a-fA-F]+)", result.stdout)
+        if result.returncode == 0 and ready and int(ready.group(1), 16) != 0:
+            return
+        time.sleep(0.1)
+    raise RuntimeError("The isolated window manager did not publish its X11 readiness property.")
 
 
 def check_helpers(executable, environment, evidence):
@@ -84,6 +111,18 @@ def check_linux_desktop(executable, environment, profile, evidence):
                     if window:
                         break
                 time.sleep(0.25)
+            if not window:
+                # Keep hidden windows and foreign/missing PID metadata visible in
+                # failure evidence; a startup trace alone never satisfies the gate.
+                all_windows = subprocess.run(["xdotool", "search", "--name", ""], capture_output=True, text=True, timeout=5)
+                diagnostics = []
+                for candidate in all_windows.stdout.splitlines()[:100]:
+                    details = {"window": candidate}
+                    for command in ("getwindowname", "getwindowpid", "getwindowgeometry"):
+                        detail = subprocess.run(["xdotool", command, candidate], capture_output=True, text=True, timeout=5)
+                        details[command] = {"exit_code": detail.returncode, "stdout": detail.stdout, "stderr": detail.stderr}
+                    diagnostics.append(details)
+                (evidence / "desktop-all-windows.json").write_text(json.dumps(diagnostics, indent=2), encoding="utf-8")
             require(window, "The real main window did not become visible after post-window startup.")
             # Catch splash/last-window-close races and immediate post-startup failures.
             time.sleep(3)
@@ -92,13 +131,7 @@ def check_linux_desktop(executable, environment, profile, evidence):
             (evidence / "desktop-window.log").write_text(geometry.stdout, encoding="utf-8")
             return {"main_window_visible": True, "post_window_startup": True, "survived_seconds": 3}
         finally:
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=10)
+            stop_process(process)
             for diagnostic in (trace, crash):
                 if diagnostic.exists():
                     shutil.copy2(diagnostic, evidence / diagnostic.name)
@@ -110,6 +143,7 @@ def main():
     parser.add_argument("--rid", required=True, choices=("win-x64", "linux-x64"))
     parser.add_argument("--evidence-directory", required=True, type=Path)
     parser.add_argument("--desktop", action="store_true", help="Require a visible Linux main window under X11.")
+    parser.add_argument("--window-manager", action="store_true", help="Start isolated Openbox for an otherwise bare Xvfb display; use only with --desktop.")
     args = parser.parse_args()
     evidence = args.evidence_directory.resolve()
     evidence.mkdir(parents=True, exist_ok=True)
@@ -155,8 +189,20 @@ def main():
             environment["DOTNET_ROOT"] = str(scratch / "missing-shared-runtime")
             environment["DOTNET_ROOT_X64"] = environment["DOTNET_ROOT"]
             report["helpers"] = check_helpers(executable, environment, evidence)
+            require(not args.window_manager or args.desktop, "--window-manager requires --desktop.")
             if args.desktop:
-                report["desktop"] = check_linux_desktop(executable, environment, profile, evidence)
+                if args.window_manager:
+                    require(sys.platform.startswith("linux") and shutil.which("openbox") and shutil.which("xprop"), "Install Openbox and x11-utils for the isolated Xvfb desktop.")
+                    with (evidence / "window-manager.log").open("w", encoding="utf-8") as manager_log:
+                        manager = subprocess.Popen(["openbox", "--sm-disable"], env=environment, stdout=manager_log, stderr=manager_log)
+                        try:
+                            wait_window_manager(manager, environment, evidence)
+                            report["desktop"] = check_linux_desktop(executable, environment, profile, evidence)
+                            require(manager.poll() is None, "The isolated window manager exited during the desktop check.")
+                        finally:
+                            stop_process(manager)
+                else:
+                    report["desktop"] = check_linux_desktop(executable, environment, profile, evidence)
             report["passed"] = True
     except Exception as error:
         report["error"] = str(error)

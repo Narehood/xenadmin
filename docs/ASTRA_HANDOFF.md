@@ -46,7 +46,7 @@ it changes transport contracts and removes the XCP-ng 2.16 API mapping. Four
 loopback TLS cases preserve the current certificate-validation boundary; see
 the [SDK compatibility review](reviews/2026-09-25-sdk-compatibility.md).
 
-Local validation: full Release/Debug solution builds; 514 shell tests in each;
+Local validation: full Release/Debug solution builds; 524 shell tests in each;
 73 shared tests on each of net481/net10.0 in both configurations; all 32,239
 WinForms resources in 290 sets load on .NET 10.0.12 in both configurations;
 Settings initialization and fragmented RFB reads pass. The local machine lacks
@@ -65,6 +65,14 @@ installed targeting packs do not change the locked dependency graph. Native
 Linux also exposed old updater tests using Windows-only path literals; those
 fixtures now use native paths; only Windows-specific checks are explicitly
 skipped on Linux, without relaxing updater validation.
+Review follow-up preserves unrecognized/mixed bond modes until an explicit
+supported choice and sends genuinely empty address fields when disabling IPv4.
+Four loopback worker/RPC regressions verify the latter, including failure cleanup,
+stale identity rejection and no retry; six bond cases verify safe selection.
+Windows hosted builds, resources, tests and packaged execution passed. Linux
+tests and package helpers passed; its desktop smoke now initializes Openbox's
+EWMH metadata before Avalonia so PID-based window discovery works on private
+Xvfb displays. The final hosted pass remains visible in the PR checks.
 
 The user has no disposable pool/VM/test machines and explicitly deferred live
 and UAC checks. Keep those gates pending in [platform acceptance](platform-acceptance.md).
