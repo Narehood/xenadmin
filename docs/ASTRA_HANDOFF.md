@@ -4,6 +4,20 @@ Last updated: 2026-09-26 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Proxy probe cancellation follow-up (2026-09-26)
+
+Hosted validation of documentation commit `b43769825` exposed an intermittent
+Windows shutdown failure in the existing loopback proxy probe: a cancelled
+pending accept raised `SocketException`/`OperationAborted` (995). The probe now
+accepts that specific error only when its cancellation token was requested;
+unexpected socket errors still fail. Application proxy behavior is unchanged.
+Three regressions compile the real probe source into the shell test suite and
+exercise 128 pending-accept cancellation/close cycles plus an unexpected listener
+abort. The 12 actual proxy authentication cases also pass locally. Release and
+Debug each pass 684 shell tests; the shared suites pass 73 tests on each of
+`net481`/`net10.0`. Hosted results are recorded in the PR; the HA/networking
+recovery limitations below remain unchanged.
+
 ### HA review follow-up (2026-09-26)
 
 Rechecked PR #50's completed review against HA commit `9815110b3`. There are no

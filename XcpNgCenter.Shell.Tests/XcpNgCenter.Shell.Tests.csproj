@@ -21,5 +21,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\XenAdmin\Network\SSL.cs" Link="Production\WinFormsSSL.cs" />
+    <Compile Include="..\tools\WinForms.CompatibilityProbe\ProxyAuthenticationProbe.cs" Link="Production\ProxyAuthenticationProbe.cs" />
   </ItemGroup>
 </Project>

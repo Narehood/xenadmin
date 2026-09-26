@@ -90,7 +90,7 @@ internal static class ProxyAuthenticationProbe
         Console.WriteLine($"{(customTunnel ? "Tunnel" : "HttpWebRequest")} setting={selected}, challenge={challenge}: {(shouldReject ? "rejected" : schemes.Single())}");
     }
 
-    private static async Task Serve(TcpListener listener, string challenge, List<string> schemes, CancellationToken token)
+    internal static async Task Serve(TcpListener listener, string challenge, List<string> schemes, CancellationToken token)
     {
         try
         {
@@ -126,5 +126,8 @@ internal static class ProxyAuthenticationProbe
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        // Windows can surface a cancelled pending accept as socket error 995.
+        // Only this shutdown outcome is expected; other socket failures must fail the probe.
+        catch (SocketException error) when (token.IsCancellationRequested && error.SocketErrorCode == SocketError.OperationAborted) { }
     }
 }
