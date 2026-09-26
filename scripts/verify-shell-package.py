@@ -59,17 +59,29 @@ def check_linux_desktop(executable, environment, profile, evidence):
         process = subprocess.Popen([str(executable)], cwd=executable.parent, env=environment, stdout=stdout, stderr=stderr)
         try:
             deadline = time.monotonic() + 45
+            inspected = []
             while time.monotonic() < deadline:
                 require(process.poll() is None, f"Desktop exited before startup completed: {process.returncode}")
                 require(not crash.exists(), "Desktop wrote startup-crash.log.")
                 steps = trace.read_text(encoding="utf-8") if trace.exists() else ""
                 if "post-window-startup" in steps:
                     found = subprocess.run(
-                        ["xdotool", "search", "--all", "--onlyvisible", "--pid", str(process.pid), "--name", "^XCP-NG Center \\(Unofficial Client\\)$"],
+                        ["xdotool", "search", "--onlyvisible", "--pid", str(process.pid)],
                         capture_output=True, text=True, timeout=5,
                     )
+                    (evidence / "desktop-search.log").write_text(
+                        f"pid={process.pid}\nexit_code={found.returncode}\n{found.stdout}\n{found.stderr}", encoding="utf-8")
+                    inspected = []
                     if found.returncode == 0 and found.stdout.strip():
-                        window = found.stdout.splitlines()[0]
+                        for candidate in found.stdout.splitlines():
+                            title = subprocess.run(["xdotool", "getwindowname", candidate], capture_output=True, text=True, timeout=5)
+                            owner = subprocess.run(["xdotool", "getwindowpid", candidate], capture_output=True, text=True, timeout=5)
+                            inspected.append({"window": candidate, "title": title.stdout.strip(), "pid": owner.stdout.strip()})
+                            if title.returncode == 0 and title.stdout.strip() == "XCP-NG Center (Unofficial Client)" and owner.stdout.strip() == str(process.pid):
+                                window = candidate
+                                break
+                    (evidence / "desktop-candidates.json").write_text(json.dumps(inspected, indent=2), encoding="utf-8")
+                    if window:
                         break
                 time.sleep(0.25)
             require(window, "The real main window did not become visible after post-window startup.")
