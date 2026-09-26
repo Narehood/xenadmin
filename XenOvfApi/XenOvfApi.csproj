@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net481;net8.0</TargetFrameworks>
+		<TargetFrameworks>net481;net10.0</TargetFrameworks>
 		<Title>XenCenterOVF</Title>
 		<Description>XCP-ng Center library</Description>
 		<RootNamespace>XenOvf</RootNamespace>
@@ -14,7 +14,7 @@
 		<Reference Include="System.Management" />
 	</ItemGroup>
 
-	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
 		<PackageReference Include="System.Management" />
 	</ItemGroup>
 

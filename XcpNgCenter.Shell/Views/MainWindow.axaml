@@ -130,6 +130,9 @@
                   <MenuItem Header="Refresh storage"
                             Command="{Binding RefreshStorageCommand}"
                             IsVisible="{Binding ShowPoolContextActions}" />
+                  <MenuItem Header="High availability…"
+                            Command="{Binding ConfigureHaCommand}"
+                            IsVisible="{Binding ShowHaConfiguration}" />
                   <Separator IsVisible="{Binding ShowPoolContextActions}" />
                   <MenuItem Header="Reconnect"
                             Command="{Binding ReconnectSelectedCommand}"
@@ -573,6 +576,11 @@
                               HorizontalAlignment="Left"
                               Command="{Binding EditVmCommand}"
                               IsVisible="{Binding CanEditVm}" />
+                      <Button Classes="ghost"
+                              Content="High availability…"
+                              HorizontalAlignment="Left"
+                              Command="{Binding ConfigureHaCommand}"
+                              IsVisible="{Binding ShowHaConfiguration}" />
                       <ItemsControl ItemsSource="{Binding GeneralProperties}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">
@@ -718,6 +726,12 @@
                     <StackPanel Spacing="18" Margin="0,0,4,0">
                       <StackPanel Spacing="10" IsEnabled="{Binding !IsNetworkActionBusy}">
                         <Button Classes="cta" Content="{Binding AddNetworkLabel}" Command="{Binding AddNetworkCommand}" IsEnabled="{Binding CanAddNetwork}" />
+                        <WrapPanel IsVisible="{Binding ShowAdvancedNetworkActions}">
+                          <Button Classes="ghost" Content="Create bond…" Command="{Binding CreateBondCommand}" Margin="0,0,8,8" />
+                          <Button Classes="ghost" Content="Create SR-IOV network…" Command="{Binding CreateSriovNetworkCommand}" Margin="0,0,8,8" />
+                          <Button Classes="ghost" Content="Configure host IP…" Command="{Binding ConfigureHostIpCommand}" IsEnabled="{Binding CanConfigureHostIp}"
+                                  ToolTip.Tip="Select a host to configure its IP addresses." Margin="0,0,8,8" />
+                        </WrapPanel>
                         <TextBlock Text="{Binding NetworkScopeNotice}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
                       </StackPanel>
                       <ItemsControl ItemsSource="{Binding NetworkTotals}">
@@ -802,15 +816,19 @@
                                            Opacity="0.9" />
                                 <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Text="{Binding Tags}" IsVisible="{Binding HasTags}"
                                            TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" Margin="0,6,0,0" />
-                                <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
+                                <WrapPanel Grid.Row="4" Grid.ColumnSpan="2" Margin="0,10,0,0"
                                             IsVisible="{Binding HasActions}" IsEnabled="{Binding !#RootWindow.((vm:MainViewModel)DataContext).IsNetworkActionBusy}">
-                                  <Button Classes="ghost" Content="Edit" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding EditError}"
+                                  <Button Classes="ghost" Content="Edit" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding EditError}" Margin="0,0,8,8"
                                           Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).EditNetworkCommand}" CommandParameter="{Binding}" />
-                                  <Button Classes="ghost" Content="Remove" IsEnabled="{Binding CanRemove}" ToolTip.Tip="{Binding RemoveError}"
+                                  <Button Classes="ghost" Content="Remove" IsEnabled="{Binding CanRemove}" ToolTip.Tip="{Binding RemoveError}" Margin="0,0,8,8"
                                           Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RemoveNetworkCommand}" CommandParameter="{Binding}" />
-                                  <Button Classes="ghost" Content="{Binding ToggleLabel}" IsVisible="{Binding IsVmInterface}" IsEnabled="{Binding CanToggle}"
+                                  <Button Classes="ghost" Content="{Binding ToggleLabel}" IsVisible="{Binding IsVmInterface}" IsEnabled="{Binding CanToggle}" Margin="0,0,8,8"
                                           Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).ToggleNetworkInterfaceCommand}" CommandParameter="{Binding}" />
-                                </StackPanel>
+                                  <Button Classes="ghost" Content="Change bond mode…" IsVisible="{Binding IsBond}" IsEnabled="{Binding CanManageBond}" ToolTip.Tip="{Binding BondError}" Margin="0,0,8,8"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).EditBondCommand}" CommandParameter="{Binding}" />
+                                  <Button Classes="ghost" Content="Remove bond…" IsVisible="{Binding IsBond}" IsEnabled="{Binding CanManageBond}" ToolTip.Tip="{Binding BondError}" Margin="0,0,8,8"
+                                          Command="{Binding #RootWindow.((vm:MainViewModel)DataContext).RemoveBondCommand}" CommandParameter="{Binding}" />
+                                </WrapPanel>
                               </Grid>
                             </Border>
                           </DataTemplate>
@@ -1233,9 +1251,9 @@
                                     SelectedItem="{Binding SelectedPerformanceRange}"
                                     IsEnabled="{Binding CanShowPerformance}" />
                           <Button Classes="ghost"
-                                  Content="Save layout"
-                                  Command="{Binding SavePerformanceLayoutCommand}"
-                                  IsEnabled="{Binding CanSavePerformanceLayout}" />
+                                  Content="Edit graphs…"
+                                  Command="{Binding EditPerformanceLayoutCommand}"
+                                  IsEnabled="{Binding CanEditPerformanceLayout}" />
                         </StackPanel>
                       </DockPanel>
                       <TextBlock Text="{Binding PerformanceStatusMessage}"
@@ -1269,6 +1287,10 @@
                                              MaxWidth="420"
                                              HorizontalAlignment="Right" />
                                 </DockPanel>
+                                <TextBlock Text="{Binding AvailabilityNotice}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Brush.TextMuted}" />
                                  <controls:PerformanceChart Height="180"
                                                             Series="{Binding Series}"
                                                             Interval="{Binding Interval}"

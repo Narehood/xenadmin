@@ -334,7 +334,7 @@ public sealed class PerformanceChart : Control
             var x = MapX(plot, t, minX, maxX);
             context.DrawLine(tickPen, new Point(x, plot.Bottom), new Point(x, plot.Bottom + 4));
 
-            var label = new DateTime(t, DateTimeKind.Local).ToString(format);
+            var label = LocalDisplayTime(t).ToString(format);
             var text = new FormattedText(
                 label,
                 System.Globalization.CultureInfo.CurrentCulture,
@@ -367,7 +367,7 @@ public sealed class PerformanceChart : Control
         context.DrawLine(crossPen, new Point(pt.X, plot.Y), new Point(pt.X, plot.Bottom));
 
         var lines = new List<(string Text, Color Color)>();
-        var stamp = new DateTime(hoverTicks, DateTimeKind.Local);
+        var stamp = LocalDisplayTime(hoverTicks);
         lines.Add((FormatHoverTime(stamp), TitleColor));
 
         foreach (var series in seriesList)
@@ -437,6 +437,9 @@ public sealed class PerformanceChart : Control
             RrdArchiveInterval.OneDay => (6, "MMM d"),
             _ => (5, "g")
         };
+
+    internal static DateTime LocalDisplayTime(long utcTicks, TimeZoneInfo? timeZone = null)
+        => TimeZoneInfo.ConvertTimeFromUtc(new DateTime(utcTicks, DateTimeKind.Utc), timeZone ?? TimeZoneInfo.Local);
 
     private static string FormatHoverTime(DateTime local)
         => local.ToString("g");

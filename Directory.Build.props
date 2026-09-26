@@ -1,8 +1,8 @@
 <Project>
 	<PropertyGroup>
-		<!-- Multi-target libraries use net8.0 (not net8.0-windows) for Avalonia; Windows-only APIs are runtime-gated. -->
-		<NoWarn Condition="'$(TargetFramework)' == 'net8.0'">$(NoWarn);CA1416</NoWarn>
-		<!-- Allow restoring/building Windows TFMs (net8.0-windows) on non-Windows hosts (Linux CI dependency graph, Shell publish). -->
+		<!-- Multi-target libraries use net10.0 (not net10.0-windows) for Avalonia; Windows-only APIs are runtime-gated. -->
+		<NoWarn Condition="'$(TargetFramework)' == 'net10.0'">$(NoWarn);CA1416</NoWarn>
+		<!-- Allow restoring/building Windows TFMs (net10.0-windows) on non-Windows hosts (Linux CI dependency graph, Shell publish). -->
 		<EnableWindowsTargeting>true</EnableWindowsTargeting>
 		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
 		<AssemblyTitle>$(Title)</AssemblyTitle>
@@ -25,4 +25,8 @@
 		<Codename Condition="'$(Codename)' == ''">Awa</Codename>
 		<Lab>xcpngcenter_main</Lab>
 	</PropertyGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+		<!-- Keep locked restores identical with or without a locally installed targeting pack. -->
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="All" />
+	</ItemGroup>
 </Project>

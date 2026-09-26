@@ -1,8 +1,245 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-23. Initial review, remediation, and shell follow-up fixes.
+Last updated: 2026-09-26 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Manual beta update channel (2026-09-26)
+
+PR #50 adds **Settings → About → Receive beta updates** to the Avalonia shell.
+Regular releases remain the default. The persisted opt-in includes newer GitHub
+prereleases and regular releases, with beta labels and independent dismissal
+history. Switching channels clears prior offers and prepared-install state;
+it never downgrades the installed version. Checks, downloads and installation
+confirmation prevent concurrent channel changes. Installer metadata retains the
+release kind, and the installed bootstrap carries explicit beta authorization
+across UAC while preserving fresh publisher/digest verification.
+
+The [beta guide](beta-updates.md) describes the manual publishing and test flow.
+Test Builds now covers `beta`; publication remains `workflow_dispatch` only.
+Publish Shell Release requires `beta` plus prerelease, or `development` plus a
+regular release. A shared preparation job validates unique increasing numeric
+tags and passes one UTC version to both platform packages. Merge the workflow
+support to the default branch before starting beta releases. No release was
+published, no beta branch was created, and PR #50 remains unmerged.
+
+Local validation: Release and Debug each pass 713 shell tests, including 29 new
+channel cases covering legacy/invalid settings, persistence, per-channel
+dismissal, paginated release selection, beta notes, regular promotion, downgrade
+prevention, offline errors, cache-kind mismatch, fresh publisher authentication,
+elevation arguments and busy-state guards. All 73 shared tests pass on each of
+`net481`/`net10.0`. The real Settings window passes 12 binding/layout checks at
+760×650 and 440×400 (`AdvancedNetworking.UiProbe --beta-settings`). Thirteen
+isolated workflow-validation scenarios pass. A Windows package built through
+`Publish-Shell.ps1 -ReleaseVersion 2026.9.25.42` has that exact assembly version
+and passes the packaged helper/runtime smoke checks; lockfiles are unchanged.
+Hosted results are recorded in the PR. Live beta publication, end-to-end update
+installation, UAC and subsequent return to a newer regular release remain manual
+acceptance on disposable machines, as requested by the user.
+
+### Proxy probe cancellation follow-up (2026-09-26)
+
+Hosted validation of documentation commit `b43769825` exposed an intermittent
+Windows shutdown failure in the existing loopback proxy probe: a cancelled
+pending accept raised `SocketException`/`OperationAborted` (995). The probe now
+accepts that specific error only when its cancellation token was requested;
+unexpected socket errors still fail. Application proxy behavior is unchanged.
+Three regressions compile the real probe source into the shell test suite and
+exercise 128 pending-accept cancellation/close cycles plus an unexpected listener
+abort. The 12 actual proxy authentication cases also pass locally. Release and
+Debug each pass 684 shell tests; the shared suites pass 73 tests on each of
+`net481`/`net10.0`. Hosted results are recorded in the PR; the HA/networking
+recovery limitations below remain unchanged.
+
+### HA review follow-up (2026-09-26)
+
+Rechecked PR #50's completed review against HA commit `9815110b3`. There are no
+new inline findings; the five earlier threads remain resolved. The latest
+summary's request for recovery guidance at each intermediate HA state is valid.
+The [HA guide](ha-management.md#reconcile-intermediate-states) now maps the shared
+actions' actual write order to possible partial outcomes and required checks,
+including policy removal before additions, changed tolerance, unconfirmed
+database synchronization, and interrupted enable/disable tasks. It describes
+capturing original/intended values and explicitly distinguishes matching UI
+values from confirmed member synchronization.
+
+This is a documentation change; runtime behavior and regression coverage from
+`9815110b3` are retained. Local Release validation passed all 681 shell tests and
+all 73 shared tests on each of `net481`/`net10.0`, using the unchanged binaries.
+No automatic rollback or recovery journal was
+added, and live interruption/failover validation remains manual. The generic
+docstring score identifies no further concrete defect. Review dispositions are
+recorded in the [review log](reviews/2026-09-25-pr50-review.md#ha-milestone-review-2026-09-26).
+
+### Pool HA follow-up (2026-09-26)
+
+Following graph milestone `d3b8c9a61`, [PR #50](https://github.com/Narehood/xenadmin/pull/50)
+adds [pool high availability](ha-management.md) before merge. Open the editor
+from a pool/host's General tab or context menu, or from an HA alert. Alert links
+retain the original pool identity and cannot redirect to a different selection
+or a replaced pool. Enable HA with reviewed heartbeat storage, configure VM
+restart policies and failure tolerance, or disable normally. Existing startup
+order/delay are preserved; unknown policies require an explicit supported choice.
+
+Read-only server review checks storage suitability, VM agility and hypothetical
+failover capacity. Draft changes invalidate approval. The action rechecks the
+reviewed pool/inventory and permissions before using shared `EnableHAAction`,
+`SetHaPrioritiesAction`, or `DisableHAAction`. Normal disable has separate gates
+so unhealthy hosts, licensing or heartbeat/capacity problems do not block the
+recovery request. Changes are sequential, with no automatic rollback or retry;
+lost responses require inspecting actual server state and reopening the editor.
+Long confirmation messages scroll while their buttons remain available.
+
+HA-milestone validation: 681 shell tests passed in each of Release/Debug,
+including 83 new HA cases (49 backend/loopback RPC, 20 editor, 14 alert routing).
+Coverage includes successful shared enable/configure/disable task completion,
+task cleanup, revoked nested permissions, cancellation, stale configuration,
+capacity/agility failures and partial or unconfirmed mutation outcomes. All 73
+shared tests passed on each of `net481`/`net10.0`. An actual-window probe passed
+24 interaction/layout checks at default/minimum sizes, including a scrolling
+confirmation containing 200 VM changes. The temporary harness and screenshots
+are in ignored `artifacts/ha-editor-ui-probe`. Existing Windows ACL analyzer
+warnings remain; no new production or test warnings were introduced.
+
+The [roadmap](modernization-roadmap.md) now lists AD/RBAC and DR as subsequent
+feature work. Live enable/failover/recovery and desktop acceptance remain pending
+the user's manual test environment; automated coverage does not establish those
+deployment outcomes. Hosted results for this follow-up are recorded in the PR.
+
+### Graph editor follow-up (2026-09-25)
+
+Following review update `adcb021c4` on [PR #50](https://github.com/Narehood/xenadmin/pull/50),
+the next implemented milestone is the [performance graph editor](graph-editor.md).
+The Performance tab now opens an isolated draft for adding/removing/reordering
+graphs and sources, changing titles, and saving compatible layouts. Missing
+sources remain visible and persist; Cancel and window close do not save. The
+save worker copies the draft, declares `pool.set_gui_config`, checks reviewed
+identities/layout against cache and server, and merges only exact target keys
+into fresh server configuration. Separate get/set calls are not atomic across
+different clients, and a lost save response can leave an uncertain outcome.
+
+Week/year selections no longer show short archives under long-range labels.
+RRD sample IDs and polling cursors keep UTC ticks, with local conversion only at
+chart display, preventing shifted history and duplicate-hour loss across DST.
+No persisted layout format or server-side source recording policy changes.
+The [roadmap](modernization-roadmap.md) now lists HA, AD/RBAC and DR as subsequent
+milestones. Live graph history and the user's other manual acceptance remain
+pending; this follow-up does not complete those deployment gates.
+
+Graph-milestone validation: 598 shell tests passed in each of Release/Debug;
+73 shared tests passed on each of `net481`/`net10.0`. The 70 new graph cases cover
+layout storage/RPC behavior (36), editor drafts and binding feedback (18), and
+history/DST behavior (16). An isolated actual-window probe passed 20 keyboard,
+layout, failure/retry, save/close, and Cancel checks at default/minimum sizes.
+Evidence and its temporary harness are in ignored `artifacts/graph-editor-ui-probe`.
+Existing Windows ACL analyzer warnings remain; the shell builds cleanly.
+
+### PR #50 comment follow-up (2026-09-25)
+
+The [review record](reviews/2026-09-25-pr50-review.md) maps every inline finding
+and the recovery/docstring suggestions to its disposition. The bond-mode and
+IPv4-disable fixes were already present in `7cb543d9c`; both were rechecked.
+The Basic/Digest options now explain their transfer-tunnel scope in both client
+settings pages. A reproducible, isolated loopback proxy probe covers both
+selections against Basic-only, Digest-only and combined challenges for the real
+custom tunnel and `HttpWebRequest` (12 cases). The handler uses Digest when both
+are available but can use Basic when that is the only challenge even if the
+tunnel setting is Digest. Windows CI now runs that probe.
+
+The proposed management-IP flag inversion was not adopted: the shared action
+uses the same negation so a replaced management address does not enable repeated
+reconnects to remembered endpoints. Four new IPv6 worker/RPC cases verify the
+flag during mutation, submitted values, cleanup and error propagation. Added a
+concrete per-host recovery procedure for partial bond/SR-IOV changes. Automatic
+rollback and a durable action journal remain unimplemented; live failure/recovery
+and the user's other manual acceptance gates remain pending.
+
+Validation of review update `adcb021c4`: 528 shell tests passed in each of Release/Debug, including 72
+host-IP cases; 73 shared tests passed on each of `net481`/`net10.0`; all 12
+loopback proxy cases passed on .NET 10.0.12. WinForms Release built using the
+existing RDP interop; 32,240 resources in 290 sets loaded. Actual settings layouts
+passed at three WinForms widths and two shell sizes. Existing warnings remain.
+
+### .NET 10 and advanced networking (2026-09-25, snapshot `7cb543d9c`)
+
+Implementation: [PR #50](https://github.com/Narehood/xenadmin/pull/50), initial
+commit `9d107d46b`. Check the PR's current hosted results before merging.
+
+The modernization follow-up targets .NET 10 with SDK 10.0.401 pinned in
+`global.json`, while preserving shared `net481` compatibility. System packages
+are centrally pinned to 10.0.12 and portable lockfiles are refreshed. The
+[migration record](dotnet10-migration.md) explains certificate loading, proxy
+registration cleanup, the C# 14 accessor fix, complete OVF password-check reads,
+and fragmented classic-RFB padding reads. No unsafe BinaryFormatter switch or
+compatibility package is enabled. Legacy WFO1000 designer diagnostics are
+suppressed only in WinForms pending a separate metadata audit.
+
+The shell adds [advanced networking](advanced-networking.md): pool-wide NIC
+bonds (create, change mode, remove), host IPv4/IPv6 configuration, and SR-IOV
+provisioning/removal. Plans validate exact identities, current topology,
+capabilities and dependencies again on the action worker. Shared XenModel
+actions remain the execution path where available. Management bond changes,
+dependent interfaces and other unsupported combinations remain blocked; changing
+a management IP requires explicit disruption confirmation and manual reconnect.
+Pool-wide failure can leave partial changes, so inspect actual server state
+before retrying. No live pool operations were performed.
+
+Native Linux CI now tests both shell configurations and portable shared code,
+publishes a self-contained archive, verifies updater helper rejection with
+startup hooks disabled, and starts the actual main window under Xvfb. Windows
+CI retains full Release/Debug WinForms builds and adds runtime resource probes.
+The publish script uses ignored RID-specific locks and preserves the committed
+portable graphs. The release workflow uses the same package checks.
+
+The [performance baseline](performance-baseline.md) records repeatable synthetic
+inventory and console measurements. Overlap-safe CopyRect row copies reduce the
+measured 4K scroll median from 98.5 ms to 5.24 ms and managed allocations from
+33.2 MB to 208 bytes including presentation; pixel and allocation regressions
+cover clipping and overlap. Real network/GPU/desktop timing remains unmeasured.
+
+The retained `asv/xsa-498` SDK update was reviewed rather than merged wholesale:
+it changes transport contracts and removes the XCP-ng 2.16 API mapping. Four
+loopback TLS cases preserve the current certificate-validation boundary; see
+the [SDK compatibility review](reviews/2026-09-25-sdk-compatibility.md).
+
+Validation of `7cb543d9c`, before review update `adcb021c4`: full local
+Release/Debug solution builds; 524 shell tests in each;
+73 shared tests on each of net481/net10.0 in both configurations; all 32,239
+WinForms resources in 290 sets load on .NET 10.0.12 in both configurations;
+Settings initialization and fragmented RFB reads pass. The local machine lacks
+AxImp, so its builds reused the unchanged RDP interop DLLs from the trusted
+development CI artifact with `SkipRdpAxImp=true`; hosted Windows CI must rebuild
+them normally. The NuGet transitive vulnerability audit reported no advisories.
+An isolated offscreen probe exercised all three actual editor windows; native
+DPI and physical desktop behavior still need acceptance testing.
+The local self-contained Windows ZIP also passed all four malformed-updater
+invocations with startup hooks disabled, using bundled .NET 10.0.12; SHA-256
+`8cf6bafdf10dc04de96c4f559c2a6f762fe63ef540f4feeccca942b557ac9d03`.
+Portable lockfile hashes were unchanged by publishing.
+The first hosted pass exposed an environment-dependent implicit `net481`
+reference-assembly dependency. It is now explicit and centrally pinned so
+installed targeting packs do not change the locked dependency graph. Native
+Linux also exposed old updater tests using Windows-only path literals; those
+fixtures now use native paths; only Windows-specific checks are explicitly
+skipped on Linux, without relaxing updater validation.
+Review follow-up preserves unrecognized/mixed bond modes until an explicit
+supported choice and sends genuinely empty address fields when disabling IPv4.
+Four loopback worker/RPC regressions verify the latter, including failure cleanup,
+stale identity rejection and no retry; six bond cases verify safe selection.
+Windows hosted builds, resources, tests and packaged execution passed. Linux
+tests and package helpers passed; its desktop smoke now initializes Openbox's
+EWMH metadata before Avalonia so PID-based window discovery works on private
+Xvfb displays. The final hosted pass remains visible in the PR checks.
+
+The user has no disposable pool/VM/test machines and explicitly deferred live
+and UAC checks. Keep those gates pending in [platform acceptance](platform-acceptance.md).
+The [roadmap](modernization-roadmap.md) prioritizes graph editing and HA/AD/DR
+after acceptance; WinForms remains the supported production client. Earlier
+dated sections below are historical snapshots, including their .NET 8 counts.
+
+Branch cleanup removed only reviewed redundant branches (9 local, 14 remote).
+The local audit and verified pre-cleanup bundle remain in
+`.git/branch-cleanup-20260925-205344/`; five unique remote topics were retained.
 
 ### Awa console fold (2026-09-23)
 

@@ -143,7 +143,7 @@ public partial class CustomFieldsEditor : ViewModelBase
     public bool HasChanges =>
         _addedDefinitions.Count > 0
         || _removedDefinitions.Count > 0
-        || Fields.Any(field => field.HasChanges);
+        || Fields.Any(row => row.HasChanges);
 
     public bool TryValidate(out string error)
     {

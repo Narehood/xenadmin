@@ -40,7 +40,9 @@ public partial class PerformanceGraphRow : ObservableObject
         string title,
         IReadOnlyList<PerformanceSeriesView> series,
         RrdArchiveInterval interval,
-        double? yAxisMax = null)
+        double? yAxisMax = null,
+        GraphLayoutDefinition? layout = null,
+        string availabilityNotice = "")
     {
         Title = title;
         Interval = interval;
@@ -48,11 +50,17 @@ public partial class PerformanceGraphRow : ObservableObject
         YAxisMax = yAxisMax;
         HasData = series.Any(s => s.Points.Count > 0);
         LatestSummary = BuildSummary(series);
+        Layout = layout;
+        AvailabilityNotice = availabilityNotice;
     }
 
     public string Title { get; }
 
     public RrdArchiveInterval Interval { get; }
+
+    public GraphLayoutDefinition? Layout { get; }
+
+    public string AvailabilityNotice { get; }
 
     /// <summary>
     /// When set (e.g. 100 for CPU %), the chart Y-axis uses this fixed maximum instead of the data peak.

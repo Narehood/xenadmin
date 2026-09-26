@@ -7,8 +7,8 @@ public sealed partial class ShellUpdateInstaller
 {
     private const string ApplyReadyFile = "apply-ready";
     private const string LegacyUpdateMessage = "This older build cannot install the new updater automatically. "
-        + "Your installation has not been changed. Close XCP-ng Center, download the latest release from "
-        + "https://github.com/Narehood/xenadmin/releases/latest and extract it into a new folder, then open XcpNgCenter.Shell. "
+        + "Your installation has not been changed. Close XCP-ng Center, download a release for your selected update channel from "
+        + "https://github.com/Narehood/xenadmin/releases and extract it into a new folder, then open XcpNgCenter.Shell. "
         + "Your saved settings will be retained.";
 
     private static string GetBrokerStartedPath(string cacheRoot, string launchRoot) =>

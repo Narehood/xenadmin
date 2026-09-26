@@ -496,7 +496,9 @@ namespace XenAPI
                     SslStream sslStream = new SslStream(stream, false,
                         (sender, certificate, chain, sslPolicyErrors) =>
                         {
+#pragma warning disable SYSLIB0014 // Both clients register their TOFU policy here; this is an explicit callback lookup.
                             var appCallback = ServicePointManager.ServerCertificateValidationCallback;
+#pragma warning restore SYSLIB0014
                             if (appCallback != null)
                                 return appCallback(uri.Host, certificate, chain, sslPolicyErrors);
 

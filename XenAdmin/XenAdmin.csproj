@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetFramework>net10.0-windows</TargetFramework>
 		<UseWindowsForms>true</UseWindowsForms>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<OutputType>WinExe</OutputType>
@@ -11,8 +11,11 @@
 		<Title>XCP-ng Center</Title>
 		<Description>XCP-ng Center</Description>
 		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
-		<!-- WinForms .resx still embed BinaryFormatter payloads (ImageList/ListView groups); migrate later. -->
+		<!-- .NET 10 reads the trusted legacy NRBF resources without enabling BinaryFormatter. -->
 		<GenerateResourceWarnOnBinaryFormatterUse>false</GenerateResourceWarnOnBinaryFormatterUse>
+		<!-- Preserve the legacy designer metadata during the runtime migration.
+		     Explicit serialization metadata for these controls is a separate designer audit. -->
+		<NoWarn>$(NoWarn);WFO1000</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -24,9 +27,6 @@
 
 	<ItemGroup>
 		<PackageReference Include="System.Management" />
-		<PackageReference Include="System.Configuration.ConfigurationManager" />
-		<PackageReference Include="System.Security.Permissions" />
-		<PackageReference Include="System.Resources.Extensions" />
 	</ItemGroup>
 
 	<ItemGroup>

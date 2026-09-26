@@ -311,7 +311,7 @@ namespace XenAdmin.Wizards.ExportWizard
 
 			try
 			{
-				Certificate = new X509Certificate2(m_textBoxCertificate.Text, m_textBoxPrivateKeyPwd.Text);
+				Certificate = X509CertificateLoader.LoadPkcs12FromFile(m_textBoxCertificate.Text, m_textBoxPrivateKeyPwd.Text);
 			}
 			catch (CryptographicException)
 			{

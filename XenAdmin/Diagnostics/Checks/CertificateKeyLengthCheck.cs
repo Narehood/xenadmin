@@ -103,7 +103,7 @@ namespace XenAdmin.Diagnostics.Checks
             try
             {
                 byte[] bytes = Convert.FromBase64String(certificate);
-                var x509Cert = new X509Certificate2(bytes);
+                using var x509Cert = X509CertificateLoader.LoadCertificate(bytes);
                 using (var rsa = x509Cert.GetRSAPublicKey())
                     return rsa != null && rsa.KeySize < 2048;
             }

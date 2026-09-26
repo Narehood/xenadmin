@@ -24,9 +24,11 @@ public static class ShellBootstrap
 
         CertificateStore = new TofuCertificateStore();
         CertificateValidator = new TofuCertificateValidator(CertificateStore, AppSettings);
+#pragma warning disable SYSLIB0014 // Shared XenAPI HttpWebRequest/RFB paths still consume this explicit application policy.
         ServicePointManager.ServerCertificateValidationCallback = CertificateValidator.Validate;
         ServicePointManager.SecurityProtocol = TlsPolicy.AllowedSecurityProtocols;
-        Session.UserAgent = $"XCP-ng Center Shell/{ShellVersionInfo.Display} (.NET 8 Avalonia)";
+#pragma warning restore SYSLIB0014
+        Session.UserAgent = $"XCP-ng Center Shell/{ShellVersionInfo.Display} (.NET {Environment.Version.Major} Avalonia)";
 
         ActionHistory = new ShellActionHistory();
         ActionHistory.Initialize();

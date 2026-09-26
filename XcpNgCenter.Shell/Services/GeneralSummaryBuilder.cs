@@ -60,7 +60,7 @@ public static class GeneralSummaryBuilder
         if (pool != null)
         {
             rows.Add(new("HA", pool.ha_enabled ? "Enabled" : "Disabled"));
-            if (pool.ha_enabled && pool.ha_host_failures_to_tolerate > 0)
+            if (pool.ha_enabled)
                 rows.Add(new("HA host failures to tolerate", pool.ha_host_failures_to_tolerate.ToString()));
 
             rows.Add(new("UUID", IdentifierPrivacy.Uuid(pool.uuid)));

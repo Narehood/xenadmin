@@ -58,6 +58,7 @@ namespace XenAdmin.Dialogs.OptionsPages
             this.DigestRadioButton = new System.Windows.Forms.RadioButton();
             this.AuthenticationMethodLabel = new System.Windows.Forms.Label();
             this.BasicRadioButton = new System.Windows.Forms.RadioButton();
+            this.ProxyAuthenticationScopeLabel = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.ConnectionTableLayoutPanel.SuspendLayout();
             this.TimeoutGroupBox.SuspendLayout();
@@ -71,8 +72,9 @@ namespace XenAdmin.Dialogs.OptionsPages
             // ConnectionTableLayoutPanel
             // 
             resources.ApplyResources(this.ConnectionTableLayoutPanel, "ConnectionTableLayoutPanel");
-            this.ConnectionTableLayoutPanel.Controls.Add(this.TimeoutGroupBox, 0, 2);
+            this.ConnectionTableLayoutPanel.Controls.Add(this.TimeoutGroupBox, 0, 3);
             this.ConnectionTableLayoutPanel.Controls.Add(this.ProxyGroupBox, 0, 1);
+            this.ConnectionTableLayoutPanel.Controls.Add(this.ProxyAuthenticationScopeLabel, 0, 2);
             this.ConnectionTableLayoutPanel.Controls.Add(this.label1, 0, 0);
             this.ConnectionTableLayoutPanel.Name = "ConnectionTableLayoutPanel";
             // 
@@ -272,6 +274,14 @@ namespace XenAdmin.Dialogs.OptionsPages
             this.BasicRadioButton.UseVisualStyleBackColor = true;
             this.BasicRadioButton.CheckedChanged += new System.EventHandler(this.ProxyAuthenticationSettingsChanged);
             // 
+            // ProxyAuthenticationScopeLabel
+            //
+            resources.ApplyResources(this.ProxyAuthenticationScopeLabel, "ProxyAuthenticationScopeLabel");
+            this.ProxyAuthenticationScopeLabel.AutoSize = true;
+            this.ProxyAuthenticationScopeLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.ProxyAuthenticationScopeLabel.Margin = new System.Windows.Forms.Padding(9, 0, 9, 6);
+            this.ProxyAuthenticationScopeLabel.Name = "ProxyAuthenticationScopeLabel";
+            //
             // label1
             // 
             resources.ApplyResources(this.label1, "label1");
@@ -330,5 +340,6 @@ namespace XenAdmin.Dialogs.OptionsPages
         private System.Windows.Forms.Label AuthenticationMethodLabel;
         private System.Windows.Forms.RadioButton DigestRadioButton;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
+        private System.Windows.Forms.Label ProxyAuthenticationScopeLabel;
     }
 }

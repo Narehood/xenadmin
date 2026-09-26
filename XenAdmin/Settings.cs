@@ -50,15 +50,6 @@ namespace XenAdmin
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <summary>
-        /// Module for authenticating with proxy server using the Basic authentication scheme.
-        /// </summary>
-        private static IAuthenticationModule BasicAuthenticationModule;
-        /// <summary>
-        /// Module for authenticating with proxy server using the Digest authentication scheme.
-        /// </summary>
-        private static IAuthenticationModule DigestAuthenticationModule;
-
-        /// <summary>
         /// Used in place of the username, to indicate that a record is for a VM's VNC connection, rather
         /// than a connection to a server.
         /// </summary>
@@ -78,25 +69,6 @@ namespace XenAdmin
         /// </summary>
         private static Dictionary<string, string> VNCPasswords = new Dictionary<string, string>();
 
-
-        static Settings()
-        {
-            // Store the Basic and Digest authentication modules, used for proxy server authentication, 
-            // for later use; this is needed because we cannot create new instances of them and it 
-            // saves us needing to create our own custom authentication modules.
-
-            var authModules = AuthenticationManager.RegisteredModules;
-            while (authModules.MoveNext())
-            {
-                if (!(authModules.Current is IAuthenticationModule module))
-                    continue;
-
-                if (module.AuthenticationType == "Basic")
-                    BasicAuthenticationModule = module;
-                else if (module.AuthenticationType == "Digest")
-                    DigestAuthenticationModule = module;
-            }
-        }
 
         /// <summary>
         /// MSDN info regarding the path to the user.config file is somewhat confusing.
@@ -752,30 +724,13 @@ namespace XenAdmin
         }
 
         /// <summary>
-        /// Configures .NET's AuthenticationManager to only use the authentication module that is 
-        /// specified in the ProxyAuthenticationMethod setting. Also sets XenAPI's HTTP class to 
-        /// use the same authentication method.
+        /// Configures the shared HTTP tunnel's proxy authentication method and session proxy.
+        /// Modern .NET negotiates HTTP authentication in its handler; AuthenticationManager's
+        /// process-wide registration API is unsupported and cannot constrain that negotiation.
         /// </summary>
         public static void ReconfigureProxyAuthenticationSettings()
         {
-            var authModules = AuthenticationManager.RegisteredModules;
-            var modulesToUnregister = new List<IAuthenticationModule>();
-
-            while (authModules.MoveNext())
-            {
-                var module = (IAuthenticationModule)authModules.Current;
-                modulesToUnregister.Add(module);
-            }
-
-            foreach (var module in modulesToUnregister)
-                AuthenticationManager.Unregister(module);
-
             var authSetting = (HTTP.ProxyAuthenticationMethod)Properties.Settings.Default.ProxyAuthenticationMethod;
-            if (authSetting == HTTP.ProxyAuthenticationMethod.Basic)
-                AuthenticationManager.Register(BasicAuthenticationModule);
-            else
-                AuthenticationManager.Register(DigestAuthenticationModule);
-
             HTTP.CurrentProxyAuthenticationMethod = authSetting;
             Session.Proxy = XenAdminConfigManager.Provider.GetProxyFromSettings(null);
         }
