@@ -19,7 +19,7 @@ There is no setup wizard. The archive includes the .NET runtime. Extract the who
 
 In-app updates replace files in that folder once the installed shell includes the current updater. A shell from before that updater still runs its own update code, so extract a current release into the same folder once. Later updates can replace files in place. A folder under Program Files works, and each update will ask for administrator approval.
 
-Draft and prerelease tags are ignored by the in-app updater. An update offer appears only when the running build’s `year.month.day.revision` is lower than the release tag.
+The in-app updater defaults to regular releases. Enable **Settings → About → Receive beta updates** to include manually published beta prereleases. Drafts are always ignored, and an update is offered only when its `year.month.day.revision` exceeds the installed version. See [beta channels and manual releases](docs/beta-updates.md).
 
 ### Windows
 

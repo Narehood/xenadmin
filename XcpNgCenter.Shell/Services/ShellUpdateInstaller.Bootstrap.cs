@@ -16,9 +16,11 @@ public sealed partial class ShellUpdateInstaller
     private const string BootstrapReadyFile = "bootstrap-ready";
     private const string BootstrapErrorFile = "bootstrap-error.txt";
 
+    private const string AllowBetaReleaseArgument = "--allow-beta-release";
+
     internal static ProcessStartInfo CreateBootstrapStartInfo(
         string installedExecutable, string installDirectory, string cacheRoot,
-        string launchRoot, Version version, int parentPid, bool elevate)
+        string launchRoot, Version version, int parentPid, bool elevate, bool allowPrerelease = false)
     {
         if (!PathEquals(installedExecutable, Path.Combine(installDirectory, GetExecutableName(OperatingSystem.IsWindows()))))
             throw new InvalidDataException("Update elevation must start from the installed executable.");
@@ -34,6 +36,7 @@ public sealed partial class ShellUpdateInstaller
                      InstallDirectoryArgument, installDirectory, UpdateRootArgument, cacheRoot,
                      LaunchRootArgument, launchRoot, VersionArgument, version.ToString(4) })
             info.ArgumentList.Add(value);
+        if (allowPrerelease) info.ArgumentList.Add(AllowBetaReleaseArgument);
         return info;
     }
 
@@ -176,7 +179,10 @@ public sealed partial class ShellUpdateInstaller
             CreateLaunchDirectory(install, launchRoot, elevated);
             ownsLaunchRoot = true;
             using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-            var asset = ShellGitHubUpdateChecker.GetPublishedAssetAsync(version, elevated, timeout.Token).GetAwaiter().GetResult();
+            // Carry the user's beta choice explicitly across UAC; do not read a different
+            // administrator's preferences or take publisher/digest data from the writable cache.
+            var allowBeta = args.Contains(AllowBetaReleaseArgument, StringComparer.Ordinal);
+            var asset = ShellGitHubUpdateChecker.GetPublishedAssetAsync(version, elevated, timeout.Token, allowBeta).GetAwaiter().GetResult();
             PrepareLaunchPayloadAsync(cacheRoot, launchRoot, install, version, asset, timeout.Token).GetAwaiter().GetResult();
             var info = new ProcessStartInfo
             {

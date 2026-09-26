@@ -17,7 +17,7 @@ on:
         type: boolean
         default: true
       prerelease:
-        description: "Mark release as prerelease (update banner ignores prereleases)"
+        description: "Publish a beta prerelease (required on beta; regular releases use development)"
         required: true
         type: boolean
         default: false
@@ -30,14 +30,63 @@ on:
 permissions:
   contents: write
 
+# Stable and beta share numeric version tags; serialize publication across both.
+concurrency:
+  group: publish-shell-release
+  cancel-in-progress: false
+
 jobs:
-  publish-windows:
-    if: ${{ inputs.attach_artifacts }}
-    runs-on: windows-latest
+  prepare:
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.ver.outputs.version }}
       tag: ${{ steps.ver.outputs.tag }}
+      revision: ${{ steps.ver.outputs.revision }}
       codename: ${{ steps.ver.outputs.codename }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Validate channel and select a unique version
+        id: ver
+        shell: pwsh
+        env:
+          INPUT_REVISION: ${{ inputs.revision }}
+          INPUT_CODENAME: ${{ inputs.codename }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          $beta = $env:INPUT_PRERELEASE -eq 'true'
+          $expectedRef = if ($beta) { 'refs/heads/beta' } else { 'refs/heads/development' }
+          if ($env:GITHUB_REF -ne $expectedRef) {
+            throw "Select beta with prerelease enabled, or development with prerelease disabled."
+          }
+          $revision = 0
+          if ($env:INPUT_REVISION.Trim() -notmatch '^\d+$' -or
+              ![int]::TryParse($env:INPUT_REVISION.Trim(), [ref]$revision) -or $revision -gt 65534) {
+            throw 'revision must be an integer between 0 and 65534.'
+          }
+          $utc = [DateTime]::UtcNow
+          $version = [Version]::new($utc.Year, $utc.Month, $utc.Day, $revision)
+          $tag = "v$version"
+          $tags = @(git tag -l 'v*')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not inspect existing release tags.' }
+          foreach ($existing in $tags) {
+            if ($existing -match '^v\d+\.\d+\.\d+\.\d+$' -and [Version]::Parse($existing.Substring(1)) -ge $version) {
+              throw "Version $version must exceed existing tag $existing. Choose a higher revision."
+            }
+          }
+          $codename = $env:INPUT_CODENAME.Trim()
+          if ($codename -match "[\r\n]") { throw 'codename must be a single line.' }
+          if (!$codename) { $codename = 'Awa' }
+          "version=$version", "tag=$tag", "revision=$revision", "codename=$codename" >> $env:GITHUB_OUTPUT
+
+  publish-windows:
+    needs: prepare
+    if: ${{ inputs.attach_artifacts }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
         with:
@@ -48,45 +97,20 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Validate revision and compute version
-        id: ver
-        shell: pwsh
-        env:
-          INPUT_REVISION: ${{ inputs.revision }}
-          INPUT_CODENAME: ${{ inputs.codename }}
-        run: |
-          $rev = $env:INPUT_REVISION.Trim()
-          if ($rev -notmatch '^\d+$') {
-            throw "revision must be a non-negative integer (got '$rev')"
-          }
-          $utc = [DateTime]::UtcNow
-          $version = "{0}.{1}.{2}.{3}" -f $utc.Year, $utc.Month, $utc.Day, $rev
-          $tag = "v$version"
-          $codename = $env:INPUT_CODENAME.Trim()
-          if ($codename -match "[\r\n]") { throw "codename must be a single line" }
-          if ([string]::IsNullOrWhiteSpace($codename)) {
-            $codename = "Awa"
-          }
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "revision=$rev" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "codename=$codename" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Publishing $tag ($codename)"
-
       - name: Restore locked source dependencies
         run: dotnet restore XcpNgCenter.Shell/XcpNgCenter.Shell.csproj --locked-mode
 
       - name: Publish and package Avalonia shell (win-x64)
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
-          RELEASE_REVISION: ${{ steps.ver.outputs.revision }}
-          RELEASE_CODENAME: ${{ steps.ver.outputs.codename }}
-        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath "dist/XcpNgCenter.Shell-win-x64-$env:RELEASE_VERSION.zip" -BuildRevision $env:RELEASE_REVISION -Codename $env:RELEASE_CODENAME
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_REVISION: ${{ needs.prepare.outputs.revision }}
+          RELEASE_CODENAME: ${{ needs.prepare.outputs.codename }}
+        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath "dist/XcpNgCenter.Shell-win-x64-$env:RELEASE_VERSION.zip" -BuildRevision $env:RELEASE_REVISION -Codename $env:RELEASE_CODENAME -ReleaseVersion $env:RELEASE_VERSION
 
       - name: Verify packaged Windows executable
         env:
-          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: python scripts/verify-shell-package.py --archive "dist/XcpNgCenter.Shell-win-x64-$env:RELEASE_VERSION.zip" --rid win-x64 --evidence-directory artifacts/smoke-windows
 
       - name: Confirm checked-in lockfiles were preserved
@@ -107,12 +131,9 @@ jobs:
           if-no-files-found: error
 
   publish-linux:
+    needs: prepare
     if: ${{ inputs.attach_artifacts }}
     runs-on: ubuntu-24.04
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
-      tag: ${{ steps.ver.outputs.tag }}
-      codename: ${{ steps.ver.outputs.codename }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -126,52 +147,20 @@ jobs:
       - name: Install native desktop smoke dependencies
         run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool openbox x11-utils libice6 libsm6 libfontconfig1
 
-      - name: Validate revision and compute version
-        id: ver
-        shell: bash
-        env:
-          INPUT_REVISION: ${{ inputs.revision }}
-          INPUT_CODENAME: ${{ inputs.codename }}
-        run: |
-          REV="$INPUT_REVISION"
-          REV="$(echo "$REV" | tr -d '[:space:]')"
-          if ! [[ "$REV" =~ ^[0-9]+$ ]]; then
-            echo "revision must be a non-negative integer (got '$REV')" >&2
-            exit 1
-          fi
-          YEAR=$(date -u +%Y)
-          MONTH=$(date -u +%-m)
-          DAY=$(date -u +%-d)
-          VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
-          TAG="v${VERSION}"
-          CODENAME="$(printf '%s' "$INPUT_CODENAME" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          if [[ "$CODENAME" == *$'\n'* || "$CODENAME" == *$'\r'* ]]; then
-            echo "codename must be a single line" >&2
-            exit 1
-          fi
-          if [[ -z "$CODENAME" ]]; then
-            CODENAME="Awa"
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "revision=${REV}" >> "$GITHUB_OUTPUT"
-          echo "codename=${CODENAME}" >> "$GITHUB_OUTPUT"
-          echo "Publishing ${TAG} (${CODENAME})"
-
       - name: Restore locked source dependencies
         run: dotnet restore XcpNgCenter.Shell/XcpNgCenter.Shell.csproj --locked-mode
 
       - name: Publish and package Avalonia shell (linux-x64)
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
-          RELEASE_REVISION: ${{ steps.ver.outputs.revision }}
-          RELEASE_CODENAME: ${{ steps.ver.outputs.codename }}
-        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath "dist/XcpNgCenter.Shell-linux-x64-$env:RELEASE_VERSION.tar.gz" -BuildRevision $env:RELEASE_REVISION -Codename $env:RELEASE_CODENAME
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_REVISION: ${{ needs.prepare.outputs.revision }}
+          RELEASE_CODENAME: ${{ needs.prepare.outputs.codename }}
+        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath "dist/XcpNgCenter.Shell-linux-x64-$env:RELEASE_VERSION.tar.gz" -BuildRevision $env:RELEASE_REVISION -Codename $env:RELEASE_CODENAME -ReleaseVersion $env:RELEASE_VERSION
 
       - name: Verify packaged Linux executable and native desktop startup
         env:
-          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: xvfb-run -a python3 scripts/verify-shell-package.py --archive "dist/XcpNgCenter.Shell-linux-x64-$RELEASE_VERSION.tar.gz" --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop --window-manager
 
       - name: Confirm checked-in lockfiles were preserved
@@ -192,7 +181,7 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    needs: [publish-windows, publish-linux]
+    needs: [prepare, publish-windows, publish-linux]
     if: ${{ always() && inputs.attach_artifacts && needs.publish-windows.result == 'success' && needs.publish-linux.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
@@ -213,9 +202,9 @@ jobs:
         id: notes
         shell: bash
         env:
-          RELEASE_TAG: ${{ needs.publish-linux.outputs.tag }}
-          RELEASE_VERSION: ${{ needs.publish-linux.outputs.version }}
-          RELEASE_CODENAME: ${{ needs.publish-linux.outputs.codename }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_CODENAME: ${{ needs.prepare.outputs.codename }}
         run: |
           set -euo pipefail
           TAG="$RELEASE_TAG"
@@ -259,8 +248,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.publish-linux.outputs.tag }}
-          name: XCP-ng Center Shell ${{ needs.publish-linux.outputs.version }} (${{ needs.publish-linux.outputs.codename }})
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: XCP-ng Center Shell ${{ needs.prepare.outputs.version }} (${{ needs.prepare.outputs.codename }})
           target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
@@ -271,6 +260,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-notes-only:
+    needs: prepare
     if: ${{ !inputs.attach_artifacts }}
     runs-on: ubuntu-latest
     steps:
@@ -280,44 +270,13 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
-      - name: Validate revision and compute version
-        id: ver
-        shell: bash
-        env:
-          INPUT_REVISION: ${{ inputs.revision }}
-          INPUT_CODENAME: ${{ inputs.codename }}
-        run: |
-          REV="$INPUT_REVISION"
-          REV="$(echo "$REV" | tr -d '[:space:]')"
-          if ! [[ "$REV" =~ ^[0-9]+$ ]]; then
-            echo "revision must be a non-negative integer (got '$REV')" >&2
-            exit 1
-          fi
-          YEAR=$(date -u +%Y)
-          MONTH=$(date -u +%-m)
-          DAY=$(date -u +%-d)
-          VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
-          TAG="v${VERSION}"
-          CODENAME="$(printf '%s' "$INPUT_CODENAME" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          if [[ "$CODENAME" == *$'\n'* || "$CODENAME" == *$'\r'* ]]; then
-            echo "codename must be a single line" >&2
-            exit 1
-          fi
-          if [[ -z "$CODENAME" ]]; then
-            CODENAME="Awa"
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "codename=${CODENAME}" >> "$GITHUB_OUTPUT"
-          echo "Publishing ${TAG} (${CODENAME})"
-
       - name: Build release notes from commits
         id: notes
         shell: bash
         env:
-          RELEASE_TAG: ${{ steps.ver.outputs.tag }}
-          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
-          RELEASE_CODENAME: ${{ steps.ver.outputs.codename }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_CODENAME: ${{ needs.prepare.outputs.codename }}
         run: |
           set -euo pipefail
           TAG="$RELEASE_TAG"
@@ -343,14 +302,14 @@ jobs:
               echo
             fi
             echo
-            echo "CI artifacts: download \`drop-shell-linux-x64\` / \`drop-shell-win-x64\` from the Test Builds workflow on \`development\`."
+            echo "CI artifacts: download \`drop-shell-linux-x64\` / \`drop-shell-win-x64\` from the Test Builds workflow on the branch used for this release."
           } > release-notes.md
 
       - name: Create GitHub Release (notes only)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: XCP-ng Center Shell ${{ steps.ver.outputs.version }} (${{ steps.ver.outputs.codename }})
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: XCP-ng Center Shell ${{ needs.prepare.outputs.version }} (${{ needs.prepare.outputs.codename }})
           target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ inputs.prerelease }}

@@ -23,13 +23,16 @@ public sealed record ShellUpdateOffer(
     DateTimeOffset? PublishedAt,
     ShellUpdateAsset? Asset)
 {
+    public bool IsPrerelease { get; init; }
+    public string DisplayVersion => Version.ToString(4) + (IsPrerelease ? " (beta)" : string.Empty);
     public IReadOnlyList<ShellReleaseNotes> ReleaseNotes { get; init; } = [];
     public string? ReleaseNotesError { get; init; }
 }
 
 public sealed record ShellReleaseNotes(Version Version, string Body, string HtmlUrl)
 {
-    public string Heading => $"Changes in {Version.ToString(4)}";
+    public bool IsPrerelease { get; init; }
+    public string Heading => $"Changes in {Version.ToString(4)}" + (IsPrerelease ? " (beta)" : string.Empty);
     public string DisplayBody => ShellReleaseNotesText.ToPlainText(Body);
 }
 
@@ -72,6 +75,8 @@ public sealed class ShellGitHubUpdateChecker
     }
 
     public string ReleasesPageUrl => $"https://github.com/{_owner}/{_repo}/releases";
+    public ShellUpdateChannel Channel => _preferences.GetChannel();
+    public void SetChannel(ShellUpdateChannel channel) => _preferences.SetChannel(channel);
 
     internal static bool IsDefaultRepositoryConfigured
     {
@@ -100,12 +105,20 @@ public sealed class ShellGitHubUpdateChecker
     {
         try
         {
-            var release = await FetchLatestReleaseAsync(cancellationToken).ConfigureAwait(false);
-            if (release == null || release.Draft || release.Prerelease)
+            // Capture once so an external preference edit cannot mix channels within one check.
+            var channel = Channel;
+            var includeBeta = channel == ShellUpdateChannel.Beta;
+            var catalog = includeBeta ? await FetchReleaseCatalogAsync(cancellationToken).ConfigureAwait(false) : null;
+            var release = catalog == null ? await FetchLatestReleaseAsync(cancellationToken).ConfigureAwait(false)
+                : catalog.Where(r => !r.Draft && TryCanonicalVersion(r.TagName, out _))
+                    .OrderByDescending(r => { TryCanonicalVersion(r.TagName, out var version); return version; })
+                    .FirstOrDefault();
+            if (release == null || release.Draft || release.Prerelease && !includeBeta)
             {
                 return new ShellUpdateCheckResult(
                     ShellUpdateCheckStatus.UpToDate,
-                    Detail: "No newer published release was found on GitHub.");
+                    Detail: includeBeta ? "No published beta or regular release was found on GitHub."
+                        : "No newer published regular release was found on GitHub.");
             }
 
             if (!ShellVersionInfo.TryParse(release.TagName, out var remote)
@@ -139,12 +152,15 @@ public sealed class ShellGitHubUpdateChecker
                 OperatingSystem.IsWindows(),
                 OperatingSystem.IsLinux(),
                 RuntimeInformation.ProcessArchitecture);
-            var offer = new ShellUpdateOffer(remote, tag, title, url, release.PublishedAt, asset);
+            var offer = new ShellUpdateOffer(remote, tag, title, url, release.PublishedAt, asset)
+                { IsPrerelease = release.Prerelease };
             try
             {
-                var notes = await FetchReleaseNotesAsync(local, remote, cancellationToken).ConfigureAwait(false);
+                var notes = BuildReleaseNotes(catalog ?? await FetchReleaseCatalogAsync(cancellationToken).ConfigureAwait(false),
+                    local, remote, includeBeta);
                 if (!notes.Any(note => note.Version == remote))
-                    notes = new[] { new ShellReleaseNotes(remote, release.Body ?? string.Empty, url) }.Concat(notes).ToArray();
+                    notes = new[] { new ShellReleaseNotes(remote, release.Body ?? string.Empty, url)
+                        { IsPrerelease = release.Prerelease } }.Concat(notes).ToArray();
                 offer = offer with { ReleaseNotes = notes };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -153,12 +169,13 @@ public sealed class ShellGitHubUpdateChecker
                 // Notes are informational: their failure must not hide a valid update.
                 offer = offer with
                 {
-                    ReleaseNotes = [new ShellReleaseNotes(remote, release.Body ?? string.Empty, url)],
+                    ReleaseNotes = [new ShellReleaseNotes(remote, release.Body ?? string.Empty, url)
+                        { IsPrerelease = release.Prerelease }],
                     ReleaseNotesError = $"Could not load the full release history: {ex.Message}. View all releases on GitHub."
                 };
             }
 
-            var dismissed = _preferences.GetDismissedVersion();
+            var dismissed = _preferences.GetDismissedVersion(channel);
             if (!ignoreDismissed
                 && !string.IsNullOrWhiteSpace(dismissed)
                 && ShellVersionInfo.TryParse(dismissed, out var dismissedVersion)
@@ -188,32 +205,40 @@ public sealed class ShellGitHubUpdateChecker
 
     public void ClearDismissed() => _preferences.ClearDismissedVersion();
 
-    private async Task<IReadOnlyList<ShellReleaseNotes>> FetchReleaseNotesAsync(
-        Version local, Version latest, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<GitHubRelease>> FetchReleaseCatalogAsync(CancellationToken cancellationToken)
     {
-        var notes = new Dictionary<Version, ShellReleaseNotes>();
+        var catalog = new List<GitHubRelease>();
         for (var page = 1; ; page++)
         {
             var releases = await GetJsonAsync<List<GitHubRelease>>(
                 $"https://api.github.com/repos/{_owner}/{_repo}/releases?per_page=100&page={page}",
                 cancellationToken, allowNotFound: false, _http).ConfigureAwait(false) ?? [];
-            foreach (var release in releases)
-            {
-                if (release.Draft || release.Prerelease
-                    || !ShellVersionInfo.TryParse(release.TagName, out var version)
-                    || version <= local || version > latest) continue;
-                notes.TryAdd(version, new ShellReleaseNotes(version, release.Body ?? string.Empty,
-                    release.HtmlUrl ?? ReleasesPageUrl));
-            }
+            catalog.AddRange(releases);
             // GitHub orders by publication date, not version. An older version on
             // this page doesn't prove that later pages contain no newer versions.
             if (releases.Count < 100) break;
+        }
+        return catalog;
+    }
+
+    private IReadOnlyList<ShellReleaseNotes> BuildReleaseNotes(IReadOnlyList<GitHubRelease> releases,
+        Version local, Version latest, bool includeBeta)
+    {
+        var notes = new Dictionary<Version, ShellReleaseNotes>();
+        foreach (var release in releases)
+        {
+            if (release.Draft || release.Prerelease && !includeBeta
+                || includeBeta && !TryCanonicalVersion(release.TagName, out _)
+                || !ShellVersionInfo.TryParse(release.TagName, out var version)
+                || version <= local || version > latest) continue;
+            notes.TryAdd(version, new ShellReleaseNotes(version, release.Body ?? string.Empty,
+                release.HtmlUrl ?? ReleasesPageUrl) { IsPrerelease = release.Prerelease });
         }
         return notes.Values.OrderByDescending(note => note.Version).ToArray();
     }
 
     internal static async Task<ShellUpdateAsset> GetPublishedAssetAsync(
-        Version version, bool useDefaultRepository, CancellationToken cancellationToken)
+        Version version, bool useDefaultRepository, CancellationToken cancellationToken, bool allowPrerelease = false)
     {
         var owner = DefaultOwner;
         var repo = DefaultRepo;
@@ -221,20 +246,30 @@ public sealed class ShellGitHubUpdateChecker
         // metadata or an environment override inherited from an unelevated process.
         if (!useDefaultRepository)
             ResolveRepo(null, null, out owner, out repo);
+        return await AuthenticatePublishedAssetAsync(version, owner, repo,
+            useDefaultRepository && OperatingSystem.IsWindows() ? MachineTrustHttp.Value : Http,
+            allowPrerelease, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal static async Task<ShellUpdateAsset> AuthenticatePublishedAssetAsync(Version version, string owner,
+        string repo, HttpClient client, bool allowPrerelease, CancellationToken cancellationToken)
+    {
         var tag = "v" + version.ToString(4);
         var release = await GetJsonAsync<GitHubRelease>(
             $"https://api.github.com/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/releases/tags/{Uri.EscapeDataString(tag)}",
-            cancellationToken, allowNotFound: false,
-            useDefaultRepository && OperatingSystem.IsWindows() ? MachineTrustHttp.Value : Http).ConfigureAwait(false);
-        if (release == null || release.Draft || release.Prerelease
+            cancellationToken, allowNotFound: false, client).ConfigureAwait(false);
+        if (release == null || release.Draft || release.Prerelease && !allowPrerelease
             || !string.Equals(release.TagName, tag, StringComparison.Ordinal))
-            throw new InvalidDataException("The requested update is not a published stable release.");
+            throw new InvalidDataException("The requested update is not a published release allowed by the selected channel.");
         return SelectPlatformAsset(
             release.Assets?.Where(a => a.State == "uploaded").Select(a =>
                 new ShellUpdateAsset(a.Name ?? string.Empty, a.DownloadUrl ?? string.Empty, a.Size, a.Digest)) ?? [],
             version, OperatingSystem.IsWindows(), OperatingSystem.IsLinux(), RuntimeInformation.ProcessArchitecture)
             ?? throw new InvalidDataException("The published release has no authenticated package for this platform.");
     }
+
+    private static bool TryCanonicalVersion(string? tag, out Version version) =>
+        ShellVersionInfo.TryParse(tag, out version) && string.Equals(tag, "v" + version.ToString(4), StringComparison.Ordinal);
 
     internal static ShellUpdateAsset? SelectPlatformAsset(
         IEnumerable<ShellUpdateAsset> assets,

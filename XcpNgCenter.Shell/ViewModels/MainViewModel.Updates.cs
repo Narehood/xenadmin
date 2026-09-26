@@ -16,7 +16,50 @@ public partial class MainViewModel
     private ShellUpdateOffer? _pendingUpdate;
     private PreparedShellUpdate? _preparedUpdate;
 
+    public bool UseBetaUpdates => _updateChecker.Channel == ShellUpdateChannel.Beta;
+    public bool CanChangeUpdateChannel => !_disposed && !IsUpdateBusy;
+    public string UpdateChannelDescription => UseBetaUpdates
+        ? "Beta updates are enabled. Newer beta and regular releases will be offered."
+        : "Regular releases only. Switching channels keeps the installed version; it does not downgrade a beta build.";
+
+    public bool TrySetBetaUpdates(bool enabled, out string message)
+    {
+        if (!CanChangeUpdateChannel)
+        {
+            message = "Wait for the current update operation to finish before changing channels.";
+            return false;
+        }
+        try
+        {
+            _updateChecker.SetChannel(enabled ? ShellUpdateChannel.Beta : ShellUpdateChannel.Stable);
+            // A download from the previous channel must never remain an install offer.
+            // Cached archives remain inert; the selected channel must offer them again.
+            _pendingUpdate = null;
+            _preparedUpdate = null;
+            UpdateAvailable = false;
+            HasUpdateError = false;
+            UpdateReleaseNotes = [];
+            UpdateReleaseNotesMessage = string.Empty;
+            UpdateDownloadProgress = 0;
+            UpdateProgressText = string.Empty;
+            UpdateBannerTitle = "Update channel changed";
+            UpdateBannerMessage = UpdateChannelDescription + " Check for updates to refresh available releases.";
+            OnPropertyChanged(nameof(UseBetaUpdates));
+            OnPropertyChanged(nameof(UpdateChannelDescription));
+            OnPropertyChanged(nameof(ShowUpdateAction));
+            DownloadUpdateCommand.NotifyCanExecuteChanged();
+            message = UpdateBannerMessage;
+            return true;
+        }
+        catch (Exception error)
+        {
+            message = $"The update channel could not be saved: {error.Message}";
+            return false;
+        }
+    }
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanChangeUpdateChannel))]
     [NotifyPropertyChangedFor(nameof(IsUpdateBusy))]
     [NotifyPropertyChangedFor(nameof(IsUpdateProgressIndeterminate))]
     [NotifyCanExecuteChangedFor(nameof(DownloadUpdateCommand))]
@@ -51,6 +94,7 @@ public partial class MainViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowUpdateProgress))]
+    [NotifyPropertyChangedFor(nameof(CanChangeUpdateChannel))]
     [NotifyPropertyChangedFor(nameof(CanDismissUpdate))]
     [NotifyCanExecuteChangedFor(nameof(DownloadUpdateCommand))]
     [NotifyPropertyChangedFor(nameof(IsUpdateBusy))]
@@ -144,7 +188,7 @@ public partial class MainViewModel
             if (!string.IsNullOrWhiteSpace(failure))
             {
                 HasUpdateError = true;
-                UpdateBannerTitle = $"Update install failed — {offer.Version.ToString(4)}";
+                UpdateBannerTitle = $"Update install failed — {offer.DisplayVersion}";
                 UpdateBannerMessage = failure;
                 UpdateActionLabel = "Retry install";
                 UpdateDownloadProgress = 100;
@@ -157,7 +201,7 @@ public partial class MainViewModel
         }
         else
         {
-            UpdateBannerTitle = $"Update available — {offer.Version.ToString(4)}";
+            UpdateBannerTitle = $"Update available — {offer.DisplayVersion}";
             UpdateActionLabel = "Download update";
             if (offer.Asset == null)
             {
@@ -217,7 +261,7 @@ public partial class MainViewModel
             UpdateDownloadProgress = 0;
             IsUpdateDownloading = true;
             UpdateActionLabel = "Downloading…";
-            UpdateBannerTitle = $"Downloading {_pendingUpdate.Version.ToString(4)}";
+            UpdateBannerTitle = $"Downloading {_pendingUpdate.DisplayVersion}";
             HasUpdateError = false;
             UpdateBannerMessage = "Downloading and verifying the update. You can continue using XCP-ng Center.";
             var progress = new Progress<ShellUpdateProgress>(update =>
@@ -229,14 +273,14 @@ public partial class MainViewModel
         }
         catch (OperationCanceledException)
         {
-            UpdateBannerTitle = $"Update available — {_pendingUpdate.Version.ToString(4)}";
+            UpdateBannerTitle = $"Update available — {_pendingUpdate.DisplayVersion}";
             UpdateBannerMessage = "The update download was cancelled.";
             UpdateActionLabel = "Retry download";
         }
         catch (Exception ex)
         {
             HasUpdateError = true;
-            UpdateBannerTitle = $"Could not download {_pendingUpdate.Version.ToString(4)}";
+            UpdateBannerTitle = $"Could not download {_pendingUpdate.DisplayVersion}";
             UpdateBannerMessage = ex.Message;
             UpdateActionLabel = "Retry download";
             StatusMessage = $"Update download failed: {ex.Message}";
@@ -261,7 +305,7 @@ public partial class MainViewModel
 
     private void ApplyPreparedUpdateState(ShellUpdateOffer offer)
     {
-        UpdateBannerTitle = $"Update ready — {offer.Version.ToString(4)}";
+        UpdateBannerTitle = $"Update ready — {offer.DisplayVersion}";
         UpdateBannerMessage = _updateInstaller.RequiresElevationForInstall
             ? "The update is downloaded. Installation will verify it again and requires Windows administrator approval."
             : "The update is downloaded. Restart to verify and install it in the current application directory.";
@@ -279,18 +323,18 @@ public partial class MainViewModel
         var permissionMessage = requiresElevation
             ? " Windows will show an administrator approval prompt before replacing the protected application files. Only the installer helper is elevated; XCP-ng Center will reopen normally."
             : string.Empty;
-        var restart = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
-        {
-            Title = $"Restart to install {_pendingUpdate.Version.ToString(4)}?",
-            Message = $"XCP-ng Center will verify the downloaded update, then close, replace the files in {_updateInstaller.InstallDirectory}, and reopen automatically. Active server sessions will be closed.{permissionMessage}",
-            AcceptLabel = requiresElevation ? "Continue to approval" : "Restart & install",
-            CancelLabel = "Later"
-        }).ConfigureAwait(true);
-        if (!restart)
-            return;
-
+        IsUpdateDownloading = true;
         try
         {
+            var restart = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
+            {
+                Title = $"Restart to install {_pendingUpdate.DisplayVersion}?",
+                Message = $"XCP-ng Center will verify the downloaded update, then close, replace the files in {_updateInstaller.InstallDirectory}, and reopen automatically. Active server sessions will be closed.{permissionMessage}",
+                AcceptLabel = requiresElevation ? "Continue to approval" : "Restart & install",
+                CancelLabel = "Later"
+            }).ConfigureAwait(true);
+            if (!restart) return;
+
             if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
                 throw new InvalidOperationException("The desktop application lifetime is unavailable.");
 
@@ -352,13 +396,13 @@ public partial class MainViewModel
                 case ShellUpdateCheckStatus.Available when result.Offer != null:
                     _updateChecker.ClearDismissed();
                     ApplyUpdateOffer(result.Offer);
-                    return $"Update available: {result.Offer.Version.ToString(4)} — use the update button to review and download it.";
+                    return $"Update available: {result.Offer.DisplayVersion} — use the update button to review and download it.";
 
                 case ShellUpdateCheckStatus.Dismissed when result.Offer != null:
                     // ignoreDismissed:true should not return Dismissed; keep a safe fallback.
                     _updateChecker.ClearDismissed();
                     ApplyUpdateOffer(result.Offer);
-                    return $"Update available: {result.Offer.Version.ToString(4)} — use the update button to review and download it.";
+                    return $"Update available: {result.Offer.DisplayVersion} — use the update button to review and download it.";
 
                 case ShellUpdateCheckStatus.Failed:
                     HasUpdateError = true;

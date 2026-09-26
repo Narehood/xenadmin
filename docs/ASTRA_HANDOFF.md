@@ -4,6 +4,39 @@ Last updated: 2026-09-26 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Manual beta update channel (2026-09-26)
+
+PR #50 adds **Settings → About → Receive beta updates** to the Avalonia shell.
+Regular releases remain the default. The persisted opt-in includes newer GitHub
+prereleases and regular releases, with beta labels and independent dismissal
+history. Switching channels clears prior offers and prepared-install state;
+it never downgrades the installed version. Checks, downloads and installation
+confirmation prevent concurrent channel changes. Installer metadata retains the
+release kind, and the installed bootstrap carries explicit beta authorization
+across UAC while preserving fresh publisher/digest verification.
+
+The [beta guide](beta-updates.md) describes the manual publishing and test flow.
+Test Builds now covers `beta`; publication remains `workflow_dispatch` only.
+Publish Shell Release requires `beta` plus prerelease, or `development` plus a
+regular release. A shared preparation job validates unique increasing numeric
+tags and passes one UTC version to both platform packages. Merge the workflow
+support to the default branch before starting beta releases. No release was
+published, no beta branch was created, and PR #50 remains unmerged.
+
+Local validation: Release and Debug each pass 713 shell tests, including 29 new
+channel cases covering legacy/invalid settings, persistence, per-channel
+dismissal, paginated release selection, beta notes, regular promotion, downgrade
+prevention, offline errors, cache-kind mismatch, fresh publisher authentication,
+elevation arguments and busy-state guards. All 73 shared tests pass on each of
+`net481`/`net10.0`. The real Settings window passes 12 binding/layout checks at
+760×650 and 440×400 (`AdvancedNetworking.UiProbe --beta-settings`). Thirteen
+isolated workflow-validation scenarios pass. A Windows package built through
+`Publish-Shell.ps1 -ReleaseVersion 2026.9.25.42` has that exact assembly version
+and passes the packaged helper/runtime smoke checks; lockfiles are unchanged.
+Hosted results are recorded in the PR. Live beta publication, end-to-end update
+installation, UAC and subsequent return to a newer regular release remain manual
+acceptance on disposable machines, as requested by the user.
+
 ### Proxy probe cancellation follow-up (2026-09-26)
 
 Hosted validation of documentation commit `b43769825` exposed an intermittent

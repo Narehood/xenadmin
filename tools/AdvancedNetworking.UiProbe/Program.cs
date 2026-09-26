@@ -18,6 +18,7 @@ using Task = System.Threading.Tasks.Task;
 sealed class ProbeApp : App
 {
     public static bool ConnectionSettingsOnly { get; set; }
+    public static bool BetaSettingsOnly { get; set; }
     static readonly string Evidence = Path.GetDirectoryName(typeof(ProbeApp).Assembly.Location)!;
     readonly List<string> checks = [];
     ShellAppSettings? settings;
@@ -39,7 +40,7 @@ sealed class ProbeApp : App
         lifetime.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         try
         {
-            if (ConnectionSettingsOnly)
+            if (ConnectionSettingsOnly || BetaSettingsOnly)
             {
                 CheckConnectionSettings(lifetime);
                 return;
@@ -177,7 +178,17 @@ sealed class ProbeApp : App
         };
         lifetime.MainWindow = window;
         window.FindControl<TabControl>("SettingsTabs")!.SelectedItem = window.FindControl<TabControl>("SettingsTabs")!
-            .Items.OfType<TabItem>().Single(tab => tab.Header?.ToString() == "Connection");
+            .Items.OfType<TabItem>().Single(tab => tab.Header?.ToString() == (BetaSettingsOnly ? "About" : "Connection"));
+        if (BetaSettingsOnly)
+        {
+            // Bind the production settings view without profile bootstrap or connections.
+            var main = (MainViewModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            typeof(MainViewModel).GetField("_updateChecker", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(main, new ShellGitHubUpdateChecker(new ShellUpdatePreferences(Path.Combine(Evidence, "synthetic-updates.json"))));
+            var model = (SettingsViewModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(SettingsViewModel));
+            typeof(SettingsViewModel).GetField("_main", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(model, main);
+            window.DataContext = model;
+        }
         window.Show();
         DispatcherTimer.RunOnce(() =>
         {
@@ -186,6 +197,27 @@ sealed class ProbeApp : App
                 foreach (var (width, height) in new[] { (760, 650), (440, 400) })
                 {
                     window.Width = width; window.Height = height; window.UpdateLayout();
+                    if (BetaSettingsOnly)
+                    {
+                        var toggle = window.FindControl<CheckBox>("BetaUpdatesToggle")!;
+                        toggle.BringIntoView(); window.UpdateLayout();
+                        Require(toggle.IsEffectivelyVisible && toggle.Bounds.Width > 0, $"Beta toggle visible at {width}x{height}");
+                        var model = (SettingsViewModel)window.DataContext!;
+                        toggle.IsChecked = true;
+                        Require(model.UseBetaUpdates, "Enabling checkbox persists beta preference");
+                        toggle.IsChecked = false;
+                        Require(!model.UseBetaUpdates, "Disabling checkbox restores regular preference");
+                        model.Updates.IsUpdateChecking = true;
+                        Require(!toggle.IsEnabled, "Checkbox disabled while checking updates");
+                        model.Updates.IsUpdateChecking = false;
+                        Require(toggle.IsEnabled, "Checkbox reenabled after update check");
+                        var warning = window.GetVisualDescendants().OfType<TextBlock>()
+                            .Single(text => text.Text?.StartsWith("Beta builds provide") == true);
+                        Require(warning.TextLayout.Height <= warning.Bounds.Height + 1 && warning.TextLayout.Width <= warning.Bounds.Width + 1,
+                            $"Beta explanation wraps without clipping at {width}x{height}");
+                        Render(window, $"beta-{width}", 1);
+                        continue;
+                    }
                     var explanation = window.GetVisualDescendants().OfType<TextBlock>()
                         .Single(text => text.Text?.StartsWith("Basic/Digest applies") == true);
                     explanation.BringIntoView(); window.UpdateLayout();
@@ -197,7 +229,8 @@ sealed class ProbeApp : App
                         && explanation.TextLayout.Width <= explanation.Bounds.Width + 1,
                         $"Proxy scope explanation wraps without clipping at {width}x{height}");
                 }
-                Console.WriteLine($"Passed {checks.Count} connection settings layout checks. Evidence: {Evidence}");
+                Console.WriteLine($"Passed {checks.Count} settings checks. Evidence: {Evidence}");
+                File.WriteAllLines(Path.Combine(Evidence, "results.log"), checks);
                 window.Close(); theme?.Dispose(); settings?.Dispose(); lifetime.Shutdown(0);
             }
             catch (Exception error) { Fail(lifetime, error); }
@@ -225,6 +258,7 @@ static class Program
             return 2;
         }
         ProbeApp.ConnectionSettingsOnly = args.Contains("--connection-settings", StringComparer.Ordinal);
+        ProbeApp.BetaSettingsOnly = args.Contains("--beta-settings", StringComparer.Ordinal);
         try { return AppBuilder.Configure<ProbeApp>().UsePlatformDetect().StartWithClassicDesktopLifetime(args); }
         catch (Exception exception)
         {

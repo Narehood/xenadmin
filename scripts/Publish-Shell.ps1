@@ -7,7 +7,9 @@ param(
     [string] $ArchivePath,
     [ValidatePattern('^\d+$')]
     [string] $BuildRevision = '0',
-    [string] $Codename = 'Awa'
+    [string] $Codename = 'Awa',
+    [ValidatePattern('^\d+\.\d+\.\d+\.\d+$')]
+    [string] $ReleaseVersion
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +17,13 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $publishRoot = Join-Path $repoRoot "artifacts/publish/$RuntimeIdentifier/$([Guid]::NewGuid().ToString('N'))"
 $archive = [IO.Path]::GetFullPath($ArchivePath)
 $lockName = "packages.$RuntimeIdentifier.lock.json"
+$versionProperties = @()
+if ($ReleaseVersion) {
+    # Pin all projects to the release job's date, even if publishing crosses UTC midnight.
+    $parsedVersion = [Version]::Parse($ReleaseVersion)
+    if ($parsedVersion.Revision -ne [int]$BuildRevision) { throw 'ReleaseVersion and BuildRevision disagree.' }
+    $versionProperties = @("-p:BuildYear=$($parsedVersion.Major)", "-p:BuildMonth=$($parsedVersion.Minor)", "-p:BuildDay=$($parsedVersion.Build)")
+}
 
 Push-Location $repoRoot
 try {
@@ -33,7 +42,7 @@ try {
     dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj -c Release `
         -r $RuntimeIdentifier --self-contained true -p:PublishSingleFile=false `
         "-p:NuGetLockFilePath=obj/$lockName" -p:RestoreLockedMode=false `
-        "-p:BuildRevision=$BuildRevision" "-p:Codename=$Codename" `
+        "-p:BuildRevision=$BuildRevision" "-p:Codename=$Codename" @versionProperties `
         -o $publishRoot --nologo
     if ($LASTEXITCODE -ne 0) { throw "Publish failed for $RuntimeIdentifier." }
 
