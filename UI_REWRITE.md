@@ -17,13 +17,13 @@ rewrite reaches feature parity for your environment.
 
 | Project | Role |
 |---------|------|
-| `XenAdmin` | Current supported WinForms client (`net8.0-windows`) |
-| `XcpNgCenter.Shell` | Avalonia preview shell (`net8.0`) |
-| `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net8.0`) |
+| `XenAdmin` | Current supported WinForms client (`net10.0-windows`) |
+| `XcpNgCenter.Shell` | Avalonia preview shell (`net10.0`) |
+| `XcpNgCenter.Rfb` | WinForms-free RFB client core (`net10.0`) |
 
 ## Done
 
-- **Network management** — host/pool private and VLAN network creation, VLAN/uplink editing, names/descriptions/tags, automatic VM inclusion, MTU, and removal of unused networks. VM interfaces support add/edit/remove/connect/disconnect, network selection, generated/custom MACs, and bandwidth limits. Management/IP/cluster networks are protected from disruptive changes. Physical NIC removal, bond creation/destruction, tunnels, SR-IOV provisioning, and host IP reconfiguration still use the WinForms client.
+- **Network management** — host/pool private and VLAN network creation, VLAN/uplink editing, names/descriptions/tags, automatic VM inclusion, MTU, and removal of unused networks. VM interfaces support add/edit/remove/connect/disconnect, network selection, generated/custom MACs, and bandwidth limits. Advanced controls add pool-wide NIC bonds (create/change mode/remove), host IPv4/IPv6 configuration, and SR-IOV provisioning/removal with topology and dependency checks. See [advanced networking](docs/advanced-networking.md) for supported operations and restrictions. Physical NIC removal and tunnel provisioning still use WinForms; live validation of the new controls is pending.
 - Connect/TOFU/tree/General/Storage/Network/Console; Logs/Tasks; New VM with explicit host-aware storage placement; snapshot tree with disk, memory-checkpoint, and supported quiesced modes
 - **Host Properties** — general/autostart, custom fields, metric alerts + email delivery, out-of-band power, multipathing, syslog, GPU policy/integrated GPU, pool live-patching/IGMP/TLS policies, clustering, and NRPE
 - **VM Properties** — general/tags, custom fields, metric alerts, CPU/memory, boot/startup/HA, home server, GPU/USB, shadow-memory tuning, container integration, and cloud-config drive editing
@@ -54,16 +54,17 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 
 ## Next
 
-1. Continue **Linux/Windows desktop soak** of CI artifacts against real pools (multi-server, migrate/move, import/export, alerts, graphs, RFB).
+1. Complete the [platform acceptance checklist](docs/platform-acceptance.md): **Linux/Windows desktop soak** and live multi-server, migration, import/export, advanced networking, alerts, graphs, and RFB checks. Native Linux CI covers automated tests and packaged desktop startup.
 2. Verify download/apply/restart updates between published **`vYYYY.M.D.N`** builds. The starting binary must stamp a **lower** version than the release tag.
-3. Later: HA/AD/DR wizards (richer HA alert fix-links); graph editor beyond save-current-defaults.
+3. Follow the prioritized [modernization roadmap](docs/modernization-roadmap.md): graph editor, HA/AD/DR wizards, and WinForms designer metadata maintenance.
 4. WinForms plugin tabs, Windows-specific external-tool launchers, and RDP stay in the production client.
 
 ## How to try
 
 ```bash
-dotnet publish XcpNgCenter.Shell -c Release -r win-x64 --self-contained true -p:BuildRevision=1 -o artifacts/shell-win-x64
-dotnet publish XcpNgCenter.Shell -c Release -r linux-x64 --self-contained true -p:BuildRevision=1 -o artifacts/shell-linux-x64
+pwsh scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath artifacts/shell-win-x64.zip -BuildRevision 1
+# Run on Linux to preserve executable permissions:
+pwsh scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath artifacts/shell-linux-x64.tar.gz -BuildRevision 1
 ```
 
 Pins / prefs: `%APPDATA%\XCP-ng\XCP-ng Center Shell\` or `~/.config/XCP-ng/XCP-ng Center Shell/`.

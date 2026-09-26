@@ -762,25 +762,25 @@ namespace XenOvf
         }
         private bool InternalCheckPassword(byte[] bytearray, string password, string version)
         {
-            bool isValid = false;
-            MemoryStream ms = new MemoryStream(bytearray);
-            CryptoStream checkStream = CryptoStreamWrapper(ms, password, false, version);
-            byte[] buff = new byte[bytearray.Length];
             try
             {
-                checkStream.Read(buff, 0, (int)bytearray.Length);
-                Encoding uni = new UnicodeEncoding();
-                string original = uni.GetString(buff, 0, buff.Length);
-                original = original.Trim(new char[] { ' ', '\0' });
-                if (original == KnownEncrypt.Trim()) { isValid = true; }
-                checkStream.Dispose();
+                using (var input = new MemoryStream(bytearray))
+                using (var checkStream = CryptoStreamWrapper(input, password, false, version))
+                using (var plaintext = new MemoryStream())
+                {
+                    // CryptoStream.Read may return a partial block. Drain through EOF so
+                    // the comparison includes all plaintext and validates final padding.
+                    checkStream.CopyTo(plaintext);
+                    string original = Encoding.Unicode.GetString(plaintext.ToArray()).Trim(' ', '\0');
+                    return original == KnownEncrypt.Trim();
+                }
             }
             catch (CryptographicException ce)
             {
                 // If we get here the password is considered invalid
                 log.DebugFormat("InternalCheckPassword: Invalid password. {0}", ce.Message);                    
             }
-            return isValid;
+            return false;
         }
         private bool DeprecatedCheckPassword(byte[] bytearray, string password, string version)
         {

@@ -46,20 +46,24 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json
 
       - name: Validate revision and compute version
         id: ver
         shell: pwsh
+        env:
+          INPUT_REVISION: ${{ inputs.revision }}
+          INPUT_CODENAME: ${{ inputs.codename }}
         run: |
-          $rev = "${{ inputs.revision }}".Trim()
+          $rev = $env:INPUT_REVISION.Trim()
           if ($rev -notmatch '^\d+$') {
             throw "revision must be a non-negative integer (got '$rev')"
           }
           $utc = [DateTime]::UtcNow
           $version = "{0}.{1}.{2}.{3}" -f $utc.Year, $utc.Month, $utc.Day, $rev
           $tag = "v$version"
-          $codename = "${{ inputs.codename }}".Trim()
+          $codename = $env:INPUT_CODENAME.Trim()
+          if ($codename -match "[\r\n]") { throw "codename must be a single line" }
           if ([string]::IsNullOrWhiteSpace($codename)) {
             $codename = "Awa"
           }
@@ -69,31 +73,32 @@ jobs:
           "codename=$codename" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Publishing $tag ($codename)"
 
-      - name: Publish Avalonia shell (win-x64)
-        run: >
-          dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:PublishSingleFile=false
-          -p:BuildRevision=${{ steps.ver.outputs.revision }}
-          -p:Codename=${{ steps.ver.outputs.codename }}
-          -o artifacts/shell-win-x64
-          --nologo
+      - name: Restore locked source dependencies
+        run: dotnet restore XcpNgCenter.Shell/XcpNgCenter.Shell.csproj --locked-mode
 
-      - name: Zip win-x64
+      - name: Publish and package Avalonia shell (win-x64)
         shell: pwsh
-        # Keep the shell files at the archive root. Updaters already deployed in the
-        # field validate that root directly, so wrapping the payload in a folder makes
-        # every released build un-installable from the in-app updater.
-        run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          $v = "${{ steps.ver.outputs.version }}"
-          $packageRoot = "artifacts/package-win"
-          New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
-          Copy-Item -Path "artifacts/shell-win-x64/*" -Destination $packageRoot -Recurse -Force
-          Copy-Item -Path "XcpNgCenter.Shell/packaging/INSTALL.TXT" -Destination (Join-Path $packageRoot "INSTALL.TXT") -Force
-          Compress-Archive -Path "$packageRoot\*" -DestinationPath "dist/XcpNgCenter.Shell-win-x64-$v.zip"
+        env:
+          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
+          RELEASE_REVISION: ${{ steps.ver.outputs.revision }}
+          RELEASE_CODENAME: ${{ steps.ver.outputs.codename }}
+        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath "dist/XcpNgCenter.Shell-win-x64-$env:RELEASE_VERSION.zip" -BuildRevision $env:RELEASE_REVISION -Codename $env:RELEASE_CODENAME
+
+      - name: Verify packaged Windows executable
+        env:
+          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
+        run: python scripts/verify-shell-package.py --archive "dist/XcpNgCenter.Shell-win-x64-$env:RELEASE_VERSION.zip" --rid win-x64 --evidence-directory artifacts/smoke-windows
+
+      - name: Confirm checked-in lockfiles were preserved
+        run: git diff --exit-code -- '*/packages.lock.json'
+
+      - name: Upload Windows acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-evidence-windows
+          path: artifacts/smoke-windows
+          if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v7
         with:
@@ -103,7 +108,7 @@ jobs:
 
   publish-linux:
     if: ${{ inputs.attach_artifacts }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.ver.outputs.version }}
       tag: ${{ steps.ver.outputs.tag }}
@@ -116,13 +121,19 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json
+
+      - name: Install native desktop smoke dependencies
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool libice6 libsm6 libfontconfig1
 
       - name: Validate revision and compute version
         id: ver
         shell: bash
+        env:
+          INPUT_REVISION: ${{ inputs.revision }}
+          INPUT_CODENAME: ${{ inputs.codename }}
         run: |
-          REV="${{ inputs.revision }}"
+          REV="$INPUT_REVISION"
           REV="$(echo "$REV" | tr -d '[:space:]')"
           if ! [[ "$REV" =~ ^[0-9]+$ ]]; then
             echo "revision must be a non-negative integer (got '$REV')" >&2
@@ -133,7 +144,11 @@ jobs:
           DAY=$(date -u +%-d)
           VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
           TAG="v${VERSION}"
-          CODENAME="$(echo "${{ inputs.codename }}" | tr -d '[:space:]')"
+          CODENAME="$(printf '%s' "$INPUT_CODENAME" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          if [[ "$CODENAME" == *$'\n'* || "$CODENAME" == *$'\r'* ]]; then
+            echo "codename must be a single line" >&2
+            exit 1
+          fi
           if [[ -z "$CODENAME" ]]; then
             CODENAME="Awa"
           fi
@@ -143,30 +158,32 @@ jobs:
           echo "codename=${CODENAME}" >> "$GITHUB_OUTPUT"
           echo "Publishing ${TAG} (${CODENAME})"
 
-      - name: Publish Avalonia shell (linux-x64)
-        run: >
-          dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
-          -c Release
-          -r linux-x64
-          --self-contained true
-          -p:PublishSingleFile=false
-          -p:BuildRevision=${{ steps.ver.outputs.revision }}
-          -p:Codename=${{ steps.ver.outputs.codename }}
-          -o artifacts/shell-linux-x64
-          --nologo
+      - name: Restore locked source dependencies
+        run: dotnet restore XcpNgCenter.Shell/XcpNgCenter.Shell.csproj --locked-mode
 
-      - name: Tar linux-x64 (preserves executable bits)
-        shell: bash
-        # Flat payload at the archive root, for the same reason as the win-x64 zip.
-        run: |
-          mkdir -p dist
-          V="${{ steps.ver.outputs.version }}"
-          PACKAGE_ROOT="artifacts/package-linux"
-          mkdir -p "${PACKAGE_ROOT}"
-          cp -a artifacts/shell-linux-x64/. "${PACKAGE_ROOT}/"
-          cp XcpNgCenter.Shell/packaging/INSTALL.TXT "${PACKAGE_ROOT}/INSTALL.TXT"
-          chmod +x "${PACKAGE_ROOT}/XcpNgCenter.Shell" || true
-          tar -C "${PACKAGE_ROOT}" -czf "dist/XcpNgCenter.Shell-linux-x64-${V}.tar.gz" .
+      - name: Publish and package Avalonia shell (linux-x64)
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
+          RELEASE_REVISION: ${{ steps.ver.outputs.revision }}
+          RELEASE_CODENAME: ${{ steps.ver.outputs.codename }}
+        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath "dist/XcpNgCenter.Shell-linux-x64-$env:RELEASE_VERSION.tar.gz" -BuildRevision $env:RELEASE_REVISION -Codename $env:RELEASE_CODENAME
+
+      - name: Verify packaged Linux executable and native desktop startup
+        env:
+          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
+        run: xvfb-run -a python3 scripts/verify-shell-package.py --archive "dist/XcpNgCenter.Shell-linux-x64-$RELEASE_VERSION.tar.gz" --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop
+
+      - name: Confirm checked-in lockfiles were preserved
+        run: git diff --exit-code -- '*/packages.lock.json'
+
+      - name: Upload Linux acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-evidence-linux
+          path: artifacts/smoke-linux
+          if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v7
         with:
@@ -188,17 +205,22 @@ jobs:
       - name: Download assets
         uses: actions/download-artifact@v7
         with:
+          pattern: release-*-x64
           path: dist
           merge-multiple: true
 
       - name: Build release notes from commits
         id: notes
         shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.publish-linux.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.publish-linux.outputs.version }}
+          RELEASE_CODENAME: ${{ needs.publish-linux.outputs.codename }}
         run: |
           set -euo pipefail
-          TAG="${{ needs.publish-linux.outputs.tag }}"
-          VERSION="${{ needs.publish-linux.outputs.version }}"
-          CODENAME="${{ needs.publish-linux.outputs.codename }}"
+          TAG="$RELEASE_TAG"
+          VERSION="$RELEASE_VERSION"
+          CODENAME="$RELEASE_CODENAME"
 
           # Previous shell release tag (vYYYY.M.D.N), excluding the tag we are about to create.
           PREV="$(git tag -l 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -n1 || true)"
@@ -261,8 +283,11 @@ jobs:
       - name: Validate revision and compute version
         id: ver
         shell: bash
+        env:
+          INPUT_REVISION: ${{ inputs.revision }}
+          INPUT_CODENAME: ${{ inputs.codename }}
         run: |
-          REV="${{ inputs.revision }}"
+          REV="$INPUT_REVISION"
           REV="$(echo "$REV" | tr -d '[:space:]')"
           if ! [[ "$REV" =~ ^[0-9]+$ ]]; then
             echo "revision must be a non-negative integer (got '$REV')" >&2
@@ -273,7 +298,11 @@ jobs:
           DAY=$(date -u +%-d)
           VERSION="${YEAR}.${MONTH}.${DAY}.${REV}"
           TAG="v${VERSION}"
-          CODENAME="$(echo "${{ inputs.codename }}" | tr -d '[:space:]')"
+          CODENAME="$(printf '%s' "$INPUT_CODENAME" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          if [[ "$CODENAME" == *$'\n'* || "$CODENAME" == *$'\r'* ]]; then
+            echo "codename must be a single line" >&2
+            exit 1
+          fi
           if [[ -z "$CODENAME" ]]; then
             CODENAME="Awa"
           fi
@@ -285,11 +314,15 @@ jobs:
       - name: Build release notes from commits
         id: notes
         shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.ver.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.ver.outputs.version }}
+          RELEASE_CODENAME: ${{ steps.ver.outputs.codename }}
         run: |
           set -euo pipefail
-          TAG="${{ steps.ver.outputs.tag }}"
-          VERSION="${{ steps.ver.outputs.version }}"
-          CODENAME="${{ steps.ver.outputs.codename }}"
+          TAG="$RELEASE_TAG"
+          VERSION="$RELEASE_VERSION"
+          CODENAME="$RELEASE_CODENAME"
           PREV="$(git tag -l 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -n1 || true)"
 
           {

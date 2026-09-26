@@ -1,8 +1,71 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-23. Initial review, remediation, and shell follow-up fixes.
+Last updated: 2026-09-25 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### .NET 10 and advanced networking (2026-09-25)
+
+The modernization follow-up targets .NET 10 with SDK 10.0.401 pinned in
+`global.json`, while preserving shared `net481` compatibility. System packages
+are centrally pinned to 10.0.12 and portable lockfiles are refreshed. The
+[migration record](dotnet10-migration.md) explains certificate loading, proxy
+registration cleanup, the C# 14 accessor fix, complete OVF password-check reads,
+and fragmented classic-RFB padding reads. No unsafe BinaryFormatter switch or
+compatibility package is enabled. Legacy WFO1000 designer diagnostics are
+suppressed only in WinForms pending a separate metadata audit.
+
+The shell adds [advanced networking](advanced-networking.md): pool-wide NIC
+bonds (create, change mode, remove), host IPv4/IPv6 configuration, and SR-IOV
+provisioning/removal. Plans validate exact identities, current topology,
+capabilities and dependencies again on the action worker. Shared XenModel
+actions remain the execution path where available. Management bond changes,
+dependent interfaces and other unsupported combinations remain blocked; changing
+a management IP requires explicit disruption confirmation and manual reconnect.
+Pool-wide failure can leave partial changes, so inspect actual server state
+before retrying. No live pool operations were performed.
+
+Native Linux CI now tests both shell configurations and portable shared code,
+publishes a self-contained archive, verifies updater helper rejection with
+startup hooks disabled, and starts the actual main window under Xvfb. Windows
+CI retains full Release/Debug WinForms builds and adds runtime resource probes.
+The publish script uses ignored RID-specific locks and preserves the committed
+portable graphs. The release workflow uses the same package checks.
+
+The [performance baseline](performance-baseline.md) records repeatable synthetic
+inventory and console measurements. Overlap-safe CopyRect row copies reduce the
+measured 4K scroll median from 98.5 ms to 5.24 ms and managed allocations from
+33.2 MB to 208 bytes including presentation; pixel and allocation regressions
+cover clipping and overlap. Real network/GPU/desktop timing remains unmeasured.
+
+The retained `asv/xsa-498` SDK update was reviewed rather than merged wholesale:
+it changes transport contracts and removes the XCP-ng 2.16 API mapping. Four
+loopback TLS cases preserve the current certificate-validation boundary; see
+the [SDK compatibility review](reviews/2026-09-25-sdk-compatibility.md).
+
+Local validation: full Release/Debug solution builds; 513 shell tests in each;
+73 shared tests on each of net481/net10.0 in both configurations; all 32,239
+WinForms resources in 290 sets load on .NET 10.0.12 in both configurations;
+Settings initialization and fragmented RFB reads pass. The local machine lacks
+AxImp, so its builds reused the unchanged RDP interop DLLs from the trusted
+development CI artifact with `SkipRdpAxImp=true`; hosted Windows CI must rebuild
+them normally. The NuGet transitive vulnerability audit reported no advisories.
+An isolated offscreen probe exercised all three actual editor windows; native
+DPI and physical desktop behavior still need acceptance testing.
+The local self-contained Windows ZIP also passed all four malformed-updater
+invocations with startup hooks disabled, using bundled .NET 10.0.12; SHA-256
+`8cf6bafdf10dc04de96c4f559c2a6f762fe63ef540f4feeccca942b557ac9d03`.
+Portable lockfile hashes were unchanged by publishing.
+
+The user has no disposable pool/VM/test machines and explicitly deferred live
+and UAC checks. Keep those gates pending in [platform acceptance](platform-acceptance.md).
+The [roadmap](modernization-roadmap.md) prioritizes graph editing and HA/AD/DR
+after acceptance; WinForms remains the supported production client. Earlier
+dated sections below are historical snapshots, including their .NET 8 counts.
+
+Branch cleanup removed only reviewed redundant branches (9 local, 14 remote).
+The local audit and verified pre-cleanup bundle remain in
+`.git/branch-cleanup-20260925-205344/`; five unique remote topics were retained.
 
 ### Awa console fold (2026-09-23)
 

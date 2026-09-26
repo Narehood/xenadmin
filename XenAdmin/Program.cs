@@ -207,9 +207,11 @@ namespace XenAdmin
             if (string.IsNullOrEmpty(Thread.CurrentThread.Name))
                 Thread.CurrentThread.Name = "Main program thread";
 
+#pragma warning disable SYSLIB0014 // Shared XenAPI HttpWebRequest/RFB paths still consume this explicit application policy.
             ServicePointManager.DefaultConnectionLimit = 20;
             ServicePointManager.ServerCertificateValidationCallback = SSL.ValidateServerCertificate;
             ServicePointManager.SecurityProtocol = XenCenterLib.TlsPolicy.AllowedSecurityProtocols;
+#pragma warning restore SYSLIB0014
             Session.UserAgent = $"{BrandManager.BrandConsole} {Version}";
 
             LogSystemDetails();

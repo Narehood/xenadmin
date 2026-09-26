@@ -17,92 +17,129 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v3
-
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json
 
-      - name: Restore packages
-        run: msbuild XenAdmin.sln -t:restore
+      # dotnet build uses the pinned SDK's MSBuild. The hosted Windows image
+      # supplies the desktop/Windows SDK tools needed by the RDP interop target.
+      - name: Restore locked packages
+        run: dotnet restore XenAdmin.sln --locked-mode
 
       - name: Build Release
-        run: msbuild XenAdmin.sln -property:Configuration=Release -property:BuildRevision=${{ github.run_number }} -verbosity:minimal
+        run: dotnet build XenAdmin.sln -c Release --no-restore -p:BuildRevision=${{ github.run_number }} --nologo
 
       - name: Build Debug
-        run: msbuild XenAdmin.sln -property:Configuration=Debug -property:BuildRevision=${{ github.run_number }} -verbosity:minimal
+        run: dotnet build XenAdmin.sln -c Debug --no-restore -p:BuildRevision=${{ github.run_number }} --nologo
 
-      - name: Build Avalonia UI preview shell
-        run: dotnet build XcpNgCenter.Shell/XcpNgCenter.Shell.csproj -c Release -p:BuildRevision=${{ github.run_number }} --nologo
+      - name: Probe WinForms resources and settings (Release)
+        run: dotnet run --project tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj -c Release -p:RestoreLockedMode=true -- "${{ github.workspace }}/XenAdmin/bin/Release/net10.0-windows/XCP-ng Center.dll"
 
-      - name: Publish Avalonia UI preview shell (self-contained win-x64)
-        run: >
-          dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:PublishSingleFile=false
-          -p:BuildRevision=${{ github.run_number }}
-          -o artifacts/shell-win-x64
-          --nologo
-
-      - name: Publish Avalonia UI preview shell (self-contained linux-x64)
-        run: >
-          dotnet publish XcpNgCenter.Shell/XcpNgCenter.Shell.csproj
-          -c Release
-          -r linux-x64
-          --self-contained true
-          -p:PublishSingleFile=false
-          -p:BuildRevision=${{ github.run_number }}
-          -o artifacts/shell-linux-x64
-          --nologo
+      - name: Probe WinForms resources and settings (Debug)
+        run: dotnet run --project tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj -c Release --no-build --no-restore -- "${{ github.workspace }}/XenAdmin/bin/Debug/net10.0-windows/XCP-ng Center.dll"
 
       - name: Test shared libraries (.NET Framework)
-        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net481 --logger "trx;LogFileName=xencenterlib-net481.trx"
+        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net481 --no-build --no-restore --logger "trx;LogFileName=xencenterlib-net481.trx"
 
-      - name: Test shared libraries (.NET 8)
-        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net8.0 --logger "trx;LogFileName=xencenterlib-net8.trx"
+      - name: Test shared libraries (.NET 10)
+        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net10.0 --no-build --no-restore --logger "trx;LogFileName=xencenterlib-net10.trx"
 
       - name: Test Avalonia shell (Release)
-        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release --logger "trx;LogFileName=shell-release.trx"
+        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release --no-build --no-restore --logger "trx;LogFileName=shell-release.trx"
 
       - name: Test Avalonia shell (Debug)
-        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Debug --logger "trx;LogFileName=shell-debug.trx"
+        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Debug --no-build --no-restore --logger "trx;LogFileName=shell-debug.trx"
+
+      - name: Publish and package shell (win-x64)
+        shell: pwsh
+        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath artifacts/XcpNgCenter.Shell-win-x64.zip -BuildRevision '${{ github.run_number }}'
+
+      - name: Exercise packaged Windows executable
+        run: python scripts/verify-shell-package.py --archive artifacts/XcpNgCenter.Shell-win-x64.zip --rid win-x64 --evidence-directory artifacts/smoke-windows
+
+      - name: Confirm checked-in lockfiles were preserved
+        run: git diff --exit-code -- '*/packages.lock.json'
 
       - name: Upload Release artifacts
         uses: actions/upload-artifact@v7
         with:
           name: drop-release
-          path: XenAdmin/bin/Release/net8.0-windows
+          path: XenAdmin/bin/Release/net10.0-windows
           if-no-files-found: error
 
       - name: Upload Debug artifacts
         uses: actions/upload-artifact@v7
         with:
           name: drop-debug
-          path: XenAdmin/bin/Debug/net8.0-windows
+          path: XenAdmin/bin/Debug/net10.0-windows
           if-no-files-found: error
 
       - name: Upload Avalonia UI preview shell (Windows)
         uses: actions/upload-artifact@v7
         with:
           name: drop-shell-win-x64
-          path: artifacts/shell-win-x64
+          path: artifacts/XcpNgCenter.Shell-win-x64.zip
           if-no-files-found: error
+
+      - name: Upload Windows test and smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-windows
+          path: |
+            **/TestResults/*.trx
+            artifacts/smoke-windows
+          if-no-files-found: ignore
+
+  linux-build-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Install native desktop smoke dependencies
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool libice6 libsm6 libfontconfig1
+
+      - name: Test shared libraries on Linux (.NET 10)
+        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net10.0 -p:RestoreLockedMode=true --logger "trx;LogFileName=xencenterlib-linux-net10.trx"
+
+      - name: Test Avalonia shell on Linux (Release)
+        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release -p:RestoreLockedMode=true --logger "trx;LogFileName=shell-linux-release.trx"
+
+      - name: Test Avalonia shell on Linux (Debug)
+        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Debug -p:RestoreLockedMode=true --logger "trx;LogFileName=shell-linux-debug.trx"
+
+      - name: Publish and package shell (linux-x64)
+        shell: pwsh
+        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath artifacts/XcpNgCenter.Shell-linux-x64.tar.gz -BuildRevision '${{ github.run_number }}'
+
+      - name: Exercise packaged Linux executable and native desktop startup
+        run: xvfb-run -a python3 scripts/verify-shell-package.py --archive artifacts/XcpNgCenter.Shell-linux-x64.tar.gz --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop
+
+      - name: Confirm checked-in lockfiles were preserved
+        run: git diff --exit-code -- '*/packages.lock.json'
 
       - name: Upload Avalonia UI preview shell (Linux)
         uses: actions/upload-artifact@v7
         with:
           name: drop-shell-linux-x64
-          path: artifacts/shell-linux-x64
+          # Upload the tarball so Actions does not discard executable permissions.
+          path: artifacts/XcpNgCenter.Shell-linux-x64.tar.gz
           if-no-files-found: error
 
-      - name: Upload test results
+      - name: Upload Linux test and smoke evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-results
-          path: '**/TestResults/*.trx'
+          name: test-results-linux
+          path: |
+            **/TestResults/*.trx
+            artifacts/smoke-linux
           if-no-files-found: ignore

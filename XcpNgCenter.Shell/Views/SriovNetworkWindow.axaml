@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels" xmlns:services="using:XcpNgCenter.Shell.Services"
+        x:Class="XcpNgCenter.Shell.Views.SriovNetworkWindow" x:DataType="vm:SriovNetworkViewModel"
+        Title="Create SR-IOV network" Width="620" Height="630" MinWidth="480" MinHeight="420"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Brush.BgDeep}">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto,Auto">
+    <TextBlock Text="Create SR-IOV network" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,18" />
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10" Margin="0,0,8,0" IsEnabled="{Binding !IsSaving}">
+        <TextBlock Text="Name" /><TextBox Text="{Binding NameLabel}" />
+        <TextBlock Text="Description" /><TextBox Text="{Binding Description}" AcceptsReturn="True" MinHeight="64" TextWrapping="Wrap" />
+        <TextBlock Text="Physical NIC on every pool host" />
+        <ComboBox ItemsSource="{Binding Uplinks}" SelectedItem="{Binding SelectedUplink}" HorizontalAlignment="Stretch">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="services:SriovUplinkOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button Classes="ghost" Content="Refresh interfaces" Command="{Binding RefreshCommand}" />
+        <TextBlock Text="{Binding SelectionNotice}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.AccentText}" />
+        <CheckBox Content="Automatically add this network to new VMs" IsChecked="{Binding Automatic}" />
+        <TextBlock Text="All hosts must expose the same supported NIC model. Management, storage/IP, cluster, bonded, VLAN, tunnel, and VM-used interfaces are protected. Existing SR-IOV networks are retained."
+                   TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+        <TextBlock Text="Plan host restarts before using the network if the server requires them. Assign SR-IOV to shut-down VMs; live migration, suspend, and memory checkpoints are unavailable while using an SR-IOV virtual function."
+                   TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+      </StackPanel>
+    </ScrollViewer>
+    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{DynamicResource Brush.AccentText}" />
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,18,0,0">
+      <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" IsEnabled="{Binding !IsSaving}" />
+      <Button Classes="cta" Content="Create network" Command="{Binding CreateCommand}" IsEnabled="{Binding CanCreate}" />
+    </StackPanel>
+  </Grid>
+</Window>

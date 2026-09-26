@@ -61,13 +61,13 @@ Awa connects to pools and hosts, with a prompt the first time a management certi
 
 Day-to-day operations in the shell include power actions, snapshots, clone, copy, migrate, move, delete, new VM and storage, and XVA/OVF import and export. **Paste text…** on a console types a reviewed clipboard draft as keystrokes. Settings cover connection and proxy options, Dark/Light/System appearance with a custom accent, security prompts, confirmations, and privacy masking. Saved passwords can be protected by Windows DPAPI, a per-user AES key file (`device.key`) in the settings directory, or an optional main password. On Linux that key file is limited to user read and write.
 
-The classic WinForms client is still the Windows build that includes RDP, and it still hosts the wizards that have not moved: HA, Active Directory, disaster recovery, NIC bonds, SR-IOV, and host IP changes. CI publishes that client as the `drop-release` and `drop-debug` artifacts on the Test Builds workflow. Shell CI artifacts are `drop-shell-win-x64` and `drop-shell-linux-x64`.
+The classic WinForms client remains the supported Windows client and includes RDP, HA, Active Directory, and disaster recovery. The shell now includes NIC bonding, host IP configuration, and SR-IOV provisioning; see the [platform acceptance checklist](docs/platform-acceptance.md) before using these disruptive operations on a live pool. CI publishes that client as the `drop-release` and `drop-debug` artifacts on the Test Builds workflow. Shell CI artifacts are `drop-shell-win-x64` and `drop-shell-linux-x64`.
 
 Shell and WinForms settings are separate. Installing Awa does not import an older WinForms profile.
 
 ## Building from source
 
-Shared libraries target `net481` and `net8.0`. WinForms is `net8.0-windows`. The shell is `net8.0`. Integration happens on the `development` branch.
+Install the .NET 10 SDK selected by `global.json` (10.0.401 or a later patch in the same feature band). Shared libraries target `net481` and `net10.0`. WinForms is `net10.0-windows`. The shell is `net10.0`. Integration happens on the `development` branch.
 
 `XenAdmin.sln` includes the WinForms app, so build it on Windows:
 
@@ -77,11 +77,11 @@ dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release
 dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release
 ```
 
-On Linux, build and test the shell and the shared library without the WinForms app. The shared tests use `net8.0` there; `net481` is the Windows target.
+On Linux, build and test the shell and the shared library without the WinForms app. The shared tests use `net10.0` there; `net481` is the Windows target.
 
 ```bash
 dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release
-dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net8.0
+dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net10.0
 ```
 
 To produce the same portable layout as a release:

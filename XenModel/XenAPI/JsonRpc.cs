@@ -215,7 +215,9 @@ namespace XenAPI
             webRequest.PreAuthenticate = PreAuthenticate;
             webRequest.AllowWriteStreamBuffering = true;
             webRequest.CookieContainer = Cookies ?? webRequest.CookieContainer ?? new CookieContainer();
+#pragma warning disable SYSLIB0014 // Preserve the application TOFU policy until the shared transport is migrated.
             webRequest.ServerCertificateValidationCallback = ServerCertificateValidationCallback ?? ServicePointManager.ServerCertificateValidationCallback;
+#pragma warning restore SYSLIB0014
 
             using (var str = webRequest.GetRequestStream())
             using (var sw = new StreamWriter(str))

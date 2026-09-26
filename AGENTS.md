@@ -11,7 +11,7 @@ Repository context:
 - `development` is the supported integration branch. See `CONTRIBUTING.md`.
 - `XenAdmin` is the supported WinForms client; `XcpNgCenter.Shell` is the
   additive Avalonia preview. Shared changes can affect both clients.
-- Shared libraries target `net481;net8.0`. Package versions belong in
+- Shared libraries target `net481;net10.0`. Package versions belong in
   `Directory.Packages.props`; lockfiles are checked in.
 - Start with `git status --short` and preserve existing user changes.
 - For validation, run both `XenCenterLib.Tests` and `XcpNgCenter.Shell.Tests`.
