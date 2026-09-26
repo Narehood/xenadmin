@@ -38,9 +38,47 @@ updated system runtime. See Microsoft's [support policy](https://dotnet.microsof
   handlers. [.NET 10](https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Net.Requests/src/System/Net/AuthenticationManager.cs)
   retains that behavior. The legacy Basic/Digest selection controls the custom
   transfer tunnel; it is not a client-wide restriction on proxy negotiation.
+  Both clients now label this choice as transfer tunnel authentication and explain
+  that server API requests and downloads negotiate independently and may use
+  another method. This preserves existing transport behavior while making the
+  setting's scope explicit before users choose a method.
 - Retain the existing application TOFU callbacks while the shared XenAPI transport
   still uses HttpWebRequest. Narrow obsolete-API suppressions identify this boundary;
   migration does not replace certificate validation with permissive defaults.
+
+## Proxy authentication evidence
+
+`tools/WinForms.CompatibilityProbe` has an optional `--proxy-auth` mode. It runs
+the real shared `XenAPI.HTTP.ConnectStream` and a .NET `HttpWebRequest` against a
+loopback proxy with synthetic credentials. The proxy never forwards traffic or
+resolves the example destination, and the probe logs only scheme names. All 12
+combinations passed on .NET 10.0.12:
+
+| Proxy offers | Selected setting | Transfer tunnel | HTTP handler |
+| --- | --- | --- | --- |
+| Basic | Basic | Basic | Basic |
+| Basic | Digest | Rejects without authenticating | Basic |
+| Digest | Basic | Rejects without authenticating | Digest |
+| Digest | Digest | Digest | Digest |
+| Basic and Digest | Basic | Basic | Digest |
+| Basic and Digest | Digest | Digest | Digest |
+
+Reproduce after building WinForms:
+
+```powershell
+dotnet run --project tools/WinForms.CompatibilityProbe -c Release -- `
+  "XenAdmin/bin/Release/net10.0-windows/XCP-ng Center.dll" --proxy-auth
+```
+
+The same probe's `--connection-layout` mode constructs the actual WinForms
+connection settings control without loading saved settings. It verifies and
+renders the explanation at 486px (the options scroll minimum), 534px (default),
+and 590px page widths. The explanation wraps completely at each width.
+`tools/AdvancedNetworking.UiProbe --connection-settings` similarly checks the
+actual shell settings window at 760x650 and its 440x400 minimum; all four
+visibility/wrapping checks pass. Both layout modes write screenshots under their
+ignored build output directories. Physical DPI, desktop behavior and enterprise
+proxy interoperability remain manual checks.
 
 ## WinForms resources and designer metadata
 

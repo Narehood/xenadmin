@@ -17,6 +17,7 @@ using Task = System.Threading.Tasks.Task;
 
 sealed class ProbeApp : App
 {
+    public static bool ConnectionSettingsOnly { get; set; }
     static readonly string Evidence = Path.GetDirectoryName(typeof(ProbeApp).Assembly.Location)!;
     readonly List<string> checks = [];
     ShellAppSettings? settings;
@@ -38,6 +39,11 @@ sealed class ProbeApp : App
         lifetime.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         try
         {
+            if (ConnectionSettingsOnly)
+            {
+                CheckConnectionSettings(lifetime);
+                return;
+            }
             var conn = new XenConnection();
             T Add<T>(string reference, T value) where T : XenObject<T>
             { conn.Cache.UpdateFrom(conn, [new ObjectChange(typeof(T), reference, value)]); return conn.Resolve(new XenRef<T>(reference)); }
@@ -162,6 +168,41 @@ sealed class ProbeApp : App
             case SriovNetworkViewModel vm: vm.IsSaving = value; break;
         }
     }
+    void CheckConnectionSettings(IClassicDesktopStyleApplicationLifetime lifetime)
+    {
+        var window = new SettingsWindow
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Position = new PixelPoint(-10000, -10000), ShowActivated = false, ShowInTaskbar = false
+        };
+        lifetime.MainWindow = window;
+        window.FindControl<TabControl>("SettingsTabs")!.SelectedItem = window.FindControl<TabControl>("SettingsTabs")!
+            .Items.OfType<TabItem>().Single(tab => tab.Header?.ToString() == "Connection");
+        window.Show();
+        DispatcherTimer.RunOnce(() =>
+        {
+            try
+            {
+                foreach (var (width, height) in new[] { (760, 650), (440, 400) })
+                {
+                    window.Width = width; window.Height = height; window.UpdateLayout();
+                    var explanation = window.GetVisualDescendants().OfType<TextBlock>()
+                        .Single(text => text.Text?.StartsWith("Basic/Digest applies") == true);
+                    explanation.BringIntoView(); window.UpdateLayout();
+                    Console.WriteLine($"Settings {width}x{height}: explanation={explanation.Bounds}, text={explanation.TextLayout.Width}x{explanation.TextLayout.Height}");
+                    Render(window, $"connection-{width}", 1);
+                    Require(explanation.IsEffectivelyVisible && explanation.Bounds.Width > 0,
+                        $"Proxy scope explanation is visible at {width}x{height}");
+                    Require(explanation.TextLayout.Height <= explanation.Bounds.Height + 1
+                        && explanation.TextLayout.Width <= explanation.Bounds.Width + 1,
+                        $"Proxy scope explanation wraps without clipping at {width}x{height}");
+                }
+                Console.WriteLine($"Passed {checks.Count} connection settings layout checks. Evidence: {Evidence}");
+                window.Close(); theme?.Dispose(); settings?.Dispose(); lifetime.Shutdown(0);
+            }
+            catch (Exception error) { Fail(lifetime, error); }
+        }, TimeSpan.FromMilliseconds(600));
+    }
     void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); checks.Add(message); }
     static void Render(Window window, string size, double scale)
     {
@@ -183,6 +224,7 @@ static class Program
             Console.Error.WriteLine("This offscreen UI probe requires a Windows desktop session. Run the cross-platform tests separately.");
             return 2;
         }
+        ProbeApp.ConnectionSettingsOnly = args.Contains("--connection-settings", StringComparer.Ordinal);
         try { return AppBuilder.Configure<ProbeApp>().UsePlatformDetect().StartWithClassicDesktopLifetime(args); }
         catch (Exception exception)
         {

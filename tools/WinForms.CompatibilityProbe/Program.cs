@@ -6,8 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 
 // Run against a built application without opening it or reading a user's profile.
-if (args.Length != 1 || !File.Exists(args[0]))
-    throw new ArgumentException("Pass the full path to the built XCP-ng Center.dll.");
+if (args.Length is < 1 or > 2 || !File.Exists(args[0]) || args.Length == 2 && args[1] is not ("--proxy-auth" or "--connection-layout"))
+    throw new ArgumentException("Pass the full path to the built XCP-ng Center.dll, optionally followed by --proxy-auth or --connection-layout.");
 
 var assemblyPath = Path.GetFullPath(args[0]);
 var resolver = new AssemblyDependencyResolver(assemblyPath);
@@ -17,6 +17,8 @@ AssemblyLoadContext.Default.Resolving += (context, name) =>
     return path == null ? null : context.LoadFromAssemblyPath(path);
 };
 var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
+if (args.Length == 2)
+    return args[1] == "--proxy-auth" ? ProxyAuthenticationProbe.Run() : ConnectionLayoutProbe.Run(assembly);
 var failures = new List<string>();
 var resourceCount = 0;
 var setCount = 0;

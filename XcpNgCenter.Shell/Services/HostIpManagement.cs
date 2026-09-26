@@ -265,6 +265,9 @@ public sealed class HostIpConfigurationAction : AsyncAction
             // None must send the reviewed empty fields directly. IPv6 also has
             // no shared editor action. Neither path changes topology or family.
             plan.Current.Locked = true;
+            // Match ChangeNetworkingAction: retry transient disruption only if
+            // the management address stays usable. A changed address requires
+            // manual reconnect, not repeated attempts against the old endpoint.
             Connection.ExpectDisruption = !plan.ManagementAddressChanged;
             try
             {

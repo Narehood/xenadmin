@@ -4,6 +4,32 @@ Last updated: 2026-09-25 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### PR #50 comment follow-up (2026-09-25)
+
+The [review record](reviews/2026-09-25-pr50-review.md) maps every inline finding
+and the recovery/docstring suggestions to its disposition. The bond-mode and
+IPv4-disable fixes were already present in `7cb543d9c`; both were rechecked.
+The Basic/Digest options now explain their transfer-tunnel scope in both client
+settings pages. A reproducible, isolated loopback proxy probe covers both
+selections against Basic-only, Digest-only and combined challenges for the real
+custom tunnel and `HttpWebRequest` (12 cases). The handler uses Digest when both
+are available but can use Basic when that is the only challenge even if the
+tunnel setting is Digest. Windows CI now runs that probe.
+
+The proposed management-IP flag inversion was not adopted: the shared action
+uses the same negation so a replaced management address does not enable repeated
+reconnects to remembered endpoints. Four new IPv6 worker/RPC cases verify the
+flag during mutation, submitted values, cleanup and error propagation. Added a
+concrete per-host recovery procedure for partial bond/SR-IOV changes. Automatic
+rollback and a durable action journal remain unimplemented; live failure/recovery
+and the user's other manual acceptance gates remain pending.
+
+Validation: 528 shell tests passed in each of Release/Debug, including 72
+host-IP cases; 73 shared tests passed on each of `net481`/`net10.0`; all 12
+loopback proxy cases passed on .NET 10.0.12. WinForms Release built using the
+existing RDP interop; 32,240 resources in 290 sets loaded. Actual settings layouts
+passed at three WinForms widths and two shell sizes. Existing warnings remain.
+
 ### .NET 10 and advanced networking (2026-09-25)
 
 Implementation: [PR #50](https://github.com/Narehood/xenadmin/pull/50), initial

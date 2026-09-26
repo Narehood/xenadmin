@@ -322,30 +322,7 @@ public sealed class HostIpManagementTests
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        var responseTask = Task.Run(async () =>
-        {
-            using var peer = await listener.AcceptTcpClientAsync(timeout.Token);
-            await using var stream = peer.GetStream();
-            using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
-            var length = 0;
-            while (await reader.ReadLineAsync(timeout.Token) is { Length: > 0 } header)
-                if (header.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
-                    length = int.Parse(header.Split(':', 2)[1]);
-            var body = new char[length];
-            var read = 0;
-            while (read < length)
-            {
-                var count = await reader.ReadAsync(body.AsMemory(read), timeout.Token);
-                if (count == 0) throw new EndOfStreamException();
-                read += count;
-            }
-            // Stop at the mutation boundary: a server rejection must be reported
-            // without another request, and must release the worker's local locks.
-            var rejection = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, error = new { code = 1, message = failure, data = new[] { "loopback regression" } } });
-            var reply = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {rejection.Length}\r\nConnection: close\r\n\r\n{rejection}");
-            await stream.WriteAsync(reply, timeout.Token);
-            return new string(body);
-        }, timeout.Token);
+        var responseTask = RejectReconfigurationAsync(listener, failure, timeout.Token);
         var session = new Session($"http://127.0.0.1:{port}/") { Timeout = 3000, opaque_ref = "OpaqueRef:synthetic-session" };
         f.MarkConnected(session);
         var action = new HostIpConfigurationAction(f.Connection, request);
@@ -369,6 +346,80 @@ public sealed class HostIpManagementTests
         Assert.Equal(new[] { "2001:db8::10/64" }, f.Pif.IPv6);
         Assert.Equal("2001:db8::1", f.Pif.ipv6_gateway);
         Assert.Equal("192.0.2.10", f.Pif.IP);
+    }
+
+    [Theory]
+    [InlineData(true, true, true, false)]
+    [InlineData(true, true, false, true)]
+    [InlineData(true, false, true, true)]
+    [InlineData(false, true, true, true)]
+    public async Task IPv6WorkerAllowsTransientReconnectOnlyWhenManagementAddressIsUnchanged(
+        bool management, bool primaryIPv6, bool changeAddress, bool expectDisruption)
+    {
+        var f = new Fixture();
+        f.Pif.management = management;
+        f.Pif.primary_address_type = primaryIPv6 ? primary_address_type.IPv6 : primary_address_type.IPv4;
+        var request = f.IPv6 with
+        {
+            Address = changeAddress ? "2001:db8::25/64" : f.Pif.IPv6[0],
+            Dns = "2001:db8::54"
+        };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        bool? disruptionWhileSending = null;
+        bool? lockedWhileSending = null;
+        var responseTask = RejectReconfigurationAsync(listener, "OPERATION_NOT_ALLOWED", timeout.Token, () =>
+        {
+            disruptionWhileSending = f.Connection.ExpectDisruption;
+            lockedWhileSending = f.Pif.Locked;
+        });
+        var session = new Session($"http://127.0.0.1:{port}/") { Timeout = 3000, opaque_ref = "OpaqueRef:synthetic-session" };
+        f.MarkConnected(session);
+        var action = new HostIpConfigurationAction(f.Connection, request);
+
+        var error = await Assert.ThrowsAsync<Failure>(() => Task.Run(() => action.RunSync(session), timeout.Token));
+        Assert.Equal("OPERATION_NOT_ALLOWED", error.ErrorDescription[0]);
+        using var wire = JsonDocument.Parse(await responseTask);
+        Assert.Equal("Async.PIF.reconfigure_ipv6", wire.RootElement.GetProperty("method").GetString());
+        Assert.Equal(new[] { session.opaque_ref, f.Pif.opaque_ref, "Static", request.Address, f.Pif.ipv6_gateway, "2001:db8::54,192.0.2.53" },
+            wire.RootElement.GetProperty("params").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(expectDisruption, disruptionWhileSending);
+        Assert.Equal(true, lockedWhileSending);
+        Assert.False(f.Connection.ExpectDisruption);
+        Assert.False(f.Pif.Locked);
+        Assert.False(listener.Pending());
+        Assert.True(action.IsError);
+        Assert.Equal(new[] { "2001:db8::10/64" }, f.Pif.IPv6);
+        Assert.Equal("192.0.2.10", f.Pif.IP);
+    }
+
+    private static async Task<string> RejectReconfigurationAsync(TcpListener listener, string failure,
+        CancellationToken token, Action? onRequest = null)
+    {
+        using var peer = await listener.AcceptTcpClientAsync(token);
+        await using var stream = peer.GetStream();
+        using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+        var length = 0;
+        while (await reader.ReadLineAsync(token) is { Length: > 0 } header)
+            if (header.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                length = int.Parse(header.Split(':', 2)[1]);
+        var body = new char[length];
+        var read = 0;
+        while (read < length)
+        {
+            var count = await reader.ReadAsync(body.AsMemory(read), token);
+            if (count == 0) throw new EndOfStreamException();
+            read += count;
+        }
+        onRequest?.Invoke();
+        // Stop at the mutation boundary: a server rejection must be reported
+        // without another request, and must release the worker's local locks.
+        var rejection = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, error = new { code = 1, message = failure, data = new[] { "loopback regression" } } });
+        var reply = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {rejection.Length}\r\nConnection: close\r\n\r\n{rejection}");
+        await stream.WriteAsync(reply, token);
+        return new string(body);
     }
 
     [Fact]

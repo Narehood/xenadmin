@@ -75,6 +75,63 @@ The existing VM interface editor remains responsible for attaching a compatible
 VM to the resulting network. Hardware/firmware capability, host driver support,
 guest requirements and actual packet forwarding still require live validation.
 
+## Recovering an interrupted pool operation
+
+Bond and SR-IOV operations are separate server calls, not a pool-wide transaction.
+The action history and error message are useful evidence, but they do not provide
+a complete per-host completion record. No live failure/recovery rehearsal has
+been performed. Use the following procedure during disposable-pool acceptance;
+it does not add automatic reconciliation or rollback to the shell.
+
+1. Stop further changes to the affected network and retain the action error and
+   time, requested configuration, and known host/network/interface identities.
+   A timeout or lost response leaves the last operation's outcome **unknown**:
+   the server may have applied it. Do not infer that every preceding host
+   succeeded, that later hosts are unchanged, or that a failed client action
+   rolled back the pool.
+2. Restore connectivity and read current server state before another mutation.
+   Close the affected editor, disconnect/reconnect the pool connection, and wait
+   for inventory to populate. Rebuilding a tree/detail pane, or using the SR-IOV
+   editor's **Refresh**, only rereads the client's current cache; it does not by
+   itself establish a fresh server read. If the connection or event stream is
+   still unreliable, inspect through a working supported administrative client
+   or server tools. Include the coordinator and every pool host, even if the
+   editor was opened from one host.
+3. Record one row per affected host, using host UUID, network UUID and NIC/bond
+   identities rather than names alone. Include the requested value, freshly
+   observed value, relevant task outcome, and observation time. Keep uncertain
+   entries explicit until verified. For bonds, record members, mode, and LACP
+   `hashing_algorithm` separately: changing mode and changing hashing are
+   separate calls, so one can complete before the other fails. For SR-IOV,
+   record whether the network remains, each physical/logical PIF relationship,
+   its SR-IOV record, and `requires_reboot`. Check every host rather than using
+   the shared network's existence as evidence of complete provisioning.
+4. Choose a single intended final configuration and review its dependencies
+   before reconciling. A complete, otherwise eligible bond can have mixed modes
+   after a failure. Reopen **Change bond mode**, explicitly select the intended
+   supported mode/hash, and review the new confirmation against the recorded
+   state and physical-switch configuration. The action rejects changes to its
+   confirmed snapshot before execution; the editor builds a new snapshot for
+   each save, so an old draft or successful validation is not a recovery audit.
+   Missing bonds, incomplete membership or protected/dependent interfaces block
+   shell changes. Inspect and repair those cases through supported server
+   administration tools before returning to the shell.
+5. For partial SR-IOV provisioning, do not repeat **Create** to fill in missing
+   hosts: existing SR-IOV on a selected NIC blocks that request. A freshly
+   inspected partial network can use **Remove** only when every remaining
+   logical/physical/SR-IOV relationship passes the removal guards. Move/remove
+   VM interfaces, including stopped VMs, and dependent VLANs/tunnels first;
+   affected hosts must be online and idle, and a pending restart blocks removal.
+   Plan any required restart with the host workload and maintenance procedure.
+   If topology is incomplete or removal remains blocked, reconcile the actual
+   objects using supported server administration tools; do not bypass the guards
+   or forget physical NICs. Early creation cleanup is best effort, and a later
+   failure can retain both the network and completed host configurations.
+6. After the chosen repair or removal, reread every affected host and compare
+   with the intended configuration. Check connectivity and packet forwarding
+   and record remaining restart requirements before attaching VMs or starting a
+   new pool-wide operation. The shell never restarts hosts automatically.
+
 ## Regression coverage and remaining checks
 
 Synthetic cache tests cover valid plans, pool-wide availability, missing/replaced

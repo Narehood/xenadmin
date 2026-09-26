@@ -152,9 +152,10 @@
                 <TextBox Text="{Binding ProxyPassword}"
                          Watermark="Proxy password"
                          PasswordChar="*" />
+                <TextBlock Text="Transfer tunnel authentication" />
                 <ComboBox ItemsSource="{Binding ProxyAuthenticationMethods}"
                           SelectedItem="{Binding SelectedProxyAuthentication}" />
-                <TextBlock Text="Digest is recommended when supported. Credentials are protected in the local settings store."
+                <TextBlock Text="Basic/Digest applies to transfer tunnels. Server API requests and downloads negotiate authentication with the proxy independently and may use another method. Credentials are protected in the local settings store."
                            FontSize="11"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource Brush.TextMuted}" />

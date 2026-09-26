@@ -39,6 +39,9 @@ jobs:
       - name: Probe WinForms resources and settings (Debug)
         run: dotnet run --project tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj -c Release --no-build --no-restore -- "${{ github.workspace }}/XenAdmin/bin/Debug/net10.0-windows/XCP-ng Center.dll"
 
+      - name: Verify proxy authentication scope with a loopback proxy
+        run: dotnet run --project tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj -c Release --no-build --no-restore -- "${{ github.workspace }}/XenAdmin/bin/Release/net10.0-windows/XCP-ng Center.dll" --proxy-auth
+
       - name: Test shared libraries (.NET Framework)
         run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net481 --no-build --no-restore --logger "trx;LogFileName=xencenterlib-net481.trx"
 
