@@ -82,7 +82,9 @@ public sealed class RfbStream
         _outStream.Write(bytes, 0, size);
     }
 
-    public void ReadPadding(int n) => _ = _inStream.Read(_readbuf, 0, n);
+    // A tunnel read may return only part of the requested padding. Consume all
+    // of it so the next field stays aligned, and report EOF during a reboot.
+    public void ReadPadding(int n) => ReadFully(_readbuf, 0, n);
 
     public void ReadFully(byte[] b, int off, int len)
     {
