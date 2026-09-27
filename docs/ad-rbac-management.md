@@ -41,8 +41,12 @@ definitions and fresh session permissions against both cache and server. It
 resolves a newly added subject again and pins the reviewed directory identifier
 inside the shared subject action. It checks pool/domain/role definitions again
 after subject creation and before granting roles. A changed object, permission
-or identity stops execution. Separate reads and writes cannot provide a
-transaction across competing administrators; coordinate access changes.
+or identity stops execution. The final role check compares existing subjects
+with the immutable reviewed identity and roles, so cache events during that
+check cannot replace the approved baseline. Newly created subjects use their
+captured post-create identity and default roles instead. Separate reads and
+writes cannot provide a transaction across competing administrators; coordinate
+access changes.
 
 The execution paths use `EnableAdAction`, `DisableAdAction`,
 `AddRemoveSubjectsAction` and `AddRemoveRolesAction`. New roles are added before
@@ -87,7 +91,8 @@ blocked during a pool upgrade, secret rotation or current host/pool operation.
 server: successful join/leave/create/grant/remove, stale cache/server identity,
 fresh nested permissions, root recovery gates, recursive own-group protection,
 partial step failures, credential echo redaction, cancellation cleanup, changed
-directory SID and role/domain changes between creation and assignment.
+directory SID, concurrent cache/server role changes during final revalidation,
+and role/domain changes between creation and assignment.
 `AdEditorTests` cover draft invalidation, restricted sessions, confirmation,
 credential release, cancelled review, busy/close guards and mandatory reopen
 after failure. The actual-window probe checks production Avalonia bindings,

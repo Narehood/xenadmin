@@ -98,6 +98,39 @@ public sealed class AdManagementTests : IDisposable
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
 
+    [Fact]
+    public async Task ConcurrentCacheAndServerRoleChangeCannotReplaceTheReviewedBaseline()
+    {
+        var f = new Fixture();
+        f.Add("operator", new Role { uuid = "operator-uuid", name_label = "vm-operator", subroles = [new("permission")] });
+        using var server = new RpcServer(f); f.Connect(server.Session);
+        var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
+        var request = f.Request(AdOperation.SetRoles);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var inventoryReads = 0;
+        var changed = false;
+        server.BeforeReply = method =>
+        {
+            // Apply reviews the inventory twice before SetRoles performs its
+            // final read. Simulate another admin's event during that final read.
+            if (method != "pool.get_record" || ++inventoryReads != 3) return;
+            var updated = f.Add("subject", new Subject
+            {
+                uuid = f.Subject.uuid, subject_identifier = f.Subject.subject_identifier,
+                other_config = f.Subject.other_config, roles = [new("read"), new("operator")]
+            });
+            Assert.Same(f.Subject, updated); // Real cache events update objects in place.
+            changed = true;
+        };
+
+        var action = new AdAction(f.Connection, snapshot, request, review, new("", ""));
+        Assert.Throws<InvalidOperationException>(() => action.RunSync(server.Session));
+        Assert.True(changed);
+        Assert.Equal("read", snapshot.Subjects.Single().RoleReferences);
+        Assert.Contains(f.Subject.roles, role => role.opaque_ref == "operator");
+        Assert.DoesNotContain(server.Requests, IsMutation);
+    }
+
     [Theory]
     [InlineData(AdOperation.Join)]
     [InlineData(AdOperation.Leave)]
@@ -324,6 +357,7 @@ public sealed class AdManagementTests : IDisposable
         public bool LocalRoot { get; set; } = true;
         public bool ReplaceServerSubject { get; set; }
         public bool ChangeDomainOnCreate { get; set; }
+        public Action<string>? BeforeReply { get; set; }
         public string? DeniedPermission { get; set; }
         public string? SelfAuthority { get; set; }
         public string? FailureMethod { get; set; }
@@ -364,6 +398,7 @@ public sealed class AdManagementTests : IDisposable
         }
         private JToken? Reply(string method)
         {
+            BeforeReply?.Invoke(method);
             switch (method)
             {
                 case "session.get_is_local_superuser": return new JValue(LocalRoot);
