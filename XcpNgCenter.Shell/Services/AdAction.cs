@@ -57,10 +57,13 @@ public sealed class AdAction : AsyncAction
                         var created = subjects.Where(pair => pair.Value.subject_identifier == _review.ResolvedIdentifier).ToArray();
                         if (created.Length != 1) throw new InvalidOperationException("The created subject could not be identified. Inspect current access before assigning roles.");
                         created[0].Value.opaque_ref = created[0].Key.opaque_ref;
-                        SetRoles(created[0].Value);
+                        var createdSubject = created[0].Value;
+                        SetRoles(createdSubject.opaque_ref, createdSubject.uuid, createdSubject.subject_identifier,
+                            string.Join('\n', createdSubject.roles.Select(role => role.opaque_ref).Order(StringComparer.Ordinal)));
                         break;
                     case AdOperation.SetRoles:
-                        SetRoles(Connection.Resolve(new XenRef<Subject>(_request.SubjectReference!)));
+                        var reviewedSubject = _snapshot.Subjects.Single(subject => subject.Reference == _request.SubjectReference);
+                        SetRoles(reviewedSubject.Reference, reviewedSubject.Uuid, reviewedSubject.Identifier, reviewedSubject.RoleReferences);
                         break;
                     case AdOperation.RemoveSubject:
                         new AddRemoveSubjectsAction(Connection, [], [Connection.Resolve(new XenRef<Subject>(_request.SubjectReference!))]).RunSync(Session);
@@ -78,16 +81,18 @@ public sealed class AdAction : AsyncAction
         finally { _credentials?.Dispose(); _credentials = null; }
     }
 
-    private void SetRoles(Subject subject)
+    private void SetRoles(string subjectReference, string subjectUuid, string subjectIdentifier, string subjectRoleReferences)
     {
         AdManagement.RequirePermissions(Session, _request.Operation);
         var inventory = AdInventory.Read(Session, _snapshot.PoolReference);
         if (_snapshot.InfrastructureFingerprint != inventory.Snapshot().InfrastructureFingerprint
             || _snapshot.InfrastructureFingerprint != AdInventory.Cached(Connection.Resolve(new XenRef<Pool>(_snapshot.PoolReference))).Snapshot().InfrastructureFingerprint)
             throw new InvalidOperationException("The pool, domain or role definitions changed before role assignment. Inspect the current subject before another attempt.");
-        var serverSubject = inventory.Subjects.SingleOrDefault(candidate => candidate.opaque_ref == subject.opaque_ref);
-        if (serverSubject == null || serverSubject.uuid != subject.uuid || serverSubject.subject_identifier != subject.subject_identifier
-            || !serverSubject.roles.Select(role => role.opaque_ref).Order(StringComparer.Ordinal).SequenceEqual(subject.roles.Select(role => role.opaque_ref).Order(StringComparer.Ordinal)))
+        // Compare with immutable reviewed values (or the captured post-create
+        // values), never a cache object that events can change during the reads.
+        var serverSubject = inventory.Subjects.SingleOrDefault(candidate => candidate.opaque_ref == subjectReference);
+        if (serverSubject == null || serverSubject.uuid != subjectUuid || serverSubject.subject_identifier != subjectIdentifier
+            || string.Join('\n', serverSubject.roles.Select(role => role.opaque_ref).Order(StringComparer.Ordinal)) != subjectRoleReferences)
             throw new InvalidOperationException("The subject changed before its roles could be assigned. Inspect its current identity and roles.");
         if (serverSubject.roles.Any(reference => !inventory.Roles.Any(role => role.opaque_ref == reference.opaque_ref && !role.is_internal && role.subroles.Count > 0)))
             throw new InvalidOperationException("The created subject has an unknown or internal default role. Inspect its effective access before assigning roles.");
@@ -96,7 +101,7 @@ public sealed class AdAction : AsyncAction
         var roles = _request.RoleReferences.Select(reference => Connection.Resolve(new XenRef<Role>(reference))
             ?? throw new InvalidOperationException("A reviewed role disappeared.")).ToList();
         new AddRemoveRolesAction(Connection, serverSubject, roles).RunSync(Session);
-        Session.logout_subject_identifier(Session, subject.subject_identifier);
+        Session.logout_subject_identifier(Session, serverSubject.subject_identifier);
     }
 
     protected override void Clean()

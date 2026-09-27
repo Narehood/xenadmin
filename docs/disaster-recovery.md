@@ -96,6 +96,10 @@ verified; failed or concurrently edited imports require manual inspection.
 Cleanup removes the VM's VIFs, VBDs and VM record, preserving the actual VDIs and
 network records. It never shuts down a running VM. A changed VM blocks cleanup;
 an interrupted cleanup stops and requires manual inspection, with no retry.
+Before each attachment deletion and the final VM deletion, cleanup checks the
+complete remaining VM and attachment configuration again. It accounts only for
+its own confirmed deletions; newly added attachments or other configuration
+changes stop cleanup before the next deletion.
 
 Closing the window does not undo a rehearsal. The history report includes VM
 UUIDs; inspect those objects to perform manual cleanup if the window is closed
@@ -131,7 +135,8 @@ Automated tests cover metadata discovery and session lifetime, safe request
 mapping, fresh permissions, reviewed source/target changes, shared recovery task
 completion, disk binding checks, halted NIC mapping, partial or uncertain
 outcomes, imported-network reporting, receipt-gated cleanup, stale or active VM
-rejection, draft invalidation, confirmation and busy-state behavior. The actual
+rejection, concurrent attachment/configuration changes during cleanup, draft
+invalidation, confirmation and busy-state behavior. The actual
 Avalonia window is exercised by
 `tools/AdvancedNetworking.UiProbe --access-recovery` at default and minimum sizes.
 These checks do not substitute for a disposable live recovery exercise.

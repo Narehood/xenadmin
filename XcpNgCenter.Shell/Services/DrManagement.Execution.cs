@@ -146,24 +146,25 @@ public sealed partial class DrManagement
             foreach (var item in outcome.Cleanup)
             {
                 RequirePool(); RequirePermissions(session, CleanupMethods());
-                if (CaptureCleanup(session, item.Reference, item.Uuid).Fingerprint != item.Fingerprint)
+                var expected = ReadCleanupState(session, item.Reference, item.Uuid);
+                if (expected.Fingerprint != item.Fingerprint)
                     throw new InvalidOperationException($"'{item.Name}' changed before cleanup. No deletion was attempted for it.");
-                var vm = VM.get_record(session, item.Reference);
-                foreach (var reference in vm.VIFs)
+                foreach (var reference in expected.Vm.VIFs.ToArray())
                 {
-                    RequireHalted(VM.get_record(session, item.Reference), item.Uuid);
-                    var vif = VIF.get_record(session, reference);
-                    if (vif.currently_attached || vif.VM.opaque_ref != item.Reference) throw new InvalidOperationException("A NIC became attached or changed owner during cleanup.");
+                    RequireUnchangedCleanup(session, item, expected);
                     VIF.destroy(session, reference);
+                    // Only our confirmed deletion changes the expected receipt. Never adopt fresh server edits.
+                    expected.Vm.VIFs.RemoveAll(vif => vif.opaque_ref == reference.opaque_ref);
+                    expected = expected with { Vifs = expected.Vifs.Where(vif => vif.opaque_ref != reference.opaque_ref).ToArray() };
                 }
-                foreach (var reference in vm.VBDs)
+                foreach (var reference in expected.Vm.VBDs.ToArray())
                 {
-                    RequireHalted(VM.get_record(session, item.Reference), item.Uuid);
-                    var vbd = VBD.get_record(session, reference);
-                    if (vbd.currently_attached || vbd.VM.opaque_ref != item.Reference) throw new InvalidOperationException("A disk attachment changed during cleanup.");
+                    RequireUnchangedCleanup(session, item, expected);
                     VBD.destroy(session, reference);
+                    expected.Vm.VBDs.RemoveAll(vbd => vbd.opaque_ref == reference.opaque_ref);
+                    expected = expected with { Vbds = expected.Vbds.Where(vbd => vbd.opaque_ref != reference.opaque_ref).ToArray() };
                 }
-                RequireHalted(VM.get_record(session, item.Reference), item.Uuid);
+                RequireUnchangedCleanup(session, item, expected);
                 VM.destroy(session, item.Reference);
                 remaining.Remove(item);
                 results.Add(new(item.Name, item.Uuid, "Rehearsal VM record and attachments removed. Disks preserved.", true));
@@ -190,11 +191,23 @@ public sealed partial class DrManagement
         return new(reference, uuid, state.Vm.Name(), state.Fingerprint);
     }
 
+    private static void RequireUnchangedCleanup(Session session, DrCleanupItem item, DrCleanupState expected)
+    {
+        if (ReadCleanupState(session, item.Reference, item.Uuid).Fingerprint != expected.Fingerprint)
+            throw new InvalidOperationException($"'{item.Name}' changed during cleanup. Inspect its remaining records before manual cleanup.");
+    }
+
     private static DrCleanupState ReadCleanupState(Session session, string reference, string uuid)
     {
         var vm = VM.get_record(session, reference); vm.opaque_ref = reference; RequireHalted(vm, uuid);
-        var vifs = vm.VIFs.OrderBy(vif => vif.opaque_ref).Select(vif => VIF.get_record(session, vif)).ToArray();
-        var vbds = vm.VBDs.OrderBy(vbd => vbd.opaque_ref).Select(vbd => VBD.get_record(session, vbd)).ToArray();
+        var vifs = vm.VIFs.OrderBy(vif => vif.opaque_ref).Select(vif =>
+        {
+            var record = VIF.get_record(session, vif); record.opaque_ref = vif.opaque_ref; return record;
+        }).ToArray();
+        var vbds = vm.VBDs.OrderBy(vbd => vbd.opaque_ref).Select(vbd =>
+        {
+            var record = VBD.get_record(session, vbd); record.opaque_ref = vbd.opaque_ref; return record;
+        }).ToArray();
         if (vifs.Any(vif => vif.VM.opaque_ref != reference || vif.currently_attached)
             || vbds.Any(vbd => vbd.VM.opaque_ref != reference || vbd.currently_attached))
             throw new InvalidOperationException("Rehearsal VM attachments changed or became active.");

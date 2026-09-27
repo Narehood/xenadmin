@@ -4,6 +4,23 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Pre-merge review follow-up (2026-09-27)
+
+PR #51 merged into `development` as `7134737d9` after Cursor approved it and
+CodeRabbit completed review. CodeRabbit's sole finding incorrectly treated the
+PR #50 baseline as padding-fix attribution; repository/GitHub evidence confirmed
+the baseline, and CodeRabbit withdrew the finding. PRs #52-#54 are ready for
+review but remain open while the requested CodeRabbit reviews are rate-limited.
+
+Independent review reproduced two concurrent-edit defects. Commit `0ca061020`
+keeps AD's reviewed role baseline immutable across cache events during final
+server reads; its new race test failed before the fix and all 54 AD tests pass.
+Commit `a6e66d8c5` checks the full DR cleanup receipt before every deletion and
+advances expected state only for its own confirmed removals; nine concurrency
+cases failed before the fix and all 60 DR tests pass. Separate read/write calls
+still cannot provide atomic exclusion of another administrator. Guides document
+that remaining limit. Additional Cursor findings are being verified before merge.
+
 ### Directory access, recovery, and console follow-up (2026-09-27)
 
 PR #50 was merged to `development` as `123679abd`. Its earlier "unmerged"
@@ -63,7 +80,7 @@ Review stack, in merge order: [#51 console](https://github.com/Narehood/xenadmin
 (`a296d4feb`), [#52 directory access](https://github.com/Narehood/xenadmin/pull/52)
 (`bb2fcb431`), [#53 recovery](https://github.com/Narehood/xenadmin/pull/53)
 (`54e174aa8`), and [#54 acceptance](https://github.com/Narehood/xenadmin/pull/54)
-(`221bd8525`, followed by documentation references). These remain draft PRs;
+(`221bd8525`, followed by documentation references). These were initially published as draft PRs;
 each layer has native Windows/Linux checks. See the acceptance record for links
 to current hosted results and retarget remaining layers to `development` as
 their bases merge. No release or live pool operation was performed.
