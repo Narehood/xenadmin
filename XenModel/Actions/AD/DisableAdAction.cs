@@ -66,9 +66,10 @@ namespace XenAdmin.Actions
 
             var pool = Helpers.GetPoolOfOne(Connection); // let if fail if null
             try { XenAPI.Pool.disable_external_auth(Session, pool.opaque_ref, creds); }
-            catch (System.Exception)
+            catch (CancelledException) { throw; }
+            catch (System.Exception error)
             {
-                throw new System.InvalidOperationException("Domain leave was not confirmed. Inspect authentication on every host and directory machine accounts before another attempt. Server error details were omitted to protect credentials.");
+                throw DirectoryActionFailure.Create(error, Connection, "Domain leave", "pool.disable_external_auth");
             }
             finally { creds.Clear(); }
             Description = Messages.COMPLETED;

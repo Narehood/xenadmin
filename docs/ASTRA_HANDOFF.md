@@ -6,6 +6,22 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ### Directory access and RBAC (2026-09-27)
 
+Pre-merge Cursor review corrections now bind the nonsecret directory account and
+leave-machine-account cleanup choice to review; passwords remain excluded from
+drafts and hashes. Typed outcomes distinguish pre-write refusal from a possibly
+partial mutation. Shared join/leave failures preserve allowlisted API codes,
+locally resolved host names, RBAC formatting, cancellation, and the WinForms
+credential-retry type without retaining provider details or inner exceptions.
+Group access changes revoke direct sessions and discovered transitive members;
+enumeration, membership, or logout failure prevents a success report.
+
+The preparatory-leave regression failed before correction. All 105 AD tests and
+829 shell tests pass, plus 73 shared tests on each of `net481` and `net10.0`.
+The shared `XenModel` net481 build passes without warnings. The earlier mutable
+role-baseline fix is commit `0ca061020`. Live domain recovery remains pending;
+session enumeration cannot exclude a concurrent login or directory membership
+change, so the guide requires independent verification after the operation.
+
 The shell now offers reviewed domain join/leave and subject/role management.
 Fresh server permissions and pool/host/subject/role identities are rechecked;
 directory identities are pinned through resolution and role grants. Root remains
