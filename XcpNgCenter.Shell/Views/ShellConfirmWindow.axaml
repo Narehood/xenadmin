@@ -16,10 +16,14 @@
                  FontWeight="SemiBold"
                  Foreground="{DynamicResource Brush.TextPrimary}"
                  TextWrapping="Wrap" />
-      <TextBlock Text="{Binding Message}"
-                 TextWrapping="Wrap"
-                 FontSize="14"
-                 Foreground="{DynamicResource Brush.TextMuted}" />
+      <ScrollViewer MaxHeight="360"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <TextBlock Text="{Binding Message}"
+                   TextWrapping="Wrap"
+                   FontSize="14"
+                   Foreground="{DynamicResource Brush.TextMuted}" />
+      </ScrollViewer>
       <StackPanel Orientation="Horizontal"
                   HorizontalAlignment="Right"
                   Spacing="10"

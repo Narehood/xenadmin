@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.HostIpEditorWindow" x:DataType="vm:HostIpEditorViewModel"
+        Title="{Binding Title}" Width="650" Height="750" MinWidth="480" MinHeight="480"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Brush.BgDeep}">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto,Auto">
+    <StackPanel Spacing="6" Margin="0,0,0,18">
+      <TextBlock Text="Configure host IP address" FontSize="24" FontWeight="SemiBold" />
+      <TextBlock Text="Changes apply to one interface on this host. Keep host console access available in case the connection closes." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10" Margin="0,0,8,0" IsEnabled="{Binding !IsSaving}">
+        <TextBlock Text="Host interface" />
+        <ComboBox ItemsSource="{Binding Interfaces}" SelectedItem="{Binding SelectedInterface}" HorizontalAlignment="Stretch">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:HostIpInterfaceOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock Text="{Binding InterfaceNotice}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.AccentText}" />
+        <TextBlock Text="Address family" /><ComboBox ItemsSource="{Binding Families}" SelectedItem="{Binding Family}" HorizontalAlignment="Stretch" />
+        <TextBlock Text="Assignment" /><ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" HorizontalAlignment="Stretch" />
+        <TextBlock Text="None disables this address family; DHCP assigns an address automatically; Autoconf uses IPv6 router advertisements. The primary management address family cannot be disabled." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+        <StackPanel Spacing="10" IsEnabled="{Binding IsStatic}">
+          <TextBlock Text="{Binding AddressLabel}" /><TextBox Text="{Binding Address}" />
+          <StackPanel Spacing="10" IsVisible="{Binding IsIpv4}"><TextBlock Text="Subnet mask" /><TextBox Text="{Binding Netmask}" /></StackPanel>
+          <TextBlock Text="Gateway (optional)" /><TextBox Text="{Binding Gateway}" />
+          <TextBlock Text="{Binding DnsLabel}" /><TextBox Text="{Binding Dns}" />
+        </StackPanel>
+        <TextBlock Text="Configure one address family at a time. The management interface and its preferred address family are preserved. Reconnect manually if its address changes." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+      </StackPanel>
+    </ScrollViewer>
+    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{DynamicResource Brush.AccentText}" />
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,18,0,0">
+      <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" IsEnabled="{Binding !IsSaving}" />
+      <Button Classes="cta" Content="Apply" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" />
+    </StackPanel>
+  </Grid>
+</Window>

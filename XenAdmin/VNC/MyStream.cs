@@ -92,7 +92,7 @@ namespace DotNetVnc
 
         public void readPadding(int n)
         {
-            inStream.Read(readbuf, 0, n);
+            readFully(readbuf, 0, n);
         }
 
         public void readFully(byte[] b, int off, int len)

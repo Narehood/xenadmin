@@ -439,6 +439,7 @@ public partial class MainViewModel
 
     private void NotifyVmPowerCanExecuteChanged()
     {
+        RefreshHaCommand();
         OnPropertyChanged(nameof(CanStartVm));
         OnPropertyChanged(nameof(CanShutdownVm));
         OnPropertyChanged(nameof(CanRebootVm));

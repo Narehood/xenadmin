@@ -152,9 +152,10 @@
                 <TextBox Text="{Binding ProxyPassword}"
                          Watermark="Proxy password"
                          PasswordChar="*" />
+                <TextBlock Text="Transfer tunnel authentication" />
                 <ComboBox ItemsSource="{Binding ProxyAuthenticationMethods}"
                           SelectedItem="{Binding SelectedProxyAuthentication}" />
-                <TextBlock Text="Digest is recommended when supported. Credentials are protected in the local settings store."
+                <TextBlock Text="Basic/Digest applies to transfer tunnels. Server API requests and downloads negotiate authentication with the proxy independently and may use another method. Credentials are protected in the local settings store."
                            FontSize="11"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource Brush.TextMuted}" />
@@ -344,6 +345,7 @@
       </TabItem>
 
       <TabItem Header="About">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="10" Margin="0,16,0,0">
           <TextBlock Text="XCP-NG Center (Unofficial Client)"
                      FontSize="16"
@@ -377,6 +379,15 @@
                        Margin="0,6,0,0" />
           </Grid>
 
+          <CheckBox x:Name="BetaUpdatesToggle"
+                    Content="Receive beta updates"
+                    IsChecked="{Binding UseBetaUpdates}"
+                    IsEnabled="{Binding Updates.CanChangeUpdateChannel}"
+                    Margin="0,12,0,0" />
+          <TextBlock Text="Beta builds provide early access to changes for testing and may be less reliable."
+                     TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource Brush.TextMuted}" />
+          <TextBlock Text="{Binding Updates.UpdateChannelDescription}"
+                     TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource Brush.TextMuted}" />
           <Button Classes="cta"
                   Content="Check for updates"
                   HorizontalAlignment="Left"
@@ -388,6 +399,7 @@
                      Foreground="{DynamicResource Brush.TextMuted}"
                      IsVisible="{Binding HasUpdateCheckStatus}" />
         </StackPanel>
+        </ScrollViewer>
       </TabItem>
     </TabControl>
 

@@ -71,6 +71,18 @@ public partial class SettingsViewModel : ViewModelBase
 
     public AppearanceViewModel Appearance { get; }
 
+    public MainViewModel Updates => _main;
+    public bool UseBetaUpdates
+    {
+        get => _main.UseBetaUpdates;
+        set
+        {
+            _main.TrySetBetaUpdates(value, out var message);
+            UpdateCheckStatus = message;
+            OnPropertyChanged();
+        }
+    }
+
     [ObservableProperty]
     private bool _autoReconnectSavedServers;
 

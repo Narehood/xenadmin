@@ -32,7 +32,7 @@ public sealed class ShellRrdMaintainer : IDisposable
     private bool _bailOut;
     private long _currentInterval;
     private long _stepSize;
-    private long _currentTime;
+    private long _currentTimeUtcTicks;
     private int _valueCount;
     private string _lastNode = "";
     private readonly Dictionary<RrdArchiveInterval, DateTime> _lastPoll = new();
@@ -203,8 +203,8 @@ public sealed class ShellRrdMaintainer : IDisposable
         var ticks = sets.SelectMany(s => s.Points).Select(p => p.Ticks).DefaultIfEmpty(0).Max();
         if (ticks == 0)
             return;
-        // RRD points are stored in local display time; requests use server Unix time.
-        var latest = new DateTimeOffset(new DateTime(ticks, DateTimeKind.Local)).ToUnixTimeSeconds();
+        // Preserve UTC sample identity even when local time repeats during DST.
+        var latest = new DateTimeOffset(new DateTime(ticks, DateTimeKind.Utc)).ToUnixTimeSeconds();
         if (!_lastSample.TryGetValue(interval, out var previous) || latest > previous)
             _lastSample[interval] = latest;
     }
@@ -289,7 +289,7 @@ public sealed class ShellRrdMaintainer : IDisposable
                 _lastNode = reader.Name;
                 if (_lastNode == "row")
                 {
-                    _currentTime += _currentInterval * _stepSize * TicksInOneSecond;
+                    _currentTimeUtcTicks += _currentInterval * _stepSize * TicksInOneSecond;
                     _valueCount = 0;
                 }
                 break;
@@ -349,10 +349,10 @@ public sealed class ShellRrdMaintainer : IDisposable
                     720 => HoursInOneWeek,
                     _ => DaysInOneYear
                 };
-                _currentTime = new DateTime(
-                        (_endTime - modInterval - _stepSize * _currentInterval * stepCount) * TimeSpan.TicksPerSecond
-                        + Util.TicksBefore1970)
-                    .ToLocalTime().Ticks;
+                // Archive intervals are elapsed UTC time. Adding hours/days after
+                // converting the first row to local time shifts history across DST.
+                _currentTimeUtcTicks = (_endTime - modInterval - _stepSize * _currentInterval * stepCount)
+                    * TimeSpan.TicksPerSecond + Util.TicksBefore1970;
                 break;
             }
             case "cf":
@@ -364,7 +364,7 @@ public sealed class ShellRrdMaintainer : IDisposable
             case "v":
             {
                 var set = _setsAdded[_valueCount];
-                set.AddRawValue(reader.ReadContentAsString(), _currentTime);
+                set.AddRawValue(reader.ReadContentAsString(), _currentTimeUtcTicks);
                 _valueCount++;
                 break;
             }
@@ -408,15 +408,15 @@ public sealed class ShellRrdMaintainer : IDisposable
         }
         else if (_lastNode == "t")
         {
-            _currentTime = new DateTime(Convert.ToInt64(reader.ReadContentAsString()) * TimeSpan.TicksPerSecond + Util.TicksBefore1970)
-                .ToLocalTime().Ticks;
+            _currentTimeUtcTicks = Convert.ToInt64(reader.ReadContentAsString())
+                * TimeSpan.TicksPerSecond + Util.TicksBefore1970;
         }
         else if (_lastNode == "v")
         {
             if (_setsAdded.Count <= _valueCount)
                 return;
             var set = _setsAdded[_valueCount];
-            set.AddRawValue(reader.ReadContentAsString(), _currentTime);
+            set.AddRawValue(reader.ReadContentAsString(), _currentTimeUtcTicks);
             _valueCount++;
         }
     }

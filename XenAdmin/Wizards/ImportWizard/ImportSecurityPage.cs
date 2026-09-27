@@ -162,7 +162,7 @@ namespace XenAdmin.Wizards.ImportWizard
 
 			try
             {
-                using (var certificate = new X509Certificate2(SelectedOvfPackage.RawCertificate))
+                using (var certificate = X509CertificateLoader.LoadCertificate(SelectedOvfPackage.RawCertificate))
                     X509Certificate2UI.DisplayCertificate(certificate);
             }
 			catch (CryptographicException)

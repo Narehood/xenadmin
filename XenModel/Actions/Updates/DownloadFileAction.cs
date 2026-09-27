@@ -302,7 +302,9 @@ namespace XenAdmin.Actions.Updates
             try
             {
                 // Check digital signature of .msi
+#pragma warning disable SYSLIB0057 // Authenticode signer extraction is not supported by X509CertificateLoader.
                 using (var basicSigner = X509Certificate.CreateFromSignedFile(OutputPathAndFileName))
+#pragma warning restore SYSLIB0057
                 {
                     using (var cert = new X509Certificate2(basicSigner))
                         valid = cert.Verify();

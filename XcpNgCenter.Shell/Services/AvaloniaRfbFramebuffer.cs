@@ -297,36 +297,39 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
             if (_disposed || _width <= 0 || _height <= 0 || width <= 0 || height <= 0)
                 return;
 
-            var src = new byte[width * height * 4];
-            var srcStride = width * 4;
-            var dstStride = _width * 4;
+            var left = (int)Math.Max(0L, dx);
+            var right = (int)Math.Min(_width, (long)dx + width);
+            var top = (int)Math.Max(0L, dy);
+            var bottom = (int)Math.Min(_height, (long)dy + height);
+            if (left >= right || top >= bottom)
+                return;
 
-            for (var row = 0; row < height; row++)
+            var rowBytes = (right - left) * 4;
+            var stride = _width * 4;
+            var sourceLeft = (long)x + left - dx;
+            var validStart = (int)Math.Clamp(-sourceLeft, 0, right - left);
+            var validEnd = (int)Math.Clamp(_width - sourceLeft, 0, right - left);
+            // Choose a vertical direction before touching the source. Span.CopyTo
+            // handles horizontal overlap within a row without a temporary frame.
+            var backwards = dy > y;
+            var row = backwards ? bottom - 1 : top;
+            var stop = backwards ? top - 1 : bottom;
+            for (; row != stop; row += backwards ? -1 : 1)
             {
-                var sy = y + row;
-                if (sy < 0 || sy >= _height)
-                    continue;
-                for (var col = 0; col < width; col++)
+                var sourceRow = (long)y + row - dy;
+                var destination = _pixels.AsSpan(row * stride + left * 4, rowBytes);
+                if (sourceRow < 0 || sourceRow >= _height || validStart >= validEnd)
                 {
-                    var sx = x + col;
-                    if (sx < 0 || sx >= _width)
-                        continue;
-                    Buffer.BlockCopy(_pixels, sy * dstStride + sx * 4, src, row * srcStride + col * 4, 4);
-                }
-            }
-
-            for (var row = 0; row < height; row++)
-            {
-                var ty = dy + row;
-                if (ty < 0 || ty >= _height)
+                    destination.Clear();
                     continue;
-                for (var col = 0; col < width; col++)
-                {
-                    var tx = dx + col;
-                    if (tx < 0 || tx >= _width)
-                        continue;
-                    Buffer.BlockCopy(src, row * srcStride + col * 4, _pixels, ty * dstStride + tx * 4, 4);
                 }
+                _pixels.AsSpan((int)sourceRow * stride + (int)(sourceLeft + validStart) * 4,
+                    (validEnd - validStart) * 4).CopyTo(destination.Slice(validStart * 4));
+                // Preserve the old snapshot behavior: offscreen source pixels
+                // become zeroes, while offscreen destination pixels are ignored.
+                // Clear after copying so a clipped overlapping source survives.
+                destination[..(validStart * 4)].Clear();
+                destination[(validEnd * 4)..].Clear();
             }
         }
     }

@@ -9,7 +9,7 @@ namespace XcpNgCenter.Shell.Alerts;
 
 /// <summary>
 /// WinForms-free <see cref="MessageAlert"/> equivalent for the Avalonia shell.
-/// Fix-link commands stay deferred (HA/SR wizards are not in the shell yet).
+/// Fix links route to shell HA configuration, storage repair, and logs.
 /// </summary>
 public class ShellMessageAlert : Alert
 {
@@ -25,6 +25,9 @@ public class ShellMessageAlert : Alert
     public Message Message { get; }
 
     public IXenObject? XenObject { get; }
+
+    private readonly string _haPoolReference;
+    private readonly string _haPoolUuid;
 
     public ShellMessageAlert(Message m)
     {
@@ -42,6 +45,9 @@ public class ShellMessageAlert : Alert
 
         Connection = m.Connection;
         XenObject = m.GetXenObject();
+        var pool = Helpers.GetPoolOfOne(Connection);
+        _haPoolReference = pool?.opaque_ref ?? "";
+        _haPoolUuid = pool?.uuid ?? "";
 
         var h = XenObject as Host ?? Helpers.GetCoordinator(m.Connection);
         if (h != null)
@@ -280,7 +286,7 @@ public class ShellMessageAlert : Alert
                 case Message.MessageType.HA_STATEFILE_APPROACHING_TIMEOUT:
                 case Message.MessageType.HA_STATEFILE_LOST:
                 case Message.MessageType.HA_XAPI_HEALTHCHECK_APPROACHING_TIMEOUT:
-                    return () => ShellAlertFixActions.NotifyHaConfigureUnavailable();
+                    return () => ShellAlertFixActions.ConfigureHa(Connection, _haPoolReference, _haPoolUuid);
 
                 case Message.MessageType.MULTIPATH_PERIODIC_ALERT:
                     return () => ShellAlertFixActions.OpenLogs?.Invoke();

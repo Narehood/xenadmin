@@ -25,7 +25,10 @@ public sealed record PreparedShellUpdate(
     Version Version,
     string UpdateRoot,
     string PayloadDirectory,
-    string ExecutableName);
+    string ExecutableName)
+{
+    public bool IsPrerelease { get; init; }
+}
 
 /// <summary>
 /// Downloads, verifies, and stages a shell release in the current user's local update cache.
@@ -270,6 +273,8 @@ public sealed partial class ShellUpdateInstaller
             if (manifest == null
                 || !Version.TryParse(manifest.Version, out var version)
                 || version != offer.Version
+                || manifest.Prerelease != offer.IsPrerelease
+                || !string.Equals(manifest.TagName, offer.TagName, StringComparison.Ordinal)
                 || !PathEquals(manifest.InstallDirectory, _installDirectory)
                 || !string.Equals(manifest.ExecutableName, expectedExecutableName, StringComparison.Ordinal)
                 || offer.Asset == null
@@ -285,7 +290,8 @@ public sealed partial class ShellUpdateInstaller
             if (!File.Exists(archive) || new FileInfo(archive).Length != offer.Asset.Size)
                 return null;
             return new PreparedShellUpdate(version, updateRoot,
-                Path.Combine(updateRoot, PayloadDirectoryName), manifest.ExecutableName);
+                Path.Combine(updateRoot, PayloadDirectoryName), manifest.ExecutableName)
+                { IsPrerelease = offer.IsPrerelease };
         }
         catch
         {
@@ -345,6 +351,7 @@ public sealed partial class ShellUpdateInstaller
             {
                 Version = offer.Version.ToString(4),
                 TagName = offer.TagName,
+                Prerelease = offer.IsPrerelease,
                 AssetName = offer.Asset.Name,
                 Digest = offer.Asset.Digest ?? string.Empty,
                 ExecutableName = executableName,
@@ -354,7 +361,8 @@ public sealed partial class ShellUpdateInstaller
             WriteManifest(updateRoot, manifest);
 
             progress?.Report(new ShellUpdateProgress(offer.Asset.Size, offer.Asset.Size, "Ready to restart."));
-            return new PreparedShellUpdate(offer.Version, updateRoot, payloadDirectory, executableName);
+            return new PreparedShellUpdate(offer.Version, updateRoot, payloadDirectory, executableName)
+                { IsPrerelease = offer.IsPrerelease };
         }
         catch
         {
@@ -389,7 +397,7 @@ public sealed partial class ShellUpdateInstaller
         try
         {
             var startInfo = CreateBootstrapStartInfo(_currentExecutablePath, _installDirectory,
-                update.UpdateRoot, launchRoot, update.Version, Environment.ProcessId, requiresElevation);
+                update.UpdateRoot, launchRoot, update.Version, Environment.ProcessId, requiresElevation, update.IsPrerelease);
             // Launch only installed code across UAC. The bootstrap authenticates and
             // stages the new helper before the original user's broker may execute it.
             using var bootstrap = await Task.Run(() => Process.Start(startInfo)
@@ -1544,6 +1552,8 @@ public sealed partial class ShellUpdateInstaller
 
     private sealed class PreparedManifest
     {
+        [JsonPropertyName("prerelease")]
+        public bool Prerelease { get; set; }
         [JsonPropertyName("version")]
         public string Version { get; set; } = string.Empty;
 

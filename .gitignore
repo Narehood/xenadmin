@@ -43,3 +43,8 @@ ServiceFabricBackup/
 vim.exe.stackdump
 
 installer-xcp-ng/Web1033/DISK1/
+
+# Local publish packages and validation evidence
+artifacts/
+TestResults/
+__pycache__/

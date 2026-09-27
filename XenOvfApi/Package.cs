@@ -647,7 +647,11 @@ namespace XenOvf
         /// <exception cref="Exception">Thrown when verification fails for any reason</exception>>
         public void VerifySignature()
         {
+#if NET9_0_OR_GREATER
+            using (var certificate = X509CertificateLoader.LoadCertificate(RawCertificate))
+#else
             using (var certificate = new X509Certificate2(RawCertificate))
+#endif
             {
                 if (!certificate.Verify())
                     throw new Exception(Messages.CERTIFICATE_IS_INVALID);

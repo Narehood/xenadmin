@@ -1,0 +1,91 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels" xmlns:perf="using:XcpNgCenter.Shell.Services.Performance"
+        x:Class="XcpNgCenter.Shell.Views.GraphLayoutEditorWindow" x:DataType="vm:GraphLayoutEditorViewModel"
+        Title="Edit graphs" Width="740" Height="720" MinWidth="500" MinHeight="500"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Brush.BgDeep}">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto,Auto">
+    <StackPanel Spacing="8" Margin="0,0,0,18">
+      <TextBlock Text="Edit graphs" FontSize="24" FontWeight="SemiBold" />
+      <TextBlock Text="Choose the graphs and data sources to display, in order. Your changes apply when you save this layout."
+                 TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="12" Margin="0,0,8,0" IsEnabled="{Binding CanEdit}">
+        <TextBlock Text="Graphs" FontWeight="SemiBold" />
+        <ListBox x:Name="GraphsList" ItemsSource="{Binding Graphs}" SelectedItem="{Binding SelectedGraph}"
+                 Height="132" AutomationProperties.Name="Graphs in display order">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:GraphLayoutDraft">
+              <TextBlock Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayTitle}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <WrapPanel Orientation="Horizontal">
+          <Button Content="Add graph" Command="{Binding AddGraphCommand}" Margin="0,0,8,8" />
+          <Button Content="Remove graph" Command="{Binding RemoveGraphCommand}" Margin="0,0,8,8" />
+          <Button x:Name="GraphUpButton" Content="Move up" Command="{Binding MoveGraphUpCommand}" Margin="0,0,8,8"
+                  AutomationProperties.Name="Move selected graph up" />
+          <Button Content="Move down" Command="{Binding MoveGraphDownCommand}" Margin="0,0,0,8"
+                  AutomationProperties.Name="Move selected graph down" />
+        </WrapPanel>
+        <StackPanel Spacing="12" IsEnabled="{Binding CanEditGraph}">
+          <TextBlock Text="Graph title" />
+          <TextBox x:Name="GraphTitleText" Text="{Binding SelectedGraph.Title}" Watermark="Graph title"
+                   AutomationProperties.Name="Selected graph title" />
+          <TextBlock Text="Data sources in this graph" FontWeight="SemiBold" />
+          <ListBox x:Name="SelectedSeriesList" ItemsSource="{Binding SelectedGraph.Series}"
+                   SelectedItem="{Binding SelectedSeries}" Height="144" AutomationProperties.Name="Data sources in display order">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="perf:GraphDataSourceOption">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Units}" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
+                  <TextBlock Text="Currently unavailable" IsVisible="{Binding !IsAvailable}" FontSize="11" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Remove source" Command="{Binding RemoveSeriesCommand}" Margin="0,0,8,8" />
+            <Button Content="Move up" Command="{Binding MoveSeriesUpCommand}" Margin="0,0,8,8"
+                    AutomationProperties.Name="Move selected data source up" />
+            <Button Content="Move down" Command="{Binding MoveSeriesDownCommand}" Margin="0,0,0,8"
+                    AutomationProperties.Name="Move selected data source down" />
+          </WrapPanel>
+          <TextBlock Text="Unavailable sources are kept in the layout. Their graphs show no values until those sources return."
+                     IsVisible="{Binding HasUnavailableSeries}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+          <TextBlock Text="Add an available data source" />
+          <TextBlock Text="All sources in a graph share one vertical scale; group sources with compatible units."
+                     TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+          <ComboBox x:Name="AvailableSourceSelector" ItemsSource="{Binding AvailableSources}"
+                    SelectedItem="{Binding SelectedAvailableSource}" HorizontalAlignment="Stretch"
+                    IsEnabled="{Binding HasAvailableSources}" AutomationProperties.Name="Available data sources">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="perf:GraphDataSourceOption">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Units}" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button Content="Add source" Command="{Binding AddSeriesCommand}" HorizontalAlignment="Left" />
+          <TextBlock Text="No additional recorded data sources are available for this graph."
+                     IsVisible="{Binding !HasAvailableSources}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+    <ScrollViewer Grid.Row="2" MaxHeight="110" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="6" Margin="0,12,0,0">
+        <TextBlock Text="{Binding ValidationMessage}" IsVisible="{Binding HasValidationMessage}"
+                   TextWrapping="Wrap" Foreground="{DynamicResource Brush.AccentText}" />
+        <TextBlock Text="{Binding StatusMessage}" IsVisible="{Binding HasStatusMessage}"
+                   TextWrapping="Wrap" Foreground="{DynamicResource Brush.AccentText}" />
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,18,0,0">
+      <Button Classes="ghost" Content="Cancel" IsCancel="True" Command="{Binding CancelCommand}" />
+      <Button x:Name="SaveLayoutButton" Classes="cta" Content="Save layout" IsDefault="True" Command="{Binding SaveCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -2,6 +2,7 @@ using XenAdmin;
 
 namespace XcpNgCenter.Shell.Services.Performance;
 
+/// <summary>An in-memory RRD sample. Ticks are UTC; convert to local time only for display.</summary>
 public readonly record struct RrdPoint(long Ticks, double Value);
 
 public enum RrdArchiveInterval

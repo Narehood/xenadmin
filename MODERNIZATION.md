@@ -12,8 +12,10 @@ XCP-ng Center is modernized **only on the `development` branch**.
 
 | Project | TFMs |
 |---------|------|
-| CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net8.0` |
-| XenAdmin (WinForms app) | `net8.0-windows` |
+| CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net10.0` |
+| XenAdmin (WinForms app) | `net10.0-windows` |
+
+SDK 10.0.401 is pinned in `global.json`; see the [.NET 10 migration record](docs/dotnet10-migration.md) for compatibility changes and remaining designer maintenance.
 
 **Versioning:** `year.month.day.revision` from `Directory.Build.props` (UTC date; `BuildRevision` defaults to `0`, CI sets `-p:BuildRevision=$GITHUB_RUN_NUMBER`).
 
@@ -40,7 +42,9 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
 **On `development`:** Phase 1–2 parity + migrate/move harden + VM chrome + comprehensive host/VM Properties (custom fields, alerts, power, GPU, clustering/NRPE, cloud config) + Import/Export (XVA/OVF) + global Alerts + Performance graphs + calendar versioning + GitHub updates with installation-time package verification + persisted General/Connection/Display/Security/Confirmations/Privacy settings + Linux soak hardening (RFB cursor alpha, file pickers, XDG paths, Publish Shell Release). Production remains WinForms until soak is clean.
 
-**Next:** Continue Linux/Windows desktop soak against real pools → exercise download/apply/restart updates between published `vYYYY.M.D.N` builds → later HA/AD/DR. RDP stays WinForms-only.
+The shell also provides [advanced networking](docs/advanced-networking.md): pool-wide NIC bonds (create/change mode/remove), host IPv4/IPv6 configuration, and SR-IOV provisioning/removal. Native Linux CI exercises the tests and packaged desktop startup. A measured console CopyRect optimization and repeatable inventory/console probes are recorded in the [performance baseline](docs/performance-baseline.md).
+
+**Next:** Complete the [platform acceptance checklist](docs/platform-acceptance.md), including live networking and download/apply/restart updates, then follow the [feature-parity roadmap](docs/modernization-roadmap.md). RDP stays WinForms-only.
 
 ### Still later
 
