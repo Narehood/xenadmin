@@ -59,6 +59,15 @@ hosted Windows CI must generate it normally. Evidence, package hash and the
 remaining manual gates are in the [acceptance record](reviews/2026-09-27-modernization-acceptance.md).
 The older .NET 8 project/build sections remain historical.
 
+Review stack, in merge order: [#51 console](https://github.com/Narehood/xenadmin/pull/51)
+(`a296d4feb`), [#52 directory access](https://github.com/Narehood/xenadmin/pull/52)
+(`bb2fcb431`), [#53 recovery](https://github.com/Narehood/xenadmin/pull/53)
+(`54e174aa8`), and [#54 acceptance](https://github.com/Narehood/xenadmin/pull/54)
+(`221bd8525`, followed by documentation references). These remain draft PRs;
+each layer has native Windows/Linux checks. See the acceptance record for links
+to current hosted results and retarget remaining layers to `development` as
+their bases merge. No release or live pool operation was performed.
+
 ### Beta release review follow-up (2026-09-26)
 
 The completed review of beta commit `98ee3d166` found no new application defect.

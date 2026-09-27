@@ -6,6 +6,23 @@ agents handled console investigation, AD/RBAC and DR; the coordinator integrated
 navigation, actual-window probes, documentation and acceptance tooling. The
 console agent also independently reviewed the acceptance runner and AD/DR code.
 
+## Review revisions
+
+The work is split into four draft PRs. Merge in the order shown, retargeting each
+remaining layer to `development` after its base lands. Each layer receives the
+normal Windows/Linux Test Builds workflow; the linked Checks pages show the
+current hosted results rather than treating local results as native Linux proof.
+
+| Change | Implementation commit | Review and hosted checks |
+| --- | --- | --- |
+| Console padding | `a296d4feb` | [PR #51](https://github.com/Narehood/xenadmin/pull/51), [checks](https://github.com/Narehood/xenadmin/pull/51/checks) |
+| Directory access/RBAC | `bb2fcb431` | [PR #52](https://github.com/Narehood/xenadmin/pull/52), [checks](https://github.com/Narehood/xenadmin/pull/52/checks) |
+| Halted recovery | `54e174aa8` | [PR #53](https://github.com/Narehood/xenadmin/pull/53), [checks](https://github.com/Narehood/xenadmin/pull/53/checks) |
+| Combined acceptance | `221bd8525` | [PR #54](https://github.com/Narehood/xenadmin/pull/54), [checks](https://github.com/Narehood/xenadmin/pull/54/checks) |
+
+Later documentation-only commits add these review references without changing
+the implementation or local package recorded below. No release was published.
+
 ## Local automated results
 
 `scripts/Invoke-PlatformAcceptance.ps1` completed successfully using SDK
