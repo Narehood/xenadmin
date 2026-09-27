@@ -16,7 +16,13 @@ changing desktop resolution. A pre-fix probe reproduced the missing credential
 re-review guard. Seven isolated acceptance-runner failure/coverage fixtures pass
 on PowerShell 5.1 and now run in native Windows/Linux CI. The runner rejects
 missing/empty/failed UI logs and records Linux editor probes explicitly as skipped.
-The next full acceptance run and hosted sizing evidence remain to be recorded.
+Full local Windows acceptance and hosted Windows sizing evidence now pass. The
+complete runner also passed native Linux acceptance at `e6f6c8bd1`; its manifest
+records Windows-only skips explicitly. Windows executes all applicable cases.
+A hosted test-listener cancellation race is fixed in `39987f6db`, with ten repeated
+affected-suite runs passing. See the
+[review follow-up](reviews/2026-09-27-pr51-54-review.md) for exact results, hashes,
+review dispositions and the remaining CodeRabbit gate.
 
 PR #51 merged into `development` as `7134737d9` after Cursor approved it and
 CodeRabbit completed review. CodeRabbit's sole finding incorrectly treated the
@@ -112,7 +118,7 @@ installation, live AD/DR/networking/HA and the reported reboot diagnosis remain
 pending in [platform acceptance](platform-acceptance.md); WinForms remains the
 supported production client.
 
-Local integrated acceptance passed: Release/Debug solution builds; **828 shell
+Initial local integrated acceptance passed: Release/Debug solution builds; **828 shell
 tests in each configuration**; **73 shared tests on each of net481/net10.0**;
 32,240 WinForms resources in 290 sets in each configuration; all 12 proxy cases;
 and **53 actual AD/DR window checks**, alongside existing network/settings probes.

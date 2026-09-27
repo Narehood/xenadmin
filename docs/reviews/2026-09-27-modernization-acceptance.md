@@ -1,5 +1,9 @@
 # Access and recovery validation — 2026-09-27
 
+This initial snapshot is followed by the
+[PR review and acceptance rerun](2026-09-27-pr51-54-review.md), including native
+Linux runner evidence and the expanded 98-check window probe.
+
 This pass starts from merged `development` commit `123679abd` and implements the
 [four-workstream plan](../modernization-execution-plan.md). Three implementation
 agents handled console investigation, AD/RBAC and DR; the coordinator integrated
