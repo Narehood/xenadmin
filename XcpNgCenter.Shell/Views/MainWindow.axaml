@@ -133,6 +133,9 @@
                   <MenuItem Header="High availability…"
                             Command="{Binding ConfigureHaCommand}"
                             IsVisible="{Binding ShowHaConfiguration}" />
+                  <MenuItem Header="Directory access…"
+                            Command="{Binding ConfigureAdCommand}"
+                            IsVisible="{Binding ShowAdConfiguration}" />
                   <Separator IsVisible="{Binding ShowPoolContextActions}" />
                   <MenuItem Header="Reconnect"
                             Command="{Binding ReconnectSelectedCommand}"
@@ -581,6 +584,11 @@
                               HorizontalAlignment="Left"
                               Command="{Binding ConfigureHaCommand}"
                               IsVisible="{Binding ShowHaConfiguration}" />
+                      <Button Classes="ghost"
+                              Content="Directory access…"
+                              HorizontalAlignment="Left"
+                              Command="{Binding ConfigureAdCommand}"
+                              IsVisible="{Binding ShowAdConfiguration}" />
                       <ItemsControl ItemsSource="{Binding GeneralProperties}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">

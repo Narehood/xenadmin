@@ -4,6 +4,39 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Directory access and RBAC (2026-09-27)
+
+Pre-merge Cursor review corrections now bind the nonsecret directory account and
+leave-machine-account cleanup choice to review; passwords remain excluded from
+drafts and hashes. Typed outcomes distinguish pre-write refusal from a possibly
+partial mutation. Shared join/leave failures preserve allowlisted API codes,
+locally resolved host names, RBAC formatting, cancellation, and the WinForms
+credential-retry type without retaining provider details or inner exceptions.
+Group access changes revoke direct sessions and discovered transitive members;
+enumeration, membership, or logout failure prevents a success report.
+
+The preparatory-leave regression failed before correction. All 105 AD tests and
+829 shell tests pass, plus 73 shared tests on each of `net481` and `net10.0`.
+The shared `XenModel` net481 build passes without warnings. The earlier mutable
+role-baseline fix is commit `0ca061020`. Live domain recovery remains pending;
+session enumeration cannot exclude a concurrent login or directory membership
+change, so the guide requires independent verification after the operation.
+
+The shell now offers reviewed domain join/leave and subject/role management.
+Fresh server permissions and pool/host/subject/role identities are rechecked;
+directory identities are pinned through resolution and role grants. Root remains
+the independent recovery route; authorized directory administrators can manage
+other subjects. Shared credential actions clear retained fields and sanitize
+server errors before logging while preserving WinForms preparation behavior.
+Pre-merge review found that an in-place cache event could replace the role
+baseline while the worker made its final server reads. Role assignment now
+compares immutable reviewed identity/role values (or captured post-create
+values), stopping before writes when another administrator changes access.
+The new loopback race regression failed before correction; all 54 AD tests pass
+afterward. Separate server reads/writes still cannot be atomic against other
+administrators. See [directory access](ad-rbac-management.md) for
+partial-state reconciliation and the pending live directory/pool acceptance.
+
 ### Fragmented console parsing (2026-09-27)
 
 PR #50 is merged in development as `123679abd`. The shell RFB padding reader now

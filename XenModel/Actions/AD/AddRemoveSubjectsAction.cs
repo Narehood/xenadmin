@@ -43,6 +43,15 @@ namespace XenAdmin.Actions
 
         private List<string> subjectNamesToAdd;
         private readonly List<Subject> subjectsToRemove;
+        private readonly Dictionary<string, string> expectedIdentifiers;
+
+        public bool MutationAttempted { get; private set; }
+
+        public sealed class ReviewedIdentityChangedException : InvalidOperationException
+        {
+            public ReviewedIdentityChangedException()
+                : base("The directory identity changed after review. Resolve and review the subject again.") { }
+        }
 
         /// <summary>
         /// Progress through this action
@@ -86,7 +95,8 @@ namespace XenAdmin.Actions
         public event SubjectRemovedEventHandler SubjectRemoveComplete;
 
 
-        public AddRemoveSubjectsAction(IXenConnection connection, List<string> subjectNamesToAdd, List<Subject> subjectsToRemove)
+        public AddRemoveSubjectsAction(IXenConnection connection, List<string> subjectNamesToAdd, List<Subject> subjectsToRemove,
+            Dictionary<string, string> expectedIdentifiers = null)
             : base(connection, 
                 string.Format(Messages.AD_ADDING_REMOVING_ON, Helpers.GetName(connection).Ellipsise(50)), 
                 Messages.AD_ADDING_REMOVING, false)
@@ -98,12 +108,15 @@ namespace XenAdmin.Actions
                 Host = Helpers.GetCoordinator(connection);
             this.subjectNamesToAdd = subjectNamesToAdd;
             this.subjectsToRemove = subjectsToRemove;
+            this.expectedIdentifiers = expectedIdentifiers == null ? null : new Dictionary<string, string>(expectedIdentifiers);
 
 #region RBAC checks
 
             if (subjectNamesToAdd != null && subjectNamesToAdd.Count > 0)
             {
                 ApiMethodsToRoleCheck.Add("subject.create");
+                ApiMethodsToRoleCheck.Add("auth.get_subject_identifier");
+                ApiMethodsToRoleCheck.Add("auth.get_subject_information_from_identifier");
             }
             if (subjectsToRemove != null && subjectsToRemove.Count > 0)
             {
@@ -141,7 +154,10 @@ namespace XenAdmin.Actions
             Description = Exception == null ? Messages.COMPLETED : Messages.COMPLETED_WITH_ERRORS;
 
             if (logoutSession)
+            {
+                MutationAttempted = true;
                 Connection.Logout();
+            }
         }
 
         private void resolveSubjects()
@@ -155,9 +171,11 @@ namespace XenAdmin.Actions
                 try
                 {
                     sid = Auth.get_subject_identifier(Session, name);
-                    sidsToAdd.Add(sid);
+                    if (expectedIdentifiers != null && (!expectedIdentifiers.TryGetValue(name, out var expected) || expected != sid))
+                        throw new ReviewedIdentityChangedException();
                     if (!Auth.get_subject_information_from_identifier(Session, sid).TryGetValue(Subject.SUBJECT_NAME_KEY, out resolvedName))
-                        resolvedName = Messages.UNKNOWN_AD_USER;  
+                        resolvedName = Messages.UNKNOWN_AD_USER;
+                    sidsToAdd.Add(sid);
                 }
                 catch (Failure f)
                 {
@@ -212,6 +230,7 @@ namespace XenAdmin.Actions
                         }
                     }
                     
+                    MutationAttempted = true;
                     XenAPI.Subject.create(Session, subject);
                 }
                 catch (Exception ex)
@@ -258,8 +277,10 @@ namespace XenAdmin.Actions
                     }
                     else
                     {
+                        MutationAttempted = true;
                         Session.logout_subject_identifier(Session, sid);
                     }
+                    MutationAttempted = true;
                     XenAPI.Subject.destroy(Session, subject.opaque_ref);
                     // We look at the session subject as this is the authority under which we are connected. 
                     // (deliberate use of the original session for subject analysis... the sudo session is not the one we want to interrogate
