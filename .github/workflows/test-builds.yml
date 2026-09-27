@@ -123,21 +123,9 @@ jobs:
         shell: pwsh
         run: ./scripts/Test-PlatformAcceptanceChecks.ps1 -EvidenceDirectory artifacts/acceptance-fixtures
 
-      - name: Test shared libraries on Linux (.NET 10)
-        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net10.0 -p:RestoreLockedMode=true --logger "trx;LogFileName=xencenterlib-linux-net10.trx"
-
-      - name: Test Avalonia shell on Linux (Release)
-        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release -p:RestoreLockedMode=true --logger "trx;LogFileName=shell-linux-release.trx"
-
-      - name: Test Avalonia shell on Linux (Debug)
-        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Debug -p:RestoreLockedMode=true --logger "trx;LogFileName=shell-linux-debug.trx"
-
-      - name: Publish and package shell (linux-x64)
+      - name: Run native Linux acceptance, packaging and desktop smoke
         shell: pwsh
-        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath artifacts/XcpNgCenter.Shell-linux-x64.tar.gz -BuildRevision '${{ github.run_number }}'
-
-      - name: Exercise packaged Linux executable and native desktop startup
-        run: xvfb-run -a python3 scripts/verify-shell-package.py --archive artifacts/XcpNgCenter.Shell-linux-x64.tar.gz --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop --window-manager
+        run: ./scripts/Invoke-PlatformAcceptance.ps1 -EvidenceDirectory artifacts/platform-acceptance-linux -BuildRevision '${{ github.run_number }}'
 
       - name: Confirm checked-in lockfiles were preserved
         run: git diff --exit-code -- '*/packages.lock.json'
@@ -147,7 +135,7 @@ jobs:
         with:
           name: drop-shell-linux-x64
           # Upload the tarball so Actions does not discard executable permissions.
-          path: artifacts/XcpNgCenter.Shell-linux-x64.tar.gz
+          path: artifacts/platform-acceptance-linux/XcpNgCenter.Shell-linux-x64.tar.gz
           if-no-files-found: error
 
       - name: Upload Linux test and smoke evidence
@@ -157,6 +145,7 @@ jobs:
           name: test-results-linux
           path: |
             **/TestResults/*.trx
-            artifacts/smoke-linux
+            artifacts/platform-acceptance-linux
+            !artifacts/platform-acceptance-linux/*.tar.gz
             artifacts/acceptance-fixtures
           if-no-files-found: ignore

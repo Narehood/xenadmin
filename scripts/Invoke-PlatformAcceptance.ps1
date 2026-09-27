@@ -3,6 +3,8 @@ param(
     [string] $DotnetPath = 'dotnet',
     [string] $PythonPath,
     [string] $EvidenceDirectory,
+    [ValidatePattern('^\d+$')]
+    [string] $BuildRevision = '0',
     [switch] $SkipRdpAxImp
 )
 
@@ -28,6 +30,7 @@ $manifest = [ordered]@{
     dotnet = $null
     python = $null
     powershellVersion = $PSVersionTable.PSVersion.ToString()
+    buildRevision = $BuildRevision
     reusedRdpInterop = [bool]$SkipRdpAxImp
     rdpInteropHashes = @{}
     portableLocksPreserved = $null
@@ -116,7 +119,7 @@ try {
         $rdpArgs = @()
         if ($SkipRdpAxImp) { $rdpArgs = @('-p:SkipRdpAxImp=true') }
         foreach ($configuration in @('Release', 'Debug')) {
-            Invoke-Check "build-$configuration" $dotnet (@('build', 'XenAdmin.sln', '-c', $configuration, '--no-restore', '--nologo') + $rdpArgs)
+            Invoke-Check "build-$configuration" $dotnet (@('build', 'XenAdmin.sln', '-c', $configuration, '--no-restore', '--nologo', "-p:BuildRevision=$BuildRevision") + $rdpArgs)
         }
     }
     foreach ($configuration in @('Release', 'Debug')) {
@@ -152,7 +155,7 @@ try {
         elseif ($windowsPlatform) { 'pwsh.exe' } else { 'pwsh' }
     $shell = Join-Path $PSHOME $shellName
     if (-not (Test-Path -LiteralPath $shell -PathType Leaf)) { throw 'Cannot locate the current PowerShell CLI.' }
-    Invoke-Check 'publish' $shell @('-NoProfile', '-File', (Join-Path $PSScriptRoot 'Publish-Shell.ps1'), '-RuntimeIdentifier', $rid, '-ArchivePath', $archive)
+    Invoke-Check 'publish' $shell @('-NoProfile', '-File', (Join-Path $PSScriptRoot 'Publish-Shell.ps1'), '-RuntimeIdentifier', $rid, '-ArchivePath', $archive, '-BuildRevision', $BuildRevision)
     $manifest.archive = $archive
     $manifest.archiveSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
     $smokeArgs = @((Join-Path $PSScriptRoot 'verify-shell-package.py'), '--archive', $archive, '--rid', $rid, '--evidence-directory', (Join-Path $evidence 'package-smoke'))

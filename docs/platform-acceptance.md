@@ -69,6 +69,9 @@ desktop dependencies below. Only the native platform is exercised; the manifest
 always leaves physical desktop, live-pool and real installation checks pending.
 The UI probes use synthetic inventory and isolated settings without saved
 profiles or a pool connection.
+The Linux CI job invokes this runner directly for both shell configurations,
+shared tests, packaging and desktop smoke. `-BuildRevision` preserves the CI
+package revision in the manifest and published archive.
 
 Each Windows editor probe must exit successfully and write a nonempty
 `results.log` without a `FAIL:` line before its check can pass. The final summary
