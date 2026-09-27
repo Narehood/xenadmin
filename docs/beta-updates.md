@@ -52,6 +52,30 @@ uses the existing `GITHUB_TOKEN`, without adding a personal token. See GitHub's
 [manual workflow guide](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
 and [release API permissions](https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#create-a-release).
 
+## Publishing authority
+
+Manual dispatch requires repository write access for both channels. Preparation,
+build and package-smoke jobs receive only `contents: read`; the two jobs that
+create releases receive `contents: write`. Every checkout disables persisted
+credentials. No personal token or additional approval step is introduced. These
+permissions follow GitHub's [per-job token rules](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idpermissions).
+
+Repository settings were inspected through the GitHub API on 2026-09-26. The
+collaborator list reports one administrator and no additional collaborators;
+the repository's default workflow token is read-only and cannot approve PRs.
+`development` is not protected, no repository rulesets or deployment environments
+exist, and `beta` has not been created. Consequently, required branch reviews and
+environment approvals are not currently enforced for publication. These are
+dated observations, not guarantees about future repository settings or a complete
+inventory of authorized app/token credentials.
+
+The branch/channel validation prevents choosing the wrong channel in the reviewed
+workflow; it is not a restriction on a writer who can edit that workflow. Release
+authority still rests with trusted repository writers and administrators for both
+channels. Adding beta does not establish a separate publisher role. Recheck the
+access and branch rules when beta is created or collaborators change, and keep
+any chosen release-review policy consistent across beta and regular releases.
+
 ## Manual acceptance
 
 With disposable Windows and Linux installations, check the default channel,

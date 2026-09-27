@@ -28,7 +28,7 @@ on:
         default: "Awa"
 
 permissions:
-  contents: write
+  contents: read
 
 # Stable and beta share numeric version tags; serialize publication across both.
 concurrency:
@@ -181,6 +181,9 @@ jobs:
           if-no-files-found: error
 
   publish-release:
+    # Build and smoke jobs use read-only tokens; only publication needs write access.
+    permissions:
+      contents: write
     needs: [prepare, publish-windows, publish-linux]
     if: ${{ always() && inputs.attach_artifacts && needs.publish-windows.result == 'success' && needs.publish-linux.result == 'success' }}
     runs-on: ubuntu-latest
@@ -260,6 +263,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-notes-only:
+    permissions:
+      contents: write
     needs: prepare
     if: ${{ !inputs.attach_artifacts }}
     runs-on: ubuntu-latest

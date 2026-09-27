@@ -4,6 +4,28 @@ Last updated: 2026-09-26 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Beta release review follow-up (2026-09-26)
+
+The completed review of beta commit `98ee3d166` found no new application defect.
+Its publishing-authority suggestion was checked against live, read-only GitHub
+settings: `development` is unprotected, no repository rulesets or environments
+exist, and beta has not been created. The collaborator API reports one admin;
+default workflow tokens are read-only and cannot approve PRs. The
+[beta guide](beta-updates.md#publishing-authority) records this dated evidence and
+the continuing trust in repository writers for both release channels.
+
+The release workflow now gives preparation, compilation and package-smoke jobs
+read-only tokens, reserving `contents: write` for its two publishing jobs. This
+narrows unnecessary access without changing release behavior or repository rules.
+No new approval flow, release or branch was created. Review dispositions are in
+the [review log](reviews/2026-09-25-pr50-review.md#beta-channel-review-2026-09-26).
+The effective permissions for all five jobs were verified with steps/triggers
+unchanged. Release reruns passed all 713 shell tests and 73 shared tests on each
+framework using unchanged binaries; hosted results are in the PR. All five prior
+inline threads remain resolved. The development-build VM reboot
+hang reported separately is still undiagnosed, pending guest/client details and
+whether SSH or another console remains responsive; this change does not fix it.
+
 ### Manual beta update channel (2026-09-26)
 
 PR #50 adds **Settings → About → Receive beta updates** to the Avalonia shell.
