@@ -45,6 +45,14 @@ namespace XenAdmin.Actions
         private readonly List<Subject> subjectsToRemove;
         private readonly Dictionary<string, string> expectedIdentifiers;
 
+        public bool MutationAttempted { get; private set; }
+
+        public sealed class ReviewedIdentityChangedException : InvalidOperationException
+        {
+            public ReviewedIdentityChangedException()
+                : base("The directory identity changed after review. Resolve and review the subject again.") { }
+        }
+
         /// <summary>
         /// Progress through this action
         /// </summary>
@@ -146,7 +154,10 @@ namespace XenAdmin.Actions
             Description = Exception == null ? Messages.COMPLETED : Messages.COMPLETED_WITH_ERRORS;
 
             if (logoutSession)
+            {
+                MutationAttempted = true;
                 Connection.Logout();
+            }
         }
 
         private void resolveSubjects()
@@ -161,7 +172,7 @@ namespace XenAdmin.Actions
                 {
                     sid = Auth.get_subject_identifier(Session, name);
                     if (expectedIdentifiers != null && (!expectedIdentifiers.TryGetValue(name, out var expected) || expected != sid))
-                        throw new InvalidOperationException("The directory identity changed after review. Resolve and review the subject again.");
+                        throw new ReviewedIdentityChangedException();
                     if (!Auth.get_subject_information_from_identifier(Session, sid).TryGetValue(Subject.SUBJECT_NAME_KEY, out resolvedName))
                         resolvedName = Messages.UNKNOWN_AD_USER;
                     sidsToAdd.Add(sid);
@@ -219,6 +230,7 @@ namespace XenAdmin.Actions
                         }
                     }
                     
+                    MutationAttempted = true;
                     XenAPI.Subject.create(Session, subject);
                 }
                 catch (Exception ex)
@@ -265,8 +277,10 @@ namespace XenAdmin.Actions
                     }
                     else
                     {
+                        MutationAttempted = true;
                         Session.logout_subject_identifier(Session, sid);
                     }
+                    MutationAttempted = true;
                     XenAPI.Subject.destroy(Session, subject.opaque_ref);
                     // We look at the session subject as this is the authority under which we are connected. 
                     // (deliberate use of the original session for subject analysis... the sudo session is not the one we want to interrogate

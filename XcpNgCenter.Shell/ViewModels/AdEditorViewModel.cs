@@ -70,7 +70,7 @@ public sealed class AdEditorViewModel : ViewModelBase, IDisposable
     public bool CanReview => CanEdit && ValidationMessage.Length == 0;
     public bool CanApply => CanReview && _review is { CanApply: true } && _review.RequestFingerprint == BuildRequest().Fingerprint
         && (!IsJoining || Username.Trim().Length > 0 && Password.Length > 0)
-        && (!IsLeaving || (Username.Length == 0) == (Password.Length == 0));
+        && (!IsLeaving || (Username.Trim().Length == 0) == (Password.Length == 0));
     public string StatusMessage => _status;
     public string ReviewSummary => _review?.Summary ?? "Review the operation against the server before applying it.";
     public string ValidationMessage
@@ -98,7 +98,17 @@ public sealed class AdEditorViewModel : ViewModelBase, IDisposable
     }
     public string Domain { get => _domain; set { if (CanEdit && SetProperty(ref _domain, value ?? "")) Changed(); } }
     public string SubjectName { get => _subjectName; set { if (CanEdit && SetProperty(ref _subjectName, value ?? "")) Changed(); } }
-    public string Username { get => _username; set { if (CanEdit && SetProperty(ref _username, value ?? "")) Refresh(); } }
+    public string Username
+    {
+        get => _username;
+        set
+        {
+            var previous = _username.Trim();
+            if (!CanEdit || !SetProperty(ref _username, value ?? "")) return;
+            if (ShowCredentials && !string.Equals(previous, _username.Trim(), StringComparison.Ordinal)) Changed();
+            else Refresh();
+        }
+    }
     public string Password { get => _password; set { if (CanEdit && SetProperty(ref _password, value ?? "")) Refresh(); } }
     public bool RecoveryConfirmed { get => _recoveryConfirmed; set { if (CanEdit && SetProperty(ref _recoveryConfirmed, value)) Changed(); } }
     public IAsyncRelayCommand ReviewCommand { get; }
@@ -108,7 +118,7 @@ public sealed class AdEditorViewModel : ViewModelBase, IDisposable
 
     private AdRequest BuildRequest() => new(SelectedOperation.Operation, Domain, SubjectName,
         SelectedOperation.Operation is AdOperation.SetRoles or AdOperation.RemoveSubject ? SelectedSubject?.Reference : null,
-        Roles.Where(role => role.IsSelected).Select(role => role.Role.Reference).ToArray(), RecoveryConfirmed);
+        Roles.Where(role => role.IsSelected).Select(role => role.Role.Reference).ToArray(), RecoveryConfirmed, Username);
     private void SelectSubjectRoles()
     {
         if (SelectedOperation.Operation != AdOperation.SetRoles) return;
@@ -158,9 +168,18 @@ public sealed class AdEditorViewModel : ViewModelBase, IDisposable
         }
         catch (Exception error)
         {
-            _status = error.Message.Contains(AdManagement.RecoveryNotice, StringComparison.Ordinal)
-                ? error.Message : error.Message + "\n" + AdManagement.RecoveryNotice;
-            _requiresReopen = true; _review = null;
+            if (error is AdActionException actionError)
+            {
+                _status = actionError.Message;
+                _requiresReopen = actionError.MutationAttempted;
+            }
+            else
+            {
+                _status = error.Message.Contains(AdManagement.RecoveryNotice, StringComparison.Ordinal)
+                    ? error.Message : error.Message + "\n" + AdManagement.RecoveryNotice;
+                _requiresReopen = true;
+            }
+            _review = null;
         }
         finally { ClearCredentials(); _busy = _saving = false; Refresh(); }
     }

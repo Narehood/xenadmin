@@ -43,16 +43,102 @@ public sealed class AdEditorTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task CredentialsNeverEnterReviewOrConfirmationAndAreCleared(bool confirm)
+    public async Task PasswordNeverEntersReviewOrConfirmationAndCredentialsAreCleared(bool confirm)
     {
         var f = new Fixture(joined: false) { Confirm = confirm }; f.Ready();
         f.Editor.Username = "transient-user"; f.Editor.Password = "transient-password";
         await f.Editor.ReviewCommand.ExecuteAsync(null);
+        Assert.Equal("transient-user", f.Reviewed!.CredentialUsername);
+        Assert.DoesNotContain("transient-password", System.Text.Json.JsonSerializer.Serialize(f.Reviewed));
         await f.Editor.ApplyCommand.ExecuteAsync(null);
         Assert.DoesNotContain("transient", f.Confirmation!.Message);
         Assert.Empty(f.Editor.Password); Assert.Empty(f.Editor.Username);
         Assert.Equal(confirm ? 1 : 0, f.Applies);
         if (confirm) { Assert.NotNull(f.Credentials); Assert.Empty(f.Credentials!.Password); }
+    }
+
+    [Fact]
+    public async Task LeaveCleanupChoiceCannotChangeAfterReviewWithoutAnotherReview()
+    {
+        var f = new Fixture(); f.Ready();
+        f.Editor.SelectedOperation = f.Editor.Operations.Single(option => option.Operation == AdOperation.Leave);
+        await f.Editor.ReviewCommand.ExecuteAsync(null);
+        var withoutCleanup = f.Reviewed!.Fingerprint;
+        Assert.False(f.Reviewed.LeaveMachineAccountCleanup); Assert.True(f.Editor.CanApply);
+
+        f.Editor.Username = " DOMAIN\\administrator "; f.Editor.Password = "directory-secret";
+        Assert.False(f.Editor.CanApply);
+        await f.Editor.ApplyCommand.ExecuteAsync(null); Assert.Equal(0, f.Applies);
+        await f.Editor.ReviewCommand.ExecuteAsync(null);
+        Assert.True(f.Reviewed!.LeaveMachineAccountCleanup); Assert.Equal("DOMAIN\\administrator", f.Reviewed.CredentialUsername);
+        Assert.NotEqual(withoutCleanup, f.Reviewed.Fingerprint); Assert.True(f.Editor.CanApply);
+
+        f.Editor.Username = ""; f.Editor.Password = "";
+        Assert.False(f.Editor.CanApply);
+        await f.Editor.ApplyCommand.ExecuteAsync(null); Assert.Equal(0, f.Applies);
+        await f.Editor.ReviewCommand.ExecuteAsync(null);
+        Assert.False(f.Reviewed!.LeaveMachineAccountCleanup); Assert.True(f.Editor.CanApply);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChangingReviewedCredentialAccountInvalidatesJoinAndLeave(bool joined)
+    {
+        var f = new Fixture(joined); f.Ready();
+        if (joined) f.Editor.SelectedOperation = f.Editor.Operations.Single(option => option.Operation == AdOperation.Leave);
+        f.Editor.Username = "administrator-one"; f.Editor.Password = "secret";
+        await f.Editor.ReviewCommand.ExecuteAsync(null); Assert.True(f.Editor.CanApply);
+        f.Editor.Username = " administrator-one "; Assert.True(f.Editor.CanApply);
+        f.Editor.Username = "administrator-two"; Assert.False(f.Editor.CanApply);
+        await f.Editor.ApplyCommand.ExecuteAsync(null); Assert.Equal(0, f.Applies);
+        await f.Editor.ReviewCommand.ExecuteAsync(null); Assert.Equal("administrator-two", f.Reviewed!.CredentialUsername);
+        Assert.True(f.Editor.CanApply);
+    }
+
+    [Fact]
+    public async Task PasswordReplacementKeepsReviewedAccountAndCleanupChoiceWithoutHashingSecrets()
+    {
+        var f = new Fixture(); f.Ready();
+        f.Editor.SelectedOperation = f.Editor.Operations.Single(option => option.Operation == AdOperation.Leave);
+        f.Editor.Username = "administrator"; f.Editor.Password = "first-secret";
+        await f.Editor.ReviewCommand.ExecuteAsync(null); var review = f.Reviewed;
+        f.Editor.Password = ""; Assert.False(f.Editor.CanApply);
+        f.Editor.Password = "different-secret"; Assert.True(f.Editor.CanApply);
+        Assert.Same(review, f.Reviewed);
+        var serialized = System.Text.Json.JsonSerializer.Serialize(review);
+        Assert.DoesNotContain("first-secret", serialized); Assert.DoesNotContain("different-secret", serialized);
+        await f.Editor.ApplyCommand.ExecuteAsync(null);
+        Assert.Equal(1, f.Applies); Assert.Same(review, f.Reviewed);
+        Assert.Equal("administrator", f.Applied!.CredentialUsername); Assert.True(f.Applied.LeaveMachineAccountCleanup);
+    }
+
+    [Theory]
+    [InlineData("   ", "", true, false)]
+    [InlineData("   ", "secret", false, false)]
+    [InlineData(" administrator ", "", false, true)]
+    [InlineData(" administrator ", "secret", true, true)]
+    public async Task LeaveCredentialPairUsesTrimmedUsernameConsistently(string username, string password, bool canApply, bool cleanup)
+    {
+        var f = new Fixture(); f.Ready();
+        f.Editor.SelectedOperation = f.Editor.Operations.Single(option => option.Operation == AdOperation.Leave);
+        f.Editor.Username = username; f.Editor.Password = password;
+        await f.Editor.ReviewCommand.ExecuteAsync(null);
+        Assert.Equal(canApply, f.Editor.CanApply); Assert.Equal(cleanup, f.Reviewed!.LeaveMachineAccountCleanup);
+        Assert.Equal(username.Trim(), f.Reviewed.CredentialUsername);
+        await f.Editor.ApplyCommand.ExecuteAsync(null); Assert.Equal(canApply ? 1 : 0, f.Applies);
+    }
+
+    [Fact]
+    public async Task CancelledCredentialConfirmationRequiresReviewAfterAccountReentry()
+    {
+        var f = new Fixture(false) { Confirm = false }; f.Ready();
+        f.Editor.Username = "administrator"; f.Editor.Password = "secret";
+        await f.Editor.ReviewCommand.ExecuteAsync(null); await f.Editor.ApplyCommand.ExecuteAsync(null);
+        Assert.Empty(f.Editor.Username); Assert.Empty(f.Editor.Password);
+        f.Editor.Username = "administrator"; f.Editor.Password = "secret";
+        Assert.False(f.Editor.CanApply); Assert.True(f.Editor.CanReview);
+        await f.Editor.ReviewCommand.ExecuteAsync(null); Assert.True(f.Editor.CanApply);
     }
 
     [Fact]
@@ -63,6 +149,22 @@ public sealed class AdEditorTests
         Assert.Contains("partial", f.Editor.StatusMessage); Assert.False(f.Editor.CanApply); Assert.False(f.Editor.CanReview);
         Assert.False(f.Editor.CanEdit); Assert.True(f.Editor.CloseCommand.CanExecute(null)); Assert.Equal(0, f.Closes);
         await f.Editor.ApplyCommand.ExecuteAsync(null); Assert.Equal(1, f.Applies);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task KnownWorkerOutcomeControlsRecoveryNoticeAndWhetherEditorRequiresReopening(bool mutationAttempted)
+    {
+        var f = new Fixture(false) { TypedApplyFailure = new AdActionException("Safe worker outcome", mutationAttempted) };
+        f.Ready(); f.Editor.Username = "administrator"; f.Editor.Password = "secret";
+        await f.Editor.ReviewCommand.ExecuteAsync(null); await f.Editor.ApplyCommand.ExecuteAsync(null);
+        Assert.Equal(1, f.Applies); Assert.Equal(0, f.Closes); Assert.False(f.Editor.CanApply);
+        Assert.Contains("Safe worker outcome", f.Editor.StatusMessage);
+        Assert.Equal(!mutationAttempted, f.Editor.CanEdit); Assert.Equal(!mutationAttempted, f.Editor.CanReview);
+        Assert.Equal(mutationAttempted, f.Editor.StatusMessage.Contains(AdManagement.RecoveryNotice, StringComparison.Ordinal));
+        Assert.Empty(f.Editor.Username); Assert.Empty(f.Editor.Password);
+        Assert.True(f.Editor.CloseCommand.CanExecute(null));
     }
 
     [Fact]
@@ -129,6 +231,7 @@ public sealed class AdEditorTests
         public bool BusyAtClose { get; private set; }
         public bool Confirm { get; init; } = true;
         public bool ApplyFailure { get; init; }
+        public AdActionException? TypedApplyFailure { get; init; }
         public bool WrongReview { get; init; }
         public TaskCompletionSource<AdReview>? PendingReview { get; init; }
         public AdRequest? Reviewed { get; private set; }
@@ -145,6 +248,7 @@ public sealed class AdEditorTests
             }, (request, _, credentials) =>
             {
                 Applies++; Applied = request; Credentials = credentials;
+                if (TypedApplyFailure != null) throw TypedApplyFailure;
                 if (ApplyFailure) throw new InvalidOperationException("partial failure");
                 return Task.CompletedTask;
             }, request => { Confirmation = request; return Task.FromResult(Confirm); }, () => { Closes++; BusyAtClose = Editor!.IsBusy; });

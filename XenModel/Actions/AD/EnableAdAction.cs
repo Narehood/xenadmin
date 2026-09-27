@@ -86,25 +86,35 @@ namespace XenAdmin.Actions
                     //CA-48122: Call disable just in case it was not disabled properly
                     Pool.disable_external_auth(Session, pool.opaque_ref, new Dictionary<string, string>());
                 }
-                catch (Exception)
+                catch (CancelledException) { throw; }
+                catch (Exception error)
                 {
+                    var safeFailure = DirectoryActionFailure.Create(error, Connection, "The preparatory domain leave", "pool.disable_external_auth");
                     if (requireCleanDisable)
-                        throw new InvalidOperationException("The preparatory domain leave was not confirmed. Inspect every host before attempting domain join again.");
+                    {
+                        if (safeFailure.ErrorDescription[0] == Failure.RBAC_PERMISSION_DENIED) throw safeFailure;
+                        throw new PreparatoryLeaveFailure(safeFailure.SafeDiagnostic);
+                    }
                     // Server error details can echo the submitted credentials.
-                    log.Debug("The best-effort preparatory domain leave was not confirmed.");
+                    log.Debug(safeFailure.SafeDiagnostic);
                 }
 
-                Pool.enable_external_auth(Session, pool.opaque_ref, config, domain, Auth.AUTH_TYPE_AD);
-            }
-            catch (Failure f) when (f.ErrorDescription.Count > 0 && f.ErrorDescription[0] == Failure.POOL_AUTH_ENABLE_FAILED_WRONG_CREDENTIALS)
-            {
-                throw new CredentialsFailure(new List<string> { Failure.POOL_AUTH_ENABLE_FAILED_WRONG_CREDENTIALS, "", "Server details omitted to protect credentials." });
-            }
-            catch (Exception)
-            {
-                // Never retain an inner exception: directory providers can echo a
-                // password in arbitrary error text, which AsyncAction logs.
-                throw new InvalidOperationException("Domain join was not confirmed. Check domain credentials, DNS and time synchronization, then inspect every host before another attempt. Server error details were omitted to protect credentials.");
+                try
+                {
+                    Pool.enable_external_auth(Session, pool.opaque_ref, config, domain, Auth.AUTH_TYPE_AD);
+                }
+                catch (Failure f) when (f.ErrorDescription.Count > 0 && f.ErrorDescription[0] == Failure.POOL_AUTH_ENABLE_FAILED_WRONG_CREDENTIALS)
+                {
+                    var safeFailure = DirectoryActionFailure.Create(f, Connection, "Domain join", "pool.enable_external_auth");
+                    throw new CredentialsFailure(safeFailure.ErrorDescription, safeFailure.SafeDiagnostic);
+                }
+                catch (CancelledException) { throw; }
+                catch (Exception error)
+                {
+                    // Never retain an inner exception: directory providers can echo a
+                    // password in arbitrary error text, which AsyncAction logs.
+                    throw DirectoryActionFailure.Create(error, Connection, "Domain join", "pool.enable_external_auth");
+                }
             }
             finally { config.Clear(); user = null; password = null; }
             Description = Messages.COMPLETED;
@@ -112,15 +122,28 @@ namespace XenAdmin.Actions
 
         protected override void Clean() { user = null; password = null; base.Clean(); }
 
+        public sealed class PreparatoryLeaveFailure : InvalidOperationException
+        {
+            internal PreparatoryLeaveFailure(string safeDiagnostic)
+                : base(safeDiagnostic + " Inspect every host before attempting domain join again.") { }
+        }
+
         /// <summary>
         /// Exception thrown when enabling AD authentication fails due to wrong supplied credentials
         /// </summary>
         public class CredentialsFailure : Failure
         {
             public CredentialsFailure(List<string> err)
+                : this(err, "The directory rejected the domain join credentials.") { }
+
+            internal CredentialsFailure(List<string> err, string safeDiagnostic)
                 : base(err)
             {
+                SafeDiagnostic = safeDiagnostic;
             }
+
+            public string SafeDiagnostic { get; }
+            public override string Message => SafeDiagnostic;
         }
     }
 }

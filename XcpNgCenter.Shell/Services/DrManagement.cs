@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using XenAdmin.Actions.DR;
 using XenAdmin.Core;
 using XenAdmin.Network;
@@ -81,7 +82,8 @@ public sealed partial class DrManagement : IDrWorkflow
                 var vifs = vm.VIFs.Select(reference => Require(source.Vifs, reference.opaque_ref, "source NIC")).ToArray();
                 var disks = vbds.Where(vbd => !vbd.empty && vbd.type == vbd_type.Disk)
                     .Select(vbd => Require(source.Vdis, vbd.VDI.opaque_ref, "source disk")).ToArray();
-                string? reason = vm.power_state == vm_power_state.Suspended ? "Suspended VMs preserve suspended state during recovery. Use the existing WinForms recovery workflow to inspect their saved state." :
+                string? reason = HasAutomaticPowerOn(vm) ? "This VM has automatic power-on enabled. Disable it in the source and refresh the recovery metadata before using this halted workflow." :
+                    vm.power_state == vm_power_state.Suspended ? "Suspended VMs preserve suspended state during recovery. Use the existing WinForms recovery workflow to inspect their saved state." :
                     vm.power_state == vm_power_state.unknown ? "This metadata has an unknown VM power state; inspect it with the server administrator." :
                     vm.snapshots.Count > 0 ? "Snapshot chains require the existing WinForms recovery wizard." :
                     vm.IsAssignedToVapp() ? "Appliance members require the existing WinForms appliance recovery workflow." :
@@ -95,7 +97,7 @@ public sealed partial class DrManagement : IDrWorkflow
             source.Networks.Values.Select(network => new DrSourceNetwork(network.opaque_ref, network.uuid, network.Name())).ToArray(),
             target.Srs.Values.Where(sr => sr.shared && sr.content_type != "iso").Select(sr => new DrStorageOption(sr.opaque_ref, sr.uuid, sr.Name())).ToArray(),
             target.Networks.Values.Select(network => new DrNetworkOption(network.opaque_ref, network.uuid, network.Name(),
-                network.PIFs.Count == 0 && network.VIFs.Count == 0)).ToArray()) { Fingerprint = source.Fingerprint };
+                network.PIFs.Count == 0 && network.VIFs.Count == 0, network.PIFs.Count > 0)).ToArray()) { Fingerprint = source.Fingerprint };
     }
 
     internal static void ValidateRequest(DrInspection inspection, DrRequest request)
@@ -123,7 +125,7 @@ public sealed partial class DrManagement : IDrWorkflow
         {
             var target = inspection.TargetNetworks.SingleOrDefault(network => network.Reference == map.TargetReference);
             if (target == null) throw new InvalidOperationException("Select an existing target for every required network.");
-            if (request.Mode == DrMode.MetadataRehearsal && !target.IsIsolated)
+            if (request.Mode == DrMode.MetadataRehearsal && (!target.IsIsolated || target.HasPhysicalInterfaces))
                 throw new InvalidOperationException("Metadata rehearsal requires empty internal networks without physical interfaces or existing VMs.");
         }
     }
@@ -136,14 +138,59 @@ public sealed partial class DrManagement : IDrWorkflow
             throw new InvalidOperationException("The source metadata changed. Inspect it again and review a new draft.");
         var target = ReadTarget(session);
         ValidateTarget(inspection, request, target);
-        foreach (var reference in request.VmReferences) ResolveDiskBindings(source, source.Vms[reference], request, target);
+        foreach (var reference in request.VmReferences)
+        {
+            RequireManualPowerOn(source.Vms[reference]);
+            ResolveDiskBindings(source, source.Vms[reference], request, target);
+        }
         foreach (var reference in request.VmReferences)
             VM.assert_can_be_recovered(source.Session, reference, session.opaque_ref);
         return new(request.Fingerprint, source.Fingerprint, TargetFingerprint(inspection, request, target),
-            $"{request.VmReferences.Count} VM(s) can be restored halted to {PoolName}. Replicated storage identities and NIC destinations passed review. "
+            $"{request.VmReferences.Count} VM(s) can be restored halted to {PoolName}. Replicated storage identities and NIC destinations passed review. Recovery does not copy disks. "
             + (request.Mode == DrMode.MetadataRehearsal
                 ? "Metadata rehearsal creates temporary VM records on isolated networks and never boots them. It does not validate guest boot, disk replication or failover."
-                : "Fence the original workloads and confirm replicated disks are ready before starting the recovered VMs separately."));
+                : "Fence the original workloads and confirm replicated disks are ready before starting the recovered VMs separately."))
+        {
+            MappingSummary = DescribeMappings(inspection, request,
+                target.Srs.Values.Select(sr => new DrStorageOption(sr.opaque_ref, sr.uuid, sr.Name())).ToArray(),
+                target.Networks.Values.Select(network => new DrNetworkOption(network.opaque_ref, network.uuid, network.Name(),
+                    network.PIFs.Count == 0 && network.VIFs.Count == 0, network.PIFs.Count > 0)).ToArray())
+        };
+    }
+
+    internal static string DescribeMappings(DrInspection inspection, DrRequest request,
+        IReadOnlyList<DrStorageOption>? storage = null, IReadOnlyList<DrNetworkOption>? networks = null)
+    {
+        ValidateRequest(inspection, request);
+        storage ??= inspection.TargetStorage; networks ??= inspection.TargetNetworks;
+        var lines = new List<string>();
+        foreach (var reference in request.VmReferences)
+        {
+            var vm = inspection.Vms.Single(candidate => candidate.Reference == reference);
+            lines.Add($"{vm.Name} [{vm.Uuid}]");
+            foreach (var sourceReference in vm.StorageReferences)
+            {
+                var source = inspection.SourceStorage.Single(sr => sr.Reference == sourceReference);
+                var mapping = request.Storage.Single(map => map.SourceReference == sourceReference);
+                var target = storage.SingleOrDefault(sr => sr.Reference == mapping.TargetReference)
+                    ?? throw new InvalidOperationException("A reviewed storage target is missing. Inspect and review again.");
+                if (target.Uuid != source.Uuid) throw new InvalidOperationException("A reviewed storage identity changed. Inspect and review again.");
+                lines.Add($"  Storage: {source.Name} [{source.Uuid}] -> {target.Name} [{target.Uuid}]");
+            }
+            foreach (var sourceReference in vm.NetworkReferences)
+            {
+                var source = inspection.SourceNetworks.Single(network => network.Reference == sourceReference);
+                var mapping = request.Networks.Single(map => map.SourceReference == sourceReference);
+                var target = networks.SingleOrDefault(network => network.Reference == mapping.TargetReference)
+                    ?? throw new InvalidOperationException("A reviewed network target is missing. Inspect and review again.");
+                if (target.Uuid != inspection.TargetNetworks.Single(network => network.Reference == mapping.TargetReference).Uuid)
+                    throw new InvalidOperationException("A reviewed network identity changed. Inspect and review again.");
+                var isolation = target.HasPhysicalInterfaces ? "has physical interfaces; not isolated"
+                    : target.IsIsolated ? "isolated: no physical interfaces or existing VM NICs" : "internal network with existing VM NICs; not isolated";
+                lines.Add($"  NIC network: {source.Name} [{source.Uuid}] -> {target.Name} [{target.Uuid}] ({isolation})");
+            }
+        }
+        return string.Join(Environment.NewLine, lines);
     }
 
     private void ValidateTarget(DrInspection inspection, DrRequest request, DrTarget target)
@@ -181,16 +228,35 @@ public sealed partial class DrManagement : IDrWorkflow
     private static string TargetFingerprint(DrInspection inspection, DrRequest request, DrTarget target) => Hash(new
     {
         Pool = new { target.Pool.uuid, target.Pool.ha_enabled },
-        Storage = request.Storage.Select(map => new
-        {
-            Sr = target.Srs[map.TargetReference].ToJObject(),
-            Pbds = target.Srs[map.TargetReference].PBDs.Select(reference => target.Pbds[reference.opaque_ref].ToJObject())
-        }),
-        Networks = request.Networks.Select(map => target.Networks[map.TargetReference].ToJObject()),
+        Storage = request.Storage.OrderBy(map => map.TargetReference, StringComparer.Ordinal).Select(map =>
+            StorageIdentity(target.Srs[map.TargetReference], target.Pbds)),
+        Networks = request.Networks.OrderBy(map => map.TargetReference, StringComparer.Ordinal).Select(map => NetworkIdentity(target.Networks[map.TargetReference])),
         Disks = target.Vdis.Values.Where(vdi => request.Storage.Any(map => map.TargetReference == vdi.SR.opaque_ref))
             .OrderBy(vdi => vdi.opaque_ref, StringComparer.Ordinal).Select(DiskIdentity),
-        Existing = target.Vms.Values.Where(vm => inspection.Vms.Any(source => source.Uuid == vm.uuid)).Select(vm => vm.uuid)
+        Existing = target.Vms.Values.Where(vm => inspection.Vms.Any(source => source.Uuid == vm.uuid)).Select(vm => vm.uuid).OrderBy(uuid => uuid, StringComparer.Ordinal)
     });
+
+    // Capacity/accounting, unrelated VDI membership and SR annotations do not identify the reviewed replica.
+    // Backend/attachment configuration and every relevant network setting remain part of approval.
+    private static object StorageIdentity(SR sr, IReadOnlyDictionary<string, PBD> pbds) => new
+    {
+        sr.opaque_ref, sr.uuid, sr.name_label, sr.type, sr.content_type, sr.shared, sr.clustered, sr.local_cache_enabled,
+        IntroducedBy = sr.introduced_by?.opaque_ref, sr.sm_config,
+        Pbds = sr.PBDs.OrderBy(reference => reference.opaque_ref, StringComparer.Ordinal).Select(reference =>
+        {
+            var pbd = pbds[reference.opaque_ref];
+            return new { pbd.opaque_ref, pbd.uuid, Host = pbd.host.opaque_ref, Sr = pbd.SR.opaque_ref, pbd.currently_attached, pbd.device_config, pbd.other_config };
+        })
+    };
+
+    private static object NetworkIdentity(Network network) => new
+    {
+        network.opaque_ref, network.uuid, network.name_label, network.bridge, network.MTU, network.managed,
+        network.default_locking_mode, network.other_config,
+        Purpose = network.purpose.OrderBy(purpose => purpose),
+        Pifs = network.PIFs.Select(reference => reference.opaque_ref).OrderBy(reference => reference, StringComparer.Ordinal),
+        Vifs = network.VIFs.Select(reference => reference.opaque_ref).OrderBy(reference => reference, StringComparer.Ordinal)
+    };
 
     private DrTarget ReadTarget(Session session)
     {
@@ -256,7 +322,14 @@ public sealed partial class DrManagement : IDrWorkflow
         records.TryGetValue(reference, out var item) ? item : throw new InvalidOperationException($"Missing {kind}; inspect metadata and inventory again.");
     private static void RequireIdentity(string reference, string uuid)
     { if (string.IsNullOrWhiteSpace(reference) || string.IsNullOrWhiteSpace(uuid)) throw new InvalidOperationException("Recovery requires complete object identities."); }
-    internal static string Hash(object value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(value))));
+    internal static string Hash(object value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(CanonicalJson(JToken.FromObject(value)).ToString(Formatting.None))));
+    private static JToken CanonicalJson(JToken value) => value switch
+    {
+        JObject obj => new JObject(obj.Properties().OrderBy(property => property.Name, StringComparer.Ordinal)
+            .Select(property => new JProperty(property.Name, CanonicalJson(property.Value)))),
+        JArray array => new JArray(array.Select(CanonicalJson)),
+        _ => value.DeepClone()
+    };
 
     internal static RbacMethodList ReadMethods() => new(["pool.get_record", "pool.get_all_records", "VDI.get_record", "VDI.open_database",
         "session.get_record", "session.logout", "VM.get_all_records", "SR.get_all_records", "network.get_all_records",

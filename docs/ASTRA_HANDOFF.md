@@ -21,6 +21,42 @@ cases failed before the fix and all 60 DR tests pass. Separate read/write calls
 still cannot provide atomic exclusion of another administrator. Guides document
 that remaining limit. Additional Cursor findings are being verified before merge.
 
+### Reviewed recovery and directory corrections (2026-09-27)
+
+Cursor findings now have regression coverage for legitimate directional XAPI
+device-model normalization, dictionary/set ordering, stable replica/network
+approval across multiple recovered VMs, and refusal of automatic-power-on VMs
+before import. Confirmation lists fresh per-VM storage and network names/UUIDs
+and network isolation; the report identifies observed imports and all rehearsal
+records remaining after cleanup failure. The shell suppresses the inner shared
+recovery History entry while WinForms retains its existing default behavior.
+
+All 94 focused DR tests pass. Before correction, the first 14 review regressions
+and the next 11 cases failed; three wire-order cases also reproduced the old hash
+failure. The prior cleanup concurrency correction is `a6e66d8c5`. Failed identity,
+configuration or disk validation still forbids automatic NIC changes or cleanup:
+the report directs manual inspection/isolation of importer-chosen networks.
+No live storage/VM recovery was attempted; separate RPC validation and mutation
+still cannot exclude concurrent administrative changes.
+
+
+Pre-merge Cursor review corrections now bind the nonsecret directory account and
+leave-machine-account cleanup choice to review; passwords remain excluded from
+drafts and hashes. Typed outcomes distinguish pre-write refusal from a possibly
+partial mutation. Shared join/leave failures preserve allowlisted API codes,
+locally resolved host names, RBAC formatting, cancellation, and the WinForms
+credential-retry type without retaining provider details or inner exceptions.
+Group access changes revoke direct sessions and discovered transitive members;
+enumeration, membership, or logout failure prevents a success report.
+
+The preparatory-leave regression failed before correction. All 105 AD tests and
+829 shell tests pass, plus 73 shared tests on each of `net481` and `net10.0`.
+The shared `XenModel` net481 build passes without warnings. The earlier mutable
+role-baseline fix is commit `0ca061020`. Live domain recovery remains pending;
+session enumeration cannot exclude a concurrent login or directory membership
+change, so the guide requires independent verification after the operation.
+
+
 ### Directory access, recovery, and console follow-up (2026-09-27)
 
 PR #50 was merged to `development` as `123679abd`. Its earlier "unmerged"

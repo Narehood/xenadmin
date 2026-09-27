@@ -151,12 +151,16 @@ public partial class DrEditorViewModel : ObservableObject
         try
         {
             var request = Request(); var review = _review; var inspection = _inspection;
+            DrManagement.ValidateRequest(inspection, request);
+            if (review.RequestFingerprint != request.Fingerprint || review.SourceFingerprint != inspection.Fingerprint)
+                throw new InvalidOperationException("The recovery draft changed after review. Review it again.");
+            var mappings = review.MappingSummary ?? DrManagement.DescribeMappings(inspection, request);
             if (!await _confirm(new ShellConfirmRequest
             {
                 Title = IsRehearsal ? "Create metadata rehearsal?" : "Recover VMs?",
                 Message = review.Summary + Environment.NewLine + Environment.NewLine
-                    + string.Join(Environment.NewLine, Vms.Where(vm => vm.IsSelected).Select(vm => vm.Name))
-                    + Environment.NewLine + "VMs remain halted. Recovery stops at the first failure; partial results require inspection.",
+                    + mappings
+                    + Environment.NewLine + "VMs remain halted. Recovery does not copy disks. Recovery stops at the first failure; partial results require inspection.",
                 AcceptLabel = IsRehearsal ? "Create rehearsal" : "Recover halted"
             })) return;
             if (_review != review || _inspection != inspection || Request().Fingerprint != request.Fingerprint)

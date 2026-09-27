@@ -47,10 +47,11 @@ public sealed class AdSnapshot
 public sealed class AdRequest
 {
     public AdRequest(AdOperation operation, string domain, string subjectName, string? subjectReference,
-        IReadOnlyList<string> roleReferences, bool recoveryConfirmed)
+        IReadOnlyList<string> roleReferences, bool recoveryConfirmed, string credentialUsername = "")
     {
         Operation = operation; Domain = domain.Trim(); SubjectName = subjectName.Trim(); SubjectReference = subjectReference;
         RoleReferences = Array.AsReadOnly(roleReferences.Order(StringComparer.Ordinal).ToArray()); RecoveryConfirmed = recoveryConfirmed;
+        CredentialUsername = operation is AdOperation.Join or AdOperation.Leave ? credentialUsername.Trim() : "";
     }
     public AdOperation Operation { get; }
     public string Domain { get; }
@@ -58,7 +59,11 @@ public sealed class AdRequest
     public string? SubjectReference { get; }
     public IReadOnlyList<string> RoleReferences { get; }
     public bool RecoveryConfirmed { get; }
-    public string Fingerprint => AdManagement.Hash(new { Operation, Domain, SubjectName, SubjectReference, RoleReferences, RecoveryConfirmed });
+    // The account identity and leave behavior belong to the reviewed plan. Passwords never do.
+    public string CredentialUsername { get; }
+    public bool LeaveMachineAccountCleanup => Operation == AdOperation.Leave && CredentialUsername.Length > 0;
+    public string Fingerprint => AdManagement.Hash(new { Operation, Domain, SubjectName, SubjectReference, RoleReferences, RecoveryConfirmed,
+        CredentialUsername, LeaveMachineAccountCleanup });
 }
 
 public sealed record AdReview(string SnapshotFingerprint, string RequestFingerprint, string? ResolvedIdentifier,
@@ -70,7 +75,7 @@ public sealed record AdReview(string SnapshotFingerprint, string RequestFingerpr
 /// <summary>Short-lived transfer to the action worker. It is not part of a draft, review, or saved profile.</summary>
 public sealed class AdCredentials(string username, string password) : IDisposable
 {
-    internal string Username { get; private set; } = username;
+    internal string Username { get; private set; } = username.Trim();
     internal string Password { get; private set; } = password;
     public void Dispose() { Username = ""; Password = ""; }
     public override string ToString() => "[directory credentials]";
@@ -86,7 +91,7 @@ public static class AdManagement
         RequirePool(connection, poolReference, poolUuid);
         var session = connection.DuplicateSession(60000);
         var inventory = AdInventory.Read(session, poolReference);
-        if (inventory.Pool.uuid != poolUuid) throw new InvalidOperationException("The pool identity changed. Reopen access management.");
+        if (inventory.Pool.uuid != poolUuid) throw new AdValidationException("The pool identity changed. Reopen access management.");
         var local = session.get_is_local_superuser();
         return inventory.Snapshot(local, local ? [] : Session.get_rbac_permissions(session, session.opaque_ref));
     });
@@ -109,18 +114,24 @@ public static class AdManagement
         if (request.Operation == AdOperation.AddSubject)
         {
             identifier = Auth.get_subject_identifier(session, request.SubjectName);
-            if (string.IsNullOrWhiteSpace(identifier)) throw new InvalidOperationException("The directory did not resolve a stable subject identifier.");
+            if (string.IsNullOrWhiteSpace(identifier)) throw new AdValidationException("The directory did not resolve a stable subject identifier.");
             var information = Auth.get_subject_information_from_identifier(session, identifier);
-            if (current.Subjects.Any(s => s.Identifier == identifier)) throw new InvalidOperationException("This user or group already has a subject entry. Select it to edit its roles.");
-            summary = $"Add {(information.GetValueOrDefault("subject-is-group") == "true" ? "group" : "user")} '{information.GetValueOrDefault(Subject.SUBJECT_NAME_KEY, request.SubjectName)}'\nDirectory identifier: {identifier}\nAssign: {RoleNames(current, request)}. The server creates the subject before roles are assigned; an interrupted assignment requires inspecting its default roles.";
+            if (current.Subjects.Any(s => s.Identifier == identifier)) throw new AdValidationException("This user or group already has a subject entry. Select it to edit its roles.");
+            summary = $"Add {(information.GetValueOrDefault("subject-is-group") == "true" ? "group" : "user")} '{information.GetValueOrDefault(Subject.SUBJECT_NAME_KEY, request.SubjectName)}'\nDirectory identifier: {identifier}\nAssign: {RoleNames(current, request)}. The server creates the subject before roles are assigned; an interrupted assignment requires inspecting its default roles. "
+                + RevocationSummary(information.GetValueOrDefault("subject-is-group") == "true");
         }
         else summary = request.Operation switch
         {
             AdOperation.Join => $"Join all {current.Hosts.Count} hosts to '{request.Domain}'. The shared join action first clears previous external authentication and then joins the domain. No user or group is added automatically.",
-            AdOperation.Leave => $"Leave external authentication on all {current.Hosts.Count} hosts. Directory users will lose access. Stored subject entries may remain. Supplied credentials also request disabling directory machine accounts; without credentials, clean those accounts up separately.",
-            AdOperation.SetRoles => $"Replace roles for '{current.Subjects.Single(s => s.Reference == request.SubjectReference).Name}' with: {RoleNames(current, request)}. New roles are added before old roles are removed. Existing sessions for this subject are then logged out.",
-            AdOperation.RemoveSubject => $"Log out and remove access for '{current.Subjects.Single(s => s.Reference == request.SubjectReference).Name}'. Other group grants can still permit this user to sign in.",
-            _ => throw new InvalidOperationException("Select a supported access operation.")
+            AdOperation.Leave => $"Leave external authentication on all {current.Hosts.Count} hosts. Directory users will lose access. Stored subject entries may remain. "
+                + (request.LeaveMachineAccountCleanup ? "Disable directory machine accounts using the supplied credentials."
+                    : "Leave directory machine accounts unchanged; clean them up separately."),
+            AdOperation.SetRoles => $"Replace roles for '{current.Subjects.Single(s => s.Reference == request.SubjectReference).Name}' with: {RoleNames(current, request)}. New roles are added before old roles are removed. "
+                + RevocationSummary(current.Subjects.Single(s => s.Reference == request.SubjectReference).IsGroup),
+            AdOperation.RemoveSubject => $"Log out and remove access for '{current.Subjects.Single(s => s.Reference == request.SubjectReference).Name}'. "
+                + RevocationSummary(current.Subjects.Single(s => s.Reference == request.SubjectReference).IsGroup)
+                + " Other group grants can still permit this user to sign in.",
+            _ => throw new AdValidationException("Select a supported access operation.")
         };
         token.ThrowIfCancellationRequested();
         RequireCurrent(connection, snapshot);
@@ -131,7 +142,7 @@ public static class AdManagement
     internal static void RequireSnapshot(AdSnapshot expected, AdSnapshot actual)
     {
         if (expected.Fingerprint != actual.Fingerprint)
-            throw new InvalidOperationException("Pool membership, domain state, subjects, roles or capabilities changed after opening this editor. Reopen and review the current configuration.");
+            throw new AdValidationException("Pool membership, domain state, subjects, roles or capabilities changed after opening this editor. Reopen and review the current configuration.");
     }
     internal static void RequireCurrent(IXenConnection connection, AdSnapshot snapshot)
     {
@@ -142,8 +153,8 @@ public static class AdManagement
     {
         var pool = Helpers.GetPoolOfOne(connection);
         if (!connection.IsConnected || pool == null || pool.opaque_ref != reference || pool.uuid != uuid)
-            throw new InvalidOperationException("The pool disconnected or its identity changed. Reconnect and reopen access management.");
-        if (pool.Locked) throw new InvalidOperationException("Another pool action is in progress. Wait and reopen access management.");
+            throw new AdValidationException("The pool disconnected or its identity changed. Reconnect and reopen access management.");
+        if (pool.Locked) throw new AdValidationException("Another pool action is in progress. Wait and reopen access management.");
         return pool;
     }
 
@@ -154,41 +165,41 @@ public static class AdManagement
     }
     private static void Validate(AdSnapshot snapshot, AdRequest request)
     {
-        if (!Enum.IsDefined(request.Operation)) throw new InvalidOperationException("Select a supported access operation.");
-        if (!request.RecoveryConfirmed) throw new InvalidOperationException("Verify and confirm the local root recovery path before making changes.");
+        if (!Enum.IsDefined(request.Operation)) throw new AdValidationException("Select a supported access operation.");
+        if (!request.RecoveryConfirmed) throw new AdValidationException("Verify and confirm the local root recovery path before making changes.");
         if (string.IsNullOrWhiteSpace(snapshot.PoolUuid) || snapshot.Hosts.Count == 0
             || snapshot.Hosts.All(h => h.Reference != snapshot.Coordinator) || snapshot.Hosts.Any(h => string.IsNullOrWhiteSpace(h.Uuid)))
-            throw new InvalidOperationException("Pool or host identity is incomplete. Reconnect before managing access.");
-        if (snapshot.PoolBusy || snapshot.Hosts.Any(h => h.Busy)) throw new InvalidOperationException("Complete current pool/host operations or upgrades before changing access.");
+            throw new AdValidationException("Pool or host identity is incomplete. Reconnect before managing access.");
+        if (snapshot.PoolBusy || snapshot.Hosts.Any(h => h.Busy)) throw new AdValidationException("Complete current pool/host operations or upgrades before changing access.");
         if (request.Operation == AdOperation.Leave)
         {
-            if (!snapshot.HasExternalAuth) throw new InvalidOperationException("External authentication is already disabled.");
+            if (!snapshot.HasExternalAuth) throw new AdValidationException("External authentication is already disabled.");
             return; // Recovery is available even with mixed domains or reduced licensing.
         }
-        if (snapshot.Hosts.Any(h => !h.Live || h.AdRestricted)) throw new InvalidOperationException("All hosts must be live and advertise Active Directory support.");
+        if (snapshot.Hosts.Any(h => !h.Live || h.AdRestricted)) throw new AdValidationException("All hosts must be live and advertise Active Directory support.");
         if (request.Operation == AdOperation.Join)
         {
-            if (snapshot.HasExternalAuth) throw new InvalidOperationException("Leave existing or mixed external authentication before joining a domain.");
+            if (snapshot.HasExternalAuth) throw new AdValidationException("Leave existing or mixed external authentication before joining a domain.");
             if (Uri.CheckHostName(request.Domain) != UriHostNameType.Dns || !request.Domain.Contains('.'))
-                throw new InvalidOperationException("Enter the domain's full DNS name (for example, example.org).");
+                throw new AdValidationException("Enter the domain's full DNS name (for example, example.org).");
             return;
         }
         if (snapshot.Hosts.Any(h => h.AuthType != Auth.AUTH_TYPE_AD) || snapshot.Hosts.Select(h => h.Domain).Distinct(StringComparer.OrdinalIgnoreCase).Count() != 1)
-            throw new InvalidOperationException("Every host must be joined to the same Active Directory domain before managing subjects.");
-        if (snapshot.Hosts.Any(h => h.RbacRestricted)) throw new InvalidOperationException("Every host must advertise role-based access control support.");
-        if (request.Operation == AdOperation.AddSubject && string.IsNullOrWhiteSpace(request.SubjectName)) throw new InvalidOperationException("Enter one domain-qualified user or group name.");
+            throw new AdValidationException("Every host must be joined to the same Active Directory domain before managing subjects.");
+        if (snapshot.Hosts.Any(h => h.RbacRestricted)) throw new AdValidationException("Every host must advertise role-based access control support.");
+        if (request.Operation == AdOperation.AddSubject && string.IsNullOrWhiteSpace(request.SubjectName)) throw new AdValidationException("Enter one domain-qualified user or group name.");
         var subject = request.Operation == AdOperation.AddSubject ? null : snapshot.Subjects.SingleOrDefault(s => s.Reference == request.SubjectReference);
         if (request.Operation != AdOperation.AddSubject && (subject == null || string.IsNullOrWhiteSpace(subject.Uuid)))
-            throw new InvalidOperationException("Select a current user or group.");
+            throw new AdValidationException("Select a current user or group.");
         if (request.Operation is AdOperation.AddSubject or AdOperation.SetRoles)
         {
             if (request.RoleReferences.Count == 0 || request.RoleReferences.Distinct().Count() != request.RoleReferences.Count
                 || request.RoleReferences.Any(reference => !snapshot.Roles.Any(role => role.Reference == reference && role.Assignable && role.Uuid.Length > 0)))
-                throw new InvalidOperationException("Select at least one supported role. Use Remove access to revoke a subject entirely.");
+                throw new AdValidationException("Select at least one supported role. Use Remove access to revoke a subject entirely.");
             if (subject != null && subject.RoleReferences.Split('\n', StringSplitOptions.RemoveEmptyEntries).Any(reference => !snapshot.Roles.Any(role => role.Reference == reference && role.Assignable)))
-                throw new InvalidOperationException("This subject has an unknown or internal role. Review it with the server administrator before replacing its roles.");
+                throw new AdValidationException("This subject has an unknown or internal role. Review it with the server administrator before replacing its roles.");
             if (subject != null && string.Join('\n', request.RoleReferences) == subject.RoleReferences)
-                throw new InvalidOperationException("The selected roles are unchanged.");
+                throw new AdValidationException("The selected roles are unchanged.");
         }
     }
 
@@ -200,10 +211,10 @@ public static class AdManagement
         {
             AdOperation.Join => ["pool.disable_external_auth", "pool.enable_external_auth"],
             AdOperation.Leave => ["pool.disable_external_auth"],
-            AdOperation.AddSubject => ["auth.get_subject_identifier", "auth.get_subject_information_from_identifier", "subject.create", "subject.add_to_roles", "subject.remove_from_roles", "session.logout_subject_identifier"],
-            AdOperation.SetRoles => ["subject.add_to_roles", "subject.remove_from_roles", "session.logout_subject_identifier", "session.get_subject", "session.get_auth_user_sid", "auth.get_group_membership"],
-            AdOperation.RemoveSubject => ["subject.destroy", "session.logout_subject_identifier", "session.get_subject", "session.get_auth_user_sid", "auth.get_group_membership"],
-            _ => throw new InvalidOperationException("Unsupported access operation.")
+            AdOperation.AddSubject => ["auth.get_subject_identifier", "auth.get_subject_information_from_identifier", "subject.create", "subject.add_to_roles", "subject.remove_from_roles", "session.logout_subject_identifier", "session.get_all_subject_identifiers", "auth.get_group_membership"],
+            AdOperation.SetRoles => ["subject.add_to_roles", "subject.remove_from_roles", "session.logout_subject_identifier", "session.get_all_subject_identifiers", "session.get_subject", "session.get_auth_user_sid", "auth.get_group_membership"],
+            AdOperation.RemoveSubject => ["subject.destroy", "session.logout_subject_identifier", "session.get_all_subject_identifiers", "session.get_subject", "session.get_auth_user_sid", "auth.get_group_membership"],
+            _ => throw new AdValidationException("Unsupported access operation.")
         });
         return methods;
     }
@@ -212,11 +223,11 @@ public static class AdManagement
     {
         if (session.get_is_local_superuser()) return;
         if (operation is AdOperation.Join or AdOperation.Leave)
-            throw new InvalidOperationException("Reconnect using local root to join or leave a domain. This preserves an independent administrative recovery session.");
+            throw new AdValidationException("Reconnect using local root to join or leave a domain. This preserves an independent administrative recovery session.");
         var permissions = Session.get_rbac_permissions(session, session.opaque_ref);
         if (Methods(operation).Any(method => !permissions.Any(permission => string.Equals(permission, method.Method, StringComparison.OrdinalIgnoreCase)
             || permission.EndsWith('*') && method.Method.StartsWith(permission[..^1], StringComparison.OrdinalIgnoreCase))))
-            throw new InvalidOperationException("This session lacks the permissions required for the complete access operation. Use an authorized pool administrator account.");
+            throw new AdValidationException("This session lacks the permissions required for the complete access operation. Use an authorized pool administrator account.");
     }
 
     private static void ProtectCurrentAuthority(Session session, AdSnapshot snapshot, AdRequest request)
@@ -225,12 +236,15 @@ public static class AdManagement
         var target = snapshot.Subjects.Single(s => s.Reference == request.SubjectReference);
         var self = Session.get_subject(session, session.opaque_ref);
         var sid = session.get_auth_user_sid();
-        if (string.IsNullOrWhiteSpace(sid)) throw new InvalidOperationException("The current directory identity could not be confirmed. Reconnect using local root.");
+        if (string.IsNullOrWhiteSpace(sid)) throw new AdValidationException("The current directory identity could not be confirmed. Reconnect using local root.");
         if (self?.opaque_ref == target.Reference || target.Identifier == sid || Auth.get_group_membership(session, sid).Contains(target.Identifier, StringComparer.Ordinal))
-            throw new InvalidOperationException("This subject grants access to your current account. Reconnect using local root before changing your own user or group authority.");
+            throw new AdValidationException("This subject grants access to your current account. Reconnect using local root before changing your own user or group authority.");
     }
 
     private static string RoleNames(AdSnapshot snapshot, AdRequest request) => string.Join(", ", request.RoleReferences.Select(reference => snapshot.Roles.Single(r => r.Reference == reference).Name));
+    private static string RevocationSummary(bool isGroup) => isGroup
+        ? "Log out sessions for this group and discovered directory identities whose transitive membership includes it. Concurrent logins or directory changes require separate verification."
+        : "Log out existing sessions for this directory identity so a new login uses its current permissions.";
     internal static string Hash(object value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value))));
 }
 

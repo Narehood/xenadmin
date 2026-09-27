@@ -5,6 +5,7 @@ using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using XenAdmin;
+using XenAdmin.Actions;
 using XenAdmin.Actions.DR;
 using XenAdmin.Core;
 using XenAdmin.Network;
@@ -145,6 +146,232 @@ public sealed class DrManagementTests : IDisposable
         Assert.DoesNotContain(f.Requests, rpc => Method(rpc) is "VDI.destroy" or "VM.start" or "Async.VM.start" or "VM.hard_shutdown");
     }
 
+    [Theory]
+    [InlineData(domain_type.hvm, null)]
+    [InlineData(domain_type.hvm, "qemu-trad")]
+    [InlineData(domain_type.unspecified, null)]
+    [InlineData(domain_type.pv, "qemu-trad")]
+    public async Task ExpectedImportDeviceModelUpgradeStillMapsNicsAndIssuesCleanup(domain_type domainType, string? deviceModel)
+    {
+        using var f = new Fixture();
+        foreach (var vm in f.SourceVms)
+        {
+            vm.domain_type = domainType; vm.HVM_boot_policy = domainType == domain_type.pv ? "" : "BIOS order";
+            vm.platform["acpi"] = "1";
+            if (deviceModel != null) vm.platform["device-model"] = deviceModel;
+        }
+        f.ImportNetwork.PIFs = [new("physical-interface")];
+        f.AfterRecover = vm => { vm.platform["device-model"] = "qemu-upstream-compat"; };
+        var inspection = await f.Inspect(); var request = f.Request(inspection);
+
+        var outcome = f.Workflow.Recover(f.Session, inspection, request, await f.Workflow.ReviewAsync(inspection, request));
+
+        Assert.True(outcome.Succeeded, outcome.Error); Assert.Equal(2, outcome.Cleanup.Count);
+        Assert.Equal(2, f.Requests.Count(rpc => Method(rpc) == "VIF.move"));
+        Assert.All(f.TargetVifs.Values, vif => Assert.Equal("isolated", vif.network.opaque_ref));
+        Assert.All(f.SourceVms, vm => Assert.Equal(deviceModel, vm.platform.GetValueOrDefault("device-model")));
+        Assert.All(f.Recovered.Values, vm => Assert.Equal(vm_power_state.Halted, vm.power_state));
+        Assert.True(f.Workflow.Cleanup(f.Session, outcome).Succeeded);
+        Assert.DoesNotContain(f.Requests, rpc => Method(rpc) is "VDI.destroy" or "VM.start" or "Async.VM.start");
+    }
+
+    [Theory]
+    [InlineData("unrecognized-device-model")]
+    [InlineData("reverse-device-model")]
+    [InlineData("pv-added-device-model")]
+    [InlineData("other-platform")]
+    public async Task UnexpectedImportConfigurationNeverRemapsOrAuthorizesCleanup(string change)
+    {
+        using var f = new Fixture();
+        foreach (var vm in f.SourceVms)
+        {
+            vm.domain_type = change == "pv-added-device-model" ? domain_type.pv : domain_type.hvm;
+            vm.platform["acpi"] = "1";
+            if (change == "reverse-device-model") vm.platform["device-model"] = "qemu-upstream-compat";
+        }
+        f.AfterRecover = vm =>
+        {
+            vm.platform["device-model"] = change == "unrecognized-device-model" ? "qemu-upstream-uefi"
+                : change == "reverse-device-model" ? "qemu-trad" : "qemu-upstream-compat";
+            if (change == "other-platform") vm.platform["acpi"] = "0";
+        };
+        var inspection = await f.Inspect(); var request = f.Request(inspection);
+
+        var outcome = f.Workflow.Recover(f.Session, inspection, request, await f.Workflow.ReviewAsync(inspection, request));
+
+        Assert.False(outcome.Succeeded); Assert.Empty(outcome.Cleanup);
+        Assert.Contains("configuration differs", outcome.Error);
+        Assert.Contains("importer-chosen", outcome.Report);
+        Assert.Single(f.Recovered);
+        Assert.DoesNotContain(f.Requests, rpc => Method(rpc) is "VIF.move" or "VM.destroy" or "VDI.destroy" or "VM.start" or "Async.VM.start");
+    }
+
+    [Fact]
+    public async Task OnlyOuterRecoveryActionPublishesHistoryWhenPostImportValidationFails()
+    {
+        using var f = new Fixture { RecoverWrongDisk = true }; var inspection = await f.Inspect(); var request = f.Request(inspection);
+        var review = await f.Workflow.ReviewAsync(inspection, request);
+        var published = new List<ActionBase>();
+        void Capture(ActionBase action) { if (action is DrRecoverAction or DrRecoveryAction) published.Add(action); }
+        ActionBase.NewAction += Capture;
+        try
+        {
+            var standalone = new DrRecoverAction(f.Connection, f.SourceVms[0]);
+            Assert.Same(standalone, Assert.Single(published)); published.Clear();
+            var outer = new DrRecoveryAction(f.Connection, f.Workflow, inspection, request, review);
+            Assert.Throws<InvalidOperationException>(() => outer.RunSync(f.Session));
+            Assert.Same(outer, Assert.Single(published));
+            Assert.False(outer.Succeeded); Assert.Contains("unreviewed VDI", outer.Description);
+        }
+        finally { ActionBase.NewAction -= Capture; }
+    }
+
+    [Fact]
+    public async Task ReviewDescribesFreshChosenStorageAndNetworkIdentitiesForEachVm()
+    {
+        using var f = new Fixture(); var inspection = await f.Inspect(); var request = f.Request(inspection, DrMode.Recovery);
+        f.TargetSr.name_label = "Reviewed replica"; f.Isolated.name_label = "Reviewed destination";
+        f.Isolated.PIFs = [new("physical-interface")];
+        var review = await f.Workflow.ReviewAsync(inspection, request);
+
+        Assert.Contains("VM 0 [vm-uuid0]", review.MappingSummary);
+        Assert.Contains("VM 1 [vm-uuid1]", review.MappingSummary);
+        Assert.Contains("Original storage [replica-sr-uuid]", review.MappingSummary);
+        Assert.Contains("Reviewed replica [replica-sr-uuid]", review.MappingSummary);
+        Assert.Contains("Production [source-network-uuid]", review.MappingSummary);
+        Assert.Contains("Reviewed destination [isolated-uuid]", review.MappingSummary);
+        Assert.Contains("physical interfaces", review.MappingSummary);
+        Assert.Contains("does not copy disks", review.Summary);
+    }
+
+    [Theory]
+    [InlineData("platform")]
+    [InlineData("boot")]
+    [InlineData("cpu")]
+    public async Task ImportMapOrderDoesNotChangeConfigurationIdentity(string field)
+    {
+        using var f = new Fixture();
+        foreach (var vm in f.SourceVms)
+        {
+            vm.platform = new() { ["acpi"] = "1", ["nx"] = "1" };
+            vm.HVM_boot_params = new() { ["order"] = "cd", ["firmware"] = "bios" };
+            vm.VCPUs_params = new() { ["weight"] = "256", ["cap"] = "0" };
+        }
+        f.AfterRecover = vm =>
+        {
+            if (field == "platform") ReverseMapOrder(vm.platform);
+            if (field == "boot") ReverseMapOrder(vm.HVM_boot_params);
+            if (field == "cpu") ReverseMapOrder(vm.VCPUs_params);
+        };
+        var inspection = await f.Inspect(); var request = f.Request(inspection);
+        var outcome = f.Workflow.Recover(f.Session, inspection, request, await f.Workflow.ReviewAsync(inspection, request));
+        Assert.True(outcome.Succeeded, outcome.Error); Assert.Equal(2, outcome.Cleanup.Count);
+        Assert.Equal(2, f.Requests.Count(rpc => Method(rpc) == "VIF.move"));
+    }
+
+    [Theory]
+    [InlineData("network-order")]
+    [InlineData("sr-accounting")]
+    [InlineData("map-order")]
+    public async Task LaterRecoveryIgnoresOrderingAndSrAccountingWithDistinctDisksAndExistingNics(string change)
+    {
+        using var f = new Fixture(); f.UseDistinctVmDisks();
+        f.Isolated.PIFs = [new("physical-b"), new("physical-a")];
+        f.Isolated.other_config = new() { ["network-setting-a"] = "a", ["network-setting-b"] = "b" };
+        f.Pbd.device_config = new() { ["server"] = "storage", ["path"] = "/replica" };
+        foreach (var reference in new[] { "foreign-b", "foreign-a" })
+        {
+            f.TargetVifs.Add(reference, new VIF { opaque_ref = reference, uuid = reference, VM = new("existing-vm"), network = new("isolated") });
+            f.Isolated.VIFs.Add(new(reference));
+        }
+        var inspection = await f.Inspect(); var request = f.Request(inspection, DrMode.Recovery);
+        var review = await f.Workflow.ReviewAsync(inspection, request);
+        f.AfterFirstMove = () =>
+        {
+            if (change == "network-order") { f.Isolated.VIFs.Reverse(); f.Isolated.PIFs.Reverse(); }
+            if (change == "sr-accounting")
+            {
+                f.TargetSr.virtual_allocation += 4096; f.TargetSr.physical_utilisation += 4096;
+                f.TargetSr.VDIs.Add(new("unrelated-inventory-entry")); f.TargetSr.other_config["last-scan"] = "now";
+            }
+            if (change == "map-order")
+            {
+                ReverseMapOrder(f.Isolated.other_config);
+                ReverseMapOrder(f.Pbd.device_config);
+            }
+        };
+        var outcome = f.Workflow.Recover(f.Session, inspection, request, review);
+        Assert.True(outcome.Succeeded, outcome.Error);
+        Assert.Equal(2, f.Requests.Count(rpc => Method(rpc) == "Async.VM.recover"));
+        Assert.Equal(2, f.Requests.Count(rpc => Method(rpc) == "VIF.move"));
+        Assert.Equal("target-disk-second", f.TargetDiskForVm("recovered1"));
+        Assert.All(f.TargetVifs.Values, vif => Assert.Equal("isolated", vif.network.opaque_ref));
+    }
+
+    [Theory]
+    [InlineData("sr-type")]
+    [InlineData("sr-shared")]
+    [InlineData("sr-backend")]
+    [InlineData("dr-task")]
+    [InlineData("pbd-device")]
+    [InlineData("network-mtu")]
+    [InlineData("network-bridge")]
+    [InlineData("network-locking")]
+    [InlineData("network-config")]
+    [InlineData("network-pif")]
+    public async Task LaterRecoveryStillRejectsRelevantStorageAndNetworkChanges(string change)
+    {
+        using var f = new Fixture(); var inspection = await f.Inspect(); var request = f.Request(inspection, DrMode.Recovery);
+        var review = await f.Workflow.ReviewAsync(inspection, request);
+        f.AfterFirstMove = () =>
+        {
+            switch (change)
+            {
+                case "sr-type": f.TargetSr.type = "different"; break;
+                case "sr-shared": f.TargetSr.shared = false; break;
+                case "sr-backend": f.TargetSr.sm_config["backend"] = "different"; break;
+                case "dr-task": f.TargetSr.introduced_by = new("dr-task"); break;
+                case "pbd-device": f.Pbd.device_config["server"] = "different"; break;
+                case "network-mtu": f.Isolated.MTU = 9000; break;
+                case "network-bridge": f.Isolated.bridge = "different"; break;
+                case "network-locking": f.Isolated.default_locking_mode = network_default_locking_mode.disabled; break;
+                case "network-config": f.Isolated.other_config["network-setting"] = "different"; break;
+                case "network-pif": f.Isolated.PIFs.Add(new("new-physical-interface")); break;
+            }
+        };
+        var outcome = f.Workflow.Recover(f.Session, inspection, request, review);
+        Assert.False(outcome.Succeeded); Assert.Single(f.Requests, rpc => Method(rpc) == "Async.VM.recover");
+        Assert.Single(f.Recovered);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AutomaticPowerOnInMetadataIsUnsupportedBeforeImport(bool poolAutoPowerOn)
+    {
+        using var f = new Fixture(); f.Pool.other_config["auto_poweron"] = poolAutoPowerOn.ToString().ToLowerInvariant();
+        f.SourceVms[0].other_config["auto_poweron"] = "true";
+        var inspection = await f.Inspect();
+        Assert.Contains("automatic power-on", inspection.Vms.Single(vm => vm.Uuid == f.SourceVms[0].uuid).UnavailableReason);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => f.Workflow.ReviewAsync(inspection, f.Request(inspection)));
+        Assert.DoesNotContain(f.Requests, rpc => Mutation(Method(rpc)));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnexpectedImportedAutoPowerOnFailsBeforeMappingAndReportsObservedIdentity(bool poolAutoPowerOn)
+    {
+        using var f = new Fixture(); f.Pool.other_config["auto_poweron"] = poolAutoPowerOn.ToString().ToLowerInvariant();
+        f.AfterRecover = vm => vm.other_config["auto_poweron"] = "true";
+        var inspection = await f.Inspect(); var request = f.Request(inspection);
+        var outcome = f.Workflow.Recover(f.Session, inspection, request, await f.Workflow.ReviewAsync(inspection, request));
+        Assert.False(outcome.Succeeded); Assert.Empty(outcome.Cleanup);
+        Assert.Contains("automatic power-on", outcome.Error);
+        Assert.Contains("recovered0", outcome.Report); Assert.Contains("vm-uuid0", outcome.Report); Assert.Contains("Halted", outcome.Report);
+        Assert.DoesNotContain(f.Requests, rpc => Method(rpc) is "VIF.move" or "VM.destroy" or "VDI.destroy" or "VM.start" or "Async.VM.start");
+    }
+
     [Fact]
     public async Task RealRecoveryCannotInvokeRehearsalCleanup()
     {
@@ -249,7 +476,9 @@ public sealed class DrManagementTests : IDisposable
             case "renamed": vm.name_label = "edited"; break;
             case "nic-attached": f.TargetVifs[vm.VIFs[0].opaque_ref].currently_attached = true; break;
         }
-        Assert.False(f.Workflow.Cleanup(f.Session, outcome).Succeeded);
+        var cleanup = f.Workflow.Cleanup(f.Session, outcome);
+        Assert.False(cleanup.Succeeded);
+        Assert.All(outcome.Cleanup, item => { Assert.Contains(item.Name, cleanup.Report); Assert.Contains(item.Uuid, cleanup.Report); Assert.Contains(item.Reference, cleanup.Report); });
         Assert.DoesNotContain(f.Requests, rpc => Method(rpc).EndsWith(".destroy") && !Method(rpc).StartsWith("task."));
     }
 
@@ -262,6 +491,7 @@ public sealed class DrManagementTests : IDisposable
         var cleanup = f.Workflow.Cleanup(f.Session, outcome);
         Assert.False(cleanup.Succeeded); Assert.Equal(2, cleanup.Cleanup.Count);
         Assert.Contains("partial", cleanup.Error); Assert.Single(f.Requests, rpc => Method(rpc) == "VIF.destroy");
+        Assert.All(outcome.Cleanup, item => { Assert.Contains(item.Name, cleanup.Report); Assert.Contains(item.Uuid, cleanup.Report); Assert.Contains(item.Reference, cleanup.Report); });
         Assert.DoesNotContain(f.Requests, rpc => Method(rpc) is "VDI.destroy" or "VM.destroy");
     }
 
@@ -305,6 +535,12 @@ public sealed class DrManagementTests : IDisposable
 
     private static string Method(JObject rpc) => rpc["method"]!.Value<string>()!;
     private static bool Mutation(string method) => method is "Async.VM.recover" or "VIF.move" or "VM.destroy" or "VIF.destroy" or "VBD.destroy";
+    private static void ReverseMapOrder(Dictionary<string, string> map)
+    {
+        // XenObject property setters ignore value-equal maps; mutate the fixture's wire order explicitly.
+        var reversed = map.Reverse().ToArray(); map.Clear();
+        foreach (var pair in reversed) map.Add(pair.Key, pair.Value);
+    }
 
     private sealed class Fixture : IDisposable
     {
@@ -329,8 +565,11 @@ public sealed class DrManagementTests : IDisposable
         private readonly Dictionary<string, VBD> _sourceVbds = [];
         private readonly Network _sourceNetwork = new() { opaque_ref = "source-network", uuid = "source-network-uuid", name_label = "Production" };
         private readonly Network _importNetwork = new() { opaque_ref = "import-network", uuid = "source-network-uuid", name_label = "Imported production" };
+        public Network ImportNetwork => _importNetwork;
         private readonly SR _sourceSr = new() { opaque_ref = "source-sr", uuid = "replica-sr-uuid", name_label = "Original storage", shared = true, type = "nfs" };
         private readonly VDI _sourceDisk = new() { opaque_ref = "source-disk", uuid = "disk-uuid", SR = new("source-sr"), location = "disk-location" };
+        private readonly List<VDI> _extraSourceDisks = [];
+        private readonly List<VDI> _extraTargetDisks = [];
         public DrManagement Workflow { get; }
         public bool ServerSuperuser { get; set; } = true;
         public string[] Permissions { get; set; } = [];
@@ -341,6 +580,7 @@ public sealed class DrManagementTests : IDisposable
         public bool LostRecoverResponse { get; set; }
         public bool IncludeImportNetwork { get; set; } = true;
         public Action? AfterFirstMove { get; set; }
+        public Action<VM>? AfterRecover { get; set; }
         public Action<string, string>? AfterAttachmentDestroy { get; set; }
         public IReadOnlyList<JObject> Requests { get { lock (_requests) return _requests.ToArray(); } }
 
@@ -369,6 +609,14 @@ public sealed class DrManagementTests : IDisposable
         public Task<DrInspection> Inspect() => Workflow.InspectAsync(new("metadata", Metadata.uuid, Metadata.Name(), TargetSr.Name()));
         public DrRequest Request(DrInspection inspection, DrMode mode = DrMode.MetadataRehearsal) => new(mode,
             inspection.Vms.Select(vm => vm.Reference), [new("source-sr", "target-sr")], [new("source-network", "isolated")]);
+
+        public void UseDistinctVmDisks()
+        {
+            _extraSourceDisks.Add(new VDI { opaque_ref = "source-disk-second", uuid = "disk-uuid-second", SR = new("source-sr"), location = "disk-location-second" });
+            _extraTargetDisks.Add(new VDI { opaque_ref = "target-disk-second", uuid = "replica-disk-uuid-second", SR = new("target-sr"), location = "disk-location-second" });
+            _sourceVbds["source-vbd1"].VDI = new("source-disk-second");
+        }
+        public string TargetDiskForVm(string reference) => _targetVbds[Recovered[reference].VBDs[0].opaque_ref].VDI.opaque_ref;
 
         public void EditDuringCleanup(string reference, string change)
         {
@@ -430,6 +678,7 @@ public sealed class DrManagementTests : IDisposable
             }
             catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
             catch (SocketException) when (_stop.IsCancellationRequested) { }
+            catch (ObjectDisposedException) when (_stop.IsCancellationRequested) { }
         }
         private JToken? Reply(JObject rpc)
         {
@@ -448,11 +697,13 @@ public sealed class DrManagementTests : IDisposable
                 case "SR.get_all_records": return Map(metadata ? [_sourceSr] : new[] { TargetSr });
                 case "network.get_all_records": return Map(metadata ? [_sourceNetwork] : IncludeImportNetwork ? new[] { Isolated, _importNetwork } : [Isolated]);
                 case "PBD.get_all_records": return Map(new[] { Pbd });
-                case "VDI.get_all_records": return Map(metadata ? [_sourceDisk] : new[] { Metadata, TargetDisk });
+                case "VDI.get_all_records": return Map(metadata ? new[] { _sourceDisk }.Concat(_extraSourceDisks) : new[] { Metadata, TargetDisk }.Concat(_extraTargetDisks));
                 case "VBD.get_all_records": return Map(metadata ? _sourceVbds.Values : _targetVbds.Values);
                 case "VIF.get_all_records": return Map(metadata ? _sourceVifs.Values : TargetVifs.Values);
                 case "VDI.get_record": return reference == "metadata" ? Metadata.ToJObject() : reference == "target-disk" ? TargetDisk.ToJObject()
-                    : new VDI { uuid = "unreviewed-disk", SR = new("target-sr"), location = "unreviewed-location" }.ToJObject();
+                    : _extraTargetDisks.SingleOrDefault(disk => disk.opaque_ref == reference)?.ToJObject()
+                    ??
+                    new VDI { uuid = "unreviewed-disk", SR = new("target-sr"), location = "unreviewed-location" }.ToJObject();
                 case "VM.assert_can_be_recovered": return null;
                 case "VM.get_by_uuid": return new JValue(Recovered.Single(pair => pair.Value.uuid == reference).Key);
                 case "VM.get_record": return Recovered[reference].ToJObject();
@@ -464,7 +715,9 @@ public sealed class DrManagementTests : IDisposable
                     var source = SourceVms.Single(vm => vm.opaque_ref == reference); var index = Array.IndexOf(SourceVms, source); var vmRef = $"recovered{index}";
                     var vm = source.ToJObject().ToObject<VM>()!; vm.opaque_ref = vmRef; vm.VIFs = [new($"target-vif{index}")]; vm.VBDs = [new($"target-vbd{index}")]; Recovered.Add(vmRef, vm);
                     var vif = _sourceVifs[$"source-vif{index}"].ToJObject().ToObject<VIF>()!; vif.opaque_ref = $"target-vif{index}"; vif.VM = new(vmRef); vif.network = new("import-network"); TargetVifs.Add(vif.opaque_ref, vif); _importNetwork.VIFs.Add(new(vif.opaque_ref));
-                    var vbd = _sourceVbds[$"source-vbd{index}"].ToJObject().ToObject<VBD>()!; vbd.opaque_ref = $"target-vbd{index}"; vbd.VM = new(vmRef); vbd.VDI = new(RecoverWrongDisk ? "unreviewed-disk" : "target-disk"); _targetVbds.Add(vbd.opaque_ref, vbd);
+                    var vbd = _sourceVbds[$"source-vbd{index}"].ToJObject().ToObject<VBD>()!; vbd.opaque_ref = $"target-vbd{index}"; vbd.VM = new(vmRef);
+                    vbd.VDI = new(RecoverWrongDisk ? "unreviewed-disk" : vbd.VDI.opaque_ref == "source-disk-second" ? "target-disk-second" : "target-disk"); _targetVbds.Add(vbd.opaque_ref, vbd);
+                    AfterRecover?.Invoke(vm);
                     return new JValue("recovery-task" + index);
                 case "VIF.move":
                     var moved = TargetVifs[reference]; _importNetwork.VIFs.RemoveAll(item => item.opaque_ref == reference); moved.network = new(p[2]!.Value<string>()!); Isolated.VIFs.Add(new(reference));

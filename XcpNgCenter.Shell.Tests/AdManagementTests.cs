@@ -36,7 +36,7 @@ public sealed class AdManagementTests : IDisposable
         var f = new Fixture(operation != AdOperation.Join);
         using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
-        var request = f.Request(operation);
+        var request = f.Request(operation, operation is AdOperation.Join or AdOperation.Leave ? "directory-user" : "");
         var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
         Assert.DoesNotContain(server.Requests, IsMutation);
         Assert.DoesNotContain("directory-password", JsonConvert.SerializeObject(review));
@@ -83,7 +83,8 @@ public sealed class AdManagementTests : IDisposable
             case "members": f.Add("new-host", new Host { uuid = "new-host-uuid" }); break;
         }
         var action = new AdAction(f.Connection, snapshot, request, review, new("", ""));
-        Assert.Throws<InvalidOperationException>(() => action.RunSync(server.Session));
+        var error = Assert.Throws<AdActionException>(() => action.RunSync(server.Session));
+        Assert.False(error.MutationAttempted);
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
 
@@ -94,7 +95,8 @@ public sealed class AdManagementTests : IDisposable
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.RemoveSubject);
         var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
         server.ReplaceServerSubject = true;
-        Assert.Throws<InvalidOperationException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        Assert.False(error.MutationAttempted);
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
 
@@ -124,7 +126,10 @@ public sealed class AdManagementTests : IDisposable
         };
 
         var action = new AdAction(f.Connection, snapshot, request, review, new("", ""));
-        Assert.Throws<InvalidOperationException>(() => action.RunSync(server.Session));
+        var error = Assert.Throws<AdActionException>(() => action.RunSync(server.Session));
+        Assert.False(error.MutationAttempted);
+        Assert.Contains("The subject changed", error.Message);
+        Assert.DoesNotContain(AdManagement.RecoveryNotice, error.Message);
         Assert.True(changed);
         Assert.Equal("read", snapshot.Subjects.Single().RoleReferences);
         Assert.Contains(f.Subject.roles, role => role.opaque_ref == "operator");
@@ -138,7 +143,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(operation != AdOperation.Join); using var server = new RpcServer(f) { LocalRoot = false }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, f.Request(operation)));
+        var error = await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, f.Request(operation)));
         Assert.Contains("local root", error.Message);
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
@@ -163,7 +168,7 @@ public sealed class AdManagementTests : IDisposable
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
         foreach (var operation in new[] { AdOperation.SetRoles, AdOperation.RemoveSubject })
         {
-            var error = await Assert.ThrowsAsync<InvalidOperationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, f.Request(operation)));
+            var error = await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, f.Request(operation)));
             Assert.Contains("current account", error.Message);
         }
         Assert.DoesNotContain(server.Requests, IsMutation);
@@ -180,7 +185,8 @@ public sealed class AdManagementTests : IDisposable
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.SetRoles);
         var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
         server.DeniedPermission = permission;
-        Assert.Throws<InvalidOperationException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        Assert.False(error.MutationAttempted);
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
 
@@ -193,10 +199,31 @@ public sealed class AdManagementTests : IDisposable
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.SetRoles);
         var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request); server.FailureMethod = failureMethod;
-        var error = Assert.Throws<InvalidOperationException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
-        Assert.Contains("partial", error.Message);
+        server.Echo = "raw-provider-error-must-not-escape";
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        Assert.True(error.MutationAttempted);
+        Assert.Contains(AdManagement.RecoveryNotice, error.Message);
+        Assert.DoesNotContain(server.Echo, error.ToString());
+        Assert.Null(error.InnerException);
         var writes = server.Requests.Where(IsMutation).Select(Method).ToArray();
         Assert.Equal(failureMethod, writes[^1]); Assert.Single(writes, m => m == failureMethod);
+    }
+
+    [Theory]
+    [InlineData(AdOperation.AddSubject, "subject.create")]
+    [InlineData(AdOperation.RemoveSubject, "session.logout_subject_identifier")]
+    [InlineData(AdOperation.RemoveSubject, "subject.destroy")]
+    public async Task FailedSharedSubjectMutationReportsPartialOutcome(AdOperation operation, string failureMethod)
+    {
+        var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
+        var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(operation);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request); server.FailureMethod = failureMethod;
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        Assert.True(error.MutationAttempted);
+        Assert.Contains(AdManagement.RecoveryNotice, error.Message);
+        var writes = server.Requests.Where(IsMutation).Select(Method).ToArray();
+        Assert.Equal(failureMethod, writes[^1]);
+        Assert.Single(writes, method => method == failureMethod);
     }
 
     [Fact]
@@ -205,7 +232,10 @@ public sealed class AdManagementTests : IDisposable
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.AddSubject);
         var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request); server.ResolvedSid = "replacement-sid";
-        Assert.Throws<InvalidOperationException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        Assert.False(error.MutationAttempted);
+        Assert.Contains("directory identity changed", error.Message);
+        Assert.DoesNotContain(AdManagement.RecoveryNotice, error.Message);
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
 
@@ -214,8 +244,78 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var action = new AddRemoveSubjectsAction(f.Connection, ["DOMAIN\\new"], [], new() { ["DOMAIN\\new"] = "other-sid" });
-        Assert.Throws<InvalidOperationException>(() => action.RunSync(server.Session));
+        Assert.Throws<AddRemoveSubjectsAction.ReviewedIdentityChangedException>(() => action.RunSync(server.Session));
+        Assert.False(action.MutationAttempted);
         Assert.DoesNotContain(server.Requests, IsMutation);
+    }
+
+    [Fact]
+    public async Task FinalSharedIdentityChangeReportsNoMutationAndPreservesItsDiagnostic()
+    {
+        var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
+        var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.AddSubject);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var lookups = 0;
+        server.BeforeReply = method =>
+        {
+            if (method == "auth.get_subject_identifier" && ++lookups == 2) server.ResolvedSid = "replacement-sid";
+        };
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        Assert.Equal(2, lookups);
+        Assert.False(error.MutationAttempted);
+        Assert.Contains("directory identity changed", error.Message);
+        Assert.DoesNotContain(AdManagement.RecoveryNotice, error.Message);
+        Assert.DoesNotContain(server.Requests, IsMutation);
+    }
+
+    [Theory]
+    [InlineData(AdOperation.Join, "reviewed-user", "other-user")]
+    [InlineData(AdOperation.Leave, "", "unreviewed-user")]
+    [InlineData(AdOperation.Leave, "reviewed-user", "")]
+    [InlineData(AdOperation.Leave, "reviewed-user", "other-user")]
+    public async Task CredentialIdentityOrCleanupScopeCannotChangeAfterReview(AdOperation operation, string reviewedUsername, string appliedUsername)
+    {
+        var f = new Fixture(operation != AdOperation.Join); using var server = new RpcServer(f); f.Connect(server.Session);
+        var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(operation, reviewedUsername);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        using var credentials = new AdCredentials(appliedUsername, appliedUsername.Length == 0 ? "" : "secret");
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, credentials).RunSync(server.Session));
+        Assert.False(error.MutationAttempted);
+        Assert.Contains("username or cleanup choice changed", error.Message);
+        Assert.DoesNotContain(AdManagement.RecoveryNotice, error.Message);
+        Assert.Empty(credentials.Password);
+        Assert.DoesNotContain(server.Requests, IsMutation);
+    }
+
+    [Theory]
+    [InlineData("host.get_all_records", false)]
+    [InlineData("pool.enable_external_auth", true)]
+    public async Task ArbitraryProviderInvalidOperationNeverBecomesATrustedDiagnostic(string failureMethod, bool mutationAttempted)
+    {
+        var f = new Fixture(false); using var server = new RpcServer(f); f.Connect(server.Session);
+        var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.Join);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        const string secret = "provider-echoed-directory-password";
+        // The synchronous transport hook can throw any exception type, just as
+        // a provider can; InvalidOperationException itself is not a safe marker.
+        server.Session.JsonRpcClient.RequestEvent += method =>
+        {
+            if (method == failureMethod) throw new InvalidOperationException(secret);
+        };
+        var hierarchy = (Hierarchy)log4net.LogManager.GetRepository(typeof(AsyncAction).Assembly);
+        var appender = new MemoryAppender(); appender.ActivateOptions(); hierarchy.Root.AddAppender(appender);
+        var old = hierarchy.Root.Level; hierarchy.Root.Level = Level.All; hierarchy.Configured = true;
+        try
+        {
+            var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("directory-user", secret)).RunSync(server.Session));
+            Assert.Equal(mutationAttempted, error.MutationAttempted);
+            Assert.DoesNotContain(secret, error.ToString());
+            Assert.Null(error.InnerException);
+            Assert.All(appender.GetEvents(), e => Assert.DoesNotContain(secret, (e.RenderedMessage ?? "") + e.GetExceptionString()));
+            if (mutationAttempted) Assert.Contains(AdManagement.RecoveryNotice, error.Message);
+            else { Assert.DoesNotContain(AdManagement.RecoveryNotice, error.Message); Assert.DoesNotContain(server.Requests, IsMutation); }
+        }
+        finally { hierarchy.Root.RemoveAppender(appender); hierarchy.Root.Level = old; appender.Close(); }
     }
 
     [Theory]
@@ -223,7 +323,12 @@ public sealed class AdManagementTests : IDisposable
     [InlineData(false)]
     public void CredentialEchoesNeverReachSharedActionExceptionsOrLogs(bool join)
     {
-        var f = new Fixture(!join); using var server = new RpcServer(f) { FailureMethod = join ? "pool.enable_external_auth" : "pool.disable_external_auth", Echo = "distinct-password-and-user" }; f.Connect(server.Session);
+        var f = new Fixture(!join); using var server = new RpcServer(f)
+        {
+            FailureMethod = join ? "pool.enable_external_auth" : "pool.disable_external_auth", Echo = "distinct-password-and-user",
+            FailureCode = Failure.HOST_OFFLINE, FailureArguments = ["host", "distinct-password-and-user"]
+        };
+        f.Connect(server.Session);
         var hierarchy = (Hierarchy)log4net.LogManager.GetRepository(typeof(AsyncAction).Assembly);
         var appender = new MemoryAppender(); appender.ActivateOptions(); hierarchy.Root.AddAppender(appender);
         var old = hierarchy.Root.Level; hierarchy.Root.Level = Level.All; hierarchy.Configured = true;
@@ -232,12 +337,72 @@ public sealed class AdManagementTests : IDisposable
             AsyncAction action = join ? new EnableAdAction(f.Connection, "example.org", server.Echo, server.Echo, true)
                 : new DisableAdAction(f.Connection, new() { ["user"] = server.Echo, ["pass"] = server.Echo });
             var error = Assert.ThrowsAny<Exception>(() => action.RunSync(server.Session));
+            Assert.Contains(Failure.HOST_OFFLINE, error.Message);
+            Assert.Contains("Host: 'Host'", error.Message);
             Assert.DoesNotContain(server.Echo, error.ToString());
             Assert.All(appender.GetEvents(), e => Assert.DoesNotContain(server.Echo, (e.RenderedMessage ?? "") + e.GetExceptionString()));
             if (join) Assert.Null(typeof(EnableAdAction).GetField("password", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(action));
             else Assert.Empty((Dictionary<string, string>)typeof(DisableAdAction).GetField("creds", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(action)!);
         }
         finally { hierarchy.Root.RemoveAppender(appender); hierarchy.Root.Level = old; appender.Close(); }
+    }
+
+    [Theory]
+    [InlineData("HOST_OFFLINE", "host", true)]
+    [InlineData("HOST_OFFLINE", "provider-password", false)]
+    [InlineData("provider-password", "host", false)]
+    public void CredentiallessLeaveOnlyPreservesKnownCodesAndLocallyResolvedHosts(string code, string hostReference, bool knownHost)
+    {
+        var f = new Fixture(); using var server = new RpcServer(f)
+        {
+            FailureMethod = "pool.disable_external_auth", FailureCode = code, FailureArguments = [hostReference, "provider-password"]
+        };
+        f.Connect(server.Session);
+        var action = new DisableAdAction(f.Connection, new());
+        var error = Assert.Throws<DirectoryActionFailure>(() => action.RunSync(server.Session));
+        Assert.DoesNotContain("provider-password", error.ToString() + JsonConvert.SerializeObject(error.ErrorDescription));
+        Assert.Null(error.InnerException);
+        if (code == Failure.HOST_OFFLINE) Assert.Contains(code, error.Message);
+        if (knownHost) Assert.Contains("Host: 'Host'", error.Message);
+        else Assert.DoesNotContain("Host:", error.Message);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SanitizedRbacFailuresStillRunTheSharedRoleFormatter(bool join)
+    {
+        var method = join ? "pool.enable_external_auth" : "pool.disable_external_auth";
+        var f = new Fixture(!join);
+        f.Add("permission", new Role { uuid = "permission-uuid", name_label = method, is_internal = true });
+        using var server = new RpcServer(f)
+        {
+            FailureMethod = method, FailureCode = Failure.RBAC_PERMISSION_DENIED,
+            FailureArguments = ["provider-password", "provider-password"]
+        };
+        f.Connect(server.Session);
+        AsyncAction action = join ? new EnableAdAction(f.Connection, "example.org", "user", "provider-password", true)
+            : new DisableAdAction(f.Connection, new());
+        var error = Assert.Throws<DirectoryActionFailure>(() => action.RunSync(server.Session));
+        Assert.Equal(Failure.RBAC_PERMISSION_DENIED_FRIENDLY, error.ErrorDescription[0]);
+        Assert.Contains(Failure.RBAC_PERMISSION_DENIED, error.Message);
+        Assert.DoesNotContain("provider-password", error.ToString() + JsonConvert.SerializeObject(error.ErrorDescription));
+        Assert.Null(error.InnerException);
+    }
+
+    [Theory]
+    [InlineData("pool.disable_external_auth", true)]
+    [InlineData("pool.enable_external_auth", true)]
+    [InlineData("pool.disable_external_auth", false)]
+    public void SharedDirectoryActionsPreserveClientCancellation(string method, bool join)
+    {
+        var f = new Fixture(!join); using var server = new RpcServer(f); f.Connect(server.Session);
+        server.Session.JsonRpcClient.RequestEvent += name => { if (name == method) throw new CancelledException(); };
+        AsyncAction action = join ? new EnableAdAction(f.Connection, "example.org", "user", "password", true)
+            : new DisableAdAction(f.Connection, new());
+        Assert.Throws<CancelledException>(() => action.RunSync(server.Session));
+        Assert.True(action.IsCancelled);
+        Assert.DoesNotContain(server.Requests, request => Method(request) == method);
     }
 
     [Fact]
@@ -258,8 +423,53 @@ public sealed class AdManagementTests : IDisposable
         var f = new Fixture(false); using var server = new RpcServer(f) { FailureMethod = "pool.disable_external_auth" }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.Join);
         var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
-        Assert.Throws<InvalidOperationException>(() => new AdAction(f.Connection, snapshot, request, review, new("user", "secret")).RunSync(server.Session));
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("directory-user", "secret")).RunSync(server.Session));
+        Assert.True(error.MutationAttempted);
+        Assert.Contains("preparatory domain leave", error.Message);
+        Assert.Contains(AdManagement.RecoveryNotice, error.Message);
         Assert.Equal("pool.disable_external_auth", Method(Assert.Single(server.Requests, IsMutation)));
+    }
+
+    [Fact]
+    public void SharedPreparatoryLeavePreservesItsSafeDiagnostic()
+    {
+        var f = new Fixture(false);
+        using var server = new RpcServer(f) { FailureMethod = "pool.disable_external_auth", Echo = "provider-credential-echo" };
+        f.Connect(server.Session);
+        var action = new EnableAdAction(f.Connection, "example.org", "user", server.Echo, requireCleanDisable: true);
+        var error = Assert.ThrowsAny<InvalidOperationException>(() => action.RunSync(server.Session));
+        Assert.Contains("preparatory domain leave", error.Message);
+        Assert.DoesNotContain("Check domain credentials", error.Message);
+        Assert.DoesNotContain(server.Echo, error.ToString());
+        Assert.Null(error.InnerException);
+        Assert.Equal("pool.disable_external_auth", Method(Assert.Single(server.Requests, IsMutation)));
+    }
+
+    [Fact]
+    public void LegacyJoinStillContinuesAfterBestEffortPreparatoryLeaveFailure()
+    {
+        var f = new Fixture(false); using var server = new RpcServer(f) { FailureMethod = "pool.disable_external_auth" }; f.Connect(server.Session);
+        var action = new EnableAdAction(f.Connection, "example.org", "user", "password");
+        action.RunSync(server.Session);
+        Assert.True(action.Succeeded);
+        Assert.Equal(new[] { "pool.disable_external_auth", "pool.enable_external_auth" }, server.Requests.Where(IsMutation).Select(Method));
+    }
+
+    [Fact]
+    public void WrongJoinCredentialsKeepTheirSharedExceptionTypeWithoutProviderDetails()
+    {
+        var f = new Fixture(false); using var server = new RpcServer(f)
+        {
+            FailureMethod = "pool.enable_external_auth", FailureCode = Failure.POOL_AUTH_ENABLE_FAILED_WRONG_CREDENTIALS,
+            Echo = "provider-echoed-user-and-password"
+        };
+        f.Connect(server.Session);
+        var action = new EnableAdAction(f.Connection, "example.org", "user", server.Echo, requireCleanDisable: true);
+        var error = Assert.Throws<EnableAdAction.CredentialsFailure>(() => action.RunSync(server.Session));
+        Assert.Equal(Failure.POOL_AUTH_ENABLE_FAILED_WRONG_CREDENTIALS, error.ErrorDescription[0]);
+        Assert.DoesNotContain(server.Echo, error.ToString());
+        Assert.Null(error.InnerException);
+        Assert.Equal(new[] { "pool.disable_external_auth", "pool.enable_external_auth" }, server.Requests.Where(IsMutation).Select(Method));
     }
 
     [Fact]
@@ -268,7 +478,10 @@ public sealed class AdManagementTests : IDisposable
         var f = new Fixture(); using var server = new RpcServer(f) { ChangeDomainOnCreate = true }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.AddSubject);
         var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
-        Assert.Throws<InvalidOperationException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        Assert.True(error.MutationAttempted);
+        Assert.Contains("pool, domain or role definitions changed", error.Message);
+        Assert.Contains(AdManagement.RecoveryNotice, error.Message);
         Assert.Equal("subject.create", Method(Assert.Single(server.Requests, IsMutation)));
     }
 
@@ -293,7 +506,7 @@ public sealed class AdManagementTests : IDisposable
         using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
         var request = new AdRequest(AdOperation.SetRoles, "", "", "subject", ["admin"], condition != "no-recovery");
-        await Assert.ThrowsAsync<InvalidOperationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, request));
+        await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, request));
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
 
@@ -310,13 +523,50 @@ public sealed class AdManagementTests : IDisposable
         Assert.Empty((JObject)mutation["params"]![2]!);
     }
 
+    [Theory]
+    [InlineData(AdOperation.AddSubject)]
+    [InlineData(AdOperation.SetRoles)]
+    [InlineData(AdOperation.RemoveSubject)]
+    public async Task GroupChangesRevokeMatchingSessionsAfterConfirmedWrites(AdOperation operation)
+    {
+        var f = new Fixture(); f.Subject.other_config["subject-is-group"] = "true";
+        using var server = new RpcServer(f) { CreatedIsGroup = true, ActiveSessionIdentifiers = ["affected-user", "unrelated-user"] };
+        var target = operation == AdOperation.AddSubject ? server.ResolvedSid : f.Subject.subject_identifier;
+        server.GroupMemberships["affected-user"] = [target];
+        f.Connect(server.Session);
+        var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(operation);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var action = new AdAction(f.Connection, snapshot, request, review, new("", "")); action.RunSync(server.Session);
+        Assert.True(action.Succeeded);
+        var logouts = server.Requests.Where(request => Method(request) == "session.logout_subject_identifier")
+            .Select(request => request["params"]![1]!.Value<string>()).ToArray();
+        Assert.Equal(new[] { target, "affected-user" }, logouts);
+        Assert.Equal("session.logout_subject_identifier", Method(server.Requests.Last(IsMutation)));
+    }
+
+    [Theory]
+    [InlineData(AdOperation.SetRoles, "session.get_all_subject_identifiers")]
+    [InlineData(AdOperation.RemoveSubject, "auth.get_group_membership")]
+    public async Task GroupSessionInspectionFailureAfterWritesReportsPartialOutcome(AdOperation operation, string failureMethod)
+    {
+        var f = new Fixture(); f.Subject.other_config["subject-is-group"] = "true";
+        using var server = new RpcServer(f) { ActiveSessionIdentifiers = ["affected-user"] }; f.Connect(server.Session);
+        var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(operation);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request); server.FailureMethod = failureMethod;
+        var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
+        Assert.True(error.MutationAttempted);
+        Assert.Contains(AdManagement.RecoveryNotice, error.Message);
+        Assert.Contains(server.Requests, request => Method(request) == (operation == AdOperation.RemoveSubject ? "subject.destroy" : "subject.remove_from_roles"));
+        Assert.Equal(failureMethod, Method(server.Requests.Last()));
+    }
+
     private static string Method(JObject request) => request["method"]!.Value<string>()!;
     private static bool IsMutation(JObject request) => Method(request) is "pool.enable_external_auth" or "pool.disable_external_auth"
         or "subject.create" or "subject.destroy" or "subject.add_to_roles" or "subject.remove_from_roles" or "session.logout_subject_identifier";
 
     private sealed class Fixture
     {
-        public XenConnection Connection { get; } = new();
+        public XenConnection Connection { get; } = new() { Hostname = "127.0.0.1" };
         public Pool Pool { get; }
         public Host Host { get; }
         public Host_metrics Metrics { get; }
@@ -335,7 +585,8 @@ public sealed class AdManagementTests : IDisposable
             ReadOnly = Add("read", new Role { uuid = "read-uuid", name_label = "read-only", subroles = [new("permission")] });
             Subject = Add("subject", new Subject { uuid = "subject-uuid", subject_identifier = "target-sid", other_config = new() { ["subject-name"] = "DOMAIN\\target" }, roles = [new("read")] });
         }
-        public AdRequest Request(AdOperation operation) => new(operation, "example.org", "DOMAIN\\new", "subject", ["admin"], true);
+        public AdRequest Request(AdOperation operation, string? credentialUsername = null) => new(operation, "example.org", "DOMAIN\\new", "subject", ["admin"], true,
+            credentialUsername ?? (operation == AdOperation.Join ? "directory-user" : ""));
         public T Add<T>(string reference, T value) where T : XenObject<T>
         { Connection.Cache.UpdateFrom(Connection, [new ObjectChange(typeof(T), reference, value)]); return Connection.Resolve(new XenRef<T>(reference)); }
         public void Connect(Session session)
@@ -357,10 +608,15 @@ public sealed class AdManagementTests : IDisposable
         public bool LocalRoot { get; set; } = true;
         public bool ReplaceServerSubject { get; set; }
         public bool ChangeDomainOnCreate { get; set; }
+        public bool CreatedIsGroup { get; set; }
+        public string[] ActiveSessionIdentifiers { get; set; } = [];
+        public Dictionary<string, string[]> GroupMemberships { get; } = new();
         public Action<string>? BeforeReply { get; set; }
         public string? DeniedPermission { get; set; }
         public string? SelfAuthority { get; set; }
         public string? FailureMethod { get; set; }
+        public string FailureCode { get; set; } = "OPERATION_NOT_ALLOWED";
+        public string[]? FailureArguments { get; set; }
         public string Echo { get; set; } = "loopback regression";
         public string ResolvedSid { get; set; } = "new-sid";
         public IReadOnlyList<JObject> Requests { get { lock (_requests) return _requests.ToArray(); } }
@@ -387,8 +643,8 @@ public sealed class AdManagementTests : IDisposable
                     while (offset < length) { var read = await reader.ReadAsync(body.AsMemory(offset), _stop.Token); if (read == 0) throw new EndOfStreamException(); offset += read; }
                     var request = JObject.Parse(new string(body)); lock (_requests) _requests.Add(request);
                     var method = Method(request); var response = new JObject { ["jsonrpc"] = "2.0", ["id"] = request["id"]!.DeepClone() };
-                    if (method == FailureMethod) response["error"] = new JObject { ["code"] = 1, ["message"] = "OPERATION_NOT_ALLOWED", ["data"] = new JArray(Echo) };
-                    else response["result"] = Reply(method);
+                    if (method == FailureMethod) response["error"] = new JObject { ["code"] = 1, ["message"] = FailureCode, ["data"] = new JArray(FailureArguments ?? [Echo]) };
+                    else response["result"] = Reply(method, request);
                     var bytes = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
                     await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n"), _stop.Token);
                     await stream.WriteAsync(bytes, _stop.Token);
@@ -396,7 +652,7 @@ public sealed class AdManagementTests : IDisposable
             }
             catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
         }
-        private JToken? Reply(string method)
+        private JToken? Reply(string method, JObject request)
         {
             BeforeReply?.Invoke(method);
             switch (method)
@@ -405,7 +661,9 @@ public sealed class AdManagementTests : IDisposable
                 case "session.get_rbac_permissions": return new JArray(Enum.GetValues<AdOperation>().SelectMany(AdManagement.Methods).Select(m => m.Method).Distinct().Where(m => m != DeniedPermission));
                 case "session.get_subject": return new JValue(SelfAuthority == "subject" ? "subject" : "current-subject");
                 case "session.get_auth_user_sid": return new JValue(SelfAuthority == "user" ? "target-sid" : "current-sid");
-                case "auth.get_group_membership": return new JArray(SelfAuthority == "group" ? new[] { "target-sid" } : []);
+                case "session.get_all_subject_identifiers": return new JArray(ActiveSessionIdentifiers);
+                case "auth.get_group_membership": return new JArray(GroupMemberships.GetValueOrDefault(request["params"]![1]!.Value<string>()!)
+                    ?? (SelfAuthority == "group" ? new[] { "target-sid" } : []));
                 case "pool.get_record": return _fixture.Pool.ToJObject();
                 case "host.get_all_records": return Map(_fixture.Connection.Cache.Hosts);
                 case "host_metrics.get_all_records": return Map(new[] { _fixture.Metrics });
@@ -417,7 +675,8 @@ public sealed class AdManagementTests : IDisposable
                 case "auth.get_subject_identifier": return new JValue(ResolvedSid);
                 case "auth.get_subject_information_from_identifier": return new JObject { ["subject-name"] = "DOMAIN\\new", ["subject-is-group"] = "true" };
                 case "subject.create":
-                    _fixture.Created = new Subject { opaque_ref = "created", uuid = "created-uuid", subject_identifier = ResolvedSid, roles = [new("read")] };
+                    _fixture.Created = new Subject { opaque_ref = "created", uuid = "created-uuid", subject_identifier = ResolvedSid, roles = [new("read")],
+                        other_config = new() { ["subject-is-group"] = CreatedIsGroup ? "true" : "false" } };
                     if (ChangeDomainOnCreate) _fixture.Host.external_auth_service_name = "replacement.org";
                     return new JValue("created");
                 case "subject.add_to_roles": case "subject.remove_from_roles": case "subject.destroy": case "session.logout_subject_identifier":
