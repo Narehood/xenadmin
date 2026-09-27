@@ -19,7 +19,7 @@ compatibility.
 | Self-contained package | win-x64 ZIP | linux-x64 tar.gz |
 | Package execution | Four malformed updater helper modes reject with exit 1 | Same, using the native Linux executable |
 | Runtime boundary | Bundled .NET 10; startup hooks remain disabled even with a hostile hook environment | Same |
-| Desktop startup | Manual acceptance below | Real Avalonia main window becomes visible under Xvfb/Openbox, completes post-window startup, and survives three seconds |
+| Desktop startup | Manual acceptance below; actual AD/DR editor bindings and layouts exercised offscreen with synthetic data | Real Avalonia main window becomes visible under Xvfb/Openbox, completes post-window startup, and survives three seconds |
 
 `scripts/Publish-Shell.ps1` seeds RID-specific lockfiles under each project's
 `obj` directory and leaves checked-in portable locks unchanged. CI checks that
@@ -53,6 +53,22 @@ when a check fails. This is not a substitute for a release soak.
 
 Local examples, after a locked source restore and the test suites:
 
+For a complete local automated pass, run
+`./scripts/Invoke-PlatformAcceptance.ps1`. An SDK outside `PATH` can be supplied
+with `-DotnetPath /absolute/path/to/dotnet`; Python can be supplied with
+`-PythonPath`. Windows requires the documented RDP tools, or explicit
+`-SkipRdpAxImp` with existing trusted interop DLLs. The latter records that
+limitation and does not establish that the interop-generation tools work.
+
+The runner records source commit/working-tree state, each command's exit status,
+TRX results, actual editor checks, package SHA-256 and runtime smoke evidence in
+a fresh `artifacts/platform-acceptance` directory. It stops on failure and writes
+`acceptance.json` even when a command fails. Linux requires `pwsh` and the native
+desktop dependencies below. Only the native platform is exercised; the manifest
+always leaves physical desktop, live-pool and real installation checks pending.
+The UI probes use synthetic inventory and isolated settings without saved
+profiles or a pool connection.
+
 ```powershell
 ./scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath artifacts/shell.zip
 python scripts/verify-shell-package.py --archive artifacts/shell.zip --rid win-x64 --evidence-directory artifacts/smoke-windows
@@ -70,8 +86,8 @@ omit `--window-manager` when that session already has a window manager.
 
 ## Desktop and updater acceptance: pending user validation
 
-No disposable pool, VM, or test machine is available for this implementation
-pass. The user will perform the following checks later. Keep every row pending
+The user reconfirmed on 2026-09-27 that no disposable pool, VM, or test machine
+is available for this implementation pass. The following checks remain deferred. Keep every row pending
 until its evidence is recorded; ordinary unit tests do not prove UAC behavior,
 token ownership, graphics-driver compatibility, or a successful server operation.
 
@@ -112,6 +128,9 @@ evidence than a dismissed UI dialog.
 | Performance/history | On a representative large inventory, capture tree refresh/selection responsiveness, allocations/GC, console activity, and long-range RRD polling. Record workload and timings before proposing a performance refactor. |
 | Graph editor | Add/remove/reorder graphs and sources on a host and running VM; rename, save, reopen in both clients, and confirm Cancel leaves the saved layout unchanged. Retain an unavailable source, select empty and populated week/year ranges, and compare timestamps with the server, including DST transitions. Confirm denied/stale saves retain the draft. |
 | Pool HA | Review candidate heartbeat storage, protected VM eligibility, and server-calculated failover capacity. Enable HA, change restart policies/tolerance, reopen in both clients, and disable normally. Verify permitted/restricted roles, stale pool/host/SR/VM rejection, and invalidated review after draft edits. In a disposable pool only, exercise a planned host failure and verify actual VM restart and heartbeat recovery. Record partial or unconfirmed action outcomes and reconcile server state before retry; loss of the client response is not proof HA was disabled. |
+| AD and RBAC | On a disposable directory and pool, retain a tested local root login, then join/leave the domain and resolve/add/remove users and groups. Change roles and verify both permitted and denied sessions, including nested group membership. Reject stale reviews and attempts to remove the current session's authority. Interrupt a domain change and reconcile authentication on every host before another attempt; confirm passwords never enter logs or persisted settings. |
+| Disaster recovery | Use expendable replicated storage and a separate destination pool. Discover and inspect metadata, review existing SR UUID matches and network assignments, then recover halted VMs without overwriting existing identities. Verify per-VM partial results and a halted metadata rehearsal on isolated networks; cleanup must remove only owned, unchanged rehearsal VM records and preserve disks. A metadata rehearsal does not establish successful guest boot, application recovery, or storage isolation for a running rehearsal. |
+| Reported reboot hang | Record client version, guest/server versions and trigger. Compare SSH or another console during the symptom to distinguish guest failure from the viewer; retain sanitized client/server task and console evidence. Exercise reconnect through fragmented transport and ordinary guest reboot. A protocol regression test alone does not resolve the reported incident. |
 
 ### Host IP editor scope
 

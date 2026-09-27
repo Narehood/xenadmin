@@ -54,6 +54,9 @@ jobs:
       - name: Test Avalonia shell (Debug)
         run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Debug --no-build --no-restore --logger "trx;LogFileName=shell-debug.trx"
 
+      - name: Exercise directory access and recovery editor windows
+        run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --access-recovery --evidence-directory artifacts/ui-access-recovery
+
       - name: Publish and package shell (win-x64)
         shell: pwsh
         run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath artifacts/XcpNgCenter.Shell-win-x64.zip -BuildRevision '${{ github.run_number }}'
@@ -93,6 +96,7 @@ jobs:
           path: |
             **/TestResults/*.trx
             artifacts/smoke-windows
+            artifacts/ui-access-recovery
           if-no-files-found: ignore
 
   linux-build-and-test:

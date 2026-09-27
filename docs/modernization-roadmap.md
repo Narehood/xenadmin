@@ -16,6 +16,9 @@ desktop and live-pool acceptance work.
 | Performance | Reproducible large-pool/console probes and measured CopyRect improvement | [Recorded before/after evidence](performance-baseline.md), overlap/clipping pixel regressions, unchanged presentation behavior |
 | Graph editor | Add/remove/reorder graphs and sources, compatible saved layouts, retained missing sources, isolated Cancel, honest ranges and UTC history | [Graph editor](graph-editor.md), worker/RPC and draft regressions, long-range/DST fixtures; live data and physical desktop acceptance remain pending |
 | Pool HA | Enable/disable, heartbeat selection, failover-capacity and VM restart-policy review through shared HA actions | [HA management](ha-management.md), server prerequisite checks, reviewed identity/configuration guards and partial-result handling; live failover and recovery remain pending |
+| AD and RBAC | Domain join/leave with local root recovery; directory user/group and role management through shared actions | [Directory access](ad-rbac-management.md), fresh permission and identity checks, credential/log regressions, restricted-user and partial-operation coverage; live directory/pool acceptance remains pending |
+| Disaster recovery | Inspect attached recovery metadata, match replicated SR identities, map networks and restore eligible standalone VMs halted; temporary metadata rehearsal and guarded cleanup | [Disaster recovery](disaster-recovery.md), worker/RPC and editor coverage; actual replicated storage and guest recovery remain pending |
+| Console investigation | Correct fragmented RFB padding reads with real-client protocol regressions | [Reboot investigation](reboot-hang-investigation.md); the originally reported hang still needs client/guest evidence |
 | SDK review | Assess the retained XenAPI update separately | Preserve transport, TLS, redaction, action, and import security fixes before any SDK integration |
 | Real installation/desktop | Repeatable [platform acceptance checklist](platform-acceptance.md) | Manual Windows UAC/rollback/restart, Linux desktop/updater, and live-pool checks |
 
@@ -45,7 +48,7 @@ documents NIC model consistency, driver-dependent restart requirements, and VM
 operation limits. Hardware, guest drivers, and actual behavior still require
 acceptance testing on the target deployment.
 
-## Subsequent feature parity
+## Remaining parity and acceptance
 
 There is no deployment usage telemetry in the repository, so the order below is
 a provisional engineering priority, not a claim about which workflows users use
@@ -53,14 +56,20 @@ most. Reorder when a concrete deployment requirement is supplied.
 
 | Order | Gap and existing foundation | Required outcome before shipping |
 | --- | --- | --- |
-| 1 | AD and RBAC: shared enable/disable and subject/role actions exist | Domain join/leave plus subject/role management; redact credentials, preserve a tested administrative recovery path, validate restricted-user behavior and partial failures |
-| 2 | DR: shared metadata/recovery actions exist without a shell workflow | Discover and inspect recovery metadata before any mutation; map SRs/networks, distinguish recovery/rehearsal, report partial completion, and verify recovery and cleanup using disposable storage/VMs |
+| 1 | Deployment acceptance for the implemented workflows | Complete the physical desktop, updater/UAC, networking, HA, AD/RBAC and DR checks using disposable environments; diagnose the reported reboot incident |
+| 2 | Extended DR scope beyond halted standalone VM recovery | Design appliance/snapshot/hardware-device recovery and a running guest rehearsal with proven storage isolation; retain the existing WinForms/server workflows in the meantime |
+| 3 | WinForms designer metadata maintenance | Audit the legacy designer diagnostics separately while preserving runtime resources and the supported client |
 
 Each feature should adapt the corresponding `XenModel/Actions` implementation.
 Keep the user-visible plan separate from action execution and resolve current
 objects again at execution time. Host/network identity and current permissions
 must still match after a dialog or confirmation. Validation must include actual
 failure recovery, not just successful wizard completion.
+
+The [September 27 execution plan](modernization-execution-plan.md) records the
+parallel implementation and integrated validation of access and recovery. A
+halted metadata rehearsal checks only metadata restoration and cleanup; it does
+not establish disk replication correctness, guest boot, or application failover.
 
 RDP, IE-backed plugin tabs, and Windows-specific external tools retain their
 WinForms path. Their platform strategy is a separate design decision. Broad
