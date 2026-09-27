@@ -28,6 +28,10 @@ disposable source/recovery environment.
    power states, vTPM/vGPU/USB/passthrough devices are shown with their reason and
    require an appropriate existing recovery procedure. Suspended recovery can
    preserve saved state, so it is excluded from this editor's halted workflow.
+   VMs with `other_config[auto_poweron]=true` are also excluded, even if pool
+   autostart is currently disabled. Disable that setting in the source and refresh
+   recovery metadata before using this workflow. An unexpected enabled flag after
+   import also stops the operation before NIC mapping or cleanup authorization.
 
 ## Map and review
 
@@ -52,6 +56,14 @@ opens the metadata again and verifies the reviewed source, request and target
 before the first recovery. Storage, disk identities, network configuration and
 permissions are checked again before each later VM.
 
+The confirmation lists each VM's source and destination SR/network names and
+UUIDs, plus whether its network has physical interfaces or existing VM NICs.
+Those details come from the reviewed destination inventory. Missing targets
+block confirmation. Storage checks retain SR type, sharing, backend and attachment
+configuration; network checks retain bridge, MTU, locking, configuration and
+physical/VM interface membership. Map and set ordering and unrelated SR capacity
+accounting do not invalidate an otherwise unchanged review.
+
 The upstream [VM recovery API](https://xapi-project.github.io/xen-api/classes/vm.html)
 does not accept a general SR mapping. Its
 [metadata importer](https://github.com/xapi-project/xen-api/blob/master/ocaml/xapi/import.ml)
@@ -60,6 +72,22 @@ Consequently, after import this client independently checks every recovered data
 disk against its reviewed target VDI before mapping NICs or authorizing cleanup.
 New network records observed during the operation are reported with their names,
 UUIDs and references for separate inspection; they are preserved by VM cleanup.
+
+The importer can initially place NICs on an existing network matched by name or
+bridge. It can also normalize the VM's device-model setting. The client accepts
+only XAPI's documented `qemu-trad` to `qemu-upstream-compat` upgrade, or addition
+of `qemu-upstream-compat` for an HVM VM without that setting; other configuration
+checks remain in force. See the upstream
+[device-model helper](https://github.com/xapi-project/xen-api/blob/master/ocaml/xapi/xapi_vm_helpers.ml)
+and [default values](https://github.com/xapi-project/xen-api/blob/master/ocaml/xapi/vm_platform.ml).
+These accepted imports proceed through disk validation and the reviewed NIC
+mapping before they receive rehearsal cleanup authorization.
+
+An identity, configuration or disk check failure does **not** authorize further
+NIC changes or automatic deletion. Its report gives the observed VM UUID,
+reference and power state and warns that importer-chosen NIC networks may still
+be live. Inspect the VM and isolate its NICs manually before any start. A halted
+record alone does not establish that the client owns a safe rehearsal VM.
 
 ## Recovery and metadata rehearsal
 
@@ -79,6 +107,9 @@ acceptance task.
 The shared `DrRecoverAction` now accepts an optional `force` flag. The shell uses
 `false`; WinForms retains its previous default of `true`. A missing metadata
 session now fails explicitly rather than reporting success without recovery.
+The shell suppresses the nested import action's History entry; the outer action
+reports import, disk validation and NIC mapping as one result. Standalone
+WinForms recovery actions retain their History entries.
 
 ## Results and cleanup
 
@@ -102,7 +133,8 @@ its own confirmed deletions; newly added attachments or other configuration
 changes stop cleanup before the next deletion.
 
 Closing the window does not undo a rehearsal. The history report includes VM
-UUIDs; inspect those objects to perform manual cleanup if the window is closed
+UUIDs and references, including every remaining cleanup receipt after a partial
+or rejected cleanup; inspect those objects to perform manual cleanup if the window is closed
 or the application exits. In a partial result:
 
 - Confirm whether each reported UUID exists and whether a server task is still
@@ -136,7 +168,10 @@ mapping, fresh permissions, reviewed source/target changes, shared recovery task
 completion, disk binding checks, halted NIC mapping, partial or uncertain
 outcomes, imported-network reporting, receipt-gated cleanup, stale or active VM
 rejection, concurrent attachment/configuration changes during cleanup, draft
-invalidation, confirmation and busy-state behavior. The actual
+invalidation, explicit mapping confirmation and busy-state behavior. Import
+normalization and map ordering, multi-VM recovery with existing destination NICs
+and distinct disks, autostart rejection, nested History suppression and complete
+manual cleanup reports also have regression coverage. The actual
 Avalonia window is exercised by
 `tools/AdvancedNetworking.UiProbe --access-recovery` at default and minimum sizes.
 These checks do not substitute for a disposable live recovery exercise.

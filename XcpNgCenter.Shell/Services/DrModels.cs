@@ -3,7 +3,7 @@ namespace XcpNgCenter.Shell.Services;
 public enum DrMode { Recovery, MetadataRehearsal }
 public sealed record DrMetadataOption(string Reference, string Uuid, string Name, string Storage);
 public sealed record DrStorageOption(string Reference, string Uuid, string Name);
-public sealed record DrNetworkOption(string Reference, string Uuid, string Name, bool IsIsolated);
+public sealed record DrNetworkOption(string Reference, string Uuid, string Name, bool IsIsolated, bool HasPhysicalInterfaces = false);
 public sealed record DrSourceStorage(string Reference, string Uuid, string Name);
 public sealed record DrSourceNetwork(string Reference, string Uuid, string Name);
 public sealed record DrVmOption(string Reference, string Uuid, string Name, string? UnavailableReason,
@@ -49,7 +49,10 @@ public sealed class DrRequest
     internal string Fingerprint => DrManagement.Hash(new { Mode, VmReferences, Storage, Networks });
 }
 
-public sealed record DrReview(string RequestFingerprint, string SourceFingerprint, string TargetFingerprint, string Summary);
+public sealed record DrReview(string RequestFingerprint, string SourceFingerprint, string TargetFingerprint, string Summary)
+{
+    public string? MappingSummary { get; init; }
+}
 public sealed record DrVmResult(string Name, string Uuid, string Status, bool Recovered);
 public sealed record DrCleanupItem(string Reference, string Uuid, string Name, string Fingerprint);
 
@@ -63,7 +66,9 @@ public sealed class DrOutcome
     public string? Error { get; }
     public bool Succeeded => Error == null;
     public string Report => string.Join(Environment.NewLine, Results.Select(vm => $"{vm.Name} [{vm.Uuid}]: {vm.Status}"))
-        + (Error == null ? "" : $"{Environment.NewLine}{Error}");
+        + (Error == null ? "" : $"{Environment.NewLine}{Error}")
+        + (Cleanup.Count == 0 ? "" : Environment.NewLine + "Rehearsal records awaiting cleanup (inspect their current state before removal):"
+            + Environment.NewLine + string.Join(Environment.NewLine, Cleanup.Select(vm => $"{vm.Name} [{vm.Uuid}] ({vm.Reference})")));
 }
 
 public interface IDrWorkflow

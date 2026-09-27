@@ -44,10 +44,10 @@ namespace XenAdmin.Actions.DR
         private readonly IXenObject xenObject;
         private readonly bool force;
 
-        public DrRecoverAction(IXenConnection connection, IXenObject xenObject, bool force = true)
+        public DrRecoverAction(IXenConnection connection, IXenObject xenObject, bool force = true, bool suppressHistory = false)
             : base(connection, xenObject is VM
                                    ? string.Format(Messages.ACTION_DR_RECOVER_VM_TITLE, xenObject.Name())
-                                   : string.Format(Messages.ACTION_DR_RECOVER_APPLIANCE_TITLE, xenObject.Name()))
+                                   : string.Format(Messages.ACTION_DR_RECOVER_APPLIANCE_TITLE, xenObject.Name()), suppressHistory)
         {
             this.xenObject = xenObject;
             this.force = force;

@@ -4,6 +4,24 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Disaster recovery review corrections (2026-09-27)
+
+Cursor findings now have regression coverage for legitimate directional XAPI
+device-model normalization, dictionary/set ordering, stable replica/network
+approval across multiple recovered VMs, and refusal of automatic-power-on VMs
+before import. Confirmation lists fresh per-VM storage and network names/UUIDs
+and network isolation; the report identifies observed imports and all rehearsal
+records remaining after cleanup failure. The shell suppresses the inner shared
+recovery History entry while WinForms retains its existing default behavior.
+
+All 94 focused DR tests pass. Before correction, the first 14 review regressions
+and the next 11 cases failed; three wire-order cases also reproduced the old hash
+failure. The prior cleanup concurrency correction is `a6e66d8c5`. Failed identity,
+configuration or disk validation still forbids automatic NIC changes or cleanup:
+the report directs manual inspection/isolation of importer-chosen networks.
+No live storage/VM recovery was attempted; separate RPC validation and mutation
+still cannot exclude concurrent administrative changes.
+
 ### Halted disaster recovery and metadata rehearsal (2026-09-27)
 
 The shell inspects recovery metadata on attached replicas, reviews exact SR/VDI

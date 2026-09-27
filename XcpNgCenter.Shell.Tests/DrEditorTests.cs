@@ -65,6 +65,42 @@ public sealed class DrEditorTests
         Assert.True(vm.CanEdit); Assert.True(vm.CanRecover); Assert.Equal(0, f.Recoveries);
     }
 
+    [Theory]
+    [InlineData(true, "Isolated rehearsal", "isolated-uuid", "isolated")]
+    [InlineData(false, "Production", "production-uuid", "not isolated")]
+    public async Task ConfirmationRestatesPerVmStorageAndNetworkMappings(bool rehearsal, string networkName, string networkUuid, string isolation)
+    {
+        ShellConfirmRequest? confirmation = null;
+        var f = new FakeWorkflow(); var vm = await Ready(f, request => { confirmation = request; return Task.FromResult(false); });
+        vm.IsRehearsal = rehearsal;
+        vm.Networks[0].SelectedTarget = vm.Networks[0].Targets.Single(target => target.Uuid == networkUuid);
+        await vm.ReviewCommand.ExecuteAsync(null); await vm.RecoverCommand.ExecuteAsync(null);
+
+        Assert.NotNull(confirmation);
+        Assert.Contains("VM [vm-uuid]", confirmation.Message);
+        Assert.Contains("Original storage [sr-uuid]", confirmation.Message);
+        Assert.Contains("Replicated storage [sr-uuid]", confirmation.Message);
+        Assert.Contains("Original network [network-uuid]", confirmation.Message);
+        Assert.Contains($"{networkName} [{networkUuid}]", confirmation.Message);
+        Assert.Contains(isolation, confirmation.Message);
+        Assert.Contains("VMs remain halted", confirmation.Message);
+        Assert.Contains("does not copy disks", confirmation.Message);
+        Assert.Equal(0, f.Recoveries);
+    }
+
+    [Theory]
+    [InlineData("storage")]
+    [InlineData("network")]
+    public async Task MissingConfirmationTargetFailsClosedEvenIfWorkflowReturnsReview(string missing)
+    {
+        var confirmations = 0;
+        var f = new FakeWorkflow(); var vm = await Ready(f, _ => { confirmations++; return Task.FromResult(true); });
+        if (missing == "storage") vm.Storage[0].SelectedTarget = new("missing", "sr-uuid", "Missing storage");
+        else vm.Networks[0].SelectedTarget = new("missing", "missing-uuid", "Missing network", true);
+        await vm.ReviewCommand.ExecuteAsync(null); await vm.RecoverCommand.ExecuteAsync(null);
+        Assert.Equal(0, f.Recoveries); Assert.Equal(0, confirmations); Assert.False(vm.CanRecover); Assert.True(vm.HasError);
+    }
+
     [Fact]
     public async Task PendingRecoveryPreventsCloseAndEditingThenRetainsCleanupReceipt()
     {

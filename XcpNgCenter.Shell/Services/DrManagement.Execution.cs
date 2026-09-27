@@ -46,7 +46,7 @@ public sealed partial class DrManagement
                             throw new InvalidOperationException("Reviewed storage or network configuration changed before the next VM recovery.");
                         var expectedDisks = ResolveDiskBindings(source, sourceVm, request, fresh);
                         // No mutation is automatically retried; false prevents forcing an older backup over a newer VM.
-                        new DrRecoverAction(_connection, sourceVm, force: false) { MetadataSession = source.Session }.RunSync(session);
+                        new DrRecoverAction(_connection, sourceVm, force: false, suppressHistory: true) { MetadataSession = source.Session }.RunSync(session);
                         var recoveredRef = VM.get_by_uuid(session, sourceVm.uuid);
                         recovered = VM.get_record(session, recoveredRef); recovered.opaque_ref = recoveredRef.opaque_ref;
                         RequireHalted(recovered, sourceVm.uuid);
@@ -55,7 +55,7 @@ public sealed partial class DrManagement
                         var originalNics = sourceVm.VIFs.Select(vif => source.Vifs[vif.opaque_ref]).ToArray();
                         if (nics.Length != originalNics.Length || nics.Select(nic => nic.Record.device).Distinct().Count() != nics.Length)
                             throw new InvalidOperationException("The recovered NIC inventory does not match the reviewed VM.");
-                        if (ConfigurationFingerprint(recovered) != ConfigurationFingerprint(sourceVm))
+                        if (!MatchesImportedConfiguration(recovered, sourceVm))
                             throw new InvalidOperationException("The recovered VM configuration differs from the reviewed metadata. Inspect it manually.");
                         var expectedCleanup = ReadCleanupState(session, recovered.opaque_ref, sourceVm.uuid);
                         var originalDisks = sourceVm.VBDs.Select(vbd => source.Vbds[vbd.opaque_ref]).ToArray();
@@ -95,11 +95,13 @@ public sealed partial class DrManagement
                                 throw new InvalidOperationException("The recovered VM changed while NICs were mapped. Inspect it and perform cleanup manually.");
                             cleanup.Add(receipt);
                         }
-                        results.Add(new(sourceVm.Name(), sourceVm.uuid, "Recovered halted; reviewed NIC mappings applied.", true));
+                        results.Add(new(sourceVm.Name(), sourceVm.uuid, $"Recovered halted ({recovered.opaque_ref}); reviewed NIC mappings applied.", true));
                     }
                     catch (Exception failure)
                     {
-                        results.Add(new(sourceVm.Name(), sourceVm.uuid, "Stopped: " + failure.Message, recovered != null));
+                        results.Add(new(sourceVm.Name(), sourceVm.uuid, "Stopped: " + failure.Message
+                            + (recovered == null ? "" : $" Observed VM [{recovered.uuid}] ({recovered.opaque_ref}), power state: {recovered.power_state}."
+                                + " Its NICs may retain importer-chosen networks, including live networks. Do not start it until power state, automatic power-on and NIC isolation have been checked manually."), recovered != null));
                         throw;
                     }
                 }
@@ -183,6 +185,16 @@ public sealed partial class DrManagement
         if (vm.uuid != uuid || vm.power_state != vm_power_state.Halted || vm.current_operations.Count != 0 || vm.is_a_snapshot
             || vm.is_control_domain || vm.is_a_template || vm.snapshots.Count != 0)
             throw new InvalidOperationException("The recovered VM identity, halted state or snapshot inventory changed. Inspect it before proceeding.");
+        RequireManualPowerOn(vm);
+    }
+
+    private static bool HasAutomaticPowerOn(VM vm) => vm.other_config.TryGetValue("auto_poweron", out var value)
+        && string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+
+    private static void RequireManualPowerOn(VM vm)
+    {
+        if (HasAutomaticPowerOn(vm))
+            throw new InvalidOperationException("The VM has automatic power-on enabled. Clear it and verify the VM is halted before any host reboot or recovery attempt.");
     }
 
     private static DrCleanupItem CaptureCleanup(Session session, string reference, string uuid)
@@ -219,11 +231,29 @@ public sealed partial class DrManagement
         public string Fingerprint => Hash(new { Vm = Vm.ToJObject(), Vifs = Vifs.Select(vif => vif.ToJObject()), Vbds = Vbds.Select(vbd => vbd.ToJObject()) });
     }
 
-    private static string ConfigurationFingerprint(VM vm) => Hash(new
+    private static bool MatchesImportedConfiguration(VM recovered, VM source)
+    {
+        var actual = ConfigurationFingerprint(recovered);
+        if (actual == ConfigurationFingerprint(source)) return true;
+        // XAPI import's ensure_device_model_profile_present upgrades only this platform entry.
+        // Compare in the source -> import direction; never accept arbitrary or reverse platform edits.
+        var platform = new Dictionary<string, string>(source.platform, StringComparer.Ordinal);
+        var hasDeviceModel = platform.TryGetValue("device-model", out var deviceModel);
+        if (source.is_a_template || (deviceModel != "qemu-trad" && (hasDeviceModel || EffectiveDomainType(source) != domain_type.hvm)))
+            return false;
+        platform["device-model"] = "qemu-upstream-compat";
+        return actual == ConfigurationFingerprint(source, platform);
+    }
+
+    private static domain_type EffectiveDomainType(VM vm) => vm.domain_type == domain_type.unspecified
+        ? (string.IsNullOrEmpty(vm.HVM_boot_policy) ? domain_type.pv : domain_type.hvm) : vm.domain_type;
+
+    private static string ConfigurationFingerprint(VM vm, IReadOnlyDictionary<string, string>? platform = null) => Hash(new
     {
         vm.uuid, vm.name_label, vm.name_description, vm.memory_static_min, vm.memory_static_max,
         vm.memory_dynamic_min, vm.memory_dynamic_max, vm.VCPUs_max, vm.VCPUs_at_startup, vm.VCPUs_params,
-        vm.HVM_boot_policy, vm.HVM_boot_params, vm.PV_bootloader, vm.PV_kernel, vm.PV_ramdisk, vm.PV_args, vm.platform
+        vm.HVM_boot_policy, vm.HVM_boot_params, vm.PV_bootloader, vm.PV_kernel, vm.PV_ramdisk, vm.PV_args,
+        DomainType = EffectiveDomainType(vm), Platform = (platform ?? vm.platform).OrderBy(pair => pair.Key, StringComparer.Ordinal)
     });
 }
 
