@@ -27,6 +27,10 @@ jobs:
       - name: Restore locked packages
         run: dotnet restore XenAdmin.sln --locked-mode
 
+      - name: Verify acceptance failure and coverage recording (PowerShell 5.1)
+        shell: powershell
+        run: ./scripts/Test-PlatformAcceptanceChecks.ps1 -EvidenceDirectory artifacts/acceptance-fixtures
+
       - name: Build Release
         run: dotnet build XenAdmin.sln -c Release --no-restore -p:BuildRevision=${{ github.run_number }} --nologo
 
@@ -97,6 +101,7 @@ jobs:
             **/TestResults/*.trx
             artifacts/smoke-windows
             artifacts/ui-access-recovery
+            artifacts/acceptance-fixtures
           if-no-files-found: ignore
 
   linux-build-and-test:
@@ -113,6 +118,10 @@ jobs:
 
       - name: Install native desktop smoke dependencies
         run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool openbox x11-utils libice6 libsm6 libfontconfig1
+
+      - name: Verify acceptance failure and coverage recording (PowerShell)
+        shell: pwsh
+        run: ./scripts/Test-PlatformAcceptanceChecks.ps1 -EvidenceDirectory artifacts/acceptance-fixtures
 
       - name: Test shared libraries on Linux (.NET 10)
         run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net10.0 -p:RestoreLockedMode=true --logger "trx;LogFileName=xencenterlib-linux-net10.trx"
@@ -149,4 +158,5 @@ jobs:
           path: |
             **/TestResults/*.trx
             artifacts/smoke-linux
+            artifacts/acceptance-fixtures
           if-no-files-found: ignore

@@ -6,6 +6,18 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ### Pre-merge review follow-up (2026-09-27)
 
+Cursor corrections are committed in `5db40713c` (directory access) and
+`b115e790b` (recovery), integrated into the acceptance layer. Combined validation
+passes 923 shell tests and 73 shared tests on each framework. The actual AD/DR
+probe now passes 98 checks through production button bindings, verifies cleared
+credential textboxes, and asserts default/minimum client and layout dimensions.
+Probe-only finite maxima avoid the Windows small-desktop tracking limit without
+changing desktop resolution. A pre-fix probe reproduced the missing credential
+re-review guard. Seven isolated acceptance-runner failure/coverage fixtures pass
+on PowerShell 5.1 and now run in native Windows/Linux CI. The runner rejects
+missing/empty/failed UI logs and records Linux editor probes explicitly as skipped.
+The next full acceptance run and hosted sizing evidence remain to be recorded.
+
 PR #51 merged into `development` as `7134737d9` after Cursor approved it and
 CodeRabbit completed review. CodeRabbit's sole finding incorrectly treated the
 PR #50 baseline as padding-fix attribution; repository/GitHub evidence confirmed

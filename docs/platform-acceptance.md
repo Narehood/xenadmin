@@ -16,6 +16,7 @@ compatibility.
 | Full WinForms/RDP build | Release and Debug, Windows SDK interop tools | Not applicable |
 | Shared tests | net481 and net10.0 | net10.0 |
 | Shell tests | Release and Debug | Release and Debug |
+| Acceptance evidence failure fixtures | PowerShell 5.1 native exit/UI-log failures and skipped coverage | PowerShell native exit/UI-log failures and skipped coverage |
 | Self-contained package | win-x64 ZIP | linux-x64 tar.gz |
 | Package execution | Four malformed updater helper modes reject with exit 1 | Same, using the native Linux executable |
 | Runtime boundary | Bundled .NET 10; startup hooks remain disabled even with a hostile hook environment | Same |
@@ -68,6 +69,24 @@ desktop dependencies below. Only the native platform is exercised; the manifest
 always leaves physical desktop, live-pool and real installation checks pending.
 The UI probes use synthetic inventory and isolated settings without saved
 profiles or a pool connection.
+
+Each Windows editor probe must exit successfully and write a nonempty
+`results.log` without a `FAIL:` line before its check can pass. The final summary
+rechecks all four logs. Linux records four explicit `skipped` entries and a
+different result summary; its package desktop smoke does not claim editor-probe
+coverage. `scripts/Test-PlatformAcceptanceChecks.ps1` exercises native failures,
+missing/empty/failed UI evidence, final evidence validation, benign native stderr,
+and skipped coverage. CI runs these fixtures on both Windows and Linux.
+
+The AD/DR probe invokes the actual bound buttons through Avalonia's public
+automation peer and checks the credential textboxes after decline, failure, and
+close. Default dimensions are captured before showing each window; both client
+and layout bounds must match the requested default/minimum size. For these hidden
+probe windows only, infinite maxima become finite requested dimensions so
+[Avalonia's Win32 tracking limits](https://github.com/AvaloniaUI/Avalonia/blob/11.3.20/src/Windows/Avalonia.Win32/WindowImpl.AppWndProc.cs#L676-L703)
+allow the intended client size on a small CI desktop. Desktop resolution and
+production window limits are unchanged. Rendered 1x/1.5x/2x images test layout and
+rendering; physical display scaling remains a separate manual check.
 
 ```powershell
 ./scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath artifacts/shell.zip

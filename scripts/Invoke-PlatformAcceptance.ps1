@@ -46,40 +46,10 @@ $locks = @{}
 $locksCaptured = $false
 $locationPushed = $false
 
-function Invoke-Check([string] $Name, [string] $Executable, [string[]] $Arguments) {
-    $log = Join-Path $evidence ($Name + '.log')
-    $watch = [Diagnostics.Stopwatch]::StartNew()
-    Write-Host "Running $Name"
-    $nativeExit = -1
-    $passed = $false
-    $checkError = $null
-    try {
-        # Windows PowerShell treats redirected native stderr as ErrorRecords.
-        # The native exit status, checked immediately below, is authoritative.
-        $savedPreference = $ErrorActionPreference
-        try {
-            $ErrorActionPreference = 'Continue'
-            $PSNativeCommandUseErrorActionPreference = $false
-            # A launch failure must not reuse a previous command's zero exit code.
-            $global:LASTEXITCODE = $null
-            & $Executable @Arguments 2>&1 | Tee-Object -FilePath $log -ErrorAction Stop | Out-Host
-            if ($null -ne $global:LASTEXITCODE) { $nativeExit = $global:LASTEXITCODE }
-        }
-        finally { $ErrorActionPreference = $savedPreference }
-        if ($nativeExit -ne 0) { throw "$Name failed with exit code $nativeExit. See $log" }
-        $passed = $true
-    }
-    catch {
-        $checkError = $_.Exception.Message
-        throw
-    }
-    finally {
-        $checks.Add([ordered]@{
-            name = $Name; exitCode = $nativeExit; seconds = $watch.Elapsed.TotalSeconds
-            result = $(if ($passed) { 'pass' } else { 'fail' }); log = $log
-            executable = $Executable; arguments = $Arguments; error = $checkError
-        })
-    }
+. (Join-Path $PSScriptRoot 'PlatformAcceptanceChecks.ps1')
+if (-not $windowsPlatform) {
+    Add-SkippedUiProbeChecks
+    $manifest.pending += 'Windows-only networking, connection, beta and AD/DR editor probes were not run on this platform'
 }
 
 function Update-LockEvidence {
@@ -171,10 +141,7 @@ try {
             if ($mode -ne 'networking') { $probeArgs += "--$mode" }
             $destination = Join-Path $evidence "ui-$mode"
             $probeArgs += @('--evidence-directory', $destination)
-            Invoke-Check "ui-$mode" $dotnet $probeArgs
-            if (-not (Test-Path -LiteralPath (Join-Path $destination 'results.log') -PathType Leaf)) {
-                throw "UI probe did not write current $mode evidence."
-            }
+            Invoke-Check "ui-$mode" $dotnet $probeArgs (Join-Path $destination 'results.log')
         }
     }
     $rid = if ($windowsPlatform) { 'win-x64' } else { 'linux-x64' }
@@ -195,7 +162,7 @@ try {
         Invoke-Check 'package-smoke' $xvfb (@('-a', $python) + $smokeArgs + @('--desktop', '--window-manager'))
     }
     Update-LockEvidence
-    $manifest.result = 'automated checks passed; manual acceptance pending'
+    $manifest.result = Get-AcceptanceSuccessResult $windowsPlatform
 }
 catch {
     $manifest.result = 'failed'
