@@ -1,8 +1,20 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-26 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-09-27 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Fragmented console parsing (2026-09-27)
+
+PR #50 is merged in development as `123679abd`. The shell RFB padding reader now
+consumes complete fields across short stream reads. Eleven protocol regressions
+exercise the real client; six failed before correction and all pass afterward.
+The [reboot investigation](reboot-hang-investigation.md) records the Windows 11 /
+Debian 12 SSH-initiated reboot report and the remaining unknown console/build
+details. The original incident is not claimed fixed. No live reboot was run.
+Test Builds now covers PRs to temporary fix/modernization stack bases so each
+review layer receives the normal Windows/Linux checks; integration remains
+`development`. Full combined follow-up validation is recorded in the final layer.
 
 ### Beta release review follow-up (2026-09-26)
 
