@@ -4,6 +4,17 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Halted disaster recovery and metadata rehearsal (2026-09-27)
+
+The shell inspects recovery metadata on attached replicas, reviews exact SR/VDI
+and network assignments, restores eligible standalone VMs halted, and offers
+receipt-guarded metadata rehearsal cleanup. It never deletes disks or starts VMs.
+Unknown outcomes and newly observed imported network records require inspection.
+All 51 DR regressions pass, including real shared action/loopback RPC paths.
+See [disaster recovery](disaster-recovery.md) for supported scope, separate-request
+concurrency limits, and the pending live storage/guest acceptance. The user
+confirmed no disposable environments are available.
+
 ### Directory access and RBAC (2026-09-27)
 
 The shell now offers reviewed domain join/leave and subject/role management.
