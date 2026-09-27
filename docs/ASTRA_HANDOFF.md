@@ -10,7 +10,11 @@ The shell inspects recovery metadata on attached replicas, reviews exact SR/VDI
 and network assignments, restores eligible standalone VMs halted, and offers
 receipt-guarded metadata rehearsal cleanup. It never deletes disks or starts VMs.
 Unknown outcomes and newly observed imported network records require inspection.
-All 51 DR regressions pass, including real shared action/loopback RPC paths.
+Pre-merge review found that cleanup could ignore fresh configuration or attachment
+changes between its own deletions. Cleanup now compares the full VM and remaining
+attachment state before each deletion, updating expected state only after its
+own confirmed removal. Nine new concurrency cases failed before correction;
+all 60 DR regressions pass, including real shared action/loopback RPC paths.
 See [disaster recovery](disaster-recovery.md) for supported scope, separate-request
 concurrency limits, and the pending live storage/guest acceptance. The user
 confirmed no disposable environments are available.

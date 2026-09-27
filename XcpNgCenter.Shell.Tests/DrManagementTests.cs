@@ -265,6 +265,44 @@ public sealed class DrManagementTests : IDisposable
         Assert.DoesNotContain(f.Requests, rpc => Method(rpc) is "VDI.destroy" or "VM.destroy");
     }
 
+    [Theory]
+    [InlineData("VIF.destroy", "new-vif")]
+    [InlineData("VIF.destroy", "new-vbd")]
+    [InlineData("VIF.destroy", "rename")]
+    [InlineData("VIF.destroy", "config")]
+    [InlineData("VIF.destroy", "remaining-vbd")]
+    [InlineData("VBD.destroy", "new-vif")]
+    [InlineData("VBD.destroy", "new-vbd")]
+    [InlineData("VBD.destroy", "rename")]
+    [InlineData("VBD.destroy", "config")]
+    public async Task CleanupStopsWhenConfigurationChangesBetweenItsDeletions(string afterMethod, string change)
+    {
+        using var f = new Fixture(); var inspection = await f.Inspect(); var request = f.Request(inspection);
+        var outcome = f.Workflow.Recover(f.Session, inspection, request, await f.Workflow.ReviewAsync(inspection, request));
+        Assert.True(outcome.Succeeded, outcome.Error);
+        string? editedVm = null;
+        f.AfterAttachmentDestroy = (method, vmReference) =>
+        {
+            if (method != afterMethod || editedVm != null) return;
+            editedVm = vmReference;
+            f.EditDuringCleanup(vmReference, change);
+        };
+
+        var cleanup = f.Workflow.Cleanup(f.Session, outcome);
+
+        Assert.NotNull(editedVm);
+        Assert.False(cleanup.Succeeded);
+        Assert.Contains("changed during cleanup", cleanup.Error);
+        Assert.Equal(2, cleanup.Cleanup.Count);
+        Assert.True(f.Recovered.ContainsKey(editedVm!));
+        Assert.DoesNotContain(f.Requests, rpc => Method(rpc) is "VM.destroy" or "VDI.destroy");
+        var deletions = f.Requests.Where(rpc => Method(rpc) is "VIF.destroy" or "VBD.destroy").ToArray();
+        Assert.Equal(afterMethod == "VIF.destroy" ? 1 : 2, deletions.Length);
+        Assert.Equal(afterMethod, Method(deletions[^1]));
+        if (change == "new-vif") Assert.Contains(new XenRef<VIF>("operator-vif"), f.Recovered[editedVm!].VIFs);
+        if (change == "new-vbd") Assert.Contains(new XenRef<VBD>("operator-vbd"), f.Recovered[editedVm!].VBDs);
+    }
+
     private static string Method(JObject rpc) => rpc["method"]!.Value<string>()!;
     private static bool Mutation(string method) => method is "Async.VM.recover" or "VIF.move" or "VM.destroy" or "VIF.destroy" or "VBD.destroy";
 
@@ -303,6 +341,7 @@ public sealed class DrManagementTests : IDisposable
         public bool LostRecoverResponse { get; set; }
         public bool IncludeImportNetwork { get; set; } = true;
         public Action? AfterFirstMove { get; set; }
+        public Action<string, string>? AfterAttachmentDestroy { get; set; }
         public IReadOnlyList<JObject> Requests { get { lock (_requests) return _requests.ToArray(); } }
 
         public Fixture()
@@ -330,6 +369,26 @@ public sealed class DrManagementTests : IDisposable
         public Task<DrInspection> Inspect() => Workflow.InspectAsync(new("metadata", Metadata.uuid, Metadata.Name(), TargetSr.Name()));
         public DrRequest Request(DrInspection inspection, DrMode mode = DrMode.MetadataRehearsal) => new(mode,
             inspection.Vms.Select(vm => vm.Reference), [new("source-sr", "target-sr")], [new("source-network", "isolated")]);
+
+        public void EditDuringCleanup(string reference, string change)
+        {
+            var vm = Recovered[reference];
+            switch (change)
+            {
+                case "new-vif":
+                    TargetVifs.Add("operator-vif", new VIF { opaque_ref = "operator-vif", uuid = "operator-vif-uuid", VM = new(reference), network = new("isolated"), device = "7" });
+                    vm.VIFs.Add(new("operator-vif"));
+                    break;
+                case "new-vbd":
+                    _targetVbds.Add("operator-vbd", new VBD { opaque_ref = "operator-vbd", uuid = "operator-vbd-uuid", VM = new(reference), VDI = new("target-disk"), userdevice = "7", type = vbd_type.Disk });
+                    vm.VBDs.Add(new("operator-vbd"));
+                    break;
+                case "rename": vm.name_label = "Operator adopted this VM"; break;
+                case "config": vm.other_config["operator-owned"] = "retain"; break;
+                case "remaining-vbd": _targetVbds[vm.VBDs[0].opaque_ref].VDI = new("operator-disk"); break;
+                default: throw new ArgumentOutOfRangeException(nameof(change));
+            }
+        }
 
         private T Add<T>(string reference, T record) where T : XenObject<T>
         { Connection.Cache.UpdateFrom(Connection, [new ObjectChange(typeof(T), reference, record)]); return Connection.Resolve(new XenRef<T>(reference)); }
@@ -412,8 +471,13 @@ public sealed class DrManagementTests : IDisposable
                     if (Requests.Count(request => Method(request) == "VIF.move") == 1) AfterFirstMove?.Invoke();
                     return null;
                 case "VIF.destroy":
-                    Recovered[TargetVifs[reference].VM.opaque_ref].VIFs.RemoveAll(item => item.opaque_ref == reference); TargetVifs.Remove(reference); Isolated.VIFs.RemoveAll(item => item.opaque_ref == reference); return null;
-                case "VBD.destroy": Recovered[_targetVbds[reference].VM.opaque_ref].VBDs.RemoveAll(item => item.opaque_ref == reference); _targetVbds.Remove(reference); return null;
+                    var vifVm = TargetVifs[reference].VM.opaque_ref;
+                    Recovered[vifVm].VIFs.RemoveAll(item => item.opaque_ref == reference); TargetVifs.Remove(reference); Isolated.VIFs.RemoveAll(item => item.opaque_ref == reference);
+                    AfterAttachmentDestroy?.Invoke("VIF.destroy", vifVm); return null;
+                case "VBD.destroy":
+                    var vbdVm = _targetVbds[reference].VM.opaque_ref;
+                    Recovered[vbdVm].VBDs.RemoveAll(item => item.opaque_ref == reference); _targetVbds.Remove(reference);
+                    AfterAttachmentDestroy?.Invoke("VBD.destroy", vbdVm); return null;
                 case "VM.destroy": Recovered.Remove(reference); return null;
                 case "task.remove_from_other_config": case "task.add_to_other_config": case "task.destroy": return null;
                 case "task.get_allowed_operations": return new JArray();
