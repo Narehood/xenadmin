@@ -4,7 +4,7 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
-### Pre-merge review follow-up (2026-09-27)
+### Review and merge follow-up (2026-09-27)
 
 Cursor corrections are committed in `5db40713c` (directory access) and
 `b115e790b` (recovery), integrated into the acceptance layer. Combined validation
@@ -22,13 +22,16 @@ records Windows-only skips explicitly. Windows executes all applicable cases.
 A hosted test-listener cancellation race is fixed in `39987f6db`, with ten repeated
 affected-suite runs passing. See the
 [review follow-up](reviews/2026-09-27-pr51-54-review.md) for exact results, hashes,
-review dispositions and the remaining CodeRabbit gate.
+review dispositions and merge decisions.
 
 PR #51 merged into `development` as `7134737d9` after Cursor approved it and
 CodeRabbit completed review. CodeRabbit's sole finding incorrectly treated the
 PR #50 baseline as padding-fix attribution; repository/GitHub evidence confirmed
-the baseline, and CodeRabbit withdrew the finding. PRs #52-#54 are ready for
-review but remain open while the requested CodeRabbit reviews are rate-limited.
+the baseline, and CodeRabbit withdrew the finding. The user subsequently reported
+completing their own Grok reviews and explicitly waived the pending CodeRabbit
+reviews. All eighteen Cursor threads are addressed. PR #52 merged as `541e1e792`
+and PR #53 as `33873e93f`, after green current-head CI and retargeting in order.
+PR #54 is the final acceptance/documentation layer and now targets `development`.
 
 Independent review reproduced two concurrent-edit defects. Commit `0ca061020`
 keeps AD's reviewed role baseline immutable across cache events during final
@@ -37,7 +40,7 @@ Commit `a6e66d8c5` checks the full DR cleanup receipt before every deletion and
 advances expected state only for its own confirmed removals; nine concurrency
 cases failed before the fix and all 60 DR tests pass. Separate read/write calls
 still cannot provide atomic exclusion of another administrator. Guides document
-that remaining limit. Additional Cursor findings are being verified before merge.
+that remaining limit. The Cursor corrections and regression evidence are below.
 
 ### Reviewed recovery and directory corrections (2026-09-27)
 
