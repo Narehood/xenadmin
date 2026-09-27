@@ -441,6 +441,7 @@ public partial class MainViewModel
     {
         RefreshHaCommand();
         RefreshAdCommand();
+        RefreshDrCommand();
         OnPropertyChanged(nameof(CanStartVm));
         OnPropertyChanged(nameof(CanShutdownVm));
         OnPropertyChanged(nameof(CanRebootVm));

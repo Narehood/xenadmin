@@ -136,6 +136,9 @@
                   <MenuItem Header="Directory access…"
                             Command="{Binding ConfigureAdCommand}"
                             IsVisible="{Binding ShowAdConfiguration}" />
+                  <MenuItem Header="Disaster recovery…"
+                            Command="{Binding ConfigureDrCommand}"
+                            IsVisible="{Binding ShowDrConfiguration}" />
                   <Separator IsVisible="{Binding ShowPoolContextActions}" />
                   <MenuItem Header="Reconnect"
                             Command="{Binding ReconnectSelectedCommand}"
@@ -589,6 +592,11 @@
                               HorizontalAlignment="Left"
                               Command="{Binding ConfigureAdCommand}"
                               IsVisible="{Binding ShowAdConfiguration}" />
+                      <Button Classes="ghost"
+                              Content="Disaster recovery…"
+                              HorizontalAlignment="Left"
+                              Command="{Binding ConfigureDrCommand}"
+                              IsVisible="{Binding ShowDrConfiguration}" />
                       <ItemsControl ItemsSource="{Binding GeneralProperties}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:GeneralPropertyRow">

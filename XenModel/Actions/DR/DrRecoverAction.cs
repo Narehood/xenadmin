@@ -42,13 +42,15 @@ namespace XenAdmin.Actions.DR
 
         public Session MetadataSession;
         private readonly IXenObject xenObject;
+        private readonly bool force;
 
-        public DrRecoverAction(IXenConnection connection, IXenObject xenObject)
+        public DrRecoverAction(IXenConnection connection, IXenObject xenObject, bool force = true, bool suppressHistory = false)
             : base(connection, xenObject is VM
                                    ? string.Format(Messages.ACTION_DR_RECOVER_VM_TITLE, xenObject.Name())
-                                   : string.Format(Messages.ACTION_DR_RECOVER_APPLIANCE_TITLE, xenObject.Name()))
+                                   : string.Format(Messages.ACTION_DR_RECOVER_APPLIANCE_TITLE, xenObject.Name()), suppressHistory)
         {
             this.xenObject = xenObject;
+            this.force = force;
 
             Pool = Helpers.GetPoolOfOne(connection);
             #region RBAC Dependencies
@@ -71,18 +73,17 @@ namespace XenAdmin.Actions.DR
             if (MetadataSession != null)
             {
                 if (xenObject is VM)
-                    RelatedTask = VM.async_recover(MetadataSession, xenObject.opaque_ref, Session.opaque_ref, true);
+                    RelatedTask = VM.async_recover(MetadataSession, xenObject.opaque_ref, Session.opaque_ref, force);
                 if (xenObject is VM_appliance)
                 {
                     // if appliance already exists in target pool, it will be replaced during recovery and the uuid is preserved
-                    RelatedTask = VM_appliance.async_recover(MetadataSession, xenObject.opaque_ref, Session.opaque_ref, true);
+                    RelatedTask = VM_appliance.async_recover(MetadataSession, xenObject.opaque_ref, Session.opaque_ref, force);
                 }
                 PollToCompletion();
             }
             else
             {
-                log.DebugFormat("Metadata session is NULL. Cannot recover {0} to Pool {1}",
-                                Helpers.GetName(xenObject), Helpers.GetName(Pool));
+                throw new InvalidOperationException("Recovery requires an open metadata database session.");
             }
             Description = String.Format(Messages.ACTION_DR_RECOVER_DONE, xenObject.Name());
         }
