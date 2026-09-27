@@ -4,7 +4,45 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
-### Disaster recovery review corrections (2026-09-27)
+### Review and merge follow-up (2026-09-27)
+
+Cursor corrections are committed in `5db40713c` (directory access) and
+`b115e790b` (recovery), integrated into the acceptance layer. Combined validation
+passes 923 shell tests and 73 shared tests on each framework. The actual AD/DR
+probe now passes 98 checks through production button bindings, verifies cleared
+credential textboxes, and asserts default/minimum client and layout dimensions.
+Probe-only finite maxima avoid the Windows small-desktop tracking limit without
+changing desktop resolution. A pre-fix probe reproduced the missing credential
+re-review guard. Seven isolated acceptance-runner failure/coverage fixtures pass
+on PowerShell 5.1 and now run in native Windows/Linux CI. The runner rejects
+missing/empty/failed UI logs and records Linux editor probes explicitly as skipped.
+Full local Windows acceptance and hosted Windows sizing evidence now pass. The
+complete runner also passed native Linux acceptance at `e6f6c8bd1`; its manifest
+records Windows-only skips explicitly. Windows executes all applicable cases.
+A hosted test-listener cancellation race is fixed in `39987f6db`, with ten repeated
+affected-suite runs passing. See the
+[review follow-up](reviews/2026-09-27-pr51-54-review.md) for exact results, hashes,
+review dispositions and merge decisions.
+
+PR #51 merged into `development` as `7134737d9` after Cursor approved it and
+CodeRabbit completed review. CodeRabbit's sole finding incorrectly treated the
+PR #50 baseline as padding-fix attribution; repository/GitHub evidence confirmed
+the baseline, and CodeRabbit withdrew the finding. The user subsequently reported
+completing their own Grok reviews and explicitly waived the pending CodeRabbit
+reviews. All eighteen Cursor threads are addressed. PR #52 merged as `541e1e792`
+and PR #53 as `33873e93f`, after green current-head CI and retargeting in order.
+PR #54 is the final acceptance/documentation layer and now targets `development`.
+
+Independent review reproduced two concurrent-edit defects. Commit `0ca061020`
+keeps AD's reviewed role baseline immutable across cache events during final
+server reads; its new race test failed before the fix and all 54 AD tests pass.
+Commit `a6e66d8c5` checks the full DR cleanup receipt before every deletion and
+advances expected state only for its own confirmed removals; nine concurrency
+cases failed before the fix and all 60 DR tests pass. Separate read/write calls
+still cannot provide atomic exclusion of another administrator. Guides document
+that remaining limit. The Cursor corrections and regression evidence are below.
+
+### Reviewed recovery and directory corrections (2026-09-27)
 
 Cursor findings now have regression coverage for legitimate directional XAPI
 device-model normalization, dictionary/set ordering, stable replica/network
@@ -22,22 +60,6 @@ the report directs manual inspection/isolation of importer-chosen networks.
 No live storage/VM recovery was attempted; separate RPC validation and mutation
 still cannot exclude concurrent administrative changes.
 
-### Halted disaster recovery and metadata rehearsal (2026-09-27)
-
-The shell inspects recovery metadata on attached replicas, reviews exact SR/VDI
-and network assignments, restores eligible standalone VMs halted, and offers
-receipt-guarded metadata rehearsal cleanup. It never deletes disks or starts VMs.
-Unknown outcomes and newly observed imported network records require inspection.
-Pre-merge review found that cleanup could ignore fresh configuration or attachment
-changes between its own deletions. Cleanup now compares the full VM and remaining
-attachment state before each deletion, updating expected state only after its
-own confirmed removal. Nine new concurrency cases failed before correction;
-all 60 DR regressions pass, including real shared action/loopback RPC paths.
-See [disaster recovery](disaster-recovery.md) for supported scope, separate-request
-concurrency limits, and the pending live storage/guest acceptance. The user
-confirmed no disposable environments are available.
-
-### Directory access and RBAC (2026-09-27)
 
 Pre-merge Cursor review corrections now bind the nonsecret directory account and
 leave-machine-account cleanup choice to review; passwords remain excluded from
@@ -55,32 +77,70 @@ role-baseline fix is commit `0ca061020`. Live domain recovery remains pending;
 session enumeration cannot exclude a concurrent login or directory membership
 change, so the guide requires independent verification after the operation.
 
-The shell now offers reviewed domain join/leave and subject/role management.
-Fresh server permissions and pool/host/subject/role identities are rechecked;
-directory identities are pinned through resolution and role grants. Root remains
-the independent recovery route; authorized directory administrators can manage
-other subjects. Shared credential actions clear retained fields and sanitize
-server errors before logging while preserving WinForms preparation behavior.
-Pre-merge review found that an in-place cache event could replace the role
-baseline while the worker made its final server reads. Role assignment now
-compares immutable reviewed identity/role values (or captured post-create
-values), stopping before writes when another administrator changes access.
-The new loopback race regression failed before correction; all 54 AD tests pass
-afterward. Separate server reads/writes still cannot be atomic against other
-administrators. See [directory access](ad-rbac-management.md) for
-partial-state reconciliation and the pending live directory/pool acceptance.
 
-### Fragmented console parsing (2026-09-27)
+### Directory access, recovery, and console follow-up (2026-09-27)
 
-PR #50 is merged in development as `123679abd`. The shell RFB padding reader now
-consumes complete fields across short stream reads. Eleven protocol regressions
-exercise the real client; six failed before correction and all pass afterward.
-The [reboot investigation](reboot-hang-investigation.md) records the Windows 11 /
-Debian 12 SSH-initiated reboot report and the remaining unknown console/build
-details. The original incident is not claimed fixed. No live reboot was run.
-Test Builds now covers PRs to temporary fix/modernization stack bases so each
-review layer receives the normal Windows/Linux checks; integration remains
-`development`. Full combined follow-up validation is recorded in the final layer.
+PR #50 was merged to `development` as `123679abd`. Its earlier "unmerged"
+references below describe the September 26 snapshot. This follow-up starts from
+that commit; the [execution plan](modernization-execution-plan.md) records the
+three implementation agents and integration/acceptance coordination requested
+by the user.
+
+The shell adds [AD and RBAC management](ad-rbac-management.md) through the shared
+join/leave and subject/role actions. Domain changes use local root; an authorized
+directory administrator can manage other subjects and groups with fresh
+permission checks. Reviews pin pool/host/subject/role identities and the resolved
+directory SID. The worker rechecks state before mutation and again between
+subject creation and role assignment. Credentials are cleared from editors and
+actions; shared join/leave errors discard credential-bearing server text before
+logging. The guide explains root recovery and intermediate partial outcomes.
+
+[Disaster recovery](disaster-recovery.md) adds metadata discovery and inspection,
+reviewed storage/network assignments, halted standalone VM recovery and halted
+metadata rehearsal. Source storage UUID and disk identity are checked against
+existing attached replicas. Unsupported suspension, snapshots, appliances and
+special devices require other recovery workflows. Cleanup applies only to
+reviewed unchanged rehearsal VM records and preserves disks; any import-created
+networks require separate inspection. No guest is automatically started. Separate
+API calls cannot guarantee isolation from concurrent administrators.
+
+The [reboot investigation](reboot-hang-investigation.md) records a confirmed
+fragmented-padding defect in the shell's RFB reader, with six failing regressions
+before the fix and eleven passing afterward. The actual reported incident is
+still unresolved: from Windows 11, the user ran `shutdown -r now` over SSH on a
+Debian 12 VM; SSH disconnected and the guest became unresponsive until a forced
+shutdown. The client build, last console message and whether the console was
+open are unknown. The parsing fix is not claimed to explain that incident.
+
+`Invoke-PlatformAcceptance.ps1` now runs local native builds, both test suites,
+actual editor probes and package smoke checks, recording command exits, TRX,
+source state, package digest and preserved lockfile hashes. Windows CI also runs
+the actual AD/DR windows with synthetic data. The user reconfirmed that no
+disposable environments are available. Physical desktop, real UAC/update
+installation, live AD/DR/networking/HA and the reported reboot diagnosis remain
+pending in [platform acceptance](platform-acceptance.md); WinForms remains the
+supported production client.
+
+Initial local integrated acceptance passed: Release/Debug solution builds; **828 shell
+tests in each configuration**; **73 shared tests on each of net481/net10.0**;
+32,240 WinForms resources in 290 sets in each configuration; all 12 proxy cases;
+and **53 actual AD/DR window checks**, alongside existing network/settings probes.
+The 115 new tests comprise 11 RFB, 53 AD and 51 DR cases. The Windows package
+passes all four helper/runtime smoke modes using bundled .NET 10.0.12, and
+portable lockfiles are unchanged. Existing ACL analyzer warnings remain. Local
+WinForms builds reused unchanged trusted RDP interop with `SkipRdpAxImp=true`;
+hosted Windows CI must generate it normally. Evidence, package hash and the
+remaining manual gates are in the [acceptance record](reviews/2026-09-27-modernization-acceptance.md).
+The older .NET 8 project/build sections remain historical.
+
+Review stack, in merge order: [#51 console](https://github.com/Narehood/xenadmin/pull/51)
+(`a296d4feb`), [#52 directory access](https://github.com/Narehood/xenadmin/pull/52)
+(`bb2fcb431`), [#53 recovery](https://github.com/Narehood/xenadmin/pull/53)
+(`54e174aa8`), and [#54 acceptance](https://github.com/Narehood/xenadmin/pull/54)
+(`221bd8525`, followed by documentation references). These were initially published as draft PRs;
+each layer has native Windows/Linux checks. See the acceptance record for links
+to current hosted results and retarget remaining layers to `development` as
+their bases merge. No release or live pool operation was performed.
 
 ### Beta release review follow-up (2026-09-26)
 

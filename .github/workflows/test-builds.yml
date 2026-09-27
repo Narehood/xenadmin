@@ -27,6 +27,10 @@ jobs:
       - name: Restore locked packages
         run: dotnet restore XenAdmin.sln --locked-mode
 
+      - name: Verify acceptance failure and coverage recording (PowerShell 5.1)
+        shell: powershell
+        run: ./scripts/Test-PlatformAcceptanceChecks.ps1 -EvidenceDirectory artifacts/acceptance-fixtures
+
       - name: Build Release
         run: dotnet build XenAdmin.sln -c Release --no-restore -p:BuildRevision=${{ github.run_number }} --nologo
 
@@ -53,6 +57,9 @@ jobs:
 
       - name: Test Avalonia shell (Debug)
         run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Debug --no-build --no-restore --logger "trx;LogFileName=shell-debug.trx"
+
+      - name: Exercise directory access and recovery editor windows
+        run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --access-recovery --evidence-directory artifacts/ui-access-recovery
 
       - name: Publish and package shell (win-x64)
         shell: pwsh
@@ -93,6 +100,8 @@ jobs:
           path: |
             **/TestResults/*.trx
             artifacts/smoke-windows
+            artifacts/ui-access-recovery
+            artifacts/acceptance-fixtures
           if-no-files-found: ignore
 
   linux-build-and-test:
@@ -110,21 +119,13 @@ jobs:
       - name: Install native desktop smoke dependencies
         run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool openbox x11-utils libice6 libsm6 libfontconfig1
 
-      - name: Test shared libraries on Linux (.NET 10)
-        run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net10.0 -p:RestoreLockedMode=true --logger "trx;LogFileName=xencenterlib-linux-net10.trx"
-
-      - name: Test Avalonia shell on Linux (Release)
-        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Release -p:RestoreLockedMode=true --logger "trx;LogFileName=shell-linux-release.trx"
-
-      - name: Test Avalonia shell on Linux (Debug)
-        run: dotnet test XcpNgCenter.Shell.Tests/XcpNgCenter.Shell.Tests.csproj -c Debug -p:RestoreLockedMode=true --logger "trx;LogFileName=shell-linux-debug.trx"
-
-      - name: Publish and package shell (linux-x64)
+      - name: Verify acceptance failure and coverage recording (PowerShell)
         shell: pwsh
-        run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier linux-x64 -ArchivePath artifacts/XcpNgCenter.Shell-linux-x64.tar.gz -BuildRevision '${{ github.run_number }}'
+        run: ./scripts/Test-PlatformAcceptanceChecks.ps1 -EvidenceDirectory artifacts/acceptance-fixtures
 
-      - name: Exercise packaged Linux executable and native desktop startup
-        run: xvfb-run -a python3 scripts/verify-shell-package.py --archive artifacts/XcpNgCenter.Shell-linux-x64.tar.gz --rid linux-x64 --evidence-directory artifacts/smoke-linux --desktop --window-manager
+      - name: Run native Linux acceptance, packaging and desktop smoke
+        shell: pwsh
+        run: ./scripts/Invoke-PlatformAcceptance.ps1 -EvidenceDirectory artifacts/platform-acceptance-linux -BuildRevision '${{ github.run_number }}'
 
       - name: Confirm checked-in lockfiles were preserved
         run: git diff --exit-code -- '*/packages.lock.json'
@@ -134,7 +135,7 @@ jobs:
         with:
           name: drop-shell-linux-x64
           # Upload the tarball so Actions does not discard executable permissions.
-          path: artifacts/XcpNgCenter.Shell-linux-x64.tar.gz
+          path: artifacts/platform-acceptance-linux/XcpNgCenter.Shell-linux-x64.tar.gz
           if-no-files-found: error
 
       - name: Upload Linux test and smoke evidence
@@ -144,5 +145,7 @@ jobs:
           name: test-results-linux
           path: |
             **/TestResults/*.trx
-            artifacts/smoke-linux
+            artifacts/platform-acceptance-linux
+            !artifacts/platform-acceptance-linux/*.tar.gz
+            artifacts/acceptance-fixtures
           if-no-files-found: ignore

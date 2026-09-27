@@ -27,7 +27,7 @@ Update downloads and Import Wizard URL fetch use `HttpClient` via `HttpFileDownl
 
 Protected Windows installations request UAC approval for that installed bootstrap. Elevated preparation uses the built-in `Narehood/xenadmin` publisher, rebuilds metadata HTTPS certificate trust in Windows machine context, and creates administrator-owned staging with user read/execute access. `XCPNG_UPDATE_GITHUB_REPO=owner/name` applies only to update checks and non-elevated preparation. The verified helper applies files with rollback protection, and a broker is intended to reopen the client with the original user's normal token. Cancelling UAC retains the download for a later attempt, which verifies it again. Installation requires fresh GitHub metadata, so it cannot complete offline. Real UAC, rollback, token/ACL, and restart behavior still requires the tests listed in the [remediation record](docs/reviews/2026-09-07-remediation.md).
 
-**View release** and remembered **Dismiss** options remain available; unsupported platforms or non-portable launch layouts fall back to the release page. Draft and prerelease tags are ignored. Publish complete assets with the manual workflow **Publish Shell Release** (`.github/workflows/publish-shell-release.yml`). The running binary must stamp a lower `year.month.day.revision` than the release tag for the banner to appear.
+**View release** and remembered **Dismiss** options remain available; unsupported platforms or non-portable launch layouts fall back to the release page. Drafts are ignored; prereleases are offered only when **Receive beta updates** is enabled. See [beta updates](docs/beta-updates.md) for channel switching and manual publication. Publish complete assets with the manual workflow **Publish Shell Release** (`.github/workflows/publish-shell-release.yml`). The running binary must stamp a lower `year.month.day.revision` than the release tag for the banner to appear.
 
 Published archives keep the shell files (plus `INSTALL.TXT`) at the archive root: updaters already deployed in the field validate that root, so wrapping the payload in a folder makes a release un-installable for every existing installation. The first upgrade to a release containing this bootstrap still runs the older executable's original updater; install it manually to have the hardened path handle that transition. Custom-repository builds also require manual installation when administrator privileges are needed or the app is elevated. The shell directs these builds to the release page before requesting UAC.
 
@@ -46,11 +46,20 @@ The shell also provides [advanced networking](docs/advanced-networking.md): pool
 
 **Next:** Complete the [platform acceptance checklist](docs/platform-acceptance.md), including live networking and download/apply/restart updates, then follow the [feature-parity roadmap](docs/modernization-roadmap.md). RDP stays WinForms-only.
 
+The shell now includes [directory access](docs/ad-rbac-management.md) and
+[disaster recovery](docs/disaster-recovery.md) editors. Domain membership changes
+require a local root connection; authorized directory administrators can manage
+subjects and roles without changing their own authority. Recovery supports
+eligible standalone VMs restored halted onto already attached replicated
+storage, with explicit network mapping and a metadata-only rehearsal mode.
+These workflows still require live environment acceptance.
+
 ### Still later
 
 - Broader async cleanup / installer CI automation.
 - RDP in the Avalonia shell (strategy TBD; WinForms remains available).
-- HA/AD/DR wizards (alert fix-link for HA still points users to WinForms).
+- Extended DR workflows for appliances, snapshots, special hardware and running
+  guest rehearsals with verified storage isolation.
 
 ## Non-goals
 

@@ -15,11 +15,12 @@ using XenAPI;
 using Console = System.Console;
 using Task = System.Threading.Tasks.Task;
 
-sealed class ProbeApp : App
+sealed partial class ProbeApp : App
 {
     public static bool ConnectionSettingsOnly { get; set; }
     public static bool BetaSettingsOnly { get; set; }
-    static readonly string Evidence = Path.GetDirectoryName(typeof(ProbeApp).Assembly.Location)!;
+    public static bool AccessRecoveryOnly { get; set; }
+    public static string Evidence { get; set; } = AppContext.BaseDirectory;
     readonly List<string> checks = [];
     ShellAppSettings? settings;
     ShellThemeManager? theme;
@@ -40,6 +41,11 @@ sealed class ProbeApp : App
         lifetime.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         try
         {
+            if (AccessRecoveryOnly)
+            {
+                CheckAccessRecovery(lifetime);
+                return;
+            }
             if (ConnectionSettingsOnly || BetaSettingsOnly)
             {
                 CheckConnectionSettings(lifetime);
@@ -259,11 +265,23 @@ static class Program
         }
         ProbeApp.ConnectionSettingsOnly = args.Contains("--connection-settings", StringComparer.Ordinal);
         ProbeApp.BetaSettingsOnly = args.Contains("--beta-settings", StringComparer.Ordinal);
+        ProbeApp.AccessRecoveryOnly = args.Contains("--access-recovery", StringComparer.Ordinal);
+        var evidenceIndex = Array.IndexOf(args, "--evidence-directory");
+        if (evidenceIndex >= 0)
+        {
+            if (evidenceIndex + 1 >= args.Length)
+            {
+                Console.Error.WriteLine("--evidence-directory requires a path.");
+                return 2;
+            }
+            ProbeApp.Evidence = Path.GetFullPath(args[evidenceIndex + 1]);
+            Directory.CreateDirectory(ProbeApp.Evidence);
+        }
         try { return AppBuilder.Configure<ProbeApp>().UsePlatformDetect().StartWithClassicDesktopLifetime(args); }
         catch (Exception exception)
         {
             Console.Error.WriteLine(exception);
-            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "results.log"), "FAIL: " + exception);
+            File.WriteAllText(Path.Combine(ProbeApp.Evidence, "results.log"), "FAIL: " + exception);
             return 1;
         }
     }
