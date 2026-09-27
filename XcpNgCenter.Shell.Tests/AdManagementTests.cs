@@ -651,6 +651,7 @@ public sealed class AdManagementTests : IDisposable
                 }
             }
             catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+            catch (ObjectDisposedException) when (_stop.IsCancellationRequested) { }
         }
         private JToken? Reply(string method, JObject request)
         {

@@ -161,6 +161,7 @@ public sealed class AdSessionRevocationTests
             }
             catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
             catch (SocketException) when (_stop.IsCancellationRequested) { }
+            catch (ObjectDisposedException) when (_stop.IsCancellationRequested) { }
         }
         public void Dispose() { _stop.Cancel(); _listener.Stop(); _server.GetAwaiter().GetResult(); _stop.Dispose(); }
     }
