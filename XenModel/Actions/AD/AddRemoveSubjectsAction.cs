@@ -43,6 +43,7 @@ namespace XenAdmin.Actions
 
         private List<string> subjectNamesToAdd;
         private readonly List<Subject> subjectsToRemove;
+        private readonly Dictionary<string, string> expectedIdentifiers;
 
         /// <summary>
         /// Progress through this action
@@ -86,7 +87,8 @@ namespace XenAdmin.Actions
         public event SubjectRemovedEventHandler SubjectRemoveComplete;
 
 
-        public AddRemoveSubjectsAction(IXenConnection connection, List<string> subjectNamesToAdd, List<Subject> subjectsToRemove)
+        public AddRemoveSubjectsAction(IXenConnection connection, List<string> subjectNamesToAdd, List<Subject> subjectsToRemove,
+            Dictionary<string, string> expectedIdentifiers = null)
             : base(connection, 
                 string.Format(Messages.AD_ADDING_REMOVING_ON, Helpers.GetName(connection).Ellipsise(50)), 
                 Messages.AD_ADDING_REMOVING, false)
@@ -98,12 +100,15 @@ namespace XenAdmin.Actions
                 Host = Helpers.GetCoordinator(connection);
             this.subjectNamesToAdd = subjectNamesToAdd;
             this.subjectsToRemove = subjectsToRemove;
+            this.expectedIdentifiers = expectedIdentifiers == null ? null : new Dictionary<string, string>(expectedIdentifiers);
 
 #region RBAC checks
 
             if (subjectNamesToAdd != null && subjectNamesToAdd.Count > 0)
             {
                 ApiMethodsToRoleCheck.Add("subject.create");
+                ApiMethodsToRoleCheck.Add("auth.get_subject_identifier");
+                ApiMethodsToRoleCheck.Add("auth.get_subject_information_from_identifier");
             }
             if (subjectsToRemove != null && subjectsToRemove.Count > 0)
             {
@@ -155,9 +160,11 @@ namespace XenAdmin.Actions
                 try
                 {
                     sid = Auth.get_subject_identifier(Session, name);
-                    sidsToAdd.Add(sid);
+                    if (expectedIdentifiers != null && (!expectedIdentifiers.TryGetValue(name, out var expected) || expected != sid))
+                        throw new InvalidOperationException("The directory identity changed after review. Resolve and review the subject again.");
                     if (!Auth.get_subject_information_from_identifier(Session, sid).TryGetValue(Subject.SUBJECT_NAME_KEY, out resolvedName))
-                        resolvedName = Messages.UNKNOWN_AD_USER;  
+                        resolvedName = Messages.UNKNOWN_AD_USER;
+                    sidsToAdd.Add(sid);
                 }
                 catch (Failure f)
                 {

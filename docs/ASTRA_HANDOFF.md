@@ -4,6 +4,17 @@ Last updated: 2026-09-27 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Directory access and RBAC (2026-09-27)
+
+The shell now offers reviewed domain join/leave and subject/role management.
+Fresh server permissions and pool/host/subject/role identities are rechecked;
+directory identities are pinned through resolution and role grants. Root remains
+the independent recovery route; authorized directory administrators can manage
+other subjects. Shared credential actions clear retained fields and sanitize
+server errors before logging while preserving WinForms preparation behavior.
+All 53 new AD regressions pass. See [directory access](ad-rbac-management.md) for
+partial-state reconciliation and the pending live directory/pool acceptance.
+
 ### Fragmented console parsing (2026-09-27)
 
 PR #50 is merged in development as `123679abd`. The shell RFB padding reader now

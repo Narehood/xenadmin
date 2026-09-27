@@ -46,7 +46,7 @@ namespace XenAdmin.Actions
         public DisableAdAction(IXenConnection connection, Dictionary<string, string> creds)
             : base(connection, string.Format(Messages.DISABLING_AD_ON, Helpers.GetName(connection).Ellipsise(50)), Messages.DISABLING_AD, false)
         {
-            this.creds = creds;
+            this.creds = new Dictionary<string, string>(creds);
 
             var pool = Helpers.GetPool(Connection);
             if (pool != null)
@@ -65,8 +65,15 @@ namespace XenAdmin.Actions
                 log.DebugFormat("Disabling AD on connection '{0}' without disabling machine account in AD.", Helpers.GetName(Connection));
 
             var pool = Helpers.GetPoolOfOne(Connection); // let if fail if null
-            XenAPI.Pool.disable_external_auth(Session, pool.opaque_ref, creds);
+            try { XenAPI.Pool.disable_external_auth(Session, pool.opaque_ref, creds); }
+            catch (System.Exception)
+            {
+                throw new System.InvalidOperationException("Domain leave was not confirmed. Inspect authentication on every host and directory machine accounts before another attempt. Server error details were omitted to protect credentials.");
+            }
+            finally { creds.Clear(); }
             Description = Messages.COMPLETED;
         }
+
+        protected override void Clean() { creds.Clear(); base.Clean(); }
     }
 }

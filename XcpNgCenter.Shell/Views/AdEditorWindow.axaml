@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels" xmlns:services="using:XcpNgCenter.Shell.Services"
+        x:Class="XcpNgCenter.Shell.Views.AdEditorWindow" x:DataType="vm:AdEditorViewModel"
+        Title="Directory access" Width="780" Height="760" MinWidth="520" MinHeight="500"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Brush.BgDeep}">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto">
+    <StackPanel Spacing="6" Margin="0,0,0,12">
+      <TextBlock Text="Directory access" FontSize="24" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding PoolName}" FontSize="16" TextTrimming="CharacterEllipsis" />
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3" />
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="12" Margin="0,0,8,0">
+        <TextBlock Text="{Binding SessionNotice}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding HostSummary}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+        <TextBlock Text="Current users and groups" FontWeight="SemiBold" />
+        <TextBlock Text="No directory subjects are configured." IsVisible="{Binding !HasSubjects}" />
+        <ListBox x:Name="SubjectList" ItemsSource="{Binding Subjects}" SelectedItem="{Binding SelectedSubject}"
+                 IsEnabled="{Binding CanEdit}" MaxHeight="200" MinHeight="60" AutomationProperties.Name="Directory users and groups">
+          <ListBox.ItemTemplate><DataTemplate x:DataType="services:AdSubjectOption">
+            <StackPanel Spacing="3">
+              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <TextBlock Text="Group" IsVisible="{Binding IsGroup}" />
+              <TextBlock Text="{Binding Identifier}" FontSize="11" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Roles}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Spacing="10" IsEnabled="{Binding CanEdit}">
+          <TextBlock Text="Change to make" FontWeight="SemiBold" />
+          <ComboBox x:Name="OperationSelector" ItemsSource="{Binding Operations}" SelectedItem="{Binding SelectedOperation}"
+                    HorizontalAlignment="Stretch" AutomationProperties.Name="Directory access operation">
+            <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AdOperationOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <StackPanel Spacing="6" IsVisible="{Binding IsJoining}">
+            <TextBlock Text="Domain DNS name" />
+            <TextBox x:Name="DomainText" Text="{Binding Domain}" Watermark="example.org" AutomationProperties.Name="Domain DNS name" />
+            <TextBlock Text="Verify that each host can reach domain DNS and that host and directory time are synchronized." TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Spacing="6" IsVisible="{Binding IsAdding}">
+            <TextBlock Text="User or group name" />
+            <TextBox x:Name="SubjectNameText" Text="{Binding SubjectName}" Watermark="DOMAIN\name or user@example.org" AutomationProperties.Name="User or group name" />
+            <TextBlock Text="Review resolves the name to its directory identifier. Verify that identifier and the selected roles." TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Spacing="6" IsVisible="{Binding ShowRoles}">
+            <TextBlock Text="Roles to grant" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding Roles}">
+              <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:AdRoleDraft">
+                <CheckBox IsChecked="{Binding IsSelected}" Content="{Binding Name}" ToolTip.Tip="{Binding Description}" />
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <StackPanel Spacing="6" IsVisible="{Binding ShowCredentials}">
+            <TextBlock Text="Directory account" />
+            <TextBox x:Name="UsernameText" Text="{Binding Username}" AutomationProperties.Name="Directory account" />
+            <TextBlock Text="Directory password" />
+            <TextBox x:Name="PasswordText" Text="{Binding Password}" PasswordChar="●" AutomationProperties.Name="Directory password" />
+            <TextBlock Text="Credentials are used for this operation only and cleared after confirmation. Domain leave can omit both fields; directory machine accounts then require separate cleanup."
+                       TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
+          </StackPanel>
+          <TextBlock Text="{Binding RecoveryInstructions}" TextWrapping="Wrap" />
+          <CheckBox x:Name="RecoveryConfirmation" IsChecked="{Binding RecoveryConfirmed}">
+            <TextBlock Text="I verified local root access on every host and have their management addresses." TextWrapping="Wrap" />
+          </CheckBox>
+        </StackPanel>
+        <TextBlock Text="{Binding ValidationMessage}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.AccentText}" />
+        <TextBlock Text="{Binding ReviewSummary}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.AccentText}" />
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+      <Button x:Name="CloseButton" Content="Close" Command="{Binding CloseCommand}" />
+      <Button Content="Cancel review" Command="{Binding CancelReviewCommand}" IsVisible="{Binding IsBusy}" />
+      <Button x:Name="ReviewButton" Content="Review" Command="{Binding ReviewCommand}" />
+      <Button x:Name="ApplyButton" Content="Apply" Command="{Binding ApplyCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>

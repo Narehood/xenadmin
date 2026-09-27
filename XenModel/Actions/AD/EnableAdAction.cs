@@ -33,8 +33,6 @@ using System.Collections.Generic;
 using XenAdmin.Core;
 using XenAdmin.Network;
 using XenAPI;
-using System.Globalization;
-using System.Text.RegularExpressions;
 
 
 namespace XenAdmin.Actions
@@ -44,10 +42,11 @@ namespace XenAdmin.Actions
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         private readonly string domain;
-        private readonly string user;
-        private readonly string password;
+        private string user;
+        private string password;
+        private readonly bool requireCleanDisable;
 
-        public EnableAdAction(IXenConnection connection, string domain, string user, string password)
+        public EnableAdAction(IXenConnection connection, string domain, string user, string password, bool requireCleanDisable = false)
             : base(connection, string.Format(Messages.ENABLING_AD_ON, Helpers.GetName(connection).Ellipsise(50)), Messages.ENABLING_AD, false)
         {
             if (string.IsNullOrEmpty(domain))
@@ -66,9 +65,10 @@ namespace XenAdmin.Actions
             this.domain = domain;
             this.user = user;
             this.password = password;
+            this.requireCleanDisable = requireCleanDisable;
+            ApiMethodsToRoleCheck.Add("pool.disable_external_auth");
+            ApiMethodsToRoleCheck.Add("pool.enable_external_auth");
         }
-
-        private static Regex AuthFailedReg = new Regex(@"^([1-9]+) \(0x.*\).*");
 
         protected override void Run()
         {
@@ -86,42 +86,31 @@ namespace XenAdmin.Actions
                     //CA-48122: Call disable just in case it was not disabled properly
                     Pool.disable_external_auth(Session, pool.opaque_ref, new Dictionary<string, string>());
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    log.Debug("Tried to disable AD before enabling it, but it has failed. Ignoring it, because in this case we are running disable on best effort basis only.", ex);
+                    if (requireCleanDisable)
+                        throw new InvalidOperationException("The preparatory domain leave was not confirmed. Inspect every host before attempting domain join again.");
+                    // Server error details can echo the submitted credentials.
+                    log.Debug("The best-effort preparatory domain leave was not confirmed.");
                 }
 
                 Pool.enable_external_auth(Session, pool.opaque_ref, config, domain, Auth.AUTH_TYPE_AD);
             }
-            catch (Failure f)
+            catch (Failure f) when (f.ErrorDescription.Count > 0 && f.ErrorDescription[0] == Failure.POOL_AUTH_ENABLE_FAILED_WRONG_CREDENTIALS)
             {
-                // CA-37255 CA-38369 CA-39485
-                // We can get errors from likewise that correspond to an error in WinError.h
-                // By and large they are useless to the user so we log the details for support and show something more friendly.
-                if (f.ErrorDescription[0] == Failure.AUTH_ENABLE_FAILED && f.ErrorDescription.Count > 2)
-                {
-
-                    Match m = AuthFailedReg.Match(f.ErrorDescription[2]);
-                    if (!m.Success)
-                        throw;
-
-                    int errorId;
-                    if (!int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out errorId))
-                        throw;
-
-                    log.Error($"Received errorId {errorId} from likewise when attempting to join domain.", f);
-                }
-                XenRef<Host> hostref = new XenRef<Host>(f.ErrorDescription[1]);
-                Host host = Connection.Resolve(hostref);
-                if (host == null)
-                    throw;
-                if (f.ErrorDescription[0] == Failure.POOL_AUTH_ENABLE_FAILED_WRONG_CREDENTIALS)
-                    throw new CredentialsFailure(f.ErrorDescription);
-                
-                throw new Exception(string.Format(Messages.AD_FAILURE_WITH_HOST, f.Message, host.Name()));
+                throw new CredentialsFailure(new List<string> { Failure.POOL_AUTH_ENABLE_FAILED_WRONG_CREDENTIALS, "", "Server details omitted to protect credentials." });
             }
+            catch (Exception)
+            {
+                // Never retain an inner exception: directory providers can echo a
+                // password in arbitrary error text, which AsyncAction logs.
+                throw new InvalidOperationException("Domain join was not confirmed. Check domain credentials, DNS and time synchronization, then inspect every host before another attempt. Server error details were omitted to protect credentials.");
+            }
+            finally { config.Clear(); user = null; password = null; }
             Description = Messages.COMPLETED;
         }
+
+        protected override void Clean() { user = null; password = null; base.Clean(); }
 
         /// <summary>
         /// Exception thrown when enabling AD authentication fails due to wrong supplied credentials
