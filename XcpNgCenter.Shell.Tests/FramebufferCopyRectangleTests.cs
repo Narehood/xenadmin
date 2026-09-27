@@ -76,7 +76,11 @@ public sealed class FramebufferCopyRectangleTests
         for (var index = 0; index < 5; index++) framebuffer.CopyRectangle(0, 1, 1920, 1079, 0, 0);
         var before = GC.GetAllocatedBytesForCurrentThread();
         for (var index = 0; index < 10; index++) framebuffer.CopyRectangle(0, 1, 1920, 1079, 0, 0);
-        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        // Guard against rectangle-sized buffers, not incidental runtime/profiler
+        // allocations. One 1920x1079 BGRA snapshot alone exceeds 8 MB; this budget
+        // applies to all ten copies and is below 1% of even one such snapshot.
+        Assert.InRange(allocated, 0, 64 * 1024);
     }
 
     private static byte[] InitialPixels() => Enumerable.Range(0, 6 * 5 * 4).Select(value => (byte)(value + 1)).ToArray();

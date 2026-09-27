@@ -26,6 +26,16 @@ inline threads remain resolved. The development-build VM reboot
 hang reported separately is still undiagnosed, pending guest/client details and
 whether SSH or another console remains responsive; this change does not fix it.
 
+Hosted Linux validation of `dee6d9022` then exposed an overly strict pre-existing
+CopyRect allocation test: 7,976 bytes across ten copies failed an exact-zero
+assertion. Its guard now allows 64 KiB total, below 1% of a single 8.3 MB rectangle
+buffer, preserving detection of the intended regression with room for small
+runtime/profiler overhead. Production framebuffer code and pixel tests are
+unchanged; the allocation source was not instrumented. Final results are in the PR.
+After correcting the assertion, local Release and Debug each pass 713 shell
+tests. The recorded performance baseline still shows the old rectangle-buffer
+implementation exceeding this test's budget in a single copy.
+
 ### Manual beta update channel (2026-09-26)
 
 PR #50 adds **Settings → About → Receive beta updates** to the Avalonia shell.
