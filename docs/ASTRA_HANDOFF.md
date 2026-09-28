@@ -6,7 +6,7 @@ Last updated: 2026-09-28 (local date). Initial review, remediation, and moderniz
 
 ### PR #55 review follow-up (2026-09-28)
 
-The three Cursor findings on `dda0e24fd` are valid in substance. Dialog cleanup
+The three Cursor findings on `dda0e24fd` are addressed in `288667ca3`. Dialog cleanup
 now reaches `base.OnFormClosed` through `finally`, including when an action or HA
 teardown fails. HA detaches both listeners before stopping its worker. Registry
 cleanup still precedes observers; owner focus now follows base close processing.
@@ -22,6 +22,7 @@ Production source/binaries were restored afterward. No production test flag,
 real action, profile load or live RPC was introduced. Both solution builds and
 required test suites pass; the detailed evidence, review dispositions and
 remaining manual limits are in the [PR #55 review](reviews/2026-09-28-pr55-review.md).
+Hosted Windows/Linux CI and all CodeQL analyses passed on `288667ca3`.
 
 ### WinForms lifecycle and designer maintenance (2026-09-28)
 
@@ -44,9 +45,10 @@ borders and three click-through strips. Eleven diagnostics are eliminated;
 Generated designer code and resource files are unchanged. See the
 [migration maintenance record](dotnet10-migration.md#winforms-resources-and-designer-metadata).
 
-The new `--lifecycle-designer` compatibility probe runs in Windows CI and local
-acceptance for Release and Debug. It passes 93 checks on each WinForms
-build configuration, covering real control descriptors, HWND close/cancel
+The `--lifecycle-designer` compatibility probe runs in Windows CI and local
+acceptance for Release and Debug. At `dda0e24fd`, it passed 93 checks per WinForms
+configuration; the review follow-up above expands this to 110. Coverage includes
+real control descriptors, HWND close/cancel
 paths, owner/connection registry cleanup and guarded main-window exit paths.
 The initial 75-check probe reproduced 29 failures on the old client, including
 listener detachment on cancelled password close and the folder registry leak.
