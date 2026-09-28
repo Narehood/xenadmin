@@ -1,8 +1,72 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-27 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-09-28 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### PR #55 review follow-up (2026-09-28)
+
+The three Cursor findings on `dda0e24fd` are addressed in `288667ca3`. Dialog cleanup
+now reaches `base.OnFormClosed` through `finally`, including when an action or HA
+teardown fails. HA detaches both listeners before stopping its worker. Registry
+cleanup still precedes observers; owner focus now follows base close processing.
+The wizard and dialog share a focus guard for application exit, owner closure,
+Windows shutdown, and disposed/disposing owners. Reentrant owner disposal is
+handled without hiding other exceptions.
+
+The lifecycle probe now passes 110 checks in Release and Debug. Fault injection
+reproduced three failing cleanup assertions before the fix. The main-window
+probe seeds an isolated poison history entry: removing the ApplicationExitCall
+guard was mutation-tested and now fails at the task scan before settings access.
+Production source/binaries were restored afterward. No production test flag,
+real action, profile load or live RPC was introduced. Both solution builds and
+required test suites pass; the detailed evidence, review dispositions and
+remaining manual limits are in the [PR #55 review](reviews/2026-09-28-pr55-review.md).
+Hosted Windows/Linux CI and all CodeQL analyses passed on `288667ca3`.
+
+### WinForms lifecycle and designer maintenance (2026-09-28)
+
+Initial implementation: `6ac156e32`, with picker inheritance follow-up in
+[PR #55](https://github.com/Narehood/xenadmin/pull/55).
+
+PR #54 merged as `ab95c9239`; the resulting stable release is
+[2026.9.27.209](https://github.com/Narehood/xenadmin/releases/tag/v2026.9.27.209).
+With no disposable acceptance environments available, the next implemented batch
+maintains the supported WinForms client. All eight obsolete closing overrides
+now use current Form events. Cleanup waits for an accepted close, the folder
+dialog calls base cleanup to release its owner registration, and modern
+`FormClosed` observers see completed base cleanup. Main-window final
+`Application.Exit()` retains its bypass of the cancellation wait, including its
+timeout and settings-save failure paths; listener cancellation is respected.
+
+Seventeen explicit defaults cover the custom tree, both picker overrides, panel
+borders and three click-through strips. Eleven diagnostics are eliminated;
+312 WFO1000 diagnostics still require individual review and remain suppressed.
+Generated designer code and resource files are unchanged. See the
+[migration maintenance record](dotnet10-migration.md#winforms-resources-and-designer-metadata).
+
+The `--lifecycle-designer` compatibility probe runs in Windows CI and local
+acceptance for Release and Debug. At `dda0e24fd`, it passed 93 checks per WinForms
+configuration; the review follow-up above expands this to 110. Coverage includes
+real control descriptors, HWND close/cancel
+paths, owner/connection registry cleanup and guarded main-window exit paths.
+The initial 75-check probe reproduced 29 failures on the old client, including
+listener detachment on cancelled password close and the folder registry leak.
+Six further failures caught pool/host picker overrides that need their own
+defaults to preserve edited values equal to the base tree's defaults.
+Both solution configurations build; all 923 shell tests pass per configuration
+and all 73 shared tests pass on each framework. Both WinForms builds load all
+32,240 resources across 290 sets. Local builds reuse trusted unchanged RDP interop
+with `SkipRdpAxImp=true`; hosted Windows builds generate it normally. Evidence is
+under ignored `artifacts/winforms-*` paths. Existing ACL test warnings remain.
+
+This probe does not load user profiles or run live server actions. Main-window
+guards omit the constructor; certificate/subject dialogs use idle action fields.
+Full shutdown with running tasks, modal owner focus, Visual Studio designer round
+trips, physical desktop/UAC and live AD/DR acceptance remain pending. The reported
+Debian reboot hang remains undiagnosed. No pool operation or new release was run
+for this maintenance batch. Continue the remaining designer audit in bounded
+batches; obtain disposable infrastructure before extending live recovery scope.
 
 ### Review and merge follow-up (2026-09-27)
 

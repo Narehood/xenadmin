@@ -29,6 +29,7 @@
  */
 
 using System;
+using System.ComponentModel;
 using System.Windows.Forms;
 
 namespace XenAdmin.Controls
@@ -46,6 +47,7 @@ namespace XenAdmin.Controls
         /// <remarks>
         /// Default value is false, which is the same behavior provided by the base StatusStrip class.
         /// </remarks>
+        [DefaultValue(false)]
         public bool ClickThrough { get; set; }
 
         protected override void WndProc(ref Message m)

@@ -67,10 +67,16 @@ namespace XenAdmin.Dialogs
             UpdateButtons();
         }
 
-        protected override void OnClosing(CancelEventArgs e)
+        protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            CancelInstallation();
-            base.OnClosing(e);
+            try
+            {
+                CancelInstallation();
+            }
+            finally
+            {
+                base.OnFormClosed(e);
+            }
         }
 
         private void HideAllErrors()

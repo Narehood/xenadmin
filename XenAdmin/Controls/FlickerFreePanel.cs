@@ -29,6 +29,7 @@
  */
 
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using XenCenterLib;
@@ -40,12 +41,14 @@ namespace XenAdmin.Controls
         private Color _borderColor = Color.Black;
         private int _borderWidth = 1;
 
+        [DefaultValue(1)]
         public int BorderWidth
         {
             get { return _borderWidth; }
             set { _borderWidth = value; }
         }
 
+        [DefaultValue(typeof(Color), "Black")]
         public Color BorderColor
         {
             get { return _borderColor; }

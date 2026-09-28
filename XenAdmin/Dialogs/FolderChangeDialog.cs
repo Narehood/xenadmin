@@ -82,11 +82,18 @@ namespace XenAdmin.Dialogs
             base.OnLoad(e);
         }
 
-        protected override void OnClosed(EventArgs e)
+        protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            ConnectionsManager.XenConnections.CollectionChanged -= XenConnections_CollectionChanged;
-            foreach (IXenConnection connection in ConnectionsManager.XenConnectionsCopy)
-                connection.Cache.DeregisterBatchCollectionChanged<Folder>(FoldersChanged);
+            try
+            {
+                ConnectionsManager.XenConnections.CollectionChanged -= XenConnections_CollectionChanged;
+                foreach (IXenConnection connection in ConnectionsManager.XenConnectionsCopy)
+                    connection.Cache.DeregisterBatchCollectionChanged<Folder>(FoldersChanged);
+            }
+            finally
+            {
+                base.OnFormClosed(e);
+            }
         }
 
         private void PopulateTree()

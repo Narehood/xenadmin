@@ -130,7 +130,7 @@ namespace XenAdmin.Dialogs
         internal virtual string HelpName => Name;
 
         /// <summary>
-        /// Allow the XenDialogBase.OnClosed to set Owner.Activate() - this will push the Owner
+        /// Allow the XenDialogBase.OnFormClosed to set Owner.Activate() - this will push the Owner
         /// to the top of the windows stack stealing focus.
         /// </summary>
         protected bool OwnerActivatedOnClosed { get; set; } = true;
@@ -143,29 +143,36 @@ namespace XenAdmin.Dialogs
             Show(ownerForm);
         }
 
-        protected override void OnClosed(EventArgs e)
+        protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            base.OnClosed(e);
-
-            if (ownerXenObject != null)
+            try
             {
-                foreach (var kvp in instancePerXenObject.ToDictionary(p => p.Key, p => p.Value))
+                if (ownerXenObject != null)
                 {
-                    if (kvp.Key.Equals(ownerXenObject))
-                        instancePerXenObject.Remove(kvp.Key);
+                    foreach (var kvp in instancePerXenObject.ToDictionary(p => p.Key, p => p.Value))
+                    {
+                        if (kvp.Key.Equals(ownerXenObject))
+                            instancePerXenObject.Remove(kvp.Key);
+                    }
+                }
+
+                lock (instances)
+                {
+                    if (connection != null && instances.ContainsKey(connection))
+                    {
+                        instances[connection].Remove(this);
+                    }
                 }
             }
-
-            lock (instances)
+            finally
             {
-                if (connection != null && instances.ContainsKey(connection))
-                {
-                    instances[connection].Remove(this);
-                }
+                // Form removes this window from Application.OpenForms and notifies
+                // observers even when earlier cleanup fails.
+                base.OnFormClosed(e);
             }
 
-            if (OwnerActivatedOnClosed && Owner != null)
-                Owner.Activate();
+            if (OwnerActivatedOnClosed)
+                FormCloseHelper.RestoreOwnerFocus(Owner, e.CloseReason, owner => owner.Activate());
         }
 
         #region Event handlers

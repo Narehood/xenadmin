@@ -89,14 +89,50 @@ Settings type initialization and fragmented RFB reads. This detects runtime reso
 failures that a compilation alone would miss. It does not instantiate every dialog
 or open a live RDP session.
 
-The legacy application's existing controls lack explicit designer-serialization
-metadata on 323 public properties. The new WFO1000 diagnostic is suppressed only
-in `XenAdmin.csproj` to preserve the current designer contract during this runtime
-migration. Auditing those properties for Hidden/Content/default-value metadata is
-separate work; changing them in bulk could change designer-generated forms.
-The remaining obsolete Form closing-event warnings are also legacy designer/UI
-maintenance work. See Microsoft's [WFO1000 guidance](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/compiler-messages/wfo1000)
+The September 28 maintenance batch reduces missing designer-serialization metadata
+from 323 to 312 WFO1000 diagnostics. `CustomTreeView`, `FlickerFreePanel`, and the
+three click-through strips now declare their actual constructor defaults. The
+storage picker's four overrides and pool/host picker's two overrides declare
+their own defaults too. Edited values remain designer-visible; no generated
+forms or resources were rewritten.
+WFO1000 remains suppressed in `XenAdmin.csproj` until the remaining properties
+receive a semantic audit; changing them in bulk could change generated forms.
+
+The eight obsolete Form closing overrides now use `OnFormClosing`/`OnFormClosed`.
+Password/HA listeners and action cancellation remain intact when a close is
+cancelled. The folder dialog now calls base cleanup, releasing its owner registry
+entry. Base cleanup runs before `FormClosed` observers. Main-window final
+`Application.Exit()` bypasses the task-cancellation wait as before, including the
+existing timeout path and settings-save failure exit.
+
+The review follow-up guarantees base close processing through `finally` even
+when dialog cleanup fails. Owner focus follows base processing and is skipped
+during application/owner/Windows shutdown and owner disposal. Reentrant owner
+disposal does not escape focus restoration; other exceptions remain observable.
+
+`tools/WinForms.CompatibilityProbe --lifecycle-designer` exercises actual controls
+and window handles without loading profiles or contacting a server. Its 110 checks
+cover designer omission/edit/reset/replay, both picker overrides, cancelled
+and accepted dialog closes, registry cleanup and the main-window early exit
+guards. The initial 75-check probe had 29 failures against the pre-change client;
+six additional failures reproduced inherited pool/host picker defaults that
+would omit edited values. The final probe passes in Release and Debug. Windows
+CI and the acceptance runner execute this mode for both configurations. The
+review adds fault injection for cleanup, owner-focus shutdown guards, and an
+isolated poison history entry that detects task-scan fall-through before settings
+access. Removing the main-window exit guard was mutation-tested and fails this
+probe. Main-window guards use an instance without its constructor to avoid
+profile loading; certificate/subject dialogs
+have no running actions. Active server-action cancellation, modal focus, complete
+application shutdown and Visual Studio designer round trips remain manual checks.
+
+See Microsoft's [WFO1000 guidance](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/compiler-messages/wfo1000)
 and [resource migration guidance](https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-migration-guide/winforms-applications).
+
+```powershell
+dotnet run --project tools/WinForms.CompatibilityProbe -c Release -- `
+  "XenAdmin/bin/Release/net10.0-windows/XCP-ng Center.dll" --lifecycle-designer
+```
 
 ## Reproducing validation
 
