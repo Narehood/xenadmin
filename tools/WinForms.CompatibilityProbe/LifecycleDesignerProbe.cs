@@ -38,6 +38,8 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
             ("ShowImages", true), ("ShowRootLines", false), ("RootAlwaysExpanded", true)));
         RunCase("Panel designer values", () => CheckDesignerValues("FlickerFreePanel",
             ("BorderWidth", 3), ("BorderColor", Color.Red)));
+        RunCase("Pool/host picker designer values", () => CheckDesignerValues("PoolHostPicker",
+            ("ShowCheckboxes", true), ("ShowImages", false)));
         foreach (var typeName in new[] { "MenuStripEx", "ToolStripEx", "StatusStripEx" })
             RunCase(typeName, () => CheckDesignerValues(typeName, ("ClickThrough", true)));
         RunCase("Storage picker defaults", CheckStoragePickerDefaults);

@@ -6,6 +6,9 @@ Last updated: 2026-09-28 (local date). Initial review, remediation, and moderniz
 
 ### WinForms lifecycle and designer maintenance (2026-09-28)
 
+Initial implementation: `6ac156e32`, with picker inheritance follow-up in
+[PR #55](https://github.com/Narehood/xenadmin/pull/55).
+
 PR #54 merged as `ab95c9239`; the resulting stable release is
 [2026.9.27.209](https://github.com/Narehood/xenadmin/releases/tag/v2026.9.27.209).
 With no disposable acceptance environments available, the next implemented batch
@@ -16,18 +19,20 @@ dialog calls base cleanup to release its owner registration, and modern
 `Application.Exit()` retains its bypass of the cancellation wait, including its
 timeout and settings-save failure paths; listener cancellation is respected.
 
-Fifteen explicit defaults cover the custom tree, storage-picker overrides, panel
+Seventeen explicit defaults cover the custom tree, both picker overrides, panel
 borders and three click-through strips. Eleven diagnostics are eliminated;
 312 WFO1000 diagnostics still require individual review and remain suppressed.
 Generated designer code and resource files are unchanged. See the
 [migration maintenance record](dotnet10-migration.md#winforms-resources-and-designer-metadata).
 
 The new `--lifecycle-designer` compatibility probe runs in Windows CI and local
-acceptance for Release and Debug. It passes 83 checks on each WinForms
+acceptance for Release and Debug. It passes 93 checks on each WinForms
 build configuration, covering real control descriptors, HWND close/cancel
 paths, owner/connection registry cleanup and guarded main-window exit paths.
 The initial 75-check probe reproduced 29 failures on the old client, including
 listener detachment on cancelled password close and the folder registry leak.
+Six further failures caught pool/host picker overrides that need their own
+defaults to preserve edited values equal to the base tree's defaults.
 Both solution configurations build; all 923 shell tests pass per configuration
 and all 73 shared tests pass on each framework. Both WinForms builds load all
 32,240 resources across 290 sets. Local builds reuse trusted unchanged RDP interop

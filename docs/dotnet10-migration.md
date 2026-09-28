@@ -92,8 +92,9 @@ or open a live RDP session.
 The September 28 maintenance batch reduces missing designer-serialization metadata
 from 323 to 312 WFO1000 diagnostics. `CustomTreeView`, `FlickerFreePanel`, and the
 three click-through strips now declare their actual constructor defaults. The
-storage picker's four overrides declare their different defaults too. Edited
-values remain designer-visible; no generated forms or resources were rewritten.
+storage picker's four overrides and pool/host picker's two overrides declare
+their own defaults too. Edited values remain designer-visible; no generated
+forms or resources were rewritten.
 WFO1000 remains suppressed in `XenAdmin.csproj` until the remaining properties
 receive a semantic audit; changing them in bulk could change generated forms.
 
@@ -105,11 +106,13 @@ entry. Base cleanup runs before `FormClosed` observers. Main-window final
 existing timeout path and settings-save failure exit.
 
 `tools/WinForms.CompatibilityProbe --lifecycle-designer` exercises actual controls
-and window handles without loading profiles or contacting a server. Its 83 checks
-cover designer omission/edit/reset/replay, storage-picker overrides, cancelled
+and window handles without loading profiles or contacting a server. Its 93 checks
+cover designer omission/edit/reset/replay, both picker overrides, cancelled
 and accepted dialog closes, registry cleanup and the main-window early exit
 guards. The initial 75-check probe had 29 failures against the pre-change client;
-the final probe passes in Release and Debug. Windows CI and the acceptance runner
+six additional failures reproduced inherited pool/host picker defaults that
+would omit edited values. The final probe passes in Release and Debug. Windows
+CI and the acceptance runner
 execute this mode for both configurations. Main-window guards use an instance
 without its constructor to avoid profile loading; certificate/subject dialogs
 have no running actions. Active server-action cancellation, modal focus, complete

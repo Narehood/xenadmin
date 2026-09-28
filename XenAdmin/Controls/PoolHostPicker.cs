@@ -58,6 +58,22 @@ namespace XenAdmin.Controls
 
 		public override int ItemHeight { get { return 18; } }
 
+        // These constructor defaults differ from CustomTreeView. Keep edited
+        // values serializable even when they equal the base control's defaults.
+        [DefaultValue(false)]
+        public override bool ShowCheckboxes
+        {
+            get => base.ShowCheckboxes;
+            set => base.ShowCheckboxes = value;
+        }
+
+        [DefaultValue(true)]
+        public override bool ShowImages
+        {
+            get => base.ShowImages;
+            set => base.ShowImages = value;
+        }
+
         private CollectionChangeEventHandler CollectionChangedWithInvoke;
         void CollectionChanged(object sender, CollectionChangeEventArgs e)
         {
