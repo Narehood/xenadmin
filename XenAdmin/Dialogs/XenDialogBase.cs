@@ -130,7 +130,7 @@ namespace XenAdmin.Dialogs
         internal virtual string HelpName => Name;
 
         /// <summary>
-        /// Allow the XenDialogBase.OnClosed to set Owner.Activate() - this will push the Owner
+        /// Allow the XenDialogBase.OnFormClosed to set Owner.Activate() - this will push the Owner
         /// to the top of the windows stack stealing focus.
         /// </summary>
         protected bool OwnerActivatedOnClosed { get; set; } = true;
@@ -143,10 +143,8 @@ namespace XenAdmin.Dialogs
             Show(ownerForm);
         }
 
-        protected override void OnClosed(EventArgs e)
+        protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            base.OnClosed(e);
-
             if (ownerXenObject != null)
             {
                 foreach (var kvp in instancePerXenObject.ToDictionary(p => p.Key, p => p.Value))
@@ -166,6 +164,8 @@ namespace XenAdmin.Dialogs
 
             if (OwnerActivatedOnClosed && Owner != null)
                 Owner.Activate();
+
+            base.OnFormClosed(e);
         }
 
         #region Event handlers

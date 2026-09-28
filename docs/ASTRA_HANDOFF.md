@@ -1,8 +1,46 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-27 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-09-28 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### WinForms lifecycle and designer maintenance (2026-09-28)
+
+PR #54 merged as `ab95c9239`; the resulting stable release is
+[2026.9.27.209](https://github.com/Narehood/xenadmin/releases/tag/v2026.9.27.209).
+With no disposable acceptance environments available, the next implemented batch
+maintains the supported WinForms client. All eight obsolete closing overrides
+now use current Form events. Cleanup waits for an accepted close, the folder
+dialog calls base cleanup to release its owner registration, and modern
+`FormClosed` observers see completed base cleanup. Main-window final
+`Application.Exit()` retains its bypass of the cancellation wait, including its
+timeout and settings-save failure paths; listener cancellation is respected.
+
+Fifteen explicit defaults cover the custom tree, storage-picker overrides, panel
+borders and three click-through strips. Eleven diagnostics are eliminated;
+312 WFO1000 diagnostics still require individual review and remain suppressed.
+Generated designer code and resource files are unchanged. See the
+[migration maintenance record](dotnet10-migration.md#winforms-resources-and-designer-metadata).
+
+The new `--lifecycle-designer` compatibility probe runs in Windows CI and local
+acceptance for Release and Debug. It passes 83 checks on each WinForms
+build configuration, covering real control descriptors, HWND close/cancel
+paths, owner/connection registry cleanup and guarded main-window exit paths.
+The initial 75-check probe reproduced 29 failures on the old client, including
+listener detachment on cancelled password close and the folder registry leak.
+Both solution configurations build; all 923 shell tests pass per configuration
+and all 73 shared tests pass on each framework. Both WinForms builds load all
+32,240 resources across 290 sets. Local builds reuse trusted unchanged RDP interop
+with `SkipRdpAxImp=true`; hosted Windows builds generate it normally. Evidence is
+under ignored `artifacts/winforms-*` paths. Existing ACL test warnings remain.
+
+This probe does not load user profiles or run live server actions. Main-window
+guards omit the constructor; certificate/subject dialogs use idle action fields.
+Full shutdown with running tasks, modal owner focus, Visual Studio designer round
+trips, physical desktop/UAC and live AD/DR acceptance remain pending. The reported
+Debian reboot hang remains undiagnosed. No pool operation or new release was run
+for this maintenance batch. Continue the remaining designer audit in bounded
+batches; obtain disposable infrastructure before extending live recovery scope.
 
 ### Review and merge follow-up (2026-09-27)
 

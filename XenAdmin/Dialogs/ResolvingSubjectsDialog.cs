@@ -193,12 +193,12 @@ namespace XenAdmin.Dialogs
             ButtonCancel.Text = Messages.CLOSE;
         }
 
-        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        protected override void OnFormClosed(FormClosedEventArgs e)
         {
             if (resolveAction != null && (!resolveAction.Cancelled || !resolveAction.Cancelling))
                 resolveAction.Cancel();
 
-            base.OnClosing(e);
+            base.OnFormClosed(e);
         }
 
         private class ListViewItemSubjectWrapper : ListViewItem

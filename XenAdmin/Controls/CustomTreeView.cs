@@ -58,6 +58,7 @@ namespace XenAdmin.Controls
         /// </summary>
         private int _nodeIndent = 19;
         [Browsable(true)]
+        [DefaultValue(19)]
         public virtual int NodeIndent
         {
             get { return _nodeIndent; }
@@ -68,6 +69,7 @@ namespace XenAdmin.Controls
 
         private bool _showCheckboxes = true;
         [Browsable(true)]
+        [DefaultValue(true)]
         public virtual bool ShowCheckboxes
         {
             get { return _showCheckboxes; }
@@ -76,6 +78,7 @@ namespace XenAdmin.Controls
 
         private bool _showDescription = true;
         [Browsable(true)]
+        [DefaultValue(true)]
         public virtual bool ShowDescription
         {
             get { return _showDescription; }
@@ -84,6 +87,7 @@ namespace XenAdmin.Controls
 
         private bool _showImages = false;
         [Browsable(true)]
+        [DefaultValue(false)]
         public virtual bool ShowImages
         {
             get { return _showImages; }
@@ -113,6 +117,7 @@ namespace XenAdmin.Controls
 
         private bool _showRootLines = true;
         [Browsable(true)]
+        [DefaultValue(true)]
         public bool ShowRootLines
         {
             get { return _showRootLines; }
@@ -121,6 +126,7 @@ namespace XenAdmin.Controls
 
         private bool _rootAlwaysExpanded = false;
         [Browsable(true)]
+        [DefaultValue(false)]
         public bool RootAlwaysExpanded
         {
             get { return _rootAlwaysExpanded; }

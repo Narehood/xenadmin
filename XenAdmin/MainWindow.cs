@@ -1977,8 +1977,15 @@ namespace XenAdmin
             navigationPane.EditSelectedNode();
         }
 
-        protected override void OnClosing(CancelEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            base.OnFormClosing(e);
+            // Application.Exit is also used after the cancellation wait (including its
+            // timeout) and after a settings-save failure. The old Closing event did not run on
+            // that path; do not start another cancellation wait during final exit.
+            if (e.Cancel || e.CloseReason == CloseReason.ApplicationExitCall)
+                return;
+
             bool currentTasks = false;
             foreach (ActionBase a in ConnectionsManager.History)
             {
@@ -2035,7 +2042,6 @@ namespace XenAdmin
 
             Properties.Settings.Default.WindowSize = this.Size;
             Properties.Settings.Default.WindowLocation = this.Location;
-            base.OnClosing(e);
         }
 
         private void sendCtrlAltDelToolStripMenuItem_Click(object sender, EventArgs e)

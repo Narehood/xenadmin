@@ -258,11 +258,11 @@ namespace XenAdmin.Wizards
             WizardProgress_EnteringStep(null, new WizardProgressEventArgs(false));
         }
 
-        protected override void OnClosed(EventArgs e)
+        protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            base.OnClosed(e);
             if (Owner != null)
                 Owner.Focus();
+            base.OnFormClosed(e);
         }
 
         private void XenWizardBase_FormClosing(object sender, FormClosingEventArgs e)

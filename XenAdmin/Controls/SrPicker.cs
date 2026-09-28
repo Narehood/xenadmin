@@ -83,12 +83,16 @@ namespace XenAdmin.Controls
             }
         }
 
+        [DefaultValue(false)]
         public override bool ShowCheckboxes => false;
 
+        [DefaultValue(true)]
         public override bool ShowDescription => true;
 
+        [DefaultValue(true)]
         public override bool ShowImages => true;
 
+        [DefaultValue(3)]
         public override int NodeIndent => 3;
 
         public SR SR => SelectedItem is SrPickerItem srpITem && srpITem.Enabled ? srpITem.TheSR : null;
