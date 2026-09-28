@@ -131,11 +131,17 @@ namespace XenAdmin.Dialogs
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            if (host != null)
-                host.PropertyChanged -= Server_PropertyChanged;
-            if (pool != null)
-                pool.PropertyChanged -= Server_PropertyChanged;
-            base.OnFormClosed(e);
+            try
+            {
+                if (host != null)
+                    host.PropertyChanged -= Server_PropertyChanged;
+                if (pool != null)
+                    pool.PropertyChanged -= Server_PropertyChanged;
+            }
+            finally
+            {
+                base.OnFormClosed(e);
+            }
         }
 
         private void oldPassBox_TextChanged(object sender, EventArgs e)

@@ -85,12 +85,16 @@ namespace XenAdmin.Dialogs
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            pool.PropertyChanged -= pool_PropertyChanged;
-
-            assignPriorities.StopNtolUpdate();
-            assignPriorities.StatusChanged -= assignPriorities_StatusChanged;
-
-            base.OnFormClosed(e);
+            try
+            {
+                pool.PropertyChanged -= pool_PropertyChanged;
+                assignPriorities.StatusChanged -= assignPriorities_StatusChanged;
+                assignPriorities.StopNtolUpdate();
+            }
+            finally
+            {
+                base.OnFormClosed(e);
+            }
         }
 
         private void Rebuild()

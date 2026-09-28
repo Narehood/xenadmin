@@ -50,6 +50,9 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
         RunCase("Folder registry cleanup", CheckFolderClose);
         RunCase("Connection registry cleanup", CheckConnectionClose);
         RunCase("Wizard close events", CheckWizardClose);
+        RunCase("Owner focus shutdown guards", CheckOwnerFocus);
+        RunCase("HA cleanup failure", CheckHaCleanupFailure);
+        RunCase("Base cleanup failure", CheckBaseCleanupFailure);
         RunCase("Main window exit guards", CheckMainWindowGuards);
     }
 
@@ -255,22 +258,160 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
         var main = (Form)RuntimeHelpers.GetUninitializedObject(type);
         GC.SuppressFinalize(main);
         var closing = type.GetMethod("OnFormClosing", InstanceMembers)!;
+        var manager = Assembly.Load("XenModel").GetType("XenAdmin.ConnectionsManager", throwOnError: true)!;
+        var history = (IList)manager.GetField("History")!.GetValue(null)!;
+        if (history.Count != 0)
+            throw new InvalidOperationException("The isolated exit probe requires an empty action history.");
+        // A poison entry makes any fall-through into the task scan throw before
+        // settings access. No real action, window constructor or test hook is used.
+        // IList uses List<T>'s implementation without ChangeableList notifications.
+        history.Add(null);
         var notifications = 0;
         FormClosingEventHandler listener = (_, _) => notifications++;
-        main.FormClosing += listener;
-        var exit = new FormClosingEventArgs(CloseReason.ApplicationExitCall, false);
-        closing.Invoke(main, [exit]);
-        Require(!exit.Cancel && notifications == 1, "Final Application.Exit must notify listeners without restarting the wait.");
         FormClosingEventHandler cancel = (_, e) => e.Cancel = true;
-        main.FormClosing += cancel;
-        foreach (var reason in new[] { CloseReason.UserClosing, CloseReason.WindowsShutDown, CloseReason.ApplicationExitCall })
+        try
         {
-            var cancelled = new FormClosingEventArgs(reason, false);
-            closing.Invoke(main, [cancelled]);
-            Require(cancelled.Cancel, $"Main window must respect listener cancellation for {reason}.");
+            main.FormClosing += listener;
+            var exit = new FormClosingEventArgs(CloseReason.ApplicationExitCall, false);
+            closing.Invoke(main, [exit]);
+            Require(!exit.Cancel && notifications == 1, "Final Application.Exit must notify listeners without entering the task scan.");
+            main.FormClosing += cancel;
+            foreach (var reason in new[] { CloseReason.UserClosing, CloseReason.WindowsShutDown, CloseReason.ApplicationExitCall })
+            {
+                var cancelled = new FormClosingEventArgs(reason, false);
+                closing.Invoke(main, [cancelled]);
+                Require(cancelled.Cancel, $"Main window must respect listener cancellation for {reason}.");
+            }
         }
-        main.FormClosing -= cancel;
-        main.FormClosing -= listener;
+        finally
+        {
+            history.Clear();
+            main.FormClosing -= cancel;
+            main.FormClosing -= listener;
+        }
+    }
+
+    private void CheckOwnerFocus()
+    {
+        var restore = ClientType("Core.FormCloseHelper").GetMethod("RestoreOwnerFocus", BindingFlags.Static | BindingFlags.NonPublic)!;
+        void Restore(Form? owner, CloseReason reason, Action<Form> action) => restore.Invoke(null, [owner, reason, action]);
+        using var owner = new Form();
+        var attempts = 0;
+        foreach (var reason in new[] { CloseReason.ApplicationExitCall, CloseReason.FormOwnerClosing, CloseReason.WindowsShutDown })
+        {
+            Restore(owner, reason, _ => attempts++);
+            Require(attempts == 0, $"Owner focus must be skipped for {reason}.");
+        }
+        Restore(null, CloseReason.UserClosing, _ => attempts++);
+        Require(attempts == 0, "A null owner must not receive focus.");
+        Restore(owner, CloseReason.UserClosing, target =>
+        {
+            Require(ReferenceEquals(owner, target), "Normal focus must target the owner.");
+            attempts++;
+        });
+        Require(attempts == 1, "A normal close must restore owner focus once.");
+        Restore(owner, CloseReason.UserClosing, _ => throw new ObjectDisposedException("reentrant owner disposal"));
+        Require(true, "Owner disposal during focus must not escape the close path.");
+        owner.Dispose();
+        Restore(owner, CloseReason.UserClosing, _ => attempts++);
+        Require(attempts == 1, "An already disposed owner must not receive focus.");
+        using var disposing = new DisposingOwnerForm(form =>
+        {
+            Require(form.Disposing, "The disposing-owner fixture must run during disposal.");
+            Restore(form, CloseReason.UserClosing, _ => attempts++);
+        });
+        _ = disposing.Handle;
+        disposing.Dispose();
+        Require(disposing.Checked && attempts == 1, "A disposing owner must not receive focus.");
+    }
+
+    private void CheckHaCleanupFailure()
+    {
+        var type = ClientType("Dialogs.EditVmHaPrioritiesDialog");
+        var poolType = type.GetConstructors().Single().GetParameters()[0].ParameterType;
+        var pool = Activator.CreateInstance(poolType)!;
+        poolType.GetProperty("Connection")!.SetValue(pool,
+            Activator.CreateInstance(poolType.Assembly.GetType("XenAdmin.Network.XenConnection")!));
+        poolType.GetProperty("ha_enabled")!.SetValue(pool, true);
+        using var dialog = (Form)Activator.CreateInstance(type, pool)!;
+        var priorities = type.GetField("assignPriorities", InstanceMembers)!.GetValue(dialog)!;
+        var indicator = FindField(priorities.GetType(), "haNtolIndicator").GetValue(priorities)!;
+        var workerField = FindField(indicator.GetType(), "ntolUpdateThread");
+        var wait = (WaitHandle)FindField(indicator.GetType(), "waitingNtolUpdate").GetValue(indicator)!;
+        // Simulate a disposed wait handle during teardown. Never start a worker or RPC.
+        workerField.SetValue(indicator, new Thread(() => { }));
+        wait.Dispose();
+        RegisterOpenForm(dialog);
+        var notifications = 0;
+        dialog.FormClosed += (_, _) => notifications++;
+        try
+        {
+            try
+            {
+                type.GetMethod("OnFormClosed", InstanceMembers)!.Invoke(dialog, [new FormClosedEventArgs(CloseReason.ApplicationExitCall)]);
+                Require(false, "HA cleanup fixture must exercise the disposed wait handle.");
+            }
+            catch (TargetInvocationException error) when (error.InnerException is ObjectDisposedException)
+            {
+                Require(true, "Unexpected cleanup failures must remain observable.");
+            }
+            Require(notifications == 1 && !Application.OpenForms.Cast<Form>().Contains(dialog),
+                "HA cleanup failure must still reach FormClosed and leave OpenForms.");
+            var handlers = (Delegate?)FindField(priorities.GetType(), "StatusChanged").GetValue(priorities);
+            Require(handlers?.GetInvocationList().Any(d => d.Target == dialog) != true,
+                "HA listener must detach before stopping the failed worker.");
+        }
+        finally { workerField.SetValue(indicator, null); }
+    }
+
+    private void CheckBaseCleanupFailure()
+    {
+        var type = ClientType("Dialogs.XenDialogBase");
+        var constructor = type.GetConstructors(InstanceMembers).Single(c => c.GetParameters().Length == 1);
+        var connectionType = constructor.GetParameters()[0].ParameterType.Assembly.GetType("XenAdmin.Network.XenConnection")!;
+        var connection = Activator.CreateInstance(connectionType)!;
+        using var dialog = (Form)constructor.Invoke([connection]);
+        var registry = (IDictionary)type.GetField("instances", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
+        // Inject a failing registry operation, without a live connection or profile.
+        registry[connection] = null;
+        RegisterOpenForm(dialog);
+        var notifications = 0;
+        dialog.FormClosed += (_, _) => notifications++;
+        try
+        {
+            try
+            {
+                type.GetMethod("OnFormClosed", InstanceMembers)!.Invoke(dialog, [new FormClosedEventArgs(CloseReason.ApplicationExitCall)]);
+                Require(false, "Base cleanup fixture must exercise a registry failure.");
+            }
+            catch (TargetInvocationException error) when (error.InnerException is NullReferenceException)
+            {
+                Require(true, "Registry failure must remain observable.");
+            }
+            Require(notifications == 1 && !Application.OpenForms.Cast<Form>().Contains(dialog),
+                "Registry failure must still reach FormClosed and leave OpenForms.");
+        }
+        finally { registry.Remove(connection); }
+    }
+
+    private void RegisterOpenForm(Form form)
+    {
+        // Seed the same collection as Form.OnLoad without showing inventory dialogs.
+        typeof(FormCollection).GetMethod("Add", BindingFlags.Instance | BindingFlags.NonPublic,
+            [typeof(Form)])!.Invoke(Application.OpenForms, [form]);
+        Require(Application.OpenForms.Cast<Form>().Contains(form), "Cleanup fixture must start registered in OpenForms.");
+    }
+
+    private sealed class DisposingOwnerForm(Action<Form> check) : Form
+    {
+        public bool Checked { get; private set; }
+
+        protected override void OnHandleDestroyed(EventArgs e)
+        {
+            Checked = true;
+            check(this);
+            base.OnHandleDestroyed(e);
+        }
     }
 
     private static FieldInfo FindField(Type type, string name)

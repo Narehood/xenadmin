@@ -69,8 +69,14 @@ namespace XenAdmin.Dialogs
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            CancelInstallation();
-            base.OnFormClosed(e);
+            try
+            {
+                CancelInstallation();
+            }
+            finally
+            {
+                base.OnFormClosed(e);
+            }
         }
 
         private void HideAllErrors()

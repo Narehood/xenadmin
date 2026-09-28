@@ -260,9 +260,8 @@ namespace XenAdmin.Wizards
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            if (Owner != null)
-                Owner.Focus();
             base.OnFormClosed(e);
+            FormCloseHelper.RestoreOwnerFocus(Owner, e.CloseReason, owner => owner.Focus());
         }
 
         private void XenWizardBase_FormClosing(object sender, FormClosingEventArgs e)

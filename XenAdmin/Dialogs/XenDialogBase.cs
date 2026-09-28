@@ -145,27 +145,34 @@ namespace XenAdmin.Dialogs
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            if (ownerXenObject != null)
+            try
             {
-                foreach (var kvp in instancePerXenObject.ToDictionary(p => p.Key, p => p.Value))
+                if (ownerXenObject != null)
                 {
-                    if (kvp.Key.Equals(ownerXenObject))
-                        instancePerXenObject.Remove(kvp.Key);
+                    foreach (var kvp in instancePerXenObject.ToDictionary(p => p.Key, p => p.Value))
+                    {
+                        if (kvp.Key.Equals(ownerXenObject))
+                            instancePerXenObject.Remove(kvp.Key);
+                    }
+                }
+
+                lock (instances)
+                {
+                    if (connection != null && instances.ContainsKey(connection))
+                    {
+                        instances[connection].Remove(this);
+                    }
                 }
             }
-
-            lock (instances)
+            finally
             {
-                if (connection != null && instances.ContainsKey(connection))
-                {
-                    instances[connection].Remove(this);
-                }
+                // Form removes this window from Application.OpenForms and notifies
+                // observers even when earlier cleanup fails.
+                base.OnFormClosed(e);
             }
 
-            if (OwnerActivatedOnClosed && Owner != null)
-                Owner.Activate();
-
-            base.OnFormClosed(e);
+            if (OwnerActivatedOnClosed)
+                FormCloseHelper.RestoreOwnerFocus(Owner, e.CloseReason, owner => owner.Activate());
         }
 
         #region Event handlers

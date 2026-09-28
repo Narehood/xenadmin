@@ -195,10 +195,15 @@ namespace XenAdmin.Dialogs
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            if (resolveAction != null && (!resolveAction.Cancelled || !resolveAction.Cancelling))
-                resolveAction.Cancel();
-
-            base.OnFormClosed(e);
+            try
+            {
+                if (resolveAction != null && (!resolveAction.Cancelled || !resolveAction.Cancelling))
+                    resolveAction.Cancel();
+            }
+            finally
+            {
+                base.OnFormClosed(e);
+            }
         }
 
         private class ListViewItemSubjectWrapper : ListViewItem

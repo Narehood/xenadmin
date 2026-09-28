@@ -105,16 +105,24 @@ entry. Base cleanup runs before `FormClosed` observers. Main-window final
 `Application.Exit()` bypasses the task-cancellation wait as before, including the
 existing timeout path and settings-save failure exit.
 
+The review follow-up guarantees base close processing through `finally` even
+when dialog cleanup fails. Owner focus follows base processing and is skipped
+during application/owner/Windows shutdown and owner disposal. Reentrant owner
+disposal does not escape focus restoration; other exceptions remain observable.
+
 `tools/WinForms.CompatibilityProbe --lifecycle-designer` exercises actual controls
-and window handles without loading profiles or contacting a server. Its 93 checks
+and window handles without loading profiles or contacting a server. Its 110 checks
 cover designer omission/edit/reset/replay, both picker overrides, cancelled
 and accepted dialog closes, registry cleanup and the main-window early exit
 guards. The initial 75-check probe had 29 failures against the pre-change client;
 six additional failures reproduced inherited pool/host picker defaults that
 would omit edited values. The final probe passes in Release and Debug. Windows
-CI and the acceptance runner
-execute this mode for both configurations. Main-window guards use an instance
-without its constructor to avoid profile loading; certificate/subject dialogs
+CI and the acceptance runner execute this mode for both configurations. The
+review adds fault injection for cleanup, owner-focus shutdown guards, and an
+isolated poison history entry that detects task-scan fall-through before settings
+access. Removing the main-window exit guard was mutation-tested and fails this
+probe. Main-window guards use an instance without its constructor to avoid
+profile loading; certificate/subject dialogs
 have no running actions. Active server-action cancellation, modal focus, complete
 application shutdown and Visual Studio designer round trips remain manual checks.
 

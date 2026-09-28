@@ -4,6 +4,25 @@ Last updated: 2026-09-28 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### PR #55 review follow-up (2026-09-28)
+
+The three Cursor findings on `dda0e24fd` are valid in substance. Dialog cleanup
+now reaches `base.OnFormClosed` through `finally`, including when an action or HA
+teardown fails. HA detaches both listeners before stopping its worker. Registry
+cleanup still precedes observers; owner focus now follows base close processing.
+The wizard and dialog share a focus guard for application exit, owner closure,
+Windows shutdown, and disposed/disposing owners. Reentrant owner disposal is
+handled without hiding other exceptions.
+
+The lifecycle probe now passes 110 checks in Release and Debug. Fault injection
+reproduced three failing cleanup assertions before the fix. The main-window
+probe seeds an isolated poison history entry: removing the ApplicationExitCall
+guard was mutation-tested and now fails at the task scan before settings access.
+Production source/binaries were restored afterward. No production test flag,
+real action, profile load or live RPC was introduced. Both solution builds and
+required test suites pass; the detailed evidence, review dispositions and
+remaining manual limits are in the [PR #55 review](reviews/2026-09-28-pr55-review.md).
+
 ### WinForms lifecycle and designer maintenance (2026-09-28)
 
 Initial implementation: `6ac156e32`, with picker inheritance follow-up in
