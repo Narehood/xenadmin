@@ -98,6 +98,33 @@ forms or resources were rewritten.
 WFO1000 remains suppressed in `XenAdmin.csproj` until the remaining properties
 receive a semantic audit; changing them in bulk could change generated forms.
 
+The September 29 batch reduces the remaining diagnostics from 312 to **302**
+with ten explicit defaults. These preserve the existing constructor values:
+
+| Control | Audited properties and defaults |
+| --- | --- |
+| `SectionHeaderLabel` | `LabelHorizontalAlignment`: Left; `LabelText`: null; `LabelPadding`: zero; `LineLocation`: Top; `LineColor`: Black; `LinePadding`: zero; `UseMnemonic`: false; `FocusControl`: null |
+| `DecentGroupBox` | `Text`: null, matching its raw caption rather than the inherited empty-string default |
+| `DateTimeMinutes15` | `Value`: January 1, 1970 at midnight, matching the constructor and snapshot schedule designer |
+
+An explicitly empty caption remains an edit from null and survives designer
+replay. Header text, padding, alignment, mnemonic and focus-target properties
+retain their localizable metadata. Focus references remain designer-visible.
+Snapshot-time defaults use invariant type conversion; existing quarter-hour
+correction and its event guard are unchanged. No generated designer code or
+resources were rewritten.
+
+The expanded compatibility probe passes **197 checks** on Release and Debug;
+30 assertions fail against the pre-change client. Its 87 additional checks cover
+default omission, edited-value replay and reset, null versus empty captions,
+ampersand escaping, existing header resources and snapshot time under en-US,
+fr-FR and tr-TR cultures. Unsuppressed analyzer inventories confirm exactly ten
+diagnostics removed and none added. Both solution builds, required test suites
+and full resource probes pass; evidence is under ignored
+`artifacts/winforms-designer-labels/`. Existing WFO1000 suppression remains for
+the 302 unaudited properties. Descriptor/resource probes do not establish an
+actual Visual Studio designer save/reopen round trip or physical desktop behavior.
+
 The eight obsolete Form closing overrides now use `OnFormClosing`/`OnFormClosed`.
 Password/HA listeners and action cancellation remain intact when a close is
 cancelled. The folder dialog now calls base cleanup, releasing its owner registry
@@ -111,7 +138,8 @@ during application/owner/Windows shutdown and owner disposal. Reentrant owner
 disposal does not escape focus restoration; other exceptions remain observable.
 
 `tools/WinForms.CompatibilityProbe --lifecycle-designer` exercises actual controls
-and window handles without loading profiles or contacting a server. Its 110 checks
+and window handles without loading profiles or contacting a server. The September
+28 probe's 110 checks
 cover designer omission/edit/reset/replay, both picker overrides, cancelled
 and accepted dialog closes, registry cleanup and the main-window early exit
 guards. The initial 75-check probe had 29 failures against the pre-change client;

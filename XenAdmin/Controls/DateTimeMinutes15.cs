@@ -29,6 +29,7 @@
  */
 
 using System;
+using System.ComponentModel;
 using System.Windows.Forms;
 
 namespace XenAdmin.Controls
@@ -119,6 +120,7 @@ namespace XenAdmin.Controls
             }
         }
 
+        [DefaultValue(typeof(DateTime), "1970-01-01")]
         public new DateTime Value
         {
             get { return base.Value; }

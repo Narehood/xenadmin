@@ -63,6 +63,8 @@ namespace XenAdmin.Controls
         }
 
         private string rawText;
+        // The raw caption starts null; an explicitly empty caption is an edit.
+        [DefaultValue(null)]
         public new string Text
         {
             get
