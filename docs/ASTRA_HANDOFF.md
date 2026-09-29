@@ -6,6 +6,9 @@ Last updated: 2026-09-29 (local date). Initial review, remediation, and moderniz
 
 ### Designer labels and snapshot time maintenance (2026-09-29)
 
+Implementation: `6037faaf6`, submitted as
+[PR #56](https://github.com/Narehood/xenadmin/pull/56).
+
 This bounded follow-up starts from `development` at `d346ca5e5`, which merged
 PR #55. Ten explicit defaults cover the eight `SectionHeaderLabel` properties,
 `DecentGroupBox.Text`, and `DateTimeMinutes15.Value`. Defaults match the existing
