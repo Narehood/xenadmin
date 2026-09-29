@@ -6,6 +6,10 @@ Last updated: 2026-09-29 (local date). Initial review, remediation, and moderniz
 
 ### Combo-box and grid-editor designer maintenance (2026-09-29)
 
+Implementation: `1c061292e`, submitted as
+[PR #57](https://github.com/Narehood/xenadmin/pull/57), stacked on PR #56.
+Merge PR #56 first, then retarget PR #57 to `development` before merging.
+
 This batch follows the labels/time implementation `6037faaf6` in
 [PR #56](https://github.com/Narehood/xenadmin/pull/56). `EnableableComboBox.Enabled`
 now delegates designer omission to the framework's local enabled-state
