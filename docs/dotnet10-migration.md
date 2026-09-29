@@ -142,9 +142,10 @@ getters/setters and selection notification are unchanged. The four writable
 properties and Enabled account for the five removed diagnostics; the two
 read-only properties complete the runtime contract audit.
 
-The probe adds 33 checks and now passes **230 checks** per WinForms configuration;
-16 assertions fail on the preceding client. It covers inherited versus explicit
-disabled state, descriptor reset and replay, both control types, runtime metadata,
+The probe adds 42 checks and now passes **239 checks** per WinForms configuration;
+the initial 230-check probe reproduced 16 failures on the preceding client.
+It covers inherited versus explicit disabled state, descriptor reset and replay,
+the base combo box, grid editor and networking combo box, runtime metadata,
 and actual grid owner/row initialization, dirty notification and item commit
 through the production cell parser. Builds, full required suites and resource
 loading pass with unchanged portable lockfiles and RDP interop. Evidence is under

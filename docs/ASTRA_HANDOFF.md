@@ -26,10 +26,11 @@ and row, signals dirty state after a selection and commits the selected item.
 Generated designer code and resources are unchanged.
 
 The analyzer inventory falls from **302 to 297** WFO1000 diagnostics, with five
-removed and none added. The existing compatibility probe adds 33 checks for
+removed and none added. The existing compatibility probe adds 42 checks for
 local/inherited Enabled behavior, reset/replay, hidden runtime metadata and the
-real grid edit/commit path. Sixteen assertions fail before correction; all
-**230 checks** pass against Release and Debug afterward. Locked restore, both
+real grid edit/commit path, including the derived networking combo box. The
+initial 230-check probe reproduced 16 failures before correction; the final
+**239 checks** pass against Release and Debug. Locked restore, both
 solution builds, **923 shell tests per configuration**, **73 shared tests per
 framework**, and **32,240 resources in 290 sets** pass. Existing ACL analyzer
 warnings remain. Local builds reuse unchanged trusted RDP interop with

@@ -48,7 +48,7 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
         RunCase("Group box designer text", CheckGroupBoxDesignerText);
         RunCase("Snapshot time designer values", CheckSnapshotTimeDesignerValues);
         RunCase("Existing header resources", CheckHeaderResources);
-        foreach (var typeName in new[] { "EnableableComboBox", "EnableableComboBoxEditingControl" })
+        foreach (var typeName in new[] { "EnableableComboBox", "EnableableComboBoxEditingControl", "NetworkComboBox" })
             RunCase(typeName + " enabled designer state", () => CheckComboBoxEnabledState(typeName));
         RunCase("Grid editor runtime metadata", CheckGridEditorMetadata);
         RunCase("Grid editor selection and commit", CheckGridEditorCommit);
