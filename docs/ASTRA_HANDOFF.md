@@ -4,6 +4,20 @@ Last updated: 2026-09-29 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### PR #56 / #57 review follow-up (2026-09-29)
+
+Reviewed the comments against `3a27e4087` (#56) and `47859834d` (#57).
+Cursor approved both; neither PR has inline review threads or actionable code
+findings. CodeRabbit completed #56 with only its advisory XML-doc coverage
+warning; the repository does not mandate that threshold. Its #57 review was
+skipped because the stacked base is not the default branch, so its successful
+status does not represent a completed review. Hosted Windows/Linux validation
+passes on both reviewed heads; #56 also has passing CodeQL. The
+[review record](reviews/2026-09-29-pr56-57-review.md) records the dispositions,
+regression evidence and remaining manual checks. This follow-up changes
+documentation only. The merge order remains #56, then retarget #57 to
+`development`.
+
 ### Combo-box and grid-editor designer maintenance (2026-09-29)
 
 Implementation: `1c061292e`, submitted as
