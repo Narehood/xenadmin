@@ -58,7 +58,7 @@ most. Reorder when a concrete deployment requirement is supplied.
 | --- | --- | --- |
 | 1 | Deployment acceptance for the implemented workflows | Complete the physical desktop, updater/UAC, networking, HA, AD/RBAC and DR checks using disposable environments; diagnose the reported reboot incident |
 | 2 | Extended DR scope beyond halted standalone VM recovery | Design appliance/snapshot/hardware-device recovery and a running guest rehearsal with proven storage isolation; retain the existing WinForms/server workflows in the meantime |
-| 3 | WinForms designer metadata maintenance | Continue the semantic audit of 302 remaining diagnostics; completed batches cover tree/panel/strip defaults, section headers, group captions and snapshot-time defaults, plus obsolete form closing overrides with regression coverage |
+| 3 | WinForms designer metadata maintenance | Continue the semantic audit of 297 remaining diagnostics; completed batches cover tree/panel/strip defaults, section headers, group captions, snapshot-time defaults and combo-box/grid-editor state, plus obsolete form closing overrides with regression coverage |
 
 Each feature should adapt the corresponding `XenModel/Actions` implementation.
 Keep the user-visible plan separate from action execution and resolve current
