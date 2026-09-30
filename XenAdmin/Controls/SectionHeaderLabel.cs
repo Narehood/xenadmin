@@ -59,46 +59,54 @@ namespace XenAdmin.Controls
         /// Horizontal alignment of the control text
         /// </summary>
         [Localizable(true)]
+        [DefaultValue(HorizontalAlignment.Left)]
         public HorizontalAlignment LabelHorizontalAlignment { get; set; }
 
         /// <summary>
         /// Text to display
         /// </summary>
         [Localizable(true)]
+        [DefaultValue(null)]
         public string LabelText { get; set; }
 
         /// <summary>
         /// Padding around the text
         /// </summary>
         [Localizable(true)]
+        [DefaultValue(typeof(Padding), "0, 0, 0, 0")]
         public Padding LabelPadding { get; set; }
 
         /// <summary>
         /// Vertical alignment of the header line
         /// </summary>
+        [DefaultValue(VerticalAlignment.Top)]
         public VerticalAlignment LineLocation { get; set; }
 
         /// <summary>
         /// Color of the header line
         /// </summary>
+        [DefaultValue(typeof(Color), "Black")]
         public Color LineColor { get; set; }
 
         /// <summary>
         /// Padding around the header line
         /// </summary>
         [Localizable(true)]
+        [DefaultValue(typeof(Padding), "0, 0, 0, 0")]
         public Padding LinePadding { get; set; }
 
         /// <summary>
         /// Use mnemonic for setting focus on a control
         /// </summary>
         [Localizable(true)]
+        [DefaultValue(false)]
         public bool UseMnemonic { get; set; }
 
         /// <summary>
         /// The control on which to set focus when mnemonic key is pressed
         /// </summary>
         [Localizable(true)]
+        [DefaultValue(null)]
         public Control FocusControl { get; set; }
 
         /// <summary>

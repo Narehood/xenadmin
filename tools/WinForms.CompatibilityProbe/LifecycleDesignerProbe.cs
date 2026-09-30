@@ -1,6 +1,7 @@
 using System.Collections;
 using System.ComponentModel;
 using System.Drawing;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -43,6 +44,10 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
         foreach (var typeName in new[] { "MenuStripEx", "ToolStripEx", "StatusStripEx" })
             RunCase(typeName, () => CheckDesignerValues(typeName, ("ClickThrough", true)));
         RunCase("Storage picker defaults", CheckStoragePickerDefaults);
+        RunCase("Section header designer values", CheckSectionHeaderDesignerValues);
+        RunCase("Group box designer text", CheckGroupBoxDesignerText);
+        RunCase("Snapshot time designer values", CheckSnapshotTimeDesignerValues);
+        RunCase("Existing header resources", CheckHeaderResources);
         RunCase("Password close cancellation", CheckPasswordClose);
         RunCase("HA close cancellation", CheckHaClose);
         foreach (var typeName in new[] { "InstallCertificateDialog", "ResolvingSubjectsDialog" })
@@ -103,6 +108,82 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
             Require(defaultValue != null && Equals(defaultValue.Value, property.GetValue(picker)),
                 $"SrPicker.{name}: inherited defaults must match this control's override.");
         }
+    }
+
+    private void CheckSectionHeaderDesignerValues()
+    {
+        using var focusTarget = new TextBox { Name = "backupName" };
+        var lineLocation = Enum.Parse(ClientType("Controls.SectionHeaderLabel+VerticalAlignment"), "Middle");
+        CheckDesignerValues("SectionHeaderLabel",
+            ("LabelHorizontalAlignment", HorizontalAlignment.Right), ("LabelText", ""),
+            ("LabelPadding", new Padding(1, 2, 3, 4)), ("LineLocation", lineLocation),
+            ("LineColor", Color.Silver), ("LinePadding", new Padding(4, 3, 2, 1)),
+            ("UseMnemonic", true), ("FocusControl", focusTarget));
+        // Empty text is an intentional edit from this control's null default.
+        CheckDesignerValues("SectionHeaderLabel", ("LabelText", "&Backup schedule"));
+        var properties = TypeDescriptor.GetProperties(ClientType("Controls.SectionHeaderLabel"));
+        foreach (var name in new[] { "LabelHorizontalAlignment", "LabelText", "LabelPadding", "LinePadding", "UseMnemonic", "FocusControl" })
+            Require(properties[name]!.IsLocalizable, $"SectionHeaderLabel.{name}: localized designer values must remain localizable.");
+    }
+
+    private void CheckGroupBoxDesignerText()
+    {
+        CheckDesignerValues("DecentGroupBox", ("Text", ""), ("Text", "Backups & retention"));
+        using var group = (Control)Activator.CreateInstance(ClientType("Controls.DecentGroupBox"))!;
+        var properties = TypeDescriptor.GetProperties(group);
+        properties["AutoEllipsis"]!.SetValue(group, false);
+        properties["Text"]!.SetValue(group, "Backups & retention");
+        Require(Equals(properties["EscapedText"]!.GetValue(group), "Backups && retention"),
+            "DecentGroupBox.Text: designer edits must retain ampersand escaping.");
+        properties["UseMnemonic"]!.SetValue(group, true);
+        Require(Equals(properties["EscapedText"]!.GetValue(group), "Backups & retention"),
+            "DecentGroupBox.Text: mnemonic mode must retain the raw designer text.");
+    }
+
+    private void CheckSnapshotTimeDesignerValues()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            foreach (var culture in new[] { "en-US", "fr-FR", "tr-TR" })
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+                CheckDesignerValues("DateTimeMinutes15", ("Value", new DateTime(1970, 1, 1, 8, 30, 0)));
+            }
+        }
+        finally { CultureInfo.CurrentCulture = originalCulture; }
+
+        using var picker = (DateTimePicker)Activator.CreateInstance(ClientType("Controls.DateTimeMinutes15"))!;
+        var property = TypeDescriptor.GetProperties(picker)["Value"]!;
+        property.SetValue(picker, new DateTime(1970, 1, 1, 8, 7, 0));
+        Require(picker.Value == new DateTime(1970, 1, 1, 8, 15, 0),
+            "DateTimeMinutes15.Value: designer replay must retain quarter-hour correction.");
+        Require(!(bool)picker.GetType().GetField("AutoCorrecting")!.GetValue(picker)!,
+            "DateTimeMinutes15.Value: correction must release its event guard.");
+        property.ResetValue(picker);
+        Require(picker.Value == new DateTime(1970, 1, 1) && !property.ShouldSerializeValue(picker),
+            "DateTimeMinutes15.Value: reset after correction must restore midnight and omit it.");
+    }
+
+    private void CheckHeaderResources()
+    {
+        // Apply the checked-in designer resources without constructing an options
+        // page or snapshot wizard, whose surrounding code can consult settings.
+        var resources = new ComponentResourceManager(ClientType("Dialogs.OptionsPages.ConfirmationOptionsPage"));
+        foreach (var name in new[] { "sectionHeaderLabel1", "sectionHeaderLabel2" })
+        {
+            using var header = (Control)Activator.CreateInstance(ClientType("Controls.SectionHeaderLabel"))!;
+            resources.ApplyResources(header, name, CultureInfo.InvariantCulture);
+            var property = TypeDescriptor.GetProperties(header)["LabelText"]!;
+            var expected = resources.GetString(name + ".LabelText", CultureInfo.InvariantCulture);
+            Require(!string.IsNullOrEmpty(expected) && Equals(property.GetValue(header), expected),
+                $"{name}: existing localized header text must still load through designer descriptors.");
+            Require(property.ShouldSerializeValue(header), $"{name}: loaded header text must remain serializable.");
+            property.ResetValue(header);
+            Require(property.GetValue(header) == null && !property.ShouldSerializeValue(header),
+                $"{name}: resetting resource text must restore the null default.");
+        }
+        resources.ReleaseAllResources();
     }
 
     private void CheckPasswordClose()

@@ -1,8 +1,42 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-28 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-09-29 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Designer labels and snapshot time maintenance (2026-09-29)
+
+Implementation: `6037faaf6`, submitted as
+[PR #56](https://github.com/Narehood/xenadmin/pull/56).
+
+This bounded follow-up starts from `development` at `d346ca5e5`, which merged
+PR #55. Ten explicit defaults cover the eight `SectionHeaderLabel` properties,
+`DecentGroupBox.Text`, and `DateTimeMinutes15.Value`. Defaults match the existing
+constructors, including null captions and the snapshot picker's 1970 midnight
+value. An intentionally empty group caption now remains serializable instead
+of being omitted by the inherited empty-string default. Localizable metadata,
+focus-control references, mnemonic escaping and quarter-hour correction remain
+intact. Generated designer code and resource files are unchanged.
+
+An unsuppressed analyzer audit reduces WFO1000 diagnostics from 312 to **302**,
+with no new diagnostics. The existing `--lifecycle-designer` probe grows from
+110 to **197 checks**; 30 assertions fail on the pre-change client, and all checks
+pass on both Release and Debug afterward. Coverage includes omission/edit/reset/
+replay, null versus empty text, existing header resources, focus references,
+ampersand handling and snapshot-time defaults under three cultures.
+
+Locked restore and both solution configurations pass. Shell tests pass **923
+cases per configuration**; shared tests pass **73 cases on each framework**.
+Both WinForms builds load all **32,240 resources across 290 sets**. Local builds
+reuse unchanged trusted RDP interop with `SkipRdpAxImp=true`; the existing ACL
+analyzer warnings remain. Evidence is under ignored
+`artifacts/winforms-designer-labels/`; portable lockfiles are unchanged.
+
+The audit and remaining limitations are recorded in the
+[migration maintenance record](dotnet10-migration.md#winforms-resources-and-designer-metadata).
+Actual Visual Studio designer round trips, physical desktop/installation checks,
+live-pool acceptance and the reported reboot investigation remain pending. No
+release or live pool operation was performed.
 
 ### PR #55 review follow-up (2026-09-28)
 
