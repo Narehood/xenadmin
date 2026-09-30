@@ -4,6 +4,60 @@ Last updated: 2026-09-29 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### PR #56 / #57 review follow-up (2026-09-29)
+
+Reviewed the comments against `3a27e4087` (#56) and `47859834d` (#57).
+Cursor approved both; neither PR has inline review threads or actionable code
+findings. CodeRabbit completed #56 with only its advisory XML-doc coverage
+warning; the repository does not mandate that threshold. Its #57 review was
+skipped because the stacked base is not the default branch, so its successful
+status does not represent a completed review. Hosted Windows/Linux validation
+passes on both reviewed heads; #56 also has passing CodeQL. The
+[review record](reviews/2026-09-29-pr56-57-review.md) records the dispositions,
+regression evidence and remaining manual checks. This follow-up changes
+documentation only. The merge order remains #56, then retarget #57 to
+`development`.
+
+### Combo-box and grid-editor designer maintenance (2026-09-29)
+
+Implementation: `1c061292e`, submitted as
+[PR #57](https://github.com/Narehood/xenadmin/pull/57), stacked on PR #56.
+Merge PR #56 first, then retarget PR #57 to `development` before merging.
+
+This batch follows the labels/time implementation `6037faaf6` in
+[PR #56](https://github.com/Narehood/xenadmin/pull/56). `EnableableComboBox.Enabled`
+now delegates designer omission to the framework's local enabled-state
+descriptor, rather than persisting a disabled parent's effective value. Its
+protected Reset hook uses the custom setter to restore the enabled background;
+both hooks remain available to the derived grid editor. Enabled remains an
+editable, localizable setting.
+
+The grid editor explicitly hides its formatted value, row index, owning grid,
+dirty flag, repositioning policy and cursor from designer serialization and
+property browsing. The runtime `IDataGridViewEditingControl` contract is
+unchanged. The actual production grid cell/editor still initializes its owner
+and row, signals dirty state after a selection and commits the selected item.
+Generated designer code and resources are unchanged.
+
+The analyzer inventory falls from **302 to 297** WFO1000 diagnostics, with five
+removed and none added. The existing compatibility probe adds 42 checks for
+local/inherited Enabled behavior, reset/replay, hidden runtime metadata and the
+real grid edit/commit path, including the derived networking combo box. The
+initial 230-check probe reproduced 16 failures before correction; the final
+**239 checks** pass against Release and Debug. Locked restore, both
+solution builds, **923 shell tests per configuration**, **73 shared tests per
+framework**, and **32,240 resources in 290 sets** pass. Existing ACL analyzer
+warnings remain. Local builds reuse unchanged trusted RDP interop with
+`SkipRdpAxImp=true`; portable lockfiles are unchanged. Evidence is under ignored
+`artifacts/winforms-designer-editors/`.
+
+Memory-spinner Increment remains unaudited: generated forms already assign it,
+and its getter exposes display units while its setter interprets byte increments
+or derives a GB step. It cannot simply be hidden as runtime-only state. Actual
+Visual Studio save/reopen, physical desktop/installation and live-pool acceptance,
+and the reported reboot investigation remain pending. No release or live pool
+operation was performed.
+
 ### Designer labels and snapshot time maintenance (2026-09-29)
 
 Implementation: `6037faaf6`, submitted as

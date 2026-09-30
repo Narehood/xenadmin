@@ -125,6 +125,39 @@ and full resource probes pass; evidence is under ignored
 the 302 unaudited properties. Descriptor/resource probes do not establish an
 actual Visual Studio designer save/reopen round trip or physical desktop behavior.
 
+The following combo-box/grid-editor batch reduces the inventory from 302 to
+**297 diagnostics**. `EnableableComboBox.Enabled` remains visible and localizable,
+but protected serialization/reset hooks restore the framework's local-state
+semantics for both the combo box and its derived editor. The serialization hook
+uses the `Control.Enabled` descriptor, which distinguishes an explicit local
+disable from an effective disable inherited from a parent. Reset uses the custom
+setter so that the enabled background is restored too. Adding a constant
+`DefaultValue(true)` would instead serialize the parent's effective false value.
+
+Six `IDataGridViewEditingControl` properties are explicitly non-browsable and
+hidden from designer serialization: `EditingControlFormattedValue`,
+`EditingControlRowIndex`, `EditingControlDataGridView`, `EditingControlValueChanged`,
+`RepositionEditingControlOnValueChange` and `EditingPanelCursor`. Their runtime
+getters/setters and selection notification are unchanged. The four writable
+properties and Enabled account for the five removed diagnostics; the two
+read-only properties complete the runtime contract audit.
+
+The probe adds 42 checks and now passes **239 checks** per WinForms configuration;
+the initial 230-check probe reproduced 16 failures on the preceding client.
+It covers inherited versus explicit disabled state, descriptor reset and replay,
+the base combo box, grid editor and networking combo box, runtime metadata,
+and actual grid owner/row initialization, dirty notification and item commit
+through the production cell parser. Builds, full required suites and resource
+loading pass with unchanged portable lockfiles and RDP interop. Evidence is under
+ignored `artifacts/winforms-designer-editors/`; actual Visual Studio round trips
+and physical desktop acceptance remain outstanding.
+
+Memory-spinner Increment is deferred for its own semantic audit. Existing
+generated forms assign it, and its display-unit getter and byte/GB-dependent
+setter are not a symmetric designer value; marking it hidden would remove
+existing serialized assignments without establishing equivalent initialization.
+The remaining WFO1000 suppression covers **297 unaudited properties**.
+
 The eight obsolete Form closing overrides now use `OnFormClosing`/`OnFormClosed`.
 Password/HA listeners and action cancellation remain intact when a close is
 cancelled. The folder dialog now calls base cleanup, releasing its owner registry

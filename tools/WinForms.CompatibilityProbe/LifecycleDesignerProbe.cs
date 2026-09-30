@@ -48,6 +48,10 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
         RunCase("Group box designer text", CheckGroupBoxDesignerText);
         RunCase("Snapshot time designer values", CheckSnapshotTimeDesignerValues);
         RunCase("Existing header resources", CheckHeaderResources);
+        foreach (var typeName in new[] { "EnableableComboBox", "EnableableComboBoxEditingControl", "NetworkComboBox" })
+            RunCase(typeName + " enabled designer state", () => CheckComboBoxEnabledState(typeName));
+        RunCase("Grid editor runtime metadata", CheckGridEditorMetadata);
+        RunCase("Grid editor selection and commit", CheckGridEditorCommit);
         RunCase("Password close cancellation", CheckPasswordClose);
         RunCase("HA close cancellation", CheckHaClose);
         foreach (var typeName in new[] { "InstallCertificateDialog", "ResolvingSubjectsDialog" })
@@ -184,6 +188,106 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
                 $"{name}: resetting resource text must restore the null default.");
         }
         resources.ReleaseAllResources();
+    }
+
+    private void CheckComboBoxEnabledState(string typeName)
+    {
+        using var parent = new Panel();
+        using var control = (ComboBox)Activator.CreateInstance(ClientType("Controls." + typeName))!;
+        using var restored = (ComboBox)Activator.CreateInstance(ClientType("Controls." + typeName))!;
+        parent.Controls.Add(control);
+        var property = TypeDescriptor.GetProperties(control)["Enabled"]!;
+        Require(property.IsBrowsable && property.IsLocalizable && property.SerializationVisibility == DesignerSerializationVisibility.Visible,
+            $"{typeName}.Enabled: enabled state must remain an editable, localized designer setting.");
+        Require(control.Enabled && !property.ShouldSerializeValue(control), $"{typeName}.Enabled: omit the initial enabled state.");
+        property.SetValue(control, false);
+        Require(!control.Enabled && control.BackColor == SystemColors.Control && property.ShouldSerializeValue(control),
+            $"{typeName}.Enabled: preserve a local disable and its background.");
+        property.SetValue(restored, property.GetValue(control));
+        Require(!restored.Enabled && restored.BackColor == SystemColors.Control, $"{typeName}.Enabled: replay a local disable.");
+        property.ResetValue(control);
+        Require(control.Enabled && control.BackColor == SystemColors.Window && !property.ShouldSerializeValue(control),
+            $"{typeName}.Enabled: reset through the custom setter to restore the enabled background.");
+
+        parent.Enabled = false;
+        Require(!control.Enabled && !property.ShouldSerializeValue(control),
+            $"{typeName}.Enabled: an inherited disable must not become a local designer override.");
+        property.SetValue(control, false);
+        Require(property.ShouldSerializeValue(control), $"{typeName}.Enabled: retain an explicit disable under a disabled parent.");
+        property.ResetValue(control);
+        Require(!control.Enabled && control.BackColor == SystemColors.Window && !property.ShouldSerializeValue(control),
+            $"{typeName}.Enabled: reset must clear the local override even while its parent is disabled.");
+        parent.Enabled = true;
+        Require(control.Enabled && !property.ShouldSerializeValue(control),
+            $"{typeName}.Enabled: re-enabling the parent must restore the child's default.");
+    }
+
+    private void CheckGridEditorMetadata()
+    {
+        using var grid = new DataGridView { AllowUserToAddRows = false };
+        grid.Columns.Add(new DataGridViewTextBoxColumn());
+        grid.Rows.Add(8);
+        grid.CurrentCell = grid.Rows[7].Cells[0];
+        using var editor = (ComboBox)Activator.CreateInstance(ClientType("Controls.EnableableComboBoxEditingControl"))!;
+        var properties = TypeDescriptor.GetProperties(editor);
+        foreach (var name in new[] { "EditingControlFormattedValue", "EditingControlRowIndex", "EditingControlDataGridView",
+                     "EditingControlValueChanged", "RepositionEditingControlOnValueChange", "EditingPanelCursor" })
+        {
+            var property = properties[name]!;
+            Require(!property.IsBrowsable && property.SerializationVisibility == DesignerSerializationVisibility.Hidden,
+                $"Grid editor {name}: runtime cell state must be excluded from the property grid and designer serialization.");
+        }
+        properties["EditingControlDataGridView"]!.SetValue(editor, grid);
+        properties["EditingControlRowIndex"]!.SetValue(editor, 7);
+        properties["EditingControlValueChanged"]!.SetValue(editor, true);
+        var first = new object();
+        editor.Items.Add(first);
+        properties["EditingControlFormattedValue"]!.SetValue(editor, first);
+        Require(ReferenceEquals(properties["EditingControlDataGridView"]!.GetValue(editor), grid)
+                && Equals(properties["EditingControlRowIndex"]!.GetValue(editor), 7)
+                && Equals(properties["EditingControlValueChanged"]!.GetValue(editor), true)
+                && ReferenceEquals(properties["EditingControlFormattedValue"]!.GetValue(editor), first),
+            "Grid editor runtime properties must remain writable through the grid contract.");
+        Require(Equals(properties["RepositionEditingControlOnValueChange"]!.GetValue(editor), false)
+                && ReferenceEquals(properties["EditingPanelCursor"]!.GetValue(editor), editor.Cursor),
+            "Grid editor read-only contract must retain its positioning and cursor behavior.");
+    }
+
+    private void CheckGridEditorCommit()
+    {
+        // Use the real grid cell/editor and harmless in-memory items; no inventory,
+        // settings or server actions are loaded by this hidden desktop fixture.
+        using var form = new Form { Location = new Point(-10000, -10000), StartPosition = FormStartPosition.Manual, ShowInTaskbar = false };
+        using var grid = new DataGridView { AllowUserToAddRows = false, Dock = DockStyle.Fill };
+        var column = (DataGridViewColumn)Activator.CreateInstance(ClientType("Controls.EnableableComboBoxColumn"))!;
+        grid.Columns.Add(column);
+        grid.Rows.Add();
+        var cell = (DataGridViewComboBoxCell)grid.Rows[0].Cells[0];
+        var itemType = ClientType("Controls.SrComboBoxItem");
+        var first = Activator.CreateInstance(itemType, new object?[] { null, "First storage", true })!;
+        var second = Activator.CreateInstance(itemType, new object?[] { null, "Second storage", true })!;
+        cell.Items.AddRange(first, second);
+        cell.Value = first;
+        form.Controls.Add(grid);
+        form.Show();
+        grid.CurrentCell = cell;
+        Require(grid.BeginEdit(false), "Grid editor must enter the real cell edit path.");
+        var editor = (ComboBox)grid.EditingControl!;
+        Require(editor.GetType() == ClientType("Controls.EnableableComboBoxEditingControl"), "Grid must create the production editing control.");
+        var contract = (IDataGridViewEditingControl)editor;
+        Require(ReferenceEquals(contract.EditingControlDataGridView, grid) && contract.EditingControlRowIndex == 0,
+            "Grid must assign its runtime owner and row to the editor.");
+        Require(ReferenceEquals(contract.EditingControlFormattedValue, first), "Grid must retain the initial cell item.");
+        contract.EditingControlValueChanged = false;
+        var dirtyNotifications = 0;
+        grid.CurrentCellDirtyStateChanged += (_, _) => dirtyNotifications++;
+        editor.SelectedItem = second;
+        Require(contract.EditingControlValueChanged && grid.IsCurrentCellDirty && dirtyNotifications > 0,
+            "Selecting another item must notify the real grid that its cell is dirty.");
+        Require(ReferenceEquals(contract.GetEditingControlFormattedValue(DataGridViewDataErrorContexts.Commit), second),
+            "Grid editor must return the selected runtime item for commit.");
+        Require(grid.EndEdit() && ReferenceEquals(cell.Value, second), "Grid must commit the changed item through the production cell parser.");
+        form.Close();
     }
 
     private void CheckPasswordClose()

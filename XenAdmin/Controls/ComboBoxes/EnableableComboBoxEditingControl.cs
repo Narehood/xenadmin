@@ -29,6 +29,7 @@
  */
 
 using System;
+using System.ComponentModel;
 using System.Windows.Forms;
 
 
@@ -40,6 +41,8 @@ namespace XenAdmin.Controls
     /// </summary>
     public class EnableableComboBoxEditingControl : EnableableComboBox, IDataGridViewEditingControl
     {
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public object EditingControlFormattedValue
         {
             get { return SelectedItem; }
@@ -56,6 +59,8 @@ namespace XenAdmin.Controls
             Font = dataGridViewCellStyle.Font;
         }
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int EditingControlRowIndex { get; set; }
 
         public bool EditingControlWantsInputKey(Keys key, bool dataGridViewWantsInputKey)
@@ -78,15 +83,23 @@ namespace XenAdmin.Controls
 
         public void PrepareEditingControlForEdit(bool selectAll){}
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool RepositionEditingControlOnValueChange
         {
             get { return false; }
         }
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DataGridView EditingControlDataGridView { get; set; }
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool EditingControlValueChanged { get; set; }
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Cursor EditingPanelCursor
         {
             get { return base.Cursor; }

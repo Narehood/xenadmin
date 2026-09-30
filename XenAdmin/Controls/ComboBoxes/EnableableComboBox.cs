@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System.Windows.Forms;
 using XenAdmin.Core;
 using System.Drawing;
@@ -74,6 +75,7 @@ namespace XenAdmin.Controls
             base.OnDrawItem(e);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public new bool Enabled
         {
             get
@@ -85,6 +87,18 @@ namespace XenAdmin.Controls
                 base.Enabled = value;
                 BackColor = value ? SystemColors.Window : SystemColors.Control;
             }
+        }
+
+        // Query the framework's local enabled state rather than serializing a
+        // disabled parent's effective value. Protected hooks also serve the grid editor.
+        protected bool ShouldSerializeEnabled()
+        {
+            return TypeDescriptor.GetProperties(typeof(Control))[nameof(Enabled)].ShouldSerializeValue(this);
+        }
+
+        protected void ResetEnabled()
+        {
+            Enabled = true;
         }
 
         protected override bool IsItemNonSelectable(object o)
