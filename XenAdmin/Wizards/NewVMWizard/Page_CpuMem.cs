@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -61,6 +62,7 @@ namespace XenAdmin.Wizards.NewVMWizard
         private long _maxMemTotal;
         private long _maxMemFree;
         private long _prevVCpusMax;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM SelectedTemplate { private get; set; }
 
         // Please note that the comboBoxVCPUs control can represent two different VM properties, depending whether the VM supports vCPU hotplug or not: 

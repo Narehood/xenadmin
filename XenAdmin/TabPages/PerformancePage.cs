@@ -159,6 +159,7 @@ namespace XenAdmin.TabPages
             UpdateAllButtons();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             private get

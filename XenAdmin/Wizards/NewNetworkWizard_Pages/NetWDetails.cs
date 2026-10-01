@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using XenAdmin.Controls;
@@ -120,8 +121,10 @@ namespace XenAdmin.Wizards.NewNetworkWizard_Pages
 
         #region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public NetworkTypes SelectedNetworkType { private get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host Host { private get; set; }
 
         public PIF SelectedHostNic => comboBoxNICList.SelectedItem as PIF;

@@ -56,6 +56,7 @@ namespace XenAdmin.Controls
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Image Image
         {
             get

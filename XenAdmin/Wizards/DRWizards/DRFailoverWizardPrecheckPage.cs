@@ -61,9 +61,11 @@ namespace XenAdmin.Wizards.DRWizards
         public event Action<XenRef<SR>> SrIntroduced;
 
         private Pool _pool;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Pool Pool { set { _pool = value; } }
 
         private Dictionary<XenRef<VDI>, PoolMetadata> selectedPoolMetadata;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<XenRef<VDI>, PoolMetadata> SelectedPoolMetadata {set { selectedPoolMetadata = value; }}
 
         public List<AsyncAction> RevertActions = new List<AsyncAction>();
@@ -159,6 +161,7 @@ namespace XenAdmin.Wizards.DRWizards
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DRWizardType WizardType { private get; set; }
 
         private void SetupLabels()

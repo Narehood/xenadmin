@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using XenAdmin.Controls;
 using System.Drawing;
@@ -77,6 +78,7 @@ namespace XenAdmin.Commands
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public new VMOperationCommand Command
         {
             get

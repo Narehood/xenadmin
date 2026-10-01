@@ -13,9 +13,6 @@
 		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
 		<!-- .NET 10 reads the trusted legacy NRBF resources without enabling BinaryFormatter. -->
 		<GenerateResourceWarnOnBinaryFormatterUse>false</GenerateResourceWarnOnBinaryFormatterUse>
-		<!-- Preserve the legacy designer metadata during the runtime migration.
-		     Explicit serialization metadata for these controls is a separate designer audit. -->
-		<NoWarn>$(NoWarn);WFO1000</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>

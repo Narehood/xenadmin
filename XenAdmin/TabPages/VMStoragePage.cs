@@ -63,6 +63,7 @@ namespace XenAdmin.TabPages
 
         public override string HelpID => "TabPageStorage";
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM VM
         {
             set

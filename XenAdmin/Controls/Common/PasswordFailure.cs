@@ -45,6 +45,7 @@ namespace XenAdmin.Controls.Common
         }
 
         [Localizable(true)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public string Error
         {
             get

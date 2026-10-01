@@ -84,6 +84,7 @@ namespace XenAdmin.Controls
         #region Accessors
 
         [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenConnection Connection
         {
             set
@@ -111,6 +112,7 @@ namespace XenAdmin.Controls
         /// ha_compute_hypothetical_max_host_failures_to_tolerate. May not be null.
         /// </summary>
         [Browsable(false), ReadOnly(true)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<VM, VM.HaRestartPriority> Settings
         {
             get { return settings; }

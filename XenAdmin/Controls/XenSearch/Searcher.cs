@@ -73,6 +73,7 @@ namespace XenAdmin.Controls.XenSearch
         #region Accessors
 
         [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Search Search
         {
             set
@@ -104,6 +105,7 @@ namespace XenAdmin.Controls.XenSearch
         /// Gets or sets the maximum height for this control.
         /// The contents of this control will autoscroll inside this height.
         /// </summary>
+        [DefaultValue(400)]
         public int MaxHeight { get; set; } = 400;
 
         public QueryScope QueryScope

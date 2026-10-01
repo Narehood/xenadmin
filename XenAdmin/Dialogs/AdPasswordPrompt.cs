@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Windows.Forms;
 
@@ -38,12 +39,14 @@ namespace XenAdmin.Dialogs
     {
         private string helpName;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Domain
         {
             get { return textBoxDomain.Text.Trim(); }
             set { textBoxDomain.Text = value ?? string.Empty; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Username
         {
             get { return textBoxUsername.Text.Trim(); }

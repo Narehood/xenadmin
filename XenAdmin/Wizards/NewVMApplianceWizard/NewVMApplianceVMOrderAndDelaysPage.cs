@@ -44,6 +44,7 @@ namespace XenAdmin.Wizards.NewVMApplianceWizard
     public partial class NewVMApplianceVMOrderAndDelaysPage : XenTabPage, IEditPage
     {
         private Pool _pool;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Pool Pool
         {
             get { return _pool; }

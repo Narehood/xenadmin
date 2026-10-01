@@ -46,6 +46,7 @@ namespace XenAdmin.SettingsPanels
     public partial class USBEditPage : XenTabPage, IEditPage
     {
         private VM _vm;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM.HaRestartPriority SelectedPriority { private get; set; }
 
         public USBEditPage()

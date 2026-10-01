@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -45,6 +46,7 @@ namespace XenAdmin.Wizards.NewPolicyWizard
     {
         private VMSS _policy;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<VM> SelectedVMs { private get; set; }
 
         public NewPolicySnapshotTypePage()

@@ -48,6 +48,7 @@ namespace XenAdmin.Controls
 
         private readonly CollectionChangeEventHandler GPU_group_CollectionChangedWithInvoke;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             set

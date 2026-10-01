@@ -37,6 +37,7 @@ namespace XenAdmin.Controls.SummaryPanel
 {
     public partial class SummaryPanel : UserControl, ISummaryPanelView
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SummaryPanelController Controller { private get; set; }
         public SummaryPanel()
         {
@@ -46,82 +47,98 @@ namespace XenAdmin.Controls.SummaryPanel
             information.LinkClicked += information_LinkClicked;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Title
         {
             set{ Controller.Title = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string LicenseHelperUrlText
         {
             set { Controller.LicenseHelperUrlText = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string SupportHelperUrlText
         {
             set { Controller.SupportHelperUrlText = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool LicenseHelperUrlVisible
         {
             set { Controller.LicenseHelperUrlVisible = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool SupportHelperUrlVisible
         {
             set { Controller.SupportHelperUrlVisible = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool LicenseWarningVisible
         {
             set { Controller.DisplayLicenseWarning = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool SupportWarningVisible
         {
             set { Controller.DisplaySupportWarning = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool InformationVisible
         {
             set { Controller.InformationVisible = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string LicenseWarningText
         {
             set { Controller.LicenseWarningMessage = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string SupportWarningText
         {
             set { Controller.SupportWarningMessage = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Action RunOnLicenseUrlClick
         {
             set { Controller.RunOnLicenseUrlClick = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Action RunOnSupportUrlClick
         {
             set { Controller.RunOnSupportUrlClick = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SummaryTextComponent SummaryText
         {
             set { Controller.TextSummary = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string InformationText
         {
             set { Controller.InformationText = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Bitmap LicenseWarningIcon
         {
             set { Controller.LicenseWarningIcon = value; }
 
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Bitmap SupportWarningIcon
             {
                 set { Controller.SupportWarningIcon = value; }
@@ -147,78 +164,91 @@ namespace XenAdmin.Controls.SummaryPanel
         
         #region ISummaryPanelView Members
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string DrawTitle
         {
             set { titleLabel.Text = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string DrawLicenseWarningMessage
         {
             set { licenseWarningLabel.Text = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string DrawSupportWarningMessage
         {
             set { supportWarningLabel.Text = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Bitmap DrawLicenseWarningIcon
         {
             set { licenseWarningImage.Image = value;  }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Bitmap DrawSupportWarningIcon
         {
             set { supportWarningImage.Image = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Bitmap DrawInformationIcon
         {
             set { informationImage.Image = value;  }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string DrawLicenseHelperUrlText
         {
             set { licenseHelperLinkLabel.Text = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string DrawSupportHelperUrlText
         {
             set { supportHelperLinkLabel.Text = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool LicenseWarningTextVisibility
         {
             set { licenseWarningLabel.Visible = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool SupportWarningTextVisibility
         {
             set { supportWarningLabel.Visible = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool LicenseWarningIconVisibility
         {
             set { licenseWarningImage.Visible = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool SupportWarningIconVisibility
         {
             set { supportWarningImage.Visible = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string DrawSummaryText
         {
             set
@@ -229,36 +259,42 @@ namespace XenAdmin.Controls.SummaryPanel
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string DrawSummaryLink
         {
             set { summaryLink = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public LinkArea DrawSummaryLinkArea
         {
             set { information.LinkArea = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DrawLicenseUrlVisible
         {
             set { licenseHelperLinkLabel.Visible = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DrawSupportUrlVisible
         {
             set { supportHelperLinkLabel.Visible = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DrawInformationVisible
         {
             set { informationLayoutPanel.Visible = value; }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string DrawInformationText
         {
             set { informationLabel.Text = value; }

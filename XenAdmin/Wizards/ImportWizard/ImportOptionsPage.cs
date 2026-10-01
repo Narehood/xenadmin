@@ -107,6 +107,7 @@ namespace XenAdmin.Wizards.ImportWizard
 
         public SR SelectedIsoSR { get; private set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<string, VmMapping> VmMappings
         {
             set { m_hostTargets = from VmMapping mapping in value.Values select Connection.Resolve(mapping.XenRef as XenRef<Host>); }

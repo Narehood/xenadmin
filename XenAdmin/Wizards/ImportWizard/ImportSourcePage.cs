@@ -195,6 +195,7 @@ namespace XenAdmin.Wizards.ImportWizard
 
 		#region Accessors
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 		public bool OvfModeOnly { private get; set; }
 
 		public ImportWizard.ImportType TypeOfImport { get; private set; }

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -51,6 +52,7 @@ namespace XenAdmin.Dialogs
             poolHostPicker1.buildList();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string TopBlurb
         {
             set { label1.Text = value; }
@@ -59,11 +61,13 @@ namespace XenAdmin.Dialogs
         /// <summary>
         /// set image, must be 32x32
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Image TopPicture
         {
             set { pictureBox1.Image = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string OkButtonText
         {
             set { okbutton.Text = value; }
@@ -74,6 +78,7 @@ namespace XenAdmin.Dialogs
             new AddHostCommand(Program.MainWindow, this).Run();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host TheHost
         {
             get

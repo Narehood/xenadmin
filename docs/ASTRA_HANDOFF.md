@@ -1,8 +1,38 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-29 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-01 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### WinForms designer audit completion (2026-10-01)
+
+All **297 remaining WFO1000 declarations** have been audited against their
+constructors, setters, callers and generated designer assignments. The project
+suppression is removed. Runtime models, actions, connections, wizard results and
+credentials are explicitly hidden; existing graph/control references and
+resource-backed settings remain visible. Sixteen verified defaults and two
+serialization/reset hook pairs complete the inventory. Generated designer files
+and resources are unchanged. See the [audit record](reviews/2026-10-01-designer-completion.md).
+
+`MemorySpinner.Increment` now returns its configured byte input so designer
+replay cannot feed a displayed MB step back into the byte-based setter. Explicit
+legacy GB assignments remain serializable. Reset restores the original numeric
+step and clears the configured input. `DataGridViewEx.Enabled` uses framework
+local-state omission and its custom setter on Reset, preserving inherited
+disabled-parent behavior and the enabled header style.
+
+The lifecycle/designer probe grows from 239 to **333 passing checks** on Release
+and Debug. The spinner regression first reproduced 12 failures against the old
+binary. New checks cover byte replay, GB thresholds, reset, inherited Enabled,
+verified defaults, graph references/resources and hidden credential metadata.
+Both solution builds, full resource probes (**32,240 resources in 290 sets**) and
+locked restore pass; there are no WFO1000 diagnostics. Local builds reuse the
+unchanged trusted RDP interop via `SkipRdpAxImp=true`; existing ACL warnings
+remain. Evidence is under ignored `artifacts/modernization-20261001/`.
+
+Actual Visual Studio designer save/reopen, active shutdown, physical installation
+and live-pool acceptance remain pending. This closes the metadata audit, not
+those manual acceptance gates. Earlier sections below describe dated snapshots.
 
 ### PR #56 / #57 review follow-up (2026-09-29)
 

@@ -77,14 +77,17 @@ namespace XenAdmin.Wizards.ExportWizard
         /// </summary>
         public List<VM> VMsToExport { get; } = new List<VM>();
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string ApplianceDirectory { get; set; }
 
         /// <summary>
         /// The items selected on the main window treeview when the wizard was launched.
         /// These determine the VMs selected by default.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SelectedItemCollection SelectedItems { private get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ExportAsXva { private get; set; }
 
         #endregion

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using XenAdmin.Controls;
 
@@ -99,7 +100,9 @@ namespace XenAdmin.Wizards.DRWizards
             textBoxSummary.Text = SummaryRetreiver.Invoke();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Func<string> SummaryRetreiver { private get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DRWizardType WizardType { private get; set; }
     }
 }

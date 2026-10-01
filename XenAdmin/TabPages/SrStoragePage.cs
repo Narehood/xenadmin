@@ -102,6 +102,7 @@ namespace XenAdmin.TabPages
             Banner.Visible = false;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SR SR
         {
             set

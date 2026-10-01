@@ -417,6 +417,7 @@ namespace XenAdmin.Controls.XenSearch
         #endregion
 
         [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Search Search
         {
             set
@@ -438,6 +439,7 @@ namespace XenAdmin.Controls.XenSearch
             OnSearchChanged();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Sort[] Sorting
         {
             get

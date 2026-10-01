@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 // Exercise the built client's controls on an STA without starting the application,
 // loading saved connections/settings, or running any server actions.
-internal sealed class LifecycleDesignerProbe(Assembly assembly)
+internal sealed partial class LifecycleDesignerProbe(Assembly assembly)
 {
     private readonly List<string> failures = [];
     private int checks;
@@ -52,6 +52,11 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
             RunCase(typeName + " enabled designer state", () => CheckComboBoxEnabledState(typeName));
         RunCase("Grid editor runtime metadata", CheckGridEditorMetadata);
         RunCase("Grid editor selection and commit", CheckGridEditorCommit);
+        RunCase("Memory spinner designer and byte increments", CheckMemorySpinner);
+        RunCase("Completed appearance designer audit", CheckCompletedDesignerDefaults);
+        RunCase("Graph designer references and resources", CheckGraphDesignerReferences);
+        RunCase("Grid local enabled state and style reset", CheckGridEnabledState);
+        RunCase("Runtime credentials remain outside designer serialization", CheckCredentialDesignerState);
         RunCase("Password close cancellation", CheckPasswordClose);
         RunCase("HA close cancellation", CheckHaClose);
         foreach (var typeName in new[] { "InstallCertificateDialog", "ResolvingSubjectsDialog" })
@@ -100,6 +105,59 @@ internal sealed class LifecycleDesignerProbe(Assembly assembly)
             Require(Equals(property.GetValue(control), original) && !property.ShouldSerializeValue(control),
                 $"{typeName}.{name}: reset must restore the constructor default and omit it.");
         }
+    }
+
+    private void CheckMemorySpinner()
+    {
+        var type = ClientType("Controls.Ballooning.MemorySpinner");
+        var previousCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            foreach (var culture in new[] { "en-US", "fr-FR", "tr-TR" })
+            {
+                CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+                using var control = (Control)Activator.CreateInstance(type)!;
+                using var restored = (Control)Activator.CreateInstance(type)!;
+                var property = TypeDescriptor.GetProperties(control)["Increment"]!;
+                var units = TypeDescriptor.GetProperties(control)["Units"]!;
+                var spinner = (NumericUpDown)type.GetField("Spinner", InstanceMembers)!.GetValue(control)!;
+                var replaySpinner = (NumericUpDown)type.GetField("Spinner", InstanceMembers)!.GetValue(restored)!;
+                Require(!property.ShouldSerializeValue(control), "MemorySpinner: an unconfigured byte increment should be omitted.");
+                Require(spinner.Increment == 1m, "MemorySpinner: the existing constructor display increment must be retained.");
+
+                // Existing generated forms assign 0.1 before initializing GB memory.
+                property.SetValue(control, 0.1d);
+                Require(spinner.Increment == 0.1m && property.ShouldSerializeValue(control),
+                    "MemorySpinner: the existing explicit GB assignment must remain serializable.");
+                property.SetValue(restored, property.GetValue(control));
+                Require(replaySpinner.Increment == spinner.Increment,
+                    "MemorySpinner: the existing GB assignment must survive designer replay.");
+
+                units.SetValue(control, "MB");
+                units.SetValue(restored, "MB");
+                property.SetValue(control, 2d * 1024 * 1024);
+                property.SetValue(restored, property.GetValue(control));
+                Require(spinner.Increment == 2m && replaySpinner.Increment == 2m,
+                    "MemorySpinner: MB designer replay must preserve a two-megabyte step.");
+                Require(Equals(property.GetValue(control), 2d * 1024 * 1024),
+                    "MemorySpinner: the configured increment must be expressed in bytes.");
+
+                type.GetMethod("Initialize", [typeof(double), typeof(double)])!
+                    .Invoke(control, [12d * 1024 * 1024 * 1024, 16d * 1024 * 1024 * 1024]);
+                property.SetValue(control, 0.1d * 1024 * 1024 * 1024);
+                Require(spinner.Increment == 1m,
+                    "MemorySpinner: memory at or above ten GB must retain its one-GB step.");
+                type.GetMethod("Initialize", [typeof(double), typeof(double)])!
+                    .Invoke(control, [4d * 1024 * 1024 * 1024, 8d * 1024 * 1024 * 1024]);
+                property.SetValue(control, 0.1d * 1024 * 1024 * 1024);
+                Require(spinner.Increment == 0.1m,
+                    "MemorySpinner: memory below ten GB must retain its tenth-GB step.");
+                property.ResetValue(control);
+                Require(spinner.Increment == 1m && !property.ShouldSerializeValue(control),
+                    "MemorySpinner: reset must restore the unconfigured constructor step.");
+            }
+        }
+        finally { CultureInfo.CurrentUICulture = previousCulture; }
     }
 
     private void CheckStoragePickerDefaults()

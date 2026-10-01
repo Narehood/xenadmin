@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -74,6 +75,7 @@ namespace XenAdmin.Controls.CustomDataGraph
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DesignedGraph SelectedGraph
         {
             get { return selectedGraph; }
@@ -110,6 +112,7 @@ namespace XenAdmin.Controls.CustomDataGraph
             get { return Graphs.Count; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public DataEventList DataEventList
         {
             get { return _dataEventList; }
@@ -121,6 +124,7 @@ namespace XenAdmin.Controls.CustomDataGraph
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public DataPlotNav DataPlotNav
         {
             get { return _dataPlotNav; }
@@ -132,6 +136,7 @@ namespace XenAdmin.Controls.CustomDataGraph
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public ArchiveMaintainer ArchiveMaintainer
         {
             get { return _archiveMaintainer; }

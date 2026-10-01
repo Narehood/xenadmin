@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Windows.Forms;
 using XenAdmin.Core;
@@ -71,6 +72,7 @@ namespace XenAdmin.Controls
         }
 
         private double starRating = 0;
+        [DefaultValue(0d)]
         public double StarRating
         {
             get { return starRating; }
@@ -84,6 +86,7 @@ namespace XenAdmin.Controls
         }
 
         private Image secondImage;
+        [DefaultValue(null)]
         public Image SecondImage
         {
             get { return secondImage; }

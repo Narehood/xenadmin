@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using XenAdmin.Controls;
@@ -67,7 +68,9 @@ namespace XenAdmin.Wizards.NewNetworkWizard_Pages
             PopulateInterfaces(Pool, Host, Connection);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host Host { private get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Pool Pool { private get; set; }
 
         public XenAPI.Network SelectedInterface => (XenAPI.Network)comboInterfaces.SelectedItem;

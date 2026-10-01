@@ -120,6 +120,7 @@ namespace XenAdmin.TabPages
             panel2.ForceScrollTo(s);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             set

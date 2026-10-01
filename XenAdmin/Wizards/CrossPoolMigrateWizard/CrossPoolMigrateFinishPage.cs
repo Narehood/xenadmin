@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -109,6 +110,7 @@ namespace XenAdmin.Wizards.CrossPoolMigrateWizard
             HelpersGUI.ResizeGridViewColumnToAllCells(Column2);//set properly the width of the last column
 		}
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Func<IEnumerable<SummaryDetails>> SummaryRetreiver { private get; set; }
 
         public override bool EnableNext()

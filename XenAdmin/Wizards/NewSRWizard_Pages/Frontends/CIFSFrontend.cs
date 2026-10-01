@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -200,6 +201,7 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages.Frontends
 
         #region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SrWizardType SrWizardType { private get; set; }
 
         public string UUID

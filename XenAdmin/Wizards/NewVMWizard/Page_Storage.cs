@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -497,6 +498,7 @@ namespace XenAdmin.Wizards.NewVMWizard
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM Template
         {
             private get { return _template; }
@@ -509,8 +511,10 @@ namespace XenAdmin.Wizards.NewVMWizard
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string SelectedName { private get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public InstallMethod SelectedInstallMethod
         {
             private get { return _selectedInstallMethod; }
@@ -523,6 +527,7 @@ namespace XenAdmin.Wizards.NewVMWizard
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host Affinity
         {
             private get { return _affinity; }

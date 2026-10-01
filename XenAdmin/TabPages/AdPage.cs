@@ -65,6 +65,7 @@ namespace XenAdmin.TabPages
         private string _storedUsername;
 
         private readonly CollectionChangeEventHandler Pool_CollectionChangedWithInvoke;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             set

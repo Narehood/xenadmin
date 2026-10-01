@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -165,6 +166,7 @@ namespace XenAdmin.Controls.XenSearch
                 AddGroup(folderGroupingType);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Searcher Searcher
         {
             get { return searcher; }
@@ -176,6 +178,7 @@ namespace XenAdmin.Controls.XenSearch
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Grouping Grouping
         {
             get

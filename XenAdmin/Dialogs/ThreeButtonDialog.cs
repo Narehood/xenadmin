@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -104,40 +105,48 @@ namespace XenAdmin.Dialogs
             Text = _windowTitle;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string WindowTitle
         {
             get => _windowTitle;
             set => _windowTitle = string.IsNullOrEmpty(value) ? BrandManager.BrandConsole : value;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowLinkLabel
         {
             get { return linkLabel1.Visible; }
             set { linkLabel1.Visible = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string LinkText
         {
             get { return linkLabel1.Text; }
             set { linkLabel1.Text = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string LinkData { get; set; }
         
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Action LinkAction { get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowCheckbox
         {
             get => checkBoxOption.Visible;
             set => checkBoxOption.Visible = value;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string CheckboxCaption
         {
             get => checkBoxOption.Text;
             set => checkBoxOption.Text = value;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool IsCheckBoxChecked
         {
             get => checkBoxOption.Checked;
@@ -152,6 +161,7 @@ namespace XenAdmin.Dialogs
         /// <summary>
         /// Use this to set the get-only base class property HelpName
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal string HelpNameSetter
         {
             set

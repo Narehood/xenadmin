@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -85,9 +86,11 @@ namespace XenAdmin.Wizards.ImportWizard
 
 		#endregion
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Func<IEnumerable<KeyValuePair<string, string>>> SummaryRetriever { private get; set; }
 
         private bool _canStartVmsAutomatically = true;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool CanStartVmsAutomatically
         {
             get => _canStartVmsAutomatically;
@@ -99,6 +102,7 @@ namespace XenAdmin.Wizards.ImportWizard
 		/// </summary>
 		public bool StartVmsAutomatically => CanStartVmsAutomatically && m_checkBoxStartVms.Visible && m_checkBoxStartVms.Checked;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowStartVmsGroupBox
         {
             set => m_checkBoxStartVms.Visible = value;

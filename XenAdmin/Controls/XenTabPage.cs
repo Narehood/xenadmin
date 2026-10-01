@@ -52,6 +52,7 @@ namespace XenAdmin.Controls
         /// Gets or sets a value describing whether it is the first time the page is loaded after
         /// a change in a previous page affecting this one has taken place. Default value is True.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool IsFirstLoad { get; set; }
 
         /// <summary>
@@ -75,7 +76,9 @@ namespace XenAdmin.Controls
             IsDirty = true;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Action<XenTabPage> WizardContentUpdater { protected get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Func<XenTabPage, bool> NextPagePrecheck { protected get; set; }
 
         protected override bool ScaleChildren => false;

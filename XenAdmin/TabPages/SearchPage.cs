@@ -129,6 +129,7 @@ namespace XenAdmin.TabPages
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             set
@@ -137,6 +138,7 @@ namespace XenAdmin.TabPages
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IEnumerable<IXenObject> XenObjects
         {
             set
@@ -156,6 +158,7 @@ namespace XenAdmin.TabPages
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Search Search
         {
             get

@@ -146,6 +146,7 @@ namespace XenAdmin.Controls.DataGridViewEx
         /// <summary>
         /// Set a check state for all rows in the view
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public CheckState CheckStateForAllRows
         {
             set

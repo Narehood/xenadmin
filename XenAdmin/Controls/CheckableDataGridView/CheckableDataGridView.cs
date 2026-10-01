@@ -196,6 +196,7 @@ namespace XenAdmin.Controls.CheckableDataGridView
 
         #region ICheckableDataGridViewView Members
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public CheckableDataGridViewController Controller { set; protected get; }
 
         [EditorBrowsable(EditorBrowsableState.Never)]

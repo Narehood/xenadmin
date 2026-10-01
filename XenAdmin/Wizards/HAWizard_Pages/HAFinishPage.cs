@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using XenAdmin.Controls;
 
 namespace XenAdmin.Wizards.HAWizard_Pages
@@ -68,7 +69,9 @@ namespace XenAdmin.Wizards.HAWizard_Pages
 
         #endregion
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string HeartbeatSrName { private get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public long Ntol { private get; set; }
         public int AlwaysRestartHighPriority = 0;
         public int AlwaysRestart = 0;

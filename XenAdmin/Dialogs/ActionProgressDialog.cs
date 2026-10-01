@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Windows.Forms;
 using XenAdmin.Actions;
@@ -47,10 +48,13 @@ namespace XenAdmin.Dialogs
         public event EventHandler CancelClicked;
         public readonly AsyncAction action;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowTryAgainMessage { private get; set; } = true;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowException { private get; set; } = true;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowCancel
         {
             set => buttonCancel.Visible = value;

@@ -58,6 +58,7 @@ namespace XenAdmin.Controls.XenSearch
         }
 
         [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Search Search
         {
             set

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -61,6 +62,7 @@ namespace XenAdmin.Controls
         internal IXenConnection Connection;
 
         private bool valid = false;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal bool Valid
         {
             get

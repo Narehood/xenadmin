@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -121,6 +122,7 @@ namespace XenAdmin.Controls
             pendingMappings.Clear();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string VdiColumnTitle
         {
             set { dataGridView.Columns[VdiColumn.Index].HeaderText = value; }

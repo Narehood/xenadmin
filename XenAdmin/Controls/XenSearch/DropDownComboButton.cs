@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -55,6 +56,7 @@ namespace XenAdmin.Controls.XenSearch
             this.ImageAlign = ContentAlignment.MiddleRight;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public ToolStripItem SelectedItem
         {
             get

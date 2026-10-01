@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 
 namespace XenAdmin.Dialogs
@@ -40,16 +41,19 @@ namespace XenAdmin.Dialogs
             EnableButtons();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string OkButtonText
         {
             set { button1.Text = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string PromptText
         {
             set { promptLabel.Text = value; }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string InputText
         {
             get { return textBox1.Text.Trim();}
@@ -57,6 +61,7 @@ namespace XenAdmin.Dialogs
         }
 
         private string helpID;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string HelpID
         {
             set { helpID = value; }

@@ -55,6 +55,7 @@ namespace XenAdmin.Wizards.HAWizard_Pages
         /// <summary>
         /// May not be set to null.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public new IXenConnection Connection
         {
             private get { return connection; }
@@ -205,6 +206,7 @@ namespace XenAdmin.Wizards.HAWizard_Pages
         /// Sets all agile VMs to state 'Protected' and all non-agile VMs to 'Restart if possible'.
         /// Important: call before setting the Connection property.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal bool ProtectVmsByDefault { get; set; }
 
         private void StartNtolUpdate()

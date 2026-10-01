@@ -129,6 +129,7 @@ namespace XenAdmin.Wizards.GenericPages
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject SelectedTarget
         {
             get => _selectedTarget;
@@ -222,6 +223,7 @@ namespace XenAdmin.Wizards.GenericPages
 
         #region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<string, VmMapping> VmMappings
         {
             get

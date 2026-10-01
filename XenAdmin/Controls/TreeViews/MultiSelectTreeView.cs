@@ -1009,6 +1009,7 @@ namespace XenAdmin.Controls
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public new MultiSelectTreeNode SelectedNode
         {
             get

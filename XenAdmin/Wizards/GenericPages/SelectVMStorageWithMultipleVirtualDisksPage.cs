@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -175,6 +176,7 @@ namespace XenAdmin.Wizards.GenericPages
 	    public abstract StorageResourceContainer ResourceData(string sysId);
 
 	    private bool displayDiskCapacity = true;
+	    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 	    public bool DisplayDiskCapacity
 	    {
 	        set { displayDiskCapacity = value; }
@@ -185,6 +187,7 @@ namespace XenAdmin.Wizards.GenericPages
         /// The connection from which the target storage is read
         /// Defaults to the base class connection if not set
         /// </summary>
+	    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 	    public IXenConnection TargetConnection
 	    {
 	        get
@@ -351,6 +354,7 @@ namespace XenAdmin.Wizards.GenericPages
 
 		#region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<string, VmMapping> VmMappings
         {
             get

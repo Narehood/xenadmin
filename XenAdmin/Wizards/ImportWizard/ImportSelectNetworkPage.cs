@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Xml;
 using XenAdmin.Wizards.GenericPages;
@@ -84,6 +85,7 @@ namespace XenAdmin.Wizards.ImportWizard
             return false;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public EnvelopeType SelectedOvfEnvelope { private get; set; }
 
         protected override string IntroductionText => Messages.IMPORT_WIZARD_NETWORKING_INTRO;

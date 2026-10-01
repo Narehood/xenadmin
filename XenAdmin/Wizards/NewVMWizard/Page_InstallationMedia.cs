@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,6 +55,7 @@ namespace XenAdmin.Wizards.NewVMWizard
         
         #region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host Affinity { private get; set; }
 
         public bool AssignVtpm => bootModesControl1.AssignVtpm;
@@ -84,6 +86,7 @@ namespace XenAdmin.Wizards.NewVMWizard
             ? UrlTextBox.Text
             : string.Empty;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM SelectedTemplate { private get; set; }
 
         #endregion

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.IO;
 using System.Windows.Forms;
@@ -65,6 +66,7 @@ namespace XenAdmin.Wizards.ExportWizard
 		/// <summary>
 		/// Gets or sets the exported appliance name (ovf/ova filename without extension).
 		/// </summary>
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 		public string ApplianceFileName
 		{
 			get { return m_textBoxApplianceName.Text.Trim(); }
@@ -80,6 +82,7 @@ namespace XenAdmin.Wizards.ExportWizard
 			}
 		}
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 		public bool OvfModeOnly { private get; set; }
 
 		#endregion

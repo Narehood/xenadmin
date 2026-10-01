@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -96,6 +97,7 @@ namespace XenAdmin.Dialogs
             UpdateOK();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public String PromptedName
         {
             get
@@ -109,6 +111,7 @@ namespace XenAdmin.Dialogs
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string OKText
         {
             set
@@ -118,6 +121,7 @@ namespace XenAdmin.Dialogs
         }
 
         private string helpID = null;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal string HelpID
         {
             set

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -85,10 +86,12 @@ namespace XenAdmin.Wizards.ExportWizard
 
 		#endregion
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Func<IEnumerable<KeyValuePair<string, string>>> SummaryRetriever { private get; set; }
 
         public bool VerifyExport => m_checkBoxVerify.Checked;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ExportAsXva { private get; set; }
 
         private void m_checkBoxVerify_CheckStateChanged(object sender, EventArgs e)

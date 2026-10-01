@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using XenAdmin.Controls;
@@ -69,6 +70,7 @@ namespace XenAdmin.Wizards.NewNetworkWizard_Pages
             txtName.Text = Helpers.MakeUniqueName(GetNetworkName(SelectedNetworkType), GetExistingNetworkNames(Connection));
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public NetworkTypes SelectedNetworkType { private get; set; }
 
         public string NetworkName => txtName.Text;

@@ -1205,6 +1205,7 @@ namespace XenAdmin
         }
 
         private bool _menuShortcutsEnabled = true;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool MenuShortcutsEnabled
         {
             get { return _menuShortcutsEnabled; }

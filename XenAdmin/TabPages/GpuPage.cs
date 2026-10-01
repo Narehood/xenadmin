@@ -62,6 +62,7 @@ namespace XenAdmin.TabPages
         /// <summary>
         /// The object that the panel is displaying GPU info for. 
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             set

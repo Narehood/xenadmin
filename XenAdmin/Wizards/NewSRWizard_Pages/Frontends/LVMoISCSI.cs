@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -744,6 +745,7 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages.Frontends
         private string ChapUser => checkBoxUseChap.Checked ? textBoxChapUser.Text : null;
         private string ChapPassword => checkBoxUseChap.Checked ? textBoxChapPassword.Text : null;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SrWizardType SrWizardType { private get; set; }
 
         public string UUID => _srToIntroduce?.UUID;
@@ -759,6 +761,7 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages.Frontends
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SR.SRTypes SrType { get; set; }
 
         #endregion

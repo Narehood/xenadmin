@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -58,6 +59,7 @@ namespace XenAdmin.Controls.CustomGridView
         /// The width of the column containing the expander triangle, if required.
         /// </summary>
         private bool hasLeftExpanders = true;
+        [DefaultValue(true)]
         public bool HasLeftExpanders
         {
             get { return hasLeftExpanders; }
@@ -74,6 +76,7 @@ namespace XenAdmin.Controls.CustomGridView
 
         // Row selection
         protected string lastClickedRowPath = null;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public GridRow LastClickedRow
         {
             set

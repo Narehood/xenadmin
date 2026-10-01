@@ -55,6 +55,7 @@ namespace XenAdmin.Dialogs
         public VTPM Vtpm { get; }
         public string SubText { get; }
         public Image Image => Images.StaticImages.tpm;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Rectangle DeleteIconBounds { get; set; }
 
         private void RegisterEvents()
