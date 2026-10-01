@@ -193,7 +193,9 @@ public static class ConsoleSummaryBuilder
         if (console.protocol == console_protocol.vt100)
             return "Serial / VT100";
         if (console.protocol == console_protocol.rdp)
-            return "RDP (deferred)";
+            return vm.power_state == vm_power_state.Running
+                ? "Open Remote Desktop using the guest IP address"
+                : "RDP present — VM not running";
         return console.protocol.ToString();
     }
 

@@ -44,10 +44,10 @@ try {
     $checks.Clear()
     $success = Join-Path $evidence 'passed-results.log'
     [IO.File]::WriteAllText($success, "All fixture assertions passed`n")
-    foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery', 'modernization')) {
+    foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery', 'modernization', 'remote-desktop')) {
         Invoke-Check "ui-$mode" $shell (Native-Args '[Console]::Error.WriteLine("benign native diagnostic"); exit 0') $success
     }
-    Require ((Get-AcceptanceSuccessResult $true) -eq 'automated checks passed; manual acceptance pending') 'Windows success summary did not require all five probes.'
+    Require ((Get-AcceptanceSuccessResult $true) -eq 'automated checks passed; manual acceptance pending') 'Windows success summary did not require all six probes.'
     Require (@($checks | Where-Object result -ne 'pass').Count -eq 0) 'Benign native stderr caused a false failure.'
     $results.Add('PASS: successful UI evidence and benign native stderr')
     [IO.File]::WriteAllText($success, 'FAIL: evidence changed before finalization')
@@ -59,7 +59,7 @@ try {
     $checks.Clear()
     Add-SkippedUiProbeChecks
     $manifest = @{ checks = $checks; result = (Get-AcceptanceSuccessResult $false) } | ConvertTo-Json -Depth 5 | ConvertFrom-Json
-    Require ($manifest.checks.Count -eq 5 -and @($manifest.checks | Where-Object result -ne 'skipped').Count -eq 0) 'Linux omitted explicit UI skips.'
+    Require ($manifest.checks.Count -eq 6 -and @($manifest.checks | Where-Object result -ne 'skipped').Count -eq 0) 'Linux omitted explicit UI skips.'
     Require ($manifest.result.Contains('editor probes skipped')) 'Linux success summary claimed Windows UI coverage.'
     $failure = $null
     try { Get-AcceptanceSuccessResult $true | Out-Null } catch { $failure = $_.Exception.Message }
