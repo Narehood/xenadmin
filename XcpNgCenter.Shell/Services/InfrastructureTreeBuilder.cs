@@ -81,12 +81,18 @@ public static class InfrastructureTreeBuilder
         var placed = new HashSet<string>(StringComparer.Ordinal);
         var allSrs = VisibleSrs(conn).ToList();
         var placedSrs = new HashSet<string>(StringComparer.Ordinal);
+        // Resolve placement once per object, rather than scanning the complete
+        // VM/storage inventory again for every host in the pool.
+        var vmsByHost = vms.Select(vm => (Vm: vm, Home: vm.Home()))
+            .Where(item => item.Home != null)
+            .ToLookup(item => item.Home!.opaque_ref, item => item.Vm, StringComparer.Ordinal);
+        var srsByHost = allSrs.Select(sr => (Sr: sr, Home: sr.Home()))
+            .Where(item => item.Home != null)
+            .ToLookup(item => item.Home!.opaque_ref, item => item.Sr, StringComparer.Ordinal);
 
         foreach (var host in hosts)
         {
-            var hostVms = vms
-                .Where(vm => SameHost(vm.Home(), host))
-                .ToList();
+            var hostVms = vmsByHost[host.opaque_ref].ToList();
 
             foreach (var vm in hostVms)
                 placed.Add(vm.opaque_ref);
@@ -97,7 +103,7 @@ public static class InfrastructureTreeBuilder
                 hostNode.Children.Add(CreateVmNode(server, vm));
 
             // Local / single-PBD storage under this host.
-            foreach (var sr in allSrs.Where(sr => SameHost(sr.Home(), host)))
+            foreach (var sr in srsByHost[host.opaque_ref])
             {
                 placedSrs.Add(sr.opaque_ref);
                 hostNode.Children.Add(CreateSrNode(server, sr));
@@ -205,9 +211,6 @@ public static class InfrastructureTreeBuilder
             StatusTooltip = tip
         };
     }
-
-    private static bool SameHost(Host? a, Host b)
-        => a != null && a.opaque_ref == b.opaque_ref;
 
     public static void ReplaceRoots(ObservableCollection<InfraTreeNode> roots, IEnumerable<InfraTreeNode> next)
     {

@@ -20,6 +20,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private readonly SavedServerStore _savedServerStore;
     private readonly ShellAppSettings _appSettings;
     private bool _disposed;
+    private InventoryRefreshScheduler? _inventoryRefresh;
     private CancellationTokenSource? _autoReconnectCts;
 
     private readonly MainPasswordVault _credentialVault;
@@ -297,6 +298,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (_disposed)
             return;
         _disposed = true;
+        _inventoryRefresh?.Dispose();
 
         try
         {
@@ -1040,14 +1042,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         conn.ConnectionResult += (_, e) => Dispatcher.UIThread.Post(() => OnConnectionResult(node, e));
         conn.CachePopulated += c => Dispatcher.UIThread.Post(() => OnCachePopulated(node, c));
-        conn.XenObjectsUpdated += (_, _) => Dispatcher.UIThread.Post(() =>
-        {
-            // Require both the Shell flag and XenConnection.IsConnected so a queued
-            // refresh after coordinator death cannot rebuild a green "online" tree from
-            // stale Host_metrics.live snapshots.
-            if (node.Connection != null && node.IsConnected && node.Connection.IsConnected)
-                RebuildTreeForServer(node, node.Connection);
-        });
+        _inventoryRefresh ??= new InventoryRefreshScheduler(
+            action => Dispatcher.UIThread.Post(action), (server, connection) => RebuildTreeForServer(server, connection));
+        var inventoryRefresh = _inventoryRefresh;
+        conn.XenObjectsUpdated += (_, _) => inventoryRefresh.Request(node, conn);
         conn.ClearingCache += c => Dispatcher.UIThread.Post(() => OnConnectionClearingCache(node, c));
         conn.ConnectionStateChanged += c => Dispatcher.UIThread.Post(() => OnConnectionStateChanged(node, c));
         conn.ConnectionClosed += _ => Dispatcher.UIThread.Post(() => OnConnectionClosed(node));
@@ -1331,7 +1329,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void RebuildTreeForServer(ServerNode server, IXenConnection conn, bool selectRoot = false)
     {
-        if (!server.IsConnected
+        if (_disposed || !Servers.Contains(server) || !server.IsConnected
             || !ReferenceEquals(server.Connection, conn)
             || !conn.IsConnected)
         {
@@ -1359,8 +1357,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             if (existing != null)
             {
+                root = InfrastructureTreeUpdater.Apply(existing, root);
                 var index = InfrastructureRoots.IndexOf(existing);
-                InfrastructureRoots[index] = root;
+                if (!ReferenceEquals(existing, root)) InfrastructureRoots[index] = root;
             }
             else
             {

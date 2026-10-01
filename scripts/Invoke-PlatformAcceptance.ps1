@@ -141,7 +141,7 @@ try {
         }
         Invoke-Check 'proxy-auth' $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
             '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot 'XenAdmin/bin/Release/net10.0-windows/XCP-ng Center.dll'), '--proxy-auth')
-        foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery')) {
+        foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery', 'modernization')) {
             $probeArgs = @('run', '--project', 'tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj', '-c', 'Release', '-p:RestoreLockedMode=true', '--')
             if ($mode -ne 'networking') { $probeArgs += "--$mode" }
             $destination = Join-Path $evidence "ui-$mode"

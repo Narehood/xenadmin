@@ -77,9 +77,58 @@ shared SR. Template/snapshot/control-domain records verify filtering. Counts and
 unique object references are checked after every scenario. These workload sizes
 are stress inputs, not a claim about supported server pool limits.
 
+## October 1 inventory refresh and layout
+
+The tree builder now resolves each VM/SR home once, rather than rescanning the
+whole inventory for every host. Inventory event bursts queue one refresh per
+connection per UI turn; updates during refresh schedule a later turn. Stale
+connection callbacks and disposed view models cannot rebuild a current tree.
+
+The desktop probe found that replacing tree nodes dominated layout time, even
+when most hosts were collapsed. Refresh now reconciles the existing nodes:
+metadata updates preserve containers, ordering uses collection moves, and only
+added/removed objects change membership. Objects moving between hosts are
+detached first and retain their identity. Selection and collapsed state survive;
+the selected object's new ancestor path expands. Existing detail refresh still
+runs when the selected node instance is unchanged.
+
+[Layout JSON](performance/2026-10-01-inventory-layout.json) compares replacement
+and reuse using the **same current tree builder**, production MainWindow
+TreeView/template/styles and production expansion helpers. Each sample queues
+200 notifications, changes the selected guest's name and drains one refresh,
+including tree construction, state reconciliation and synchronous layout.
+
+| Synthetic inventory | Replace median | Reuse median |
+| --- | ---: | ---: |
+| 4 hosts, 100 VMs | 51.929 ms | 1.092 ms |
+| 16 hosts, 1,000 VMs | 132.225 ms | 6.238 ms |
+| 64 hosts, 5,000 VMs | 143.932 ms | 22.098 ms |
+
+The fixtures have running VMs distributed across hosts, one host expanded and
+the others collapsed. They use two warmups and five measured samples per case.
+An untimed migration also verifies that the guest instance survives and its
+destination expands. CPU/default-tiering and desktop activity vary: the earlier
+5,000-VM paired run measured 197.4/24.6 ms. These measurements justify preserving
+containers; they are not a timing budget or a supported pool-size claim.
+
+Reproduce on a Windows desktop session with no live profiles or pools:
+
+```powershell
+dotnet run --project tools/AdvancedNetworking.UiProbe -c Release -p:RestoreLockedMode=true -- --modernization --evidence-directory artifacts/inventory-layout-local
+```
+
+Twenty focused tests cover topology/order changes, missing hosts, storage moves,
+thread-safe event bursts, updates during refresh, stale connections, disposal,
+post failure, node retention, collection moves, migration and root replacement.
+The UI probe additionally checks selection, fresh metadata, collapsed hosts and
+migration against the real TreeView. It bypasses MainViewModel initialization
+and detail panes; it does not load saved profiles or credentials. The timing
+excludes network work, detail refresh, frame presentation and native input
+latency. Fully expanded trees and actual event streams still need acceptance.
+
 ## Limits and next investigation
 
-These are synthetic CPU measurements. Tree timing excludes tree-control layout,
+The September 25 results above are synthetic CPU measurements. Their tree timing excludes tree-control layout,
 selection restoration, event arrival rates, and detail-pane refresh. Hosts are
 cache records without live sessions. Console timing includes offscreen Skia
 bitmap upload from managed memory, but excludes network decoding, compression,

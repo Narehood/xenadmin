@@ -4,7 +4,33 @@ Last updated: 2026-10-01 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Inventory refresh responsiveness (2026-10-01)
+
+Inventory notifications now coalesce by connection into one UI refresh per
+dispatcher turn. Notifications arriving during a refresh schedule another turn.
+Queued callbacks retain their originating connection; disposed, removed and
+replaced server connections cannot rebuild stale inventory.
+
+The builder resolves VM/SR placement once per object. The tree updater retains
+existing nodes and containers, updates changed metadata, moves/adds/removes
+children without a collection Reset, and detaches migrated objects before
+attaching them to another parent. The main view model still refreshes details
+when the selected node instance stays the same. Selected guests keep their
+identity; their destination path expands after a move.
+
+Twenty focused inventory/scheduler/updater checks pass. The production TreeView
+probe measures both replacement and reuse with the same current builder: a
+64-host/5,000-VM refresh falls from **143.9 ms to 22.1 ms** median in the final
+synthetic run. It verifies burst coalescing, changed metadata, selection,
+collapsed hosts and migration. The [performance record](performance-baseline.md)
+retains all samples and limitations. Windows CI and platform acceptance now run
+the inventory layout probe. Live event streams, detail-pane costs, fully expanded
+large trees and physical desktop responsiveness remain acceptance work.
+
 ### WinForms designer audit completion (2026-10-01)
+
+Implementation: `c26bd791e`, submitted as
+[PR #58](https://github.com/Narehood/xenadmin/pull/58).
 
 All **297 remaining WFO1000 declarations** have been audited against their
 constructors, setters, callers and generated designer assignments. The project
