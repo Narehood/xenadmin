@@ -4,7 +4,47 @@ Last updated: 2026-10-01 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### External Remote Desktop and remaining parity strategy (2026-10-01)
+
+Implementation: `66e23e5f9`, stacked after the inventory work in #59.
+Retarget each layer to `development` after its predecessor merges.
+
+The VM Console toolbar now offers **Remote Desktop…** for a connected running
+guest. A review dialog suggests validated guest-reported addresses and accepts
+a manual IPv4/IPv6 address and port. The selected VM, cache identity, connection
+and power state are checked again after review. Windows launches system
+`mstsc.exe` with a credential prompt; Linux launches system Remmina using a
+credential-free RDP URI. Arguments are separate, no shell is involved, and no
+hypervisor credentials or certificate-bypass flags are passed.
+
+Twenty-seven endpoint/identity/draft checks and seven actual RDP dialog checks
+pass. Windows CI and local acceptance run the new dialog mode. Missing clients
+produce visible guidance. Actual Windows/Linux guest login, IPv6 reachability
+and Linux Remmina/plugin availability remain manual checks. The shell connects
+directly to the guest; embedded RDP and hypervisor tunneling are not implemented.
+See [Remote Desktop](remote-desktop.md).
+
+The integrated local acceptance pass succeeds: locked restore, both solution
+builds, **963 shell tests per configuration**, **73 shared tests per framework**,
+333 lifecycle/designer checks per WinForms configuration, full resources,
+proxy/editor probes and Windows self-contained package validation/smoke.
+After separating the new probe modes, the inventory mode passes 189 checks and
+the RDP mode passes seven; acceptance failure/coverage fixtures were rerun.
+Portable lockfiles and trusted reused RDP interop are unchanged. Hosted Linux
+and Windows results must be checked on the PR heads before merge.
+
+The [remaining parity plan](modernization-remaining-plan.md) defines the plugin/
+external-tool strategy and staged DR scope. IE plugin tabs and arbitrary legacy
+tool templates retain their supported WinForms path. Live halted recovery,
+source fencing and storage isolation must be proven before adding appliance,
+snapshot, special-hardware or running-guest recovery. No production pool, user
+profile, external RDP client or release was changed during validation.
+
 ### Inventory refresh responsiveness (2026-10-01)
+
+Implementation: `7819fcd1c`, submitted as
+[PR #59](https://github.com/Narehood/xenadmin/pull/59), stacked after #58.
+Merge #58 first and retarget #59 to `development` before merging it.
 
 Inventory notifications now coalesce by connection into one UI refresh per
 dispatcher turn. Notifications arriving during a refresh schedule another turn.

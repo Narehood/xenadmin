@@ -58,7 +58,7 @@ Shell references **`XenModel` + `XenCenterLib` + `XenOvfApi` + `XcpNgCenter.Rfb`
 1. Complete the [platform acceptance checklist](docs/platform-acceptance.md): **Linux/Windows desktop soak** and live multi-server, migration, import/export, advanced networking, alerts, graphs, and RFB checks. Native Linux CI covers automated tests and packaged desktop startup.
 2. Verify download/apply/restart updates between published **`vYYYY.M.D.N`** builds. The starting binary must stamp a **lower** version than the release tag.
 3. Validate the implemented [AD/RBAC](docs/ad-rbac-management.md) and [halted DR](docs/disaster-recovery.md) workflows on disposable environments, then follow the [modernization roadmap](docs/modernization-roadmap.md) for extended DR and WinForms designer metadata maintenance.
-4. WinForms plugin tabs, Windows-specific external-tool launchers, and RDP stay in the production client.
+4. Validate the shell's [external RDP launcher](docs/remote-desktop.md) with Windows Remote Desktop and Linux Remmina. Embedded RDP, IE plugin tabs and legacy tool templates retain the production-client path; see the [remaining parity plan](docs/modernization-remaining-plan.md).
 
 ## How to try
 

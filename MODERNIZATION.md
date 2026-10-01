@@ -44,7 +44,7 @@ Coexists with WinForms `XenAdmin`. Do **not** revive `origin/avalonia` as-is.
 
 The shell also provides [advanced networking](docs/advanced-networking.md): pool-wide NIC bonds (create/change mode/remove), host IPv4/IPv6 configuration, and SR-IOV provisioning/removal. Native Linux CI exercises the tests and packaged desktop startup. A measured console CopyRect optimization and repeatable inventory/console probes are recorded in the [performance baseline](docs/performance-baseline.md).
 
-**Next:** Complete the [platform acceptance checklist](docs/platform-acceptance.md), including live networking and download/apply/restart updates, then follow the [feature-parity roadmap](docs/modernization-roadmap.md). RDP stays WinForms-only.
+**Next:** Complete the [platform acceptance checklist](docs/platform-acceptance.md), including live networking and download/apply/restart updates, then follow the [feature-parity roadmap](docs/modernization-roadmap.md). The shell supports [external RDP](docs/remote-desktop.md); embedded RDP retains its WinForms path.
 
 The shell now includes [directory access](docs/ad-rbac-management.md) and
 [disaster recovery](docs/disaster-recovery.md) editors. Domain membership changes
@@ -57,7 +57,7 @@ These workflows still require live environment acceptance.
 ### Still later
 
 - Broader async cleanup / installer CI automation.
-- RDP in the Avalonia shell (strategy TBD; WinForms remains available).
+- Embedded RDP, legacy plugin tabs and tool templates, following the [remaining parity plan](docs/modernization-remaining-plan.md).
 - Extended DR workflows for appliances, snapshots, special hardware and running
   guest rehearsals with verified storage isolation.
 

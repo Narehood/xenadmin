@@ -191,6 +191,14 @@ preserves opposite-family DNS and rejects disabling the primary management famil
 
 ## Evidence template
 
+The shell's [external RDP adapter](remote-desktop.md) adds these manual cases:
+Windows Remote Desktop and system Remmina with its RDP plugin, IPv4/global IPv6
+and a custom port, guest tools absent/manual entry, guest credentials and native
+certificate handling, user cancellation, and visible missing-client/plugin
+guidance. Confirm no hypervisor credential is supplied to the native client.
+The Windows review-dialog probe runs without launching a client; Linux portable
+tests do not establish native client availability or a guest login.
+
 Copy this into the PR/release acceptance record. Replace every pending item with
 a result and evidence location only after that check has run.
 
