@@ -13,12 +13,14 @@ public sealed class InventoryRefreshScheduler(
     private readonly Dictionary<IXenConnection, ServerNode> pending = new(ReferenceEqualityComparer.Instance);
     private bool scheduled;
     private bool disposed;
+    private int notifications;
 
     public void Request(ServerNode server, IXenConnection connection)
     {
         lock (gate)
         {
             if (disposed) return;
+            notifications++;
             pending[connection] = server;
             if (scheduled) return;
             scheduled = true;
@@ -35,14 +37,19 @@ public sealed class InventoryRefreshScheduler(
     private void Drain()
     {
         KeyValuePair<IXenConnection, ServerNode>[] batch;
+        int notificationCount;
         lock (gate)
         {
             if (disposed) return;
             batch = pending.ToArray();
             pending.Clear();
+            notificationCount = notifications;
+            notifications = 0;
             // Notifications arriving during refresh belong to a later UI turn.
             scheduled = false;
         }
+        ShellPerformanceDiagnostics.Log.InventoryBatch(notificationCount, batch.Length);
+        using var measurement = ShellPerformanceDiagnostics.Measure("inventory.batch");
         foreach (var (connection, server) in batch)
         {
             lock (gate) { if (disposed) return; }

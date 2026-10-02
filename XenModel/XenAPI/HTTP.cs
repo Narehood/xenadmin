@@ -39,6 +39,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.Serialization;
+using System.Threading;
 using XenCenterLib;
 
 namespace XenAPI
@@ -182,7 +183,7 @@ namespace XenAPI
         /// Read HTTP headers, doing any redirects as necessary
         /// </summary>
         /// <returns>True if a redirect has occurred - headers will need to be resent.</returns>
-        private static bool ReadHttpHeaders(ref Stream stream, IWebProxy proxy, bool nodelay, int timeout_ms, List<string> headers = null)
+        private static bool ReadHttpHeaders(ref Stream stream, IWebProxy proxy, bool nodelay, int timeout_ms, List<string> headers = null, ConnectionAttempt attempt = null)
         {
             // read headers/fields
             string line = ReadLine(stream), initialLine = line, transferEncodingField = null;
@@ -255,7 +256,7 @@ namespace XenAPI
                     string url = header == null ? "" : header.Substring(9).Trim();
                     Uri redirect = new Uri(url);
                     stream.Close();
-                    stream = ConnectStream(redirect, proxy, nodelay, timeout_ms);
+                    stream = ConnectStream(redirect, proxy, nodelay, timeout_ms, attempt);
                     return true; // headers need to be sent again
 
                 default:
@@ -432,7 +433,7 @@ namespace XenAPI
 
         #endregion
 
-        private static NetworkStream ConnectSocket(Uri uri, bool nodelay, int timeoutMs)
+        private static NetworkStream ConnectSocket(Uri uri, bool nodelay, int timeoutMs, ConnectionAttempt attempt = null)
         {
             AddressFamily addressFamily = uri.HostNameType == UriHostNameType.IPv6
                                               ? AddressFamily.InterNetworkV6
@@ -442,9 +443,22 @@ namespace XenAPI
             socket.NoDelay = nodelay;
             socket.ReceiveTimeout = timeoutMs;
             socket.SendTimeout = timeoutMs;
-            socket.Connect(uri.Host, uri.Port);
-
-            return new NetworkStream(socket, true);
+            try
+            {
+                attempt?.Track(socket);
+#if NET8_0_OR_GREATER
+                if (attempt != null)
+                    socket.ConnectAsync(uri.Host, uri.Port, attempt.Token).AsTask().GetAwaiter().GetResult();
+                else
+#endif
+                socket.Connect(uri.Host, uri.Port);
+                return new NetworkStream(socket, true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -456,10 +470,17 @@ namespace XenAPI
         /// <param name="nodelay"></param>
         /// <param name="timeoutMs">Timeout, in ms. 0 for no timeout.</param>
         public static Stream ConnectStream(Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs)
+            => ConnectStream(uri, proxy, nodelay, timeoutMs, null);
+
+        private static Stream ConnectStream(Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, ConnectionAttempt attempt)
         {
             IMockWebProxy mockProxy = proxy as IMockWebProxy;
             if (mockProxy != null)
-                return mockProxy.GetStream(uri);
+            {
+                var mocked = mockProxy.GetStream(uri);
+                attempt?.Track(mocked);
+                return mocked;
+            }
 
             Stream stream;
             bool useProxy = proxy != null && !proxy.IsBypassed(uri);
@@ -467,11 +488,11 @@ namespace XenAPI
             if (useProxy)
             {
                 Uri proxyURI = proxy.GetProxy(uri);
-                stream = ConnectSocket(proxyURI, nodelay, timeoutMs);
+                stream = ConnectSocket(proxyURI, nodelay, timeoutMs, attempt);
             }
             else
             {
-                stream = ConnectSocket(uri, nodelay, timeoutMs);
+                stream = ConnectSocket(uri, nodelay, timeoutMs, attempt);
             }
 
             try
@@ -483,9 +504,9 @@ namespace XenAPI
                     WriteLine(stream);
 
                     List<string> initialResponse = new List<string>();
-                    ReadHttpHeaders(ref stream, proxy, nodelay, timeoutMs, initialResponse);
+                    ReadHttpHeaders(ref stream, proxy, nodelay, timeoutMs, initialResponse, attempt);
 
-                    AuthenticateProxy(ref stream, uri, proxy, nodelay, timeoutMs, initialResponse, line);
+                    AuthenticateProxy(ref stream, uri, proxy, nodelay, timeoutMs, initialResponse, line, attempt);
                 }
 
                 if (UseSSL(uri))
@@ -518,7 +539,7 @@ namespace XenAPI
             }
         }
 
-        private static void AuthenticateProxy(ref Stream stream, Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, List<string> initialResponse, string header)
+        private static void AuthenticateProxy(ref Stream stream, Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, List<string> initialResponse, string header, ConnectionAttempt attempt = null)
         {
             // perform authentication only if proxy requires it
             List<string> fields = initialResponse.FindAll(str => str.StartsWith("Proxy-Authenticate:", StringComparison.InvariantCultureIgnoreCase));
@@ -531,7 +552,7 @@ namespace XenAPI
             {
                 stream.Close();
                 Uri proxyURI = proxy.GetProxy(uri);
-                stream = ConnectSocket(proxyURI, nodelay, timeoutMs);
+                stream = ConnectSocket(proxyURI, nodelay, timeoutMs, attempt);
             }
 
             if (proxy.Credentials == null)
@@ -672,7 +693,7 @@ namespace XenAPI
 
             // handle authentication attempt response
             List<string> authenticatedResponse = new List<string>();
-            ReadHttpHeaders(ref stream, proxy, nodelay, timeoutMs, authenticatedResponse);
+            ReadHttpHeaders(ref stream, proxy, nodelay, timeoutMs, authenticatedResponse, attempt);
             if (authenticatedResponse.Count == 0)
                 throw new BadServerResponseException("No response from the proxy server after authentication attempt.");
 
@@ -690,27 +711,38 @@ namespace XenAPI
 
 
         private static Stream DoHttp(Uri uri, IWebProxy proxy, bool nodelay, int timeout_ms, params string[] headers)
+            => DoHttp(uri, proxy, nodelay, timeout_ms, null, headers);
+
+        private static Stream DoHttp(Uri uri, IWebProxy proxy, bool nodelay, int timeout_ms, ConnectionAttempt attempt, params string[] headers)
         {
-            Stream stream = ConnectStream(uri, proxy, nodelay, timeout_ms);
+            Stream stream = ConnectStream(uri, proxy, nodelay, timeout_ms, attempt);
 
-            int redirects = 0;
-
-            do
+            try
             {
-                if (redirects > MAX_REDIRECTS)
-                    throw new TooManyRedirectsException(redirects, uri);
+                int redirects = 0;
 
-                redirects++;
+                do
+                {
+                    if (redirects > MAX_REDIRECTS)
+                        throw new TooManyRedirectsException(redirects, uri);
 
-                foreach (string header in headers)
-                    WriteLine(header, stream);
-                WriteLine(stream);
+                    redirects++;
 
-                stream.Flush();
+                    foreach (string header in headers)
+                        WriteLine(header, stream);
+                    WriteLine(stream);
+
+                    stream.Flush();
+                }
+                while (ReadHttpHeaders(ref stream, proxy, nodelay, timeout_ms, attempt: attempt));
+
+                return stream;
             }
-            while (ReadHttpHeaders(ref stream, proxy, nodelay, timeout_ms));
-
-            return stream;
+            catch
+            {
+                stream.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -722,6 +754,67 @@ namespace XenAPI
                 string.Format("CONNECT {0} HTTP/1.0", uri.PathAndQuery),
                 string.Format("Host: {0}", uri.Host),
                 string.Format("Cookie: session_id={0}", session));
+        }
+
+        /// <summary>Cancels every startup phase, including socket, proxy and TLS negotiation.</summary>
+        public static Stream HttpConnectStream(Uri uri, IWebProxy proxy, string session, int timeoutMs, CancellationToken cancellationToken)
+        {
+            using (var attempt = new ConnectionAttempt(cancellationToken))
+            {
+                try
+                {
+                    var stream = DoHttp(uri, proxy, true, timeoutMs, attempt,
+                        string.Format("CONNECT {0} HTTP/1.0", uri.PathAndQuery),
+                        string.Format("Host: {0}", uri.Host),
+                        string.Format("Cookie: session_id={0}", session));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return stream;
+                }
+                catch
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw;
+                }
+            }
+        }
+
+        private sealed class ConnectionAttempt : IDisposable
+        {
+            private readonly object gate = new object();
+            private readonly CancellationToken token;
+            private readonly CancellationTokenRegistration registration;
+            private IDisposable current;
+
+            public ConnectionAttempt(CancellationToken token)
+            {
+                this.token = token;
+                token.ThrowIfCancellationRequested();
+                registration = token.Register(Abort);
+            }
+
+            public CancellationToken Token => token;
+
+            public void Track(IDisposable transport)
+            {
+                lock (gate)
+                {
+                    if (token.IsCancellationRequested)
+                    {
+                        transport.Dispose();
+                        token.ThrowIfCancellationRequested();
+                    }
+                    current = transport;
+                }
+            }
+
+            private void Abort()
+            {
+                IDisposable transport;
+                lock (gate) transport = current;
+                try { transport?.Dispose(); } catch (ObjectDisposedException) { }
+            }
+
+            public void Dispose() => registration.Dispose();
         }
 
         /// <summary>

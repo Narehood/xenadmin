@@ -17,10 +17,13 @@ public sealed class HostedConsoleSession : IDisposable
 {
     private readonly object _gate = new();
     private CancellationTokenSource? _cts;
+    private ConsoleStartupGuard? _startup;
+    private System.Threading.Tasks.Task? _connectWorker;
+    private readonly Func<LiveRfbTarget, CancellationToken, Stream> openTransport;
+    private readonly TimeSpan startupTimeout;
     private AvaloniaRfbFramebuffer? _framebuffer;
     private RfbClient? _client;
     private Stream? _stream;
-    private Session? _session;
     private int _generation;
     private bool _disposed;
     private bool _secureTransport;
@@ -53,6 +56,30 @@ public sealed class HostedConsoleSession : IDisposable
     public event Action? StateChanged;
     public event Action? CursorChanged;
 
+    public HostedConsoleSession() : this(OpenTransport,
+        TimeSpan.FromSeconds(Math.Clamp(ShellBootstrap.AppSettings.ConnectionTimeoutSeconds, 1, 3600))) { }
+
+    internal HostedConsoleSession(Func<LiveRfbTarget, CancellationToken, Stream> openTransport, TimeSpan startupTimeout)
+    {
+        this.openTransport = openTransport;
+        this.startupTimeout = startupTimeout;
+    }
+
+    private static Stream OpenTransport(LiveRfbTarget target, CancellationToken token)
+    {
+        var session = target.Connection.DuplicateSession();
+        try
+        {
+            return HTTP.HttpConnectStream(new Uri(target.Console.location),
+                XenAdmin.XenAdminConfigManager.Provider.GetProxyFromSettings(target.Connection), session.opaque_ref, 0, token);
+        }
+        finally
+        {
+            // This duplicate shares the pool token. Only release its local transport.
+            session.JsonRpcClient?.Dispose();
+        }
+    }
+
     public void Start(LiveRfbTarget target)
     {
         Stop();
@@ -60,13 +87,19 @@ public sealed class HostedConsoleSession : IDisposable
         var cts = new CancellationTokenSource();
         AvaloniaRfbFramebuffer framebuffer;
         int generation;
+        ConsoleStartupGuard startup;
 
         lock (_gate)
         {
             if (_disposed)
+            {
+                cts.Dispose();
                 return;
+            }
 
             _cts = cts;
+            startup = new ConsoleStartupGuard(cts.Token, startupTimeout);
+            _startup = startup;
             generation = ++_generation;
             _pasteLabel = $"{target.ObjectLabel}\nServer: {IdentifierPrivacy.ServerName(target.Connection.Hostname)}\nUUID: {IdentifierPrivacy.Uuid(target.Uuid)}";
             framebuffer = new AvaloniaRfbFramebuffer(target.VmName, target.Uuid);
@@ -77,17 +110,16 @@ public sealed class HostedConsoleSession : IDisposable
             IsConnected = false;
             IsConnecting = true;
             StatusMessage = "Connecting to RFB console…";
+            _connectWorker = System.Threading.Tasks.Task.Run(() => ConnectWorker(target, framebuffer, generation, startup));
         }
 
         RaiseStateChanged();
-
-        _ = System.Threading.Tasks.Task.Run(() => ConnectWorker(target, framebuffer, generation, cts.Token), cts.Token);
     }
 
-    private void ConnectWorker(LiveRfbTarget target, AvaloniaRfbFramebuffer framebuffer, int generation, CancellationToken token)
+    private void ConnectWorker(LiveRfbTarget target, AvaloniaRfbFramebuffer framebuffer, int generation, ConsoleStartupGuard startup)
     {
+        var token = startup.Token;
         Stream? stream = null;
-        Session? session = null;
         RfbClient? client = null;
 
         try
@@ -99,11 +131,9 @@ public sealed class HostedConsoleSession : IDisposable
 
             // DuplicateSession copies the main session opaque_ref onto a new TCP client.
             // Never Session.logout() it — that would destroy the pool connection.
-            session = target.Connection.DuplicateSession();
-            token.ThrowIfCancellationRequested();
-
-            var uri = new Uri(target.Console.location);
-            stream = HTTPHelper.CONNECT(uri, target.Connection, session.opaque_ref, false);
+            using (ShellPerformanceDiagnostics.Measure("console.tunnel-startup"))
+                stream = openTransport(target, token);
+            startup.AttachTransport(stream);
             if (stream.CanTimeout)
                 stream.WriteTimeout = 5000;
             token.ThrowIfCancellationRequested();
@@ -111,14 +141,16 @@ public sealed class HostedConsoleSession : IDisposable
             client = new RfbClient(framebuffer, stream, startPaused: false);
             client.ErrorOccurred += (_, ex) =>
             {
+                startup.End();
                 // Drop the HTTP CONNECT immediately. Holding an open dom0 console
                 // proxy against a rebooting host can stall orderly shutdown.
-                SetStatus(generation, $"Console error: {ex.Message}", connected: false);
+                SetStatus(generation, token.IsCancellationRequested ? startup.FailureMessage : $"Console error: {ex.Message}", connected: false);
                 TearDownTransport(generation);
             };
             client.ConnectionSuccess += (_, _) =>
             {
-                SetStatus(generation, "Live console — click to focus for keyboard/mouse.", connected: true);
+                if (startup.Complete())
+                    SetStatus(generation, "Live console — click to focus for keyboard/mouse.", connected: true);
             };
 
             RfbClient connectClient;
@@ -132,14 +164,12 @@ public sealed class HostedConsoleSession : IDisposable
                     return;
                 }
 
-                _session = session;
                 _stream = stream;
                 // HTTP CONNECT can follow redirects. Check the resulting transport,
                 // not the original URI, before allowing clipboard content onto it.
                 _secureTransport = stream is SslStream { IsAuthenticated: true, IsEncrypted: true };
                 _client = client;
                 connectClient = client;
-                session = null;
                 stream = null;
                 client = null;
             }
@@ -149,15 +179,18 @@ public sealed class HostedConsoleSession : IDisposable
         }
         catch (OperationCanceledException)
         {
+            startup.End();
             SafeDispose(client);
             SafeDispose(stream);
+            SetStatus(generation, startup.FailureMessage, connected: false);
         }
         catch (Exception ex)
         {
+            startup.End();
             SafeDispose(client);
             SafeDispose(stream);
             if (!_disposed && _generation == generation)
-                SetStatus(generation, $"Console connect failed: {ex.Message}", connected: false);
+                SetStatus(generation, token.IsCancellationRequested ? startup.FailureMessage : $"Console connect failed: {ex.Message}", connected: false);
             Debug.WriteLine(ex);
         }
     }
@@ -180,7 +213,6 @@ public sealed class HostedConsoleSession : IDisposable
             _client = null;
             stream = _stream;
             _stream = null;
-            _session = null;
             IsConnected = false;
             IsConnecting = false;
         }
@@ -317,6 +349,8 @@ public sealed class HostedConsoleSession : IDisposable
     public void Stop()
     {
         CancellationTokenSource? cts;
+        ConsoleStartupGuard? startup;
+        System.Threading.Tasks.Task? worker;
         RfbClient? client;
         Stream? stream;
         AvaloniaRfbFramebuffer? framebuffer;
@@ -329,12 +363,15 @@ public sealed class HostedConsoleSession : IDisposable
             _pasteLabel = "";
             cts = _cts;
             _cts = null;
+            startup = _startup;
+            _startup = null;
+            worker = _connectWorker;
+            _connectWorker = null;
             client = _client;
             _client = null;
             stream = _stream;
             _stream = null;
             // DuplicateSession shares the pool opaque_ref — never logout here.
-            _session = null;
             framebuffer = _framebuffer;
             _framebuffer = null;
             IsConnected = false;
@@ -344,6 +381,8 @@ public sealed class HostedConsoleSession : IDisposable
         }
 
         try { cts?.Cancel(); } catch { /* ignore */ }
+        // The connection worker may still be unwinding. It retains its guard;
+        // cancellation is immediate, but its token stays usable until it exits.
         try { client?.Close(); } catch { /* ignore */ }
         SafeDispose(stream);
         if (framebuffer != null)
@@ -354,6 +393,10 @@ public sealed class HostedConsoleSession : IDisposable
             try { framebuffer.Dispose(); } catch { /* ignore */ }
         }
         try { cts?.Dispose(); } catch { /* ignore */ }
+        if (startup != null)
+            _ = (worker ?? System.Threading.Tasks.Task.CompletedTask).ContinueWith(_ => startup.Dispose(),
+                CancellationToken.None, System.Threading.Tasks.TaskContinuationOptions.ExecuteSynchronously,
+                System.Threading.Tasks.TaskScheduler.Default);
 
         RaiseStateChanged();
     }

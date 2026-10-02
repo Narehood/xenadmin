@@ -35,6 +35,14 @@ Published archives keep the shell files (plus `INSTALL.TXT`) at the archive root
 
 IE browser plugin tabs, their scripting/authentication bridge and credential dialog are preserved in [the source archive](legacy/disabled-features/ie-plugin-tabs/README.md) and excluded from all application builds and packages. No registry flag enables them. Mixed manifests skip browser tabs and keep valid menu commands; tab-only plugins remain disabled with an archive error. Separate menu/command extensions retain their existing opt-in policy (`EnablePlugins=1`).
 
+### Redistribution notices and RPC
+
+Both clients carry the complete project license and third-party notices in their
+binaries and build/publish outputs. The shell exposes them under Settings → About;
+WinForms uses About → View Legal Notices. See [notice maintenance](docs/legal-notices.md).
+The shared .NET 10 JSON-RPC path uses reusable, isolated HTTP client pools;
+`net481` retains its compatible transport. See [transport behavior and validation](docs/rpc-transport.md).
+
 ### UI rewrite
 
 Active track: **`XcpNgCenter.Shell`** (Avalonia), documented in [`UI_REWRITE.md`](./UI_REWRITE.md).

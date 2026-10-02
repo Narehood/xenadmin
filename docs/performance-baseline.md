@@ -130,9 +130,39 @@ The UI probe additionally checks selection, fresh metadata, collapsed hosts and
 migration against the real TreeView. It bypasses MainViewModel initialization
 and detail panes; it does not load saved profiles or credentials. The timing
 excludes network work, detail refresh, frame presentation and native input
-latency. Fully expanded trees and actual event streams still need acceptance.
+latency. The October 2 probe also measures fully expanded synthetic trees;
+actual event streams and native desktop behavior still need acceptance.
 
 ## Limits and next investigation
+
+### October 2 production instrumentation
+
+The opt-in EventSource `XcpNgCenter-Shell-Performance` records inventory burst
+counts, per-connection rebuild/reconciliation, detail refresh phases, console
+tunnel startup, bitmap flush timings and frame dimensions. Synchronous operation
+events include elapsed milliseconds and allocations on the measuring thread;
+cross-thread scopes report unknown allocation (`-1`). Disabled timing scopes do
+not allocate. Payloads omit hostnames, VM names, UUIDs, object references,
+credentials and clipboard contents.
+
+Capture on the real target desktop with the standard .NET tracing tools, for example:
+
+```text
+dotnet-trace collect --process-id <pid> --providers XcpNgCenter-Shell-Performance
+```
+
+The [official tracing guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/dotnet-trace)
+explains collection and trace formats. Attach only to the intended test process;
+other enabled providers can expose information outside this provider's payloads.
+Measure a representative event stream, detail selection and sustained console
+activity before choosing further performance changes. These phases do not include
+GPU/native composition or all network/decoder costs.
+
+The production tree probe now pairs replacement/reuse for both partly collapsed
+and fully expanded host trees at each inventory size. It still uses synthetic
+inventory and bypasses MainViewModel's detail panes. Results therefore support
+layout comparisons, while the new production events cover the previously missing
+live event/detail phases when a disposable environment becomes available.
 
 The September 25 results above are synthetic CPU measurements. Their tree timing excludes tree-control layout,
 selection restoration, event arrival rates, and detail-pane refresh. Hosts are
@@ -143,11 +173,10 @@ counts cover the measuring thread's managed allocations, not native bitmap
 memory or other threads. Neither the timing nor the resize workload proves a
 long-running process has no resource leaks.
 
-At fixed VM count the tree cost grows with host count; source inspection shows
-the builder checks all VMs once per host. A future change can group resolved home
-hosts once per build, but first capture real inventory event frequency and a UI
-trace. A 25 ms synthetic rebuild alone does not establish that the application
-has repeated user-visible pauses. Preserve standalone/pool layout, stopped VM
+The October 1 builder already resolves VM/SR placement once per object; the
+September 25 repeated host scan is historical. Capture real inventory event
+frequency and a UI trace before another optimization. A 25 ms synthetic rebuild
+alone does not establish repeated user-visible pauses. Preserve standalone/pool layout, stopped VM
 placement, privacy formatting, expansion, and selection semantics in any change.
 
 Use [platform acceptance](platform-acceptance.md) to record real Windows/Linux

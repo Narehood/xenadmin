@@ -356,6 +356,7 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
 
     private void FlushUiSync()
     {
+        using var measurement = ShellPerformanceDiagnostics.Measure("console.bitmap-flush");
         int width;
         int height;
         bool fireResized;
@@ -395,6 +396,7 @@ public sealed class AvaloniaRfbFramebuffer : IRfbFramebuffer, IDisposable
         if (fireResized)
             DesktopResized?.Invoke(width, height);
         FramePresented?.Invoke();
+        ShellPerformanceDiagnostics.Log.ConsoleFrame(width, height);
 
         // If RFB wrote more pixels while we were flushing, schedule another present so the
         // last keystroke/cursor blink is not stuck until the user switches tabs.

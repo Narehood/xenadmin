@@ -101,6 +101,15 @@ not enable raw packet or parameter logging.
 
 ## Remaining limitations
 
+October 2 follow-up: console startup now has a deadline based on the configured
+connection timeout. A cancellable HTTP CONNECT path closes the active socket
+through TCP, proxy and TLS startup; a separate guard closes a stalled RFB
+handshake. Success disarms the startup deadline, so an unchanged display does
+not acquire a general idle read timeout. Selection changes cancel the active
+generation. Local silent-peer and actual hosted-session tests cover these paths.
+This hardening does not identify the cause of the reported Debian reboot incident.
+The paragraphs below describe the earlier September 27 limitation.
+
 A peer that keeps its connection open but sends no handshake data can leave the
 current synchronous HTTP CONNECT/RFB startup waiting. The hosted path requests
 no read timeout and does not expose the transport until CONNECT returns.
