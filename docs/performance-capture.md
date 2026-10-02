@@ -29,7 +29,8 @@ The default duration is 180 seconds; the range is 1–3600 seconds. Collection
 ends and flushes automatically while the application remains open. Closing the
 application early also flushes the capture. The buffer holds up to 4096 samples
 and the file up to 128 MiB. Overload drops samples instead of waiting on the UI
-or console worker, and the summary records the dropped count.
+or console worker. The summary records observed, written and dropped counts;
+shutdown waits for admitted callbacks to finish that accounting before flushing.
 
 For comparisons, record the exact commit/build, OS/session, display scale,
 inventory size and workload outside the capture. Use the same deployment and
@@ -60,7 +61,7 @@ The output includes median/p95/p99/max duration by operation, known allocation
 samples, batch coalescing, frame rate/dimensions and startup outcomes. Missing
 phases remain explicit. A missing footer, zero samples or dropped samples makes
 the capture unsuitable for a performance comparison; malformed records and
-mismatched sample counts are rejected. Summary files are never overwritten.
+mismatched sample/loss counts are rejected. Summary files are never overwritten.
 
 Measuring-thread allocations omit other threads and native bitmap memory;
 `-1` means unknown. Timings exclude GPU composition and full network/decoder
@@ -72,7 +73,7 @@ available when runtime/CPU investigation is needed.
 ## Regression gates
 
 `PerformanceCaptureTests` exercises the actual EventListener/writer, provider
-isolation, overload accounting, argument handling, no-overwrite behavior and
+isolation, concurrent shutdown/overload accounting, argument handling, no-overwrite behavior and
 automatic stop. `scripts/test-performance-capture.py` checks report statistics,
 phase coverage and incomplete/dropped/empty/invalid evidence. Both suites run
 through [platform acceptance](platform-acceptance.md). Linux package startup

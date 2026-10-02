@@ -12,12 +12,13 @@ spec.loader.exec_module(capture)
 
 
 class CaptureTests(unittest.TestCase):
-    def summarize(self, events, footer=True, dropped=0):
+    def summarize(self, events, footer=True, dropped=0, observed=None):
         rows = [{"kind": "capture", "schema": 1, "provider": "XcpNgCenter-Shell-Performance"}]
         rows += [{"kind": "event", "elapsedMilliseconds": index, "eventId": event, "payload": payload}
                  for index, (event, payload) in enumerate(events)]
         if footer:
-            rows.append({"kind": "summary", "eventsWritten": len(events), "eventsDropped": dropped,
+            rows.append({"kind": "summary", "eventsObserved": len(events) + dropped if observed is None else observed,
+                         "eventsWritten": len(events), "eventsDropped": dropped,
                          "durationMilliseconds": 10000})
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory, "capture.jsonl")
@@ -52,6 +53,10 @@ class CaptureTests(unittest.TestCase):
 
     def test_empty_capture_cannot_establish_comparison(self):
         self.assertFalse(self.summarize([])["usableForComparison"])
+
+    def test_inconsistent_loss_accounting_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "observed count"):
+            self.summarize([(3, [10, 10])], observed=2)
 
     def test_invalid_event_and_nonfinite_samples_rejected(self):
         for event in [(99, []), (1, ["details.refresh", float("nan"), 1]), (3, [-1, 3])]:

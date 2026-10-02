@@ -19,9 +19,48 @@ public sealed class PerformanceCaptureTests
             var written = footer.RootElement.GetProperty("eventsWritten").GetInt64();
             var dropped = footer.RootElement.GetProperty("eventsDropped").GetInt64();
             Assert.True(dropped > 0);
+            Assert.Equal(20000, footer.RootElement.GetProperty("eventsObserved").GetInt64());
             Assert.Equal(20000, written + dropped);
         }
         finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task ConcurrentProducersAndShutdownKeepFinalSampleAccountingConsistent()
+    {
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            var path = Path.Combine(Path.GetTempPath(), "xcp-performance-" + Guid.NewGuid() + ".jsonl");
+            using var ready = new CountdownEvent(4);
+            using var race = new ManualResetEventSlim();
+            try
+            {
+                await using var capture = new PerformanceCaptureSession(path, TimeSpan.FromSeconds(30),
+                    capacity: attempt % 2 == 0 ? 1 : 4096);
+                var producers = Enumerable.Range(0, 4).Select(_ => Task.Factory.StartNew(() =>
+                {
+                    for (var i = 0; i < 1000; i++) ShellPerformanceDiagnostics.Log.ConsoleFrame(100, 100);
+                    ready.Signal();
+                    race.Wait();
+                    for (var i = 0; i < 10000; i++) ShellPerformanceDiagnostics.Log.ConsoleFrame(100, 100);
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)).ToArray();
+                var reachedRace = ready.Wait(TimeSpan.FromSeconds(10));
+                race.Set();
+                await capture.DisposeAsync();
+                await Task.WhenAll(producers);
+                Assert.True(reachedRace);
+                var lines = File.ReadAllLines(path);
+                using var footer = JsonDocument.Parse(lines[^1]);
+                var written = footer.RootElement.GetProperty("eventsWritten").GetInt64();
+                var dropped = footer.RootElement.GetProperty("eventsDropped").GetInt64();
+                var observed = footer.RootElement.GetProperty("eventsObserved").GetInt64();
+                Assert.InRange(observed, 4000, 44000);
+                Assert.Equal(observed, written + dropped);
+                Assert.Equal(lines.Length - 2, written);
+                Assert.False(ShellPerformanceDiagnostics.Log.IsEnabled());
+            }
+            finally { race.Set(); File.Delete(path); }
+        }
     }
     [Fact]
     public async Task CaptureWritesOnlyPerformanceProviderAndFlushesCompleteSchema()
@@ -49,6 +88,7 @@ public sealed class PerformanceCaptureTests
                 Assert.Equal(5, records.Count(record => record.RootElement.GetProperty("kind").GetString() == "event"));
                 Assert.Equal("summary", records[^1].RootElement.GetProperty("kind").GetString());
                 Assert.Equal(5, records[^1].RootElement.GetProperty("eventsWritten").GetInt64());
+                Assert.Equal(5, records[^1].RootElement.GetProperty("eventsObserved").GetInt64());
                 Assert.Equal(0, records[^1].RootElement.GetProperty("eventsDropped").GetInt64());
             }
             finally { foreach (var record in records) record.Dispose(); }

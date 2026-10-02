@@ -73,6 +73,8 @@ def summarize(path, evidence_kind="unclassified"):
     duration = number(footer["durationMilliseconds"]) / 1000 if complete else None
     if complete and number(footer["eventsWritten"]) != samples:
         raise ValueError("Capture sample count does not match summary")
+    if complete and "eventsObserved" in footer and number(footer["eventsObserved"]) != samples + dropped:
+        raise ValueError("Capture observed count does not match written and dropped samples")
     timings = {}
     for operation, values in sorted(operations.items()):
         timings[operation] = {

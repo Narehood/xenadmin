@@ -14,8 +14,10 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
     private readonly Task writer;
     private readonly long started = Stopwatch.GetTimestamp();
     private readonly Timer timer;
+    private readonly object captureGate = new();
     private int ready;
     private int stopped;
+    private long observed;
     private long dropped;
     private Exception? writeError;
     private const long MaxFileBytes = 128 * 1024 * 1024;
@@ -71,7 +73,11 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
     protected override void OnEventSourceCreated(EventSource source)
     {
         if (Volatile.Read(ref ready) != 0 && Volatile.Read(ref stopped) == 0
-            && source.Name == "XcpNgCenter-Shell-Performance") EnableEvents(source, EventLevel.Informational);
+            && source.Name == "XcpNgCenter-Shell-Performance")
+        {
+            EnableEvents(source, EventLevel.Informational);
+            if (Volatile.Read(ref stopped) != 0) DisableEvents(source);
+        }
     }
 
     protected override void OnEventWritten(EventWrittenEventArgs args)
@@ -82,7 +88,14 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
         if (args.EventId is < 1 or > 4) return;
         var sample = new CaptureEvent("event", Stopwatch.GetElapsedTime(started).TotalMilliseconds,
             args.EventId, args.Payload?.ToArray() ?? []);
-        if (!queue.Writer.TryWrite(sample)) Interlocked.Increment(ref dropped);
+        // Complete the queue only after admitted callbacks finish their loss
+        // accounting, so the footer cannot overtake a rejected write.
+        lock (captureGate)
+        {
+            if (stopped != 0) return;
+            observed++;
+            if (!queue.Writer.TryWrite(sample)) Interlocked.Increment(ref dropped);
+        }
     }
 
     private async Task Write(FileStream output)
@@ -113,7 +126,8 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
                 }
                 await text.WriteLineAsync(JsonSerializer.Serialize(new
                 {
-                    kind = "summary", eventsWritten = events, eventsDropped = Interlocked.Read(ref dropped),
+                    kind = "summary", eventsObserved = Interlocked.Read(ref observed),
+                    eventsWritten = events, eventsDropped = Interlocked.Read(ref dropped),
                     durationMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds
                 })).ConfigureAwait(false);
             }
@@ -127,9 +141,14 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
 
     private void Stop()
     {
-        if (Interlocked.Exchange(ref stopped, 1) != 0) return;
+        lock (captureGate)
+        {
+            if (Interlocked.Exchange(ref stopped, 1) != 0) return;
+            queue.Writer.TryComplete();
+        }
+        // EventSource has its own callback lock; never acquire it while holding
+        // the capture gate used by OnEventWritten.
         DisableEvents(ShellPerformanceDiagnostics.Log);
-        queue.Writer.TryComplete();
     }
 
     public override void Dispose()
