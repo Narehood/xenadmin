@@ -13,8 +13,9 @@ skipped; there are no code findings or unresolved threads. See the
 [comment dispositions and consolidation record](reviews/2026-10-01-pr58-61-consolidation.md).
 A bot success status does not establish that those draft changes were reviewed.
 
-The `modernization/final-review` branch contains all six commits from the stack
-and targets `development` directly. Rebase onto current integration head
+[PR #62](https://github.com/Narehood/xenadmin/pull/62), branch
+`modernization/final-review`, contains all six commits from the stack and targets
+`development` directly. Rebase onto current integration head
 `1c1ab84b3facad3de087c971a8d1be68cb214e69` is already up to date; there are no
 implementation conflicts or omissions. Original branches/commits are preserved.
 The combined PR replaces the old per-layer merge sequence below and will be

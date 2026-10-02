@@ -13,8 +13,9 @@ CodeRabbit comment reporting that draft PRs were skipped.
 | #61, `ff87782b3745b26404e05d51afd3709f0db4d59c` | [Draft review skipped](https://github.com/Narehood/xenadmin/pull/61#issuecomment-5943682161) | No code finding or unresolved thread; automatic review was unavailable. |
 
 The bot's success status is not evidence of a completed code review. No
-application correction was requested by these comments. The consolidated PR
-will be ready for review against `development`, allowing automatic review of
+application correction was requested by these comments. The consolidated
+[PR #62](https://github.com/Narehood/xenadmin/pull/62) is ready for review against
+`development`, allowing automatic review of
 the complete implementation without changing repository-wide bot settings.
 
 `modernization/final-review` contains all six implementation/documentation
