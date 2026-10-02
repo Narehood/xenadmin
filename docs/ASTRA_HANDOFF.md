@@ -4,6 +4,44 @@ Last updated: 2026-10-01 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### IE plugin tabs archived outside builds (2026-10-01)
+
+Implementation: `56cfa2be6`, submitted as
+[PR #61](https://github.com/Narehood/xenadmin/pull/61), stacked after #60.
+Merge the preceding layers first and retarget this PR to `development` after
+#60 merges.
+
+The user chose to remove IE browser plugin tabs from the shipped clients while
+preserving their source. The browser host, tab/scripting/authentication bridge,
+credential dialog and resources are moved byte for byte to
+[the archive](../legacy/disabled-features/ie-plugin-tabs/README.md), outside every
+project root. Pool plugin-secret helpers are extracted there too; the archive
+also records the removed MainWindow, loader, manager and Pool integration.
+No build/package contains this implementation and no registry flag enables it.
+This supersedes the earlier plan to retain the WinForms IE path.
+
+The separate menu/command extension system keeps its existing opt-in policy.
+Mixed manifests skip archived tabs and preserve valid menu commands; tab-only
+plugins remain disabled with a visible archive error. Normal VM, host and
+driver-domain console tabs no longer have plugin replacements. Existing
+server-side secrets are untouched; no live pool/profile was used for validation.
+Restoring browser integration requires deliberate source integration and a new
+design/review for an actual requirement; archived code is reference only.
+
+The native archive probe rejects the pre-archive binary and passes **23 checks
+per configuration** on the new Release/Debug builds: compiled type/resource and
+integration exclusions, absent pool-secret helpers, tab-only errors, retained
+mixed/menu/grouped commands and malformed-feature rejection. CI and platform
+acceptance run this mode. MSBuild item inspection confirms archive exclusion.
+The full local acceptance pass succeeds: locked restore, both solution builds,
+**963 shell tests per configuration**, **73 shared tests per framework**,
+333 lifecycle/designer checks per configuration, **32,138 resources in 289
+active sets**, proxy checks, all six UI modes, Windows package validation and
+startup. Seven acceptance failure/coverage fixtures pass; portable lockfiles
+and trusted reused local RDP interop remain unchanged. Physical desktop,
+Visual Studio and live-pool release acceptance remain pending; check hosted
+Windows/Linux results on the current PR head before merge.
+
 ### External Remote Desktop and remaining parity strategy (2026-10-01)
 
 Implementation: `66e23e5f9`, stacked after the inventory work in #59.

@@ -76,7 +76,7 @@ not establish disk replication correctness, guest boot, or application failover.
 
 The shell now supports external RDP. Embedded RDP and legacy Windows-specific
 tool templates retain their WinForms path. IE-backed plugin tabs are archived
-and excluded from all builds. The
-[remaining parity plan](modernization-remaining-plan.md) records their platform
+and excluded from all builds. The [remaining parity plan](modernization-remaining-plan.md)
+records their platform
 strategy and the gates for extended DR. Further async/layout work should follow
 measured live UI traces using the [baseline harness](performance-baseline.md).
