@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using XcpNgCenter.Shell.Services;
 using XenAPI;
 using XenAdmin.Network;
+using XenCenterLib;
 using Xunit;
 using Task = System.Threading.Tasks.Task;
 

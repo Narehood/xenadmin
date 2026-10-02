@@ -49,6 +49,7 @@ internal sealed partial class LifecycleDesignerProbe(Assembly assembly)
         RunCase("Snapshot time designer values", CheckSnapshotTimeDesignerValues);
         RunCase("Existing header resources", CheckHeaderResources);
         RunCase("Complete offline redistribution notices", CheckLegalNotices);
+        RunCase("Console startup and cancellation", CheckConsoleStartup);
         foreach (var typeName in new[] { "EnableableComboBox", "EnableableComboBoxEditingControl", "NetworkComboBox" })
             RunCase(typeName + " enabled designer state", () => CheckComboBoxEnabledState(typeName));
         RunCase("Grid editor runtime metadata", CheckGridEditorMetadata);

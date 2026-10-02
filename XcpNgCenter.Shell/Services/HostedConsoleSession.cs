@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using XenAdmin.Network;
 using XenAPI;
 using XcpNgCenter.Rfb;
+using XenCenterLib;
 
 namespace XcpNgCenter.Shell.Services;
 
@@ -98,7 +99,7 @@ public sealed class HostedConsoleSession : IDisposable
             }
 
             _cts = cts;
-            startup = new ConsoleStartupGuard(cts.Token, startupTimeout);
+            startup = new ConsoleStartupGuard(cts.Token, startupTimeout, ShellPerformanceDiagnostics.Log.ConsoleStartup);
             _startup = startup;
             generation = ++_generation;
             _pasteLabel = $"{target.ObjectLabel}\nServer: {IdentifierPrivacy.ServerName(target.Connection.Hostname)}\nUUID: {IdentifierPrivacy.Uuid(target.Uuid)}";
