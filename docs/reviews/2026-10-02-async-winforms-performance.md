@@ -23,6 +23,10 @@ Implementation commits:
 - `f9ad9b530`: opt-in bounded JSONL capture, duration/overload accounting,
   offline summary statistics and coverage, and actual capture CLI execution
   during isolated Linux desktop package checks. No new package dependencies.
+- `528082be5`: capture admission and queue completion share a short gate;
+  shutdown cannot overtake callbacks updating loss counts. EventSource disable
+  runs outside that gate to avoid lock inversion. The footer includes observed
+  counts and the reader rejects inconsistent written/dropped totals.
 
 ## Regression evidence
 
@@ -35,8 +39,10 @@ The graph cases cover blocked XML/body disposal, metadata RPC cancellation,
 duplicate ownership, prompt idle-stop and queued UI suppression. Capture cases
 exercise the real provider/writer and reject other-provider secrets; overload
 records lost samples, duration stops collection without closing the desktop,
-and invalid arguments/overwrite attempts fail. Six Python report fixtures
-cover statistics, phase coverage and incomplete/dropped/empty/invalid evidence.
+and invalid arguments/overwrite attempts fail. Seven Python report fixtures
+cover statistics, phase coverage and incomplete/dropped/empty/invalid evidence,
+including inconsistent loss totals. Four concurrent producers race shutdown
+with both tiny and normal queue capacities, checking the actual file/footer.
 
 Both full solution configurations and full test suites pass: 1,020 shell cases
 per configuration and 96 shared cases per framework. The WinForms probe passes
@@ -56,6 +62,15 @@ capture deadline assertion checks parsed frame dimensions rather than matching
 digits that could also occur in a timestamp. Local RDP interop is reused; hosted
 Windows builds generate it with the Windows SDK. Check Windows/Linux and CodeQL
 on the final PR head; the new Linux capture path requires native hosted execution.
+
+After the shutdown-accounting fix, all eight capture cases pass. Full shell
+suites pass again with 1,021 cases each in Release and Debug; both shared
+frameworks pass all 96 cases. The seven report fixtures pass. Follow-up logs
+are `artifacts/capture-shutdown-shell-Release.log`,
+`artifacts/capture-shutdown-shell-Debug.log`, `artifacts/capture-shutdown-shared.log`
+and `artifacts/performance-capture-shutdown-tests.log`. The earlier full
+acceptance manifest remains evidence for the broader WinForms/package checks;
+current-head hosted acceptance verifies the collector in fresh builds/packages.
 
 ## Remaining limitations
 

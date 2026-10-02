@@ -17,6 +17,13 @@ confirmed that no disposable pool is available. Implementation:
   immediate failed-stream cleanup and owned elevated-session logout.
 - `f9ad9b530`: bounded opt-in performance capture, offline statistics/coverage,
   overload/completeness checks and synthetic Linux desktop CLI capture.
+- `528082be5`: serialize capture admission with queue completion so shutdown
+  cannot publish a footer before dropped-sample accounting. Footers include
+  observed counts; the reader rejects inconsistent loss totals. Concurrent
+  producer/shutdown regression, all eight capture cases and seven report
+  fixtures pass. Full shell suites pass again with 1,021 cases in each
+  configuration; both shared frameworks pass all 96 cases. Follow-up logs are
+  `artifacts/capture-shutdown-*` and `artifacts/performance-capture-shutdown-tests.log`.
 
 See the [implementation/review record](reviews/2026-10-02-async-winforms-performance.md),
 [capture instructions](performance-capture.md) and updated [RPC contract](rpc-transport.md).
