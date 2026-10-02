@@ -15,8 +15,12 @@ CodeRabbit comment reporting that draft PRs were skipped.
 The bot's success status is not evidence of a completed code review. No
 application correction was requested by these comments. The consolidated
 [PR #62](https://github.com/Narehood/xenadmin/pull/62) is ready for review against
-`development`, allowing automatic review of
-the complete implementation without changing repository-wide bot settings.
+`development`. Its automatic review was attempted, but
+[CodeRabbit's new comment](https://github.com/Narehood/xenadmin/pull/62#issuecomment-5943828110)
+reports that 184 files exceed its 100-file limit and review capacity is
+unavailable. It produced no code findings or inline threads. Keep the single
+PR requested by the user; this service limitation is recorded rather than
+counted as an approval.
 
 `modernization/final-review` contains all six implementation/documentation
 commits from the original stack. Rebasing onto current `origin/development`
@@ -29,8 +33,21 @@ The combined change includes the completed WinForms metadata audit and spinner
 reset/replay correction, retained/coalesced Avalonia inventory updates, reviewed
 external RDP launching, and the IE plugin source archive outside builds.
 Existing feature-specific regression and performance records remain applicable.
-Both required test suites and integrated acceptance will be checked on the
-consolidated branch, with current-head Windows/Linux CI required before merge.
-Physical desktop, Visual Studio, updater/UAC and live-pool acceptance remain
-pending. Consolidation does not merge code into `development` or publish a
-release.
+Fresh integrated local acceptance passes all 24 automated checks: locked
+restore; full Release/Debug solution builds; 963 shell tests per configuration;
+73 shared tests on each of net481/net10.0; 333 WinForms lifecycle/designer and
+23 archive/manifest checks per configuration; 32,138 resources in 289 sets;
+proxy authentication; all six UI probe modes; Windows self-contained package
+validation and startup. Portable lockfiles are unchanged; local WinForms builds
+reuse trusted RDP interop. Evidence is under the ignored
+`artifacts/modernization-final-review-20261001/` directory.
+
+Source comparison with `ff87782b3` confirms consolidation changes only handoff
+and review documentation. Focused source review checked inventory scheduling,
+connection/selection lifetime guards, tree migration, RDP validation/launch,
+spinner/grid descriptor behavior and archive/CI integration against their
+regression coverage. No new production correction was identified. Hosted
+Windows/Linux and CodeQL checks still require current-head verification before
+merge. Physical desktop, Visual Studio, updater/UAC and live-pool acceptance
+remain pending. Consolidation does not merge code into `development` or publish
+a release.

@@ -18,9 +18,20 @@ A bot success status does not establish that those draft changes were reviewed.
 `development` directly. Rebase onto current integration head
 `1c1ab84b3facad3de087c971a8d1be68cb214e69` is already up to date; there are no
 implementation conflicts or omissions. Original branches/commits are preserved.
-The combined PR replaces the old per-layer merge sequence below and will be
-ready for review, allowing automatic review against the default branch. The
-original PRs will be closed as superseded after the replacement is validated.
+The combined PR replaces the old per-layer merge sequence below and is ready
+for final review. CodeRabbit attempted review but skipped it because 184 files
+exceed its 100-file limit and review capacity is unavailable; it produced no
+code findings. Its success status is not a completed review or approval.
+
+Fresh combined local acceptance passes all 24 checks: both full solution
+configurations, both required test suites (963 shell cases per configuration,
+73 shared cases per framework), 333 lifecycle/designer and 23 archive checks
+per configuration, all resources, proxy and six UI modes, package validation
+and startup. Portable lockfiles are unchanged; trusted local RDP interop was
+reused. Source comparison confirms only handoff/review documentation changed
+in consolidation; a focused source/coverage review found no new correction.
+Check hosted Windows/Linux and CodeQL results on the current #62 head before
+merge. Original PRs are superseded by #62 and their branches remain available.
 No integration merge, release or live-pool operation is part of consolidation.
 
 ### IE plugin tabs archived outside builds (2026-10-01)
