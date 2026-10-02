@@ -16,6 +16,7 @@ desktop and live-pool acceptance work.
 | Performance | Reproducible pool/console probes, faster CopyRect and inventory placement, coalesced refresh and retained tree containers | [Recorded before/after evidence](performance-baseline.md), pixel/topology/state regressions and production tree-layout checks; real event/detail-pane traces remain pending |
 | WinForms designer | Completed metadata audit, byte-correct spinner replay and local Enabled reset; WFO1000 suppression removed | 333 descriptor/lifecycle checks per configuration and full resource loading; actual Visual Studio save/reopen remains pending |
 | Remote Desktop | Reviewed guest IP/port launch through Windows Remote Desktop or system Remmina | [RDP plan and behavior](remote-desktop.md), endpoint/identity checks and actual review-dialog coverage; native client/guest login remains pending |
+| Legacy browser plugins | IE tabs, scripting/authentication and credential UI [archived outside builds](../legacy/disabled-features/ie-plugin-tabs/README.md) at the user's request; menu commands remain opt-in | Compiled-type/resource exclusion and actual manifest-loader regressions for tab-only, mixed and menu-only plugins |
 | Graph editor | Add/remove/reorder graphs and sources, compatible saved layouts, retained missing sources, isolated Cancel, honest ranges and UTC history | [Graph editor](graph-editor.md), worker/RPC and draft regressions, long-range/DST fixtures; live data and physical desktop acceptance remain pending |
 | Pool HA | Enable/disable, heartbeat selection, failover-capacity and VM restart-policy review through shared HA actions | [HA management](ha-management.md), server prerequisite checks, reviewed identity/configuration guards and partial-result handling; live failover and recovery remain pending |
 | AD and RBAC | Domain join/leave with local root recovery; directory user/group and role management through shared actions | [Directory access](ad-rbac-management.md), fresh permission and identity checks, credential/log regressions, restricted-user and partial-operation coverage; live directory/pool acceptance remains pending |
@@ -60,7 +61,7 @@ most. Reorder when a concrete deployment requirement is supplied.
 | --- | --- | --- |
 | 1 | Deployment acceptance for the implemented workflows | Complete the physical desktop, updater/UAC, networking, HA, AD/RBAC and DR checks using disposable environments; diagnose the reported reboot incident |
 | 2 | Extended DR scope beyond halted standalone VM recovery | Design appliance/snapshot/hardware-device recovery and a running guest rehearsal with proven storage isolation; retain the existing WinForms/server workflows in the meantime |
-| 3 | Legacy IE plugin tabs and Windows-specific external tools | Follow the [remaining parity plan](modernization-remaining-plan.md); identify required deployed plugins/tools and adapt their capabilities with explicit reviewed targets |
+| 3 | Windows-specific menu/command extensions and external tools | Follow the [remaining parity plan](modernization-remaining-plan.md); identify required deployed commands/tools and adapt their capabilities with explicit reviewed targets |
 
 Each feature should adapt the corresponding `XenModel/Actions` implementation.
 Keep the user-visible plan separate from action execution and resolve current
@@ -73,8 +74,9 @@ parallel implementation and integrated validation of access and recovery. A
 halted metadata rehearsal checks only metadata restoration and cleanup; it does
 not establish disk replication correctness, guest boot, or application failover.
 
-The shell now supports external RDP. Embedded RDP, IE-backed plugin tabs and
-legacy Windows-specific tool templates retain their WinForms path. The
+The shell now supports external RDP. Embedded RDP and legacy Windows-specific
+tool templates retain their WinForms path. IE-backed plugin tabs are archived
+and excluded from all builds. The
 [remaining parity plan](modernization-remaining-plan.md) records their platform
 strategy and the gates for extended DR. Further async/layout work should follow
 measured live UI traces using the [baseline harness](performance-baseline.md).

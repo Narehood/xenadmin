@@ -173,14 +173,6 @@ namespace XenAdmin.Plugins
             LoadPlugins();
         }
 
-        public void DisposeURLs(IXenObject xenObject)
-        {
-            foreach (PluginDescriptor plugin in _plugins)
-            {
-                plugin.DisposeURLs(xenObject);
-            }
-        }
-
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)

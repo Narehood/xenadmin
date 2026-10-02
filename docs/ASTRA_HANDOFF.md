@@ -34,8 +34,9 @@ Portable lockfiles and trusted reused RDP interop are unchanged. Hosted Linux
 and Windows results must be checked on the PR heads before merge.
 
 The [remaining parity plan](modernization-remaining-plan.md) defines the plugin/
-external-tool strategy and staged DR scope. IE plugin tabs and arbitrary legacy
-tool templates retain their supported WinForms path. Live halted recovery,
+external-tool strategy and staged DR scope. The subsequent IE archive decision
+supersedes the original plugin-tab retention plan; arbitrary legacy tool
+templates retain their supported WinForms path. Live halted recovery,
 source fencing and storage isolation must be proven before adding appliance,
 snapshot, special-hardware or running-guest recovery. No production pool, user
 profile, external RDP client or release was changed during validation.

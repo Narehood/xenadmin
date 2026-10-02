@@ -1,8 +1,9 @@
 # Remaining modernization implementation and acceptance
 
 The October 1 work closes the WinForms metadata audit, implements measured
-inventory refresh improvements and provides an external RDP adapter. It does
-not close deployment acceptance or every legacy feature gap. The supported
+inventory refresh improvements, provides an external RDP adapter and archives
+IE plugin tabs outside builds. It does not close deployment acceptance or every
+legacy feature gap. The supported
 integration branch is `development`; WinForms remains the production client.
 
 ## Desktop and release acceptance
@@ -23,15 +24,23 @@ No protection setting is disabled by these changes.
 
 ## Plugin and external-tool strategy
 
-There is no repository deployment inventory identifying required plugins or
-tools. Retain the WinForms implementations until concrete requirements exist.
-The provisional platform strategy is capability-specific adapters:
+The user chose to archive IE-based plugin tabs on October 1. Their browser,
+scripting/authentication bridge, credential UI and pool-secret helpers are
+preserved in [the source archive](../legacy/disabled-features/ie-plugin-tabs/README.md)
+and excluded from all builds and packages. No registry flag restores them.
+Mixed manifests keep valid menu commands; tab-only plugins remain disabled
+with an archive error. Existing server-side secrets are untouched.
+
+Separate menu/command extensions and Windows tool templates retain their
+WinForms paths and existing opt-in policy. There is no deployment inventory
+identifying further required integrations. The provisional platform strategy
+is capability-specific adapters:
 
 | Capability | Proposed shell path | Evidence required to implement |
 | --- | --- | --- |
 | RDP | Installed native client; implemented in this batch | Windows/Linux guest acceptance; embedded hosting only if a deployment requires it |
-| Plugin web page | Reviewed HTTP(S) link opened in the user's browser | Actual plugin manifest/URL substitutions, authentication requirements and supported workflow; no hypervisor session secrets in URLs |
-| Embedded plugin integration | Modern browser component only for a demonstrated integration requirement | Supported Windows/Linux runtime, isolation, navigation/origin policy and credential bridge review; IE/ActiveX assumptions are not carried over automatically |
+| Future web integration | Reviewed HTTP(S) link opened in the user's browser, if requested | A concrete workflow, URL substitutions and authentication requirements; no hypervisor session secrets in URLs |
+| Future embedded web integration | Modern browser component only for a new demonstrated requirement; outside current scope | Supported Windows/Linux runtime, isolation, navigation/origin policy and credential bridge review; archived IE/ActiveX code is reference only |
 | SSH/other external tool | Explicit adapter with reviewed object/endpoint and separately supplied arguments | Required executable/protocol, native credential UI, executable discovery and early failure/cancellation behavior |
 | Arbitrary legacy command template | Retain WinForms path pending a requirements/security review | Installed template formats, variable expansion, trust boundary and credential/logging behavior |
 

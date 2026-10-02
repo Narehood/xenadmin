@@ -1,0 +1,161 @@
+diff --git a/XenAdmin/MainWindow.cs b/XenAdmin/MainWindow.cs
+index 054ca8f47..8d2ea08c9 100644
+--- a/XenAdmin/MainWindow.cs
++++ b/XenAdmin/MainWindow.cs
+@@ -1040 +1039,0 @@ namespace XenAdmin
+-                PluginManager.DisposeURLs(o);
+@@ -1359,10 +1358 @@ namespace XenAdmin
+-            var consoleFeatures = new List<TabPageFeature>();
+-            var otherFeatures = new List<TabPageFeature>();
+-
+-            if (SelectionManager.Selection.Count == 1 && !SearchMode)
+-                GetFeatureTabPages(SelectionManager.Selection.FirstAsXenObject, out consoleFeatures, out otherFeatures);
+-
+-            foreach (var f in consoleFeatures)
+-                newTabs.Add(f.TabPage);
+-
+-            if (consoleFeatures.Count == 0 && !multi && !SearchMode && (isRealVMSelected || (isHostSelected && isHostLive)))
++            if (!multi && !SearchMode && (isRealVMSelected || (isHostSelected && isHostLive)))
+@@ -1371 +1361 @@ namespace XenAdmin
+-            if (consoleFeatures.Count == 0 && !multi && !SearchMode && isSRSelected && selectedSr.HasDriverDomain(out _))
++            if (!multi && !SearchMode && isSRSelected && selectedSr.HasDriverDomain(out _))
+@@ -1380,3 +1369,0 @@ namespace XenAdmin
+-            foreach (var f in otherFeatures)
+-                newTabs.Add(f.TabPage);
+-
+@@ -1390,36 +1376,0 @@ namespace XenAdmin
+-        private void GetFeatureTabPages(IXenObject xenObject, out List<TabPageFeature> consoleFeatures, out List<TabPageFeature> otherFeatures)
+-        {
+-            consoleFeatures = new List<TabPageFeature>();
+-            otherFeatures = new List<TabPageFeature>();
+-
+-            var plugins = PluginManager.Plugins;
+-            foreach (var p in plugins)
+-            {
+-                var features = p.Features;
+-                foreach (var feature in features)
+-                {
+-                    var f = feature as TabPageFeature;
+-                    if (f == null)
+-                        continue;
+-
+-                    f.SelectedXenObject = xenObject;
+-                    if (!f.ShowTab)
+-                        continue;
+-
+-                    if (f.IsConsoleReplacement)
+-                    {
+-                        f.SetUrl();
+-                        if (!f.IsError)
+-                            consoleFeatures.Add(f);
+-                    }
+-                    else
+-                    {
+-                        var page = GetLastSelectedPage(xenObject);
+-                        if (page != null && page.Tag == f)
+-                            f.SetUrl();
+-                        otherFeatures.Add(f);
+-                    }
+-                }
+-            }
+-        }
+-
+@@ -1853,30 +1803,0 @@ namespace XenAdmin
+-
+-            UpdateTabePageFeatures();
+-        }
+-
+-        private void UpdateTabePageFeatures()
+-        {
+-            var plugins = PluginManager.Plugins;
+-            foreach (var p in plugins)
+-            {
+-                var features = p.Features;
+-                foreach (var feature in features)
+-                {
+-                    var f = feature as TabPageFeature;
+-                    if (f == null)
+-                        continue;
+-
+-                    if (!f.ShowTab)
+-                        continue;
+-
+-                    if (f.IsConsoleReplacement)
+-                    {
+-                        f.SetUrl();
+-                        continue;
+-                    }
+-
+-                    var page = GetLastSelectedPage(f.SelectedXenObject);
+-                    if (page != null && page.Tag == f)
+-                        f.SetUrl();
+-                }
+-            }
+diff --git a/XenAdmin/Plugins/PluginDescriptor.cs b/XenAdmin/Plugins/PluginDescriptor.cs
+index 3d46556c2..e705cf1f8 100644
+--- a/XenAdmin/Plugins/PluginDescriptor.cs
++++ b/XenAdmin/Plugins/PluginDescriptor.cs
+@@ -261,0 +262 @@ namespace XenAdmin.Plugins
++            bool hasArchivedTabs = false;
+@@ -272,2 +273,3 @@ namespace XenAdmin.Plugins
+-                    case TabPageFeature.ELEMENT_NAME:
+-                        _features.Add(new TabPageFeature(_resourceManager, child, this));
++                    case "TabPage":
++                        hasArchivedTabs = true;
++                        log.WarnFormat("Ignoring archived IE browser tab in plugin '{0}::{1}'.", Organization, Name);
+@@ -287,7 +288,0 @@ namespace XenAdmin.Plugins
+-        }
+-
+-        public void DisposeURLs(IXenObject xmo)
+-        {
+-            foreach (Feature f in Features)
+-            {
+-                TabPageFeature tabPageFeature = f as TabPageFeature;
+@@ -295,5 +290,2 @@ namespace XenAdmin.Plugins
+-                if (tabPageFeature != null)
+-                {
+-                    tabPageFeature.DisposeURL(xmo);
+-                }
+-            }
++            if (hasArchivedTabs && _features.Count == 0)
++                _error = "IE browser plugin tabs are archived and unavailable in this build.";
+diff --git a/XenAdmin/Plugins/PluginManager.cs b/XenAdmin/Plugins/PluginManager.cs
+index 05c206723..aff11c7be 100644
+--- a/XenAdmin/Plugins/PluginManager.cs
++++ b/XenAdmin/Plugins/PluginManager.cs
+@@ -176,8 +175,0 @@ namespace XenAdmin.Plugins
+-        public void DisposeURLs(IXenObject xenObject)
+-        {
+-            foreach (PluginDescriptor plugin in _plugins)
+-            {
+-                plugin.DisposeURLs(xenObject);
+-            }
+-        }
+-
+diff --git a/XenModel/XenAPI-Extensions/Pool.cs b/XenModel/XenAPI-Extensions/Pool.cs
+index b5b66a6aa..cee4da003 100644
+--- a/XenModel/XenAPI-Extensions/Pool.cs
++++ b/XenModel/XenAPI-Extensions/Pool.cs
+@@ -151,22 +150,0 @@ namespace XenAPI
+-        public string GetXCPluginSecret(string plugin_name, IXenObject obj)
+-        {
+-            return Get(gui_config, XCPluginSecretName(plugin_name, obj));
+-        }
+-
+-        public void RemoveXCPluginSecret(Session session, string plugin_name, IXenObject obj)
+-        {
+-            Pool.remove_from_gui_config(session, opaque_ref, XCPluginSecretName(plugin_name, obj));
+-        }
+-
+-        public void SetXCPluginSecret(Session session, string plugin_name, IXenObject obj, string secret_uuid)
+-        {
+-            string n = XCPluginSecretName(plugin_name, obj);
+-            Pool.remove_from_gui_config(session, opaque_ref, n);
+-            Pool.add_to_gui_config(session, opaque_ref, n, secret_uuid);
+-        }
+-
+-        private string XCPluginSecretName(string plugin_name, IXenObject obj)
+-        {
+-            return string.Format("XC_PLUGIN_SECRET_{0}_{1}_{2}", obj.Connection.Username, plugin_name, Helpers.GetUuid(obj));
+-        }
+-

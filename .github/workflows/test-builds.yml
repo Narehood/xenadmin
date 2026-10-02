@@ -54,6 +54,14 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
+      - name: Verify IE plugin archive and retained command manifests
+        shell: pwsh
+        run: |
+          foreach ($configuration in @('Release', 'Debug')) {
+            dotnet run --project tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj -c Release --no-build --no-restore -- "${{ github.workspace }}/XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll" --plugin-archive
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Test shared libraries (.NET Framework)
         run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net481 --no-build --no-restore --logger "trx;LogFileName=xencenterlib-net481.trx"
 

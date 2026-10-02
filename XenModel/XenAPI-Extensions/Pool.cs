@@ -148,28 +148,6 @@ namespace XenAPI
             return max;
         }
 
-        public string GetXCPluginSecret(string plugin_name, IXenObject obj)
-        {
-            return Get(gui_config, XCPluginSecretName(plugin_name, obj));
-        }
-
-        public void RemoveXCPluginSecret(Session session, string plugin_name, IXenObject obj)
-        {
-            Pool.remove_from_gui_config(session, opaque_ref, XCPluginSecretName(plugin_name, obj));
-        }
-
-        public void SetXCPluginSecret(Session session, string plugin_name, IXenObject obj, string secret_uuid)
-        {
-            string n = XCPluginSecretName(plugin_name, obj);
-            Pool.remove_from_gui_config(session, opaque_ref, n);
-            Pool.add_to_gui_config(session, opaque_ref, n, secret_uuid);
-        }
-
-        private string XCPluginSecretName(string plugin_name, IXenObject obj)
-        {
-            return string.Format("XC_PLUGIN_SECRET_{0}_{1}_{2}", obj.Connection.Username, plugin_name, Helpers.GetUuid(obj));
-        }
-
         // Whether the vSwitch Controller appears to be configured.
         // (Note that we can't tell whether it's actually working properly through the API).
         public bool vSwitchController()

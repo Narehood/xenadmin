@@ -31,9 +31,9 @@ Protected Windows installations request UAC approval for that installed bootstra
 
 Published archives keep the shell files (plus `INSTALL.TXT`) at the archive root: updaters already deployed in the field validate that root, so wrapping the payload in a folder makes a release un-installable for every existing installation. The first upgrade to a release containing this bootstrap still runs the older executable's original updater; install it manually to have the hardened path handle that transition. Custom-repository builds also require manual installation when administrator privileges are needed or the app is elevated. The shell directs these builds to the release page before requesting UAC.
 
-### Plugins (opt-in, IE WebBrowser)
+### Plugins (archived browser tabs; opt-in menu commands)
 
-Plugin tabs (`TabPageFeature` / `WebBrowser2`) remain available but **disabled by default**. Enable with registry `EnablePlugins=1`. Credential look-ups no longer use `Application.DoEvents`; IE hosting is retained until a future UI rewrite replaces this surface.
+IE browser plugin tabs, their scripting/authentication bridge and credential dialog are preserved in [the source archive](legacy/disabled-features/ie-plugin-tabs/README.md) and excluded from all application builds and packages. No registry flag enables them. Mixed manifests skip browser tabs and keep valid menu commands; tab-only plugins remain disabled with an archive error. Separate menu/command extensions retain their existing opt-in policy (`EnablePlugins=1`).
 
 ### UI rewrite
 
@@ -57,7 +57,7 @@ These workflows still require live environment acceptance.
 ### Still later
 
 - Broader async cleanup / installer CI automation.
-- Embedded RDP, legacy plugin tabs and tool templates, following the [remaining parity plan](docs/modernization-remaining-plan.md).
+- Embedded RDP and legacy tool templates, following the [remaining parity plan](docs/modernization-remaining-plan.md). IE plugin tabs are archived and outside the modernization scope.
 - Extended DR workflows for appliances, snapshots, special hardware and running
   guest rehearsals with verified storage isolation.
 

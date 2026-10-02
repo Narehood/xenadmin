@@ -138,6 +138,8 @@ try {
                 '-c', 'Release', '-p:RestoreLockedMode=true', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"))
             Invoke-Check "winforms-lifecycle-designer-$configuration" $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
                 '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"), '--lifecycle-designer')
+            Invoke-Check "winforms-plugin-archive-$configuration" $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
+                '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"), '--plugin-archive')
         }
         Invoke-Check 'proxy-auth' $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
             '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot 'XenAdmin/bin/Release/net10.0-windows/XCP-ng Center.dll'), '--proxy-auth')

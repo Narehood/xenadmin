@@ -259,6 +259,7 @@ namespace XenAdmin.Plugins
 
         private void LoadFeatures(XmlNode node)
         {
+            bool hasArchivedTabs = false;
             foreach (XmlNode child in node.ChildNodes)
             {
                 if (child.NodeType != XmlNodeType.Element)
@@ -269,8 +270,9 @@ namespace XenAdmin.Plugins
                     case MenuItemFeature.ELEMENT_NAME:
                         _features.Add(new MenuItemFeature(_resourceManager, child, this));
                         break;
-                    case TabPageFeature.ELEMENT_NAME:
-                        _features.Add(new TabPageFeature(_resourceManager, child, this));
+                    case "TabPage":
+                        hasArchivedTabs = true;
+                        log.WarnFormat("Ignoring archived IE browser tab in plugin '{0}::{1}'.", Organization, Name);
                         break;
                     case ParentMenuItemFeature.ELEMENT_NAME:
                         _features.Add(new ParentMenuItemFeature(_resourceManager, child, this));
@@ -284,19 +286,9 @@ namespace XenAdmin.Plugins
                         return;
                 }
             }
-        }
 
-        public void DisposeURLs(IXenObject xmo)
-        {
-            foreach (Feature f in Features)
-            {
-                TabPageFeature tabPageFeature = f as TabPageFeature;
-
-                if (tabPageFeature != null)
-                {
-                    tabPageFeature.DisposeURL(xmo);
-                }
-            }
+            if (hasArchivedTabs && _features.Count == 0)
+                _error = "IE browser plugin tabs are archived and unavailable in this build.";
         }
 
         public bool Enabled
