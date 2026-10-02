@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:XcpNgCenter.Shell.ViewModels"
+        x:Class="XcpNgCenter.Shell.Views.RdpConnectWindow"
+        x:DataType="vm:RdpConnectViewModel"
+        Title="Open Remote Desktop" Width="520" SizeToContent="Height"
+        CanResize="False" WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24" Spacing="12">
+    <TextBlock Text="{Binding GuestName}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <TextBlock Text="Connect directly to this guest using your installed Remote Desktop client. The guest must have RDP enabled and be reachable from this computer. Enter guest credentials in the client." TextWrapping="Wrap" />
+    <TextBlock Text="Guest-reported addresses" IsVisible="{Binding HasAddresses}" />
+    <ComboBox ItemsSource="{Binding Addresses}" SelectedItem="{Binding SelectedAddress, Mode=TwoWay}"
+              IsVisible="{Binding HasAddresses}" HorizontalAlignment="Stretch" />
+    <TextBlock Text="Guest IP address" />
+    <TextBox x:Name="AddressText" Text="{Binding Address, Mode=TwoWay}" Watermark="IPv4 or IPv6 address" />
+    <TextBlock Text="RDP port" />
+    <TextBox x:Name="PortText" Text="{Binding Port, Mode=TwoWay}" />
+    <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+    <TextBlock Text="{Binding ReviewMessage}" IsVisible="{Binding HasReviewMessage}" TextWrapping="Wrap" />
+    <TextBlock Text="Destination" IsVisible="{Binding HasDestination}" />
+    <TextBlock x:Name="DestinationText" Text="{Binding DestinationAuthority}" IsVisible="{Binding HasDestination}" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Cancel" Click="OnCancelClick" />
+      <Button x:Name="ConnectButton" Content="Open Remote Desktop" Command="{Binding ConnectCommand}" IsDefault="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>

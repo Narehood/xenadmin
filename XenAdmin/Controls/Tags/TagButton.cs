@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -48,6 +49,7 @@ namespace XenAdmin.Controls
             this.UpdateStyles();
         }
 
+        [DefaultValue(false)]
         public bool IsSelected
         {
             get { return m_IsSelected; }

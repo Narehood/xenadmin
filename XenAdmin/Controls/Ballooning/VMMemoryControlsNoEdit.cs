@@ -51,6 +51,7 @@ namespace XenAdmin.Controls.Ballooning
             InitializeComponent();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<VM> VMs
         {
             set

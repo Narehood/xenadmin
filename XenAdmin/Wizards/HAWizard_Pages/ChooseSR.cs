@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -49,6 +50,7 @@ namespace XenAdmin.Wizards.HAWizard_Pages
         }
 
         private Pool pool;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Pool Pool
         {
             set

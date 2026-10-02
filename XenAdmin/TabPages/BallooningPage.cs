@@ -72,6 +72,7 @@ namespace XenAdmin.TabPages
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             set

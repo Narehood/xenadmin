@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -43,6 +44,7 @@ namespace XenAdmin.Controls.XenSearch
             InitializeComponent();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Folder
         {
             set

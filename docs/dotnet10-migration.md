@@ -82,6 +82,15 @@ proxy interoperability remain manual checks.
 
 ## WinForms resources and designer metadata
 
+The October 1 audit resolves the final **297 WFO1000 declarations** and removes
+the project suppression. `MemorySpinner.Increment` now preserves its configured
+byte input for replay; its original MB/GB stepping rules remain intact. Runtime
+state is hidden, existing designer references remain visible, and verified
+defaults/reset hooks preserve omission semantics. The lifecycle/designer probe
+passes **333 checks** on Release and Debug. See the
+[completion record](reviews/2026-10-01-designer-completion.md) for dispositions
+and limits. The maintenance batches below are historical snapshots.
+
 No BinaryFormatter compatibility package or unsafe serialization switch is enabled.
 `tools/WinForms.CompatibilityProbe` loads every embedded resource from the actual
 built client, including legacy ImageList, ListView and ActiveX data, then checks
@@ -95,8 +104,8 @@ three click-through strips now declare their actual constructor defaults. The
 storage picker's four overrides and pool/host picker's two overrides declare
 their own defaults too. Edited values remain designer-visible; no generated
 forms or resources were rewritten.
-WFO1000 remains suppressed in `XenAdmin.csproj` until the remaining properties
-receive a semantic audit; changing them in bulk could change generated forms.
+At that point WFO1000 remained suppressed while the other properties awaited
+their semantic audit.
 
 The September 29 batch reduces the remaining diagnostics from 312 to **302**
 with ten explicit defaults. These preserve the existing constructor values:
@@ -121,8 +130,8 @@ ampersand escaping, existing header resources and snapshot time under en-US,
 fr-FR and tr-TR cultures. Unsuppressed analyzer inventories confirm exactly ten
 diagnostics removed and none added. Both solution builds, required test suites
 and full resource probes pass; evidence is under ignored
-`artifacts/winforms-designer-labels/`. Existing WFO1000 suppression remains for
-the 302 unaudited properties. Descriptor/resource probes do not establish an
+`artifacts/winforms-designer-labels/`. At that point the suppression covered
+302 unaudited properties. Descriptor/resource probes do not establish an
 actual Visual Studio designer save/reopen round trip or physical desktop behavior.
 
 The following combo-box/grid-editor batch reduces the inventory from 302 to
@@ -152,11 +161,11 @@ loading pass with unchanged portable lockfiles and RDP interop. Evidence is unde
 ignored `artifacts/winforms-designer-editors/`; actual Visual Studio round trips
 and physical desktop acceptance remain outstanding.
 
-Memory-spinner Increment is deferred for its own semantic audit. Existing
+At that point memory-spinner Increment awaited its own semantic audit. Existing
 generated forms assign it, and its display-unit getter and byte/GB-dependent
 setter are not a symmetric designer value; marking it hidden would remove
 existing serialized assignments without establishing equivalent initialization.
-The remaining WFO1000 suppression covers **297 unaudited properties**.
+The October 1 audit above resolves those **297 declarations**, including the spinner.
 
 The eight obsolete Form closing overrides now use `OnFormClosing`/`OnFormClosed`.
 Password/HA listeners and action cancellation remain intact when a close is

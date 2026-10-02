@@ -1037,7 +1037,6 @@ namespace XenAdmin
                 }
 
                 selectedTabs.Remove(o);
-                PluginManager.DisposeURLs(o);
             }
         }
 
@@ -1205,6 +1204,7 @@ namespace XenAdmin
         }
 
         private bool _menuShortcutsEnabled = true;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool MenuShortcutsEnabled
         {
             get { return _menuShortcutsEnabled; }
@@ -1355,19 +1355,10 @@ namespace XenAdmin
             if (!multi && !SearchMode && isHostSelected && isHostLive && ((Host)SelectionManager.Selection.First).PUSBs.Count > 0 && !Helpers.FeatureForbidden(selectionConnection, Host.RestrictUsbPassthrough))
                 newTabs.Add(TabPageUSB);
 
-            var consoleFeatures = new List<TabPageFeature>();
-            var otherFeatures = new List<TabPageFeature>();
-
-            if (SelectionManager.Selection.Count == 1 && !SearchMode)
-                GetFeatureTabPages(SelectionManager.Selection.FirstAsXenObject, out consoleFeatures, out otherFeatures);
-
-            foreach (var f in consoleFeatures)
-                newTabs.Add(f.TabPage);
-
-            if (consoleFeatures.Count == 0 && !multi && !SearchMode && (isRealVMSelected || (isHostSelected && isHostLive)))
+            if (!multi && !SearchMode && (isRealVMSelected || (isHostSelected && isHostLive)))
                 newTabs.Add(TabPageConsole);
 
-            if (consoleFeatures.Count == 0 && !multi && !SearchMode && isSRSelected && selectedSr.HasDriverDomain(out _))
+            if (!multi && !SearchMode && isSRSelected && selectedSr.HasDriverDomain(out _))
                 newTabs.Add(TabPageCvmConsole);
 
             if (!multi && !SearchMode && (isRealVMSelected || (isHostSelected && isHostLive)))
@@ -1376,50 +1367,11 @@ namespace XenAdmin
             if (!multi && !SearchMode && isRealVMSelected)
                 newTabs.Add(TabPageSnapshots);
 
-            foreach (var f in otherFeatures)
-                newTabs.Add(f.TabPage);
-
             newTabs.Add(TabPageSearch);
 
             // N.B. Change NewTabs definition if you add more tabs here.
 
             return newTabs;
-        }
-
-        private void GetFeatureTabPages(IXenObject xenObject, out List<TabPageFeature> consoleFeatures, out List<TabPageFeature> otherFeatures)
-        {
-            consoleFeatures = new List<TabPageFeature>();
-            otherFeatures = new List<TabPageFeature>();
-
-            var plugins = PluginManager.Plugins;
-            foreach (var p in plugins)
-            {
-                var features = p.Features;
-                foreach (var feature in features)
-                {
-                    var f = feature as TabPageFeature;
-                    if (f == null)
-                        continue;
-
-                    f.SelectedXenObject = xenObject;
-                    if (!f.ShowTab)
-                        continue;
-
-                    if (f.IsConsoleReplacement)
-                    {
-                        f.SetUrl();
-                        if (!f.IsError)
-                            consoleFeatures.Add(f);
-                    }
-                    else
-                    {
-                        var page = GetLastSelectedPage(xenObject);
-                        if (page != null && page.Tag == f)
-                            f.SetUrl();
-                        otherFeatures.Add(f);
-                    }
-                }
-            }
         }
 
         private void ChangeToNewTabs()
@@ -1849,36 +1801,6 @@ namespace XenAdmin
 
             if (t != null)
                 SetLastSelectedPage(SelectionManager.Selection.First, t);
-
-            UpdateTabePageFeatures();
-        }
-
-        private void UpdateTabePageFeatures()
-        {
-            var plugins = PluginManager.Plugins;
-            foreach (var p in plugins)
-            {
-                var features = p.Features;
-                foreach (var feature in features)
-                {
-                    var f = feature as TabPageFeature;
-                    if (f == null)
-                        continue;
-
-                    if (!f.ShowTab)
-                        continue;
-
-                    if (f.IsConsoleReplacement)
-                    {
-                        f.SetUrl();
-                        continue;
-                    }
-
-                    var page = GetLastSelectedPage(f.SelectedXenObject);
-                    if (page != null && page.Tag == f)
-                        f.SetUrl();
-                }
-            }
         }
 
         /// <summary>

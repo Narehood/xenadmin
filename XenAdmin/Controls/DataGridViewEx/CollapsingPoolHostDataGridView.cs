@@ -64,6 +64,7 @@ namespace XenAdmin.Controls.DataGridViewEx
 
         #endregion
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool Updating { get; set; }
 
         private const int expansionColumnIndex = 0;

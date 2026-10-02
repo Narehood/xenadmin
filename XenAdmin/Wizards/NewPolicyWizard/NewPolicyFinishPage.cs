@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using XenAdmin.Controls;
 
 namespace XenAdmin.Wizards.NewPolicyWizard
@@ -51,7 +52,9 @@ namespace XenAdmin.Wizards.NewPolicyWizard
             checkBox1.Enabled = SelectedVMsCount > 0;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Summary { private get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int SelectedVMsCount { private get; set; }
 
         public bool RunNow => checkBox1.Checked;

@@ -107,10 +107,13 @@ namespace XenAdmin.Wizards.ImportWizard
         /// <summary>
         /// Should be set before the Affinity is set.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal IXenConnection SelectedConnection { get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal Host SelectedAffinity { get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal VM VM { get; set; }
 
 		public List<VIF> VIFs

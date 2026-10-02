@@ -47,6 +47,7 @@ namespace XenAdmin.Controls.CustomDataGraph
         private bool _isSelected = false;
         private bool _disposed;
         
+        [DefaultValue(false)]
         public bool IsSelected
         {
             get { return _isSelected; }
@@ -58,6 +59,7 @@ namespace XenAdmin.Controls.CustomDataGraph
         }
         public string DisplayName;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public ArchiveMaintainer ArchiveMaintainer
         {
             get { return _archivemaintainer; }
@@ -116,6 +118,7 @@ namespace XenAdmin.Controls.CustomDataGraph
 
         [Browsable(true),
         Description("Controls the ranges of axes of the DataPlot")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public DataPlotNav DataPlotNav
         {
             get
@@ -138,6 +141,7 @@ namespace XenAdmin.Controls.CustomDataGraph
 
         [Browsable(true),
         Description("Controls the sets of the DataPlot")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public DataKey DataKey
         {
             get
@@ -163,6 +167,7 @@ namespace XenAdmin.Controls.CustomDataGraph
 
         [Browsable(true),
         Description("Controls the sets of the DataPlot")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public DataEventList DataEventList
         {
             get
@@ -187,6 +192,7 @@ namespace XenAdmin.Controls.CustomDataGraph
         private bool _showlabels = true;
 
         [Browsable(true)]
+        [DefaultValue(true)]
         public bool ShowLabels
         {
             get { return _showlabels; }

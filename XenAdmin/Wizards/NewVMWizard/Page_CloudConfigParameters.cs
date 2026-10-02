@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using XenAdmin.Core;
@@ -48,6 +49,7 @@ namespace XenAdmin.Wizards.NewVMWizard
         private VM vmOrTemplate;
         private string existingConfig;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host Affinity { get; set; }
 
         public Page_CloudConfigParameters()
@@ -99,6 +101,7 @@ namespace XenAdmin.Wizards.NewVMWizard
             ShowHideButtonsAndWarnings(true);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM SelectedTemplate { private get; set; }
 
 

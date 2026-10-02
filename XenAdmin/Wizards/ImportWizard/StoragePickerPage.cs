@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Threading;
 using System.Windows.Forms;
@@ -134,12 +135,15 @@ namespace XenAdmin.Wizards.ImportWizard
 
 		#region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal IXenConnection TargetConnection { get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal Host TargetHost { get; set; }
 
 		public ImportVmAction ImportXvaAction { get; private set; }
 
+		[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
 		public string FilePath { private get; set; }
 
 		public SR SR => m_srPicker.SR;

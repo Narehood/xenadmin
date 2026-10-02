@@ -42,6 +42,7 @@ namespace XenAdmin.Controls
 
         public event EventHandler TabChanged;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public int SelectedIndex
         {
             get
@@ -61,6 +62,7 @@ namespace XenAdmin.Controls
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public XenTabPage SelectedTab
         {
             get

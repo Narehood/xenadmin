@@ -53,7 +53,7 @@ function Invoke-Check([string] $Name, [string] $Executable, [string[]] $Argument
 }
 
 function Add-SkippedUiProbeChecks {
-    foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery')) {
+    foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery', 'modernization', 'remote-desktop')) {
         $checks.Add([ordered]@{
             name = "ui-$mode"; result = 'skipped'; exitCode = $null; log = $null; uiResultsLog = $null
             reason = 'These editor probes run on Windows only; they were not exercised on this platform.'
@@ -65,7 +65,7 @@ function Get-AcceptanceSuccessResult([bool] $WindowsPlatform) {
     if (-not $WindowsPlatform) {
         return 'native automated checks passed; Windows-only editor probes skipped; manual acceptance pending'
     }
-    foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery')) {
+    foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery', 'modernization', 'remote-desktop')) {
         $record = @($checks | Where-Object { $_.name -eq "ui-$mode" })
         if ($record.Count -ne 1 -or $record[0].result -ne 'pass' -or -not $record[0].uiResultsLog) {
             throw "Missing successful UI probe evidence for $mode."

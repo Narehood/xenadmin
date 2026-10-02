@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using XenAdmin.Core;
 using XenAdmin.Dialogs;
@@ -42,11 +43,13 @@ namespace XenAdmin.Plugins
             PersistCredentialsCheckBox.Text = string.Format(PersistCredentialsCheckBox.Text, BrandManager.ProductBrand);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string ServiceName
         {
             set => TopLabel.Text = string.Format(TopLabel.Text, value);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool PersistCredentials
         {
             get => PersistCredentialsCheckBox.Checked;

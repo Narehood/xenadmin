@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using XenAdmin.Controls;
 using XenAPI;
@@ -98,6 +99,7 @@ namespace XenAdmin.Wizards.ImportWizard
 
         #region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool IsWim { internal get; set; }
 
         public string VmName => m_textBoxVMName.Text;

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -179,6 +180,7 @@ namespace XenAdmin.Controls.XenSearch
             OnQueryChanged();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public QueryScope QueryScope
         {
             get

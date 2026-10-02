@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -106,6 +107,7 @@ namespace XenAdmin.Wizards.NewVMWizard
 
         public bool CopyBiosStrings => checkBoxCopyBiosStrings.Checked;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM SelectedTemplate
         {
             get

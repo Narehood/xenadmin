@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Linq;
 using System.Windows.Forms;
@@ -202,8 +203,10 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages
 
         #endregion
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DisasterRecoveryTask { private get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SR SrToReattach { private get; set; }
 
         public int MatchingFrontends { get { return _matchingFrontends; } }

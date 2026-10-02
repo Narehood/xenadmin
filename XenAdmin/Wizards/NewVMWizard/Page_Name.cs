@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using XenAdmin.Core;
@@ -78,6 +79,7 @@ namespace XenAdmin.Wizards.NewVMWizard
             NameTextBox.Select();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM SelectedTemplate { private get; set; }
 
         public string SelectedName => NameTextBox.Text.Trim();

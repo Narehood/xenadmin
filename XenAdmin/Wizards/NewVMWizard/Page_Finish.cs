@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using XenAdmin.Controls;
@@ -57,6 +58,7 @@ namespace XenAdmin.Wizards.NewVMWizard
 
         private bool _canStartImmediately = true;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool CanStartImmediately
         {
             get => _canStartImmediately;
@@ -81,6 +83,7 @@ namespace XenAdmin.Wizards.NewVMWizard
                 AutoStartCheckBox.Select();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Func<IEnumerable<KeyValuePair<string, string>>> SummaryRetriever { private get; set; }
     }
 }

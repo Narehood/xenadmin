@@ -46,6 +46,7 @@ namespace XenAdmin.Wizards.GenericPages
     public class NewVMGroupVMsPage<T> : NewVMGroupVMsPageBase where T : XenObject<T>
     {
         private Pool _pool;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Pool Pool
         {
             get { return _pool; }
@@ -92,6 +93,7 @@ namespace XenAdmin.Wizards.GenericPages
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal List<VM> SelectedVMs { get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string GroupName { private get; set; }
 
         public List<XenRef<VM>> SelectedVMsRefs

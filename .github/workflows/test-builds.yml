@@ -54,6 +54,14 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
+      - name: Verify IE plugin archive and retained command manifests
+        shell: pwsh
+        run: |
+          foreach ($configuration in @('Release', 'Debug')) {
+            dotnet run --project tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj -c Release --no-build --no-restore -- "${{ github.workspace }}/XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll" --plugin-archive
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Test shared libraries (.NET Framework)
         run: dotnet test XenCenterLib.Tests/XenCenterLib.Tests.csproj -c Release -f net481 --no-build --no-restore --logger "trx;LogFileName=xencenterlib-net481.trx"
 
@@ -68,6 +76,12 @@ jobs:
 
       - name: Exercise directory access and recovery editor windows
         run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --access-recovery --evidence-directory artifacts/ui-access-recovery
+
+      - name: Exercise inventory refresh layout
+        run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --modernization --evidence-directory artifacts/ui-modernization
+
+      - name: Exercise Remote Desktop review dialog
+        run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --remote-desktop --evidence-directory artifacts/ui-remote-desktop
 
       - name: Publish and package shell (win-x64)
         shell: pwsh
@@ -109,6 +123,8 @@ jobs:
             **/TestResults/*.trx
             artifacts/smoke-windows
             artifacts/ui-access-recovery
+            artifacts/ui-modernization
+            artifacts/ui-remote-desktop
             artifacts/acceptance-fixtures
           if-no-files-found: ignore
 

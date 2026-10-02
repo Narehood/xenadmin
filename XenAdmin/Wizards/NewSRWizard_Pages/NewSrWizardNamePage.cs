@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using XenAdmin.Controls;
 
@@ -99,6 +100,7 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages
         }
 
         private SrWizardType m_srWizardType;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SrWizardType SrWizardType { set { m_srWizardType = value; } }
 
         private void ToggleDescriptionControlsEnabledState()
@@ -106,6 +108,7 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages
             textBoxDescription.Enabled = labelDescription.Enabled = !checkBoxAutoDescription.Checked;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int MatchingFrontends { private get; set; }
 
         #region Event handlers

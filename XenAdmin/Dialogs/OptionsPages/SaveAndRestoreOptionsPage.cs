@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -48,6 +49,7 @@ namespace XenAdmin.Dialogs.OptionsPages
         /// <summary>
         /// Whether to save the server list on OK
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         protected internal bool SaveAllAfter { get; set; }
 
         public SaveAndRestoreOptionsPage() 

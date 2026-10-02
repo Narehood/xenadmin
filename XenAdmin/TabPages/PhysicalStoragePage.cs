@@ -72,6 +72,7 @@ namespace XenAdmin.TabPages
         /// Make sure you set this before you set the connection, 
         /// as the connection is the one which rebuilds the list
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host Host
         {
             set
@@ -91,6 +92,7 @@ namespace XenAdmin.TabPages
         }
 
         private readonly CollectionChangeEventHandler PBD_CollectionChangedWithInvoke;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenConnection Connection
         {
             set

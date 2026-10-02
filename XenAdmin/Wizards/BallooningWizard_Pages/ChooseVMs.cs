@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -79,6 +80,7 @@ namespace XenAdmin.Wizards.BallooningWizard_Pages
             return CheckedVMs.Count > 0;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<VM> CheckedVMs
         {
             get => _checkedVMs;

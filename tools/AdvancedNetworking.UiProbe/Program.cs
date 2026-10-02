@@ -20,6 +20,8 @@ sealed partial class ProbeApp : App
     public static bool ConnectionSettingsOnly { get; set; }
     public static bool BetaSettingsOnly { get; set; }
     public static bool AccessRecoveryOnly { get; set; }
+    public static bool ModernizationOnly { get; set; }
+    public static bool RemoteDesktopOnly { get; set; }
     public static string Evidence { get; set; } = AppContext.BaseDirectory;
     readonly List<string> checks = [];
     ShellAppSettings? settings;
@@ -41,6 +43,16 @@ sealed partial class ProbeApp : App
         lifetime.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         try
         {
+            if (RemoteDesktopOnly)
+            {
+                CheckRemoteDesktop(lifetime);
+                return;
+            }
+            if (ModernizationOnly)
+            {
+                CheckModernization(lifetime);
+                return;
+            }
             if (AccessRecoveryOnly)
             {
                 CheckAccessRecovery(lifetime);
@@ -266,6 +278,8 @@ static class Program
         ProbeApp.ConnectionSettingsOnly = args.Contains("--connection-settings", StringComparer.Ordinal);
         ProbeApp.BetaSettingsOnly = args.Contains("--beta-settings", StringComparer.Ordinal);
         ProbeApp.AccessRecoveryOnly = args.Contains("--access-recovery", StringComparer.Ordinal);
+        ProbeApp.ModernizationOnly = args.Contains("--modernization", StringComparer.Ordinal);
+        ProbeApp.RemoteDesktopOnly = args.Contains("--remote-desktop", StringComparer.Ordinal);
         var evidenceIndex = Array.IndexOf(args, "--evidence-directory");
         if (evidenceIndex >= 0)
         {

@@ -40,6 +40,7 @@ namespace XenAdmin.Controls.Ballooning
         private double valueMB;
         private string previousUnitsValue;
         private bool initializing = true;
+        private double? incrementBytes;
 
         public MemorySpinner()
         {
@@ -166,7 +167,9 @@ namespace XenAdmin.Controls.Ballooning
         {
             get
             {
-               return (double)Spinner.Increment;
+                // The designer must replay the byte input, rather than feeding
+                // the displayed MB/GB step back into the byte-based setter.
+                return incrementBytes.GetValueOrDefault();
             }
             set
             {
@@ -187,7 +190,16 @@ namespace XenAdmin.Controls.Ballooning
                         Spinner.Increment = 1; 
                     }
                 }
+                incrementBytes = value;
             }
+        }
+
+        private bool ShouldSerializeIncrement() => incrementBytes.HasValue;
+
+        private void ResetIncrement()
+        {
+            Spinner.Increment = 1m;
+            incrementBytes = null;
         }
 
         private void Spinner_ValueChanged(object sender, EventArgs e)

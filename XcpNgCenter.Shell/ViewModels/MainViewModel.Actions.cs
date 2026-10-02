@@ -57,6 +57,7 @@ public partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CanAttachIso))]
     [NotifyPropertyChangedFor(nameof(CanEjectIso))]
     [NotifyPropertyChangedFor(nameof(ShowConsoleIsoBar))]
+    [NotifyPropertyChangedFor(nameof(CanOpenRdp))]
     [NotifyPropertyChangedFor(nameof(ShowPoolStorageActions))]
     [NotifyPropertyChangedFor(nameof(CanImportExportVm))]
     [NotifyCanExecuteChangedFor(nameof(StartVmCommand))]
@@ -81,6 +82,7 @@ public partial class MainViewModel
     [NotifyCanExecuteChangedFor(nameof(AttachIsoCommand))]
     [NotifyCanExecuteChangedFor(nameof(EjectIsoCommand))]
     [NotifyCanExecuteChangedFor(nameof(ApplyConsoleIsoCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenRdpCommand))]
     [NotifyCanExecuteChangedFor(nameof(ImportExportVmCommand))]
     private VM? _selectedVm;
 
@@ -443,6 +445,8 @@ public partial class MainViewModel
         RefreshAdCommand();
         RefreshDrCommand();
         OnPropertyChanged(nameof(CanStartVm));
+        OnPropertyChanged(nameof(CanOpenRdp));
+        OpenRdpCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanShutdownVm));
         OnPropertyChanged(nameof(CanRebootVm));
         OnPropertyChanged(nameof(CanSuspendVm));

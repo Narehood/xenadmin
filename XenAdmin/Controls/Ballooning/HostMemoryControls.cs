@@ -48,6 +48,7 @@ namespace XenAdmin.Controls.Ballooning
         private Host _host;
         private Host_metrics host_metrics;
         [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host host
         {
             private get { return _host; }

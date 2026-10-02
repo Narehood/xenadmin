@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System.Collections.Generic;
 using XenAdmin.Actions.VMActions;
 using XenAPI;
@@ -108,9 +109,13 @@ namespace XenAdmin.Wizards.NewVMWizard
 
         #region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Host Affinity { get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VM SelectedTemplate { private get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public InstallMethod SelectedInstallMethod { private get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public VDI SelectedCD { private get; set; }
 
         #endregion

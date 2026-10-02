@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using XenAdmin.Controls;
 
 
@@ -84,6 +85,7 @@ namespace XenAdmin.Wizards.DRWizards
                 SetupLabels();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DRWizardType WizardType { private get; set; }
 
         void SetupLabels()

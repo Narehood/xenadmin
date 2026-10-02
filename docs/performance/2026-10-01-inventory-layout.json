@@ -1,0 +1,147 @@
+{
+  "CapturedAtUtc": "2026-10-01T20:18:42.7670304+00:00",
+  "Runtime": ".NET 10.0.12",
+  "OS": "Microsoft Windows 10.0.26200",
+  "ShellSha256": "881ABD10A7A16B69A3CAEAC6C52B8D846AE188CB8ED24797A4CD46185E152793",
+  "Limitations": "Synthetic cache, production TreeView/template/styles and expansion helpers; no MainViewModel, detail refresh, network, saved profile or live session.",
+  "Measurements": [
+    {
+      "Hosts": 4,
+      "Vms": 100,
+      "ReusesNodes": false,
+      "RenderScaling": 1,
+      "EventsPerBurst": 200,
+      "Warmups": 2,
+      "Samples": [
+        41.2454,
+        43.3085,
+        51.9286,
+        59.2014,
+        68.1577
+      ],
+      "MedianMilliseconds": 51.9286,
+      "AllocatedBytes": [
+        4688040,
+        4677936,
+        4695720,
+        4679712,
+        4678560
+      ]
+    },
+    {
+      "Hosts": 4,
+      "Vms": 100,
+      "ReusesNodes": true,
+      "RenderScaling": 1,
+      "EventsPerBurst": 200,
+      "Warmups": 2,
+      "Samples": [
+        0.7252,
+        0.7307,
+        1.0923,
+        1.1398,
+        1.1755
+      ],
+      "MedianMilliseconds": 1.0923,
+      "AllocatedBytes": [
+        152704,
+        145720,
+        152648,
+        152648,
+        145808
+      ]
+    },
+    {
+      "Hosts": 16,
+      "Vms": 1000,
+      "ReusesNodes": false,
+      "RenderScaling": 1,
+      "EventsPerBurst": 200,
+      "Warmups": 2,
+      "Samples": [
+        112.1282,
+        122.625,
+        132.2245,
+        133.2654,
+        166.1505
+      ],
+      "MedianMilliseconds": 132.2245,
+      "AllocatedBytes": [
+        13057736,
+        13079752,
+        13051008,
+        13082040,
+        13160392
+      ]
+    },
+    {
+      "Hosts": 16,
+      "Vms": 1000,
+      "ReusesNodes": true,
+      "RenderScaling": 1,
+      "EventsPerBurst": 200,
+      "Warmups": 2,
+      "Samples": [
+        6.0348,
+        6.0418,
+        6.2377,
+        7.0618,
+        7.4733
+      ],
+      "MedianMilliseconds": 6.2377,
+      "AllocatedBytes": [
+        1388592,
+        1382072,
+        1388536,
+        1388536,
+        1381696
+      ]
+    },
+    {
+      "Hosts": 64,
+      "Vms": 5000,
+      "ReusesNodes": false,
+      "RenderScaling": 1,
+      "EventsPerBurst": 200,
+      "Warmups": 2,
+      "Samples": [
+        122.3881,
+        125.0318,
+        143.9321,
+        146.9172,
+        202.7708
+      ],
+      "MedianMilliseconds": 143.9321,
+      "AllocatedBytes": [
+        26854184,
+        26729336,
+        26730776,
+        26724776,
+        26722176
+      ]
+    },
+    {
+      "Hosts": 64,
+      "Vms": 5000,
+      "ReusesNodes": true,
+      "RenderScaling": 1,
+      "EventsPerBurst": 200,
+      "Warmups": 2,
+      "Samples": [
+        20.9397,
+        21.4719,
+        22.0976,
+        23.2712,
+        36.4395
+      ],
+      "MedianMilliseconds": 22.0976,
+      "AllocatedBytes": [
+        6826904,
+        6820096,
+        6827336,
+        6827024,
+        6697032
+      ]
+    }
+  ]
+}

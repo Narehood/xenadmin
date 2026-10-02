@@ -58,6 +58,7 @@ namespace XenAdmin.Controls.Ballooning
 
         // The increment in which the user can move the draggers, in bytes
         [Browsable(false)]
+        [DefaultValue(0d)]
         public double Increment { get; set; }
 
         public double Dynamic_min => dynamic_min;

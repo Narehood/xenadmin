@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Linq;
 using XenAdmin.Actions.VMActions;
@@ -40,6 +41,7 @@ namespace XenAdmin.Wizards.NewVMWizard
     public class LunPerVdiNewVMMappingPage : LunPerVdiMappingPage
     {
         private List<DiskDescription> disksToMap;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<DiskDescription> DisksToMap
         {
             private get { return disksToMap; }

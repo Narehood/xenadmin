@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Windows.Forms;
 using XenAdmin.Network;
@@ -37,6 +38,7 @@ namespace XenAdmin.Dialogs
     public partial class DuplicateTemplateNameDialog : XenDialogBase
     {
         private String enteredName;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public String EnteredName
         {
             set

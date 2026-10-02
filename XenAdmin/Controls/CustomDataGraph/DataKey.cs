@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -44,6 +45,7 @@ namespace XenAdmin.Controls.CustomDataGraph
         private ArchiveMaintainer _archivemaintainer;
         public List<string> DataSourceUUIDsToShow = new List<string>();
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public ArchiveMaintainer ArchiveMaintainer
         {
             get { return _archivemaintainer; }

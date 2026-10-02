@@ -321,6 +321,11 @@ namespace XenAdmin.Controls.DataGridViewEx
             }
         }
 
+        protected bool ShouldSerializeEnabled() =>
+            TypeDescriptor.GetProperties(typeof(Control))[nameof(Enabled)].ShouldSerializeValue(this);
+
+        protected void ResetEnabled() => Enabled = true;
+
         public new bool Enabled
         {
             get

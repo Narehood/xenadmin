@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -40,6 +41,7 @@ namespace XenAdmin.Controls
     {
         private Color _panelColor = Color.Transparent;
 
+        [DefaultValue(typeof(Color), "Transparent")]
         public Color PanelColor
         {
             get { return _panelColor; }
@@ -48,6 +50,7 @@ namespace XenAdmin.Controls
 
         private Color _borderColor = Color.Transparent;
 
+        [DefaultValue(typeof(Color), "Transparent")]
         public Color BorderColor
         {
             get { return _borderColor; }

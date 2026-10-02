@@ -120,6 +120,50 @@ public sealed class InfrastructureTreeBuilderTests
         Assert.Equal("192.0.2.1", root.Title);
     }
 
+    [Fact]
+    public void PlacementKeepsCoordinatorOrderVmNameOrderAndUnresolvedGuests()
+    {
+        var (server, conn) = Inventory("Pool", 4);
+        Add(conn, "alpha", new VM
+        {
+            name_label = "Alpha", power_state = vm_power_state.Paused,
+            resident_on = new XenRef<Host>("host-2")
+        });
+        Add(conn, "zulu", new VM
+        {
+            name_label = "Zulu", power_state = vm_power_state.Running,
+            resident_on = new XenRef<Host>("host-2")
+        });
+        Add(conn, "unknown", new VM
+        {
+            name_label = "Unknown", power_state = vm_power_state.Running,
+            resident_on = new XenRef<Host>("removed-host")
+        });
+        var root = InfrastructureTreeBuilder.Build(server, conn);
+        var hosts = root.Children.Where(node => node.Kind == InfraNodeKind.Host).ToArray();
+        Assert.Equal(new[] { "host-1", "host-2", "host-3", "host-4" }, hosts.Select(node => node.OpaqueRef));
+        Assert.Equal(new[] { "alpha", "zulu" }, hosts[1].Children.Select(node => node.OpaqueRef));
+        var other = Assert.Single(root.Children, node => node.Kind == InfraNodeKind.Group);
+        Assert.Equal(new[] { "stopped", "unknown" }, other.Children.Select(node => node.OpaqueRef));
+    }
+
+    [Fact]
+    public void PlacementRefreshMovesGuestsAndLocalStorageWithoutDuplicatingThem()
+    {
+        var (server, conn) = Inventory("Pool", 2);
+        AddStorage(conn, "local", shared: false);
+        AddStorage(conn, "shared", shared: true);
+        var before = InfrastructureTreeBuilder.Build(server, conn);
+        conn.Cache.VMs.Single(vm => vm.opaque_ref == "running").resident_on = new XenRef<Host>("host-2");
+        conn.Cache.PBDs.Single(pbd => pbd.opaque_ref == "local-pbd").host = new XenRef<Host>("host-2");
+        var after = InfrastructureTreeBuilder.Build(server, conn);
+        var hosts = after.Children.Where(node => node.Kind == InfraNodeKind.Host).ToArray();
+        Assert.Empty(hosts[0].Children);
+        Assert.Equal(new[] { "running", "local" }, hosts[1].Children.Select(node => node.OpaqueRef));
+        Assert.Equal("shared", Assert.Single(after.Children, node => node.Kind == InfraNodeKind.Storage).OpaqueRef);
+        Assert.Equal(before.OpaqueRef, after.OpaqueRef);
+    }
+
     private static (ServerNode Server, XenConnection Connection) Inventory(string poolName, int hostCount)
     {
         var conn = new XenConnection { Hostname = "192.0.2.1" };

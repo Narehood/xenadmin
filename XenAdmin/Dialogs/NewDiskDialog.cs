@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -104,6 +105,7 @@ namespace XenAdmin.Dialogs
 
         public VBD Device { get; private set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DontCreateVDI { get; set; }
 
         internal override string HelpName => _diskTemplate == null ? "NewDiskDialog" : "EditNewDiskDialog";

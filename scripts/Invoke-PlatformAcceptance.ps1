@@ -138,10 +138,12 @@ try {
                 '-c', 'Release', '-p:RestoreLockedMode=true', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"))
             Invoke-Check "winforms-lifecycle-designer-$configuration" $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
                 '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"), '--lifecycle-designer')
+            Invoke-Check "winforms-plugin-archive-$configuration" $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
+                '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"), '--plugin-archive')
         }
         Invoke-Check 'proxy-auth' $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
             '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot 'XenAdmin/bin/Release/net10.0-windows/XCP-ng Center.dll'), '--proxy-auth')
-        foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery')) {
+        foreach ($mode in @('networking', 'connection-settings', 'beta-settings', 'access-recovery', 'modernization', 'remote-desktop')) {
             $probeArgs = @('run', '--project', 'tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj', '-c', 'Release', '-p:RestoreLockedMode=true', '--')
             if ($mode -ne 'networking') { $probeArgs += "--$mode" }
             $destination = Join-Path $evidence "ui-$mode"

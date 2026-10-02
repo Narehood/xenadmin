@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,6 +55,7 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages.Frontends
             SrType = SR.SRTypes.lvmohba;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SR.SRTypes SrType { get; set; }
 
         protected virtual bool ShowNicColumn => false;
@@ -379,9 +381,11 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages.Frontends
 
         #region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<FibreChannelDevice> FCDevices { private get; set; }
 
         private SrWizardType _srWizardType;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public SrWizardType SrWizardType
         {
             private get

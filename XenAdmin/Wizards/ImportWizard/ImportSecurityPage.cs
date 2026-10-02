@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -136,6 +137,7 @@ namespace XenAdmin.Wizards.ImportWizard
         /// <summary>
 		/// Package containing the selected OVF appliance.
 		/// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Package SelectedOvfPackage { private get; set; }
 
 		#endregion

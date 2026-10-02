@@ -236,6 +236,7 @@ namespace XenAdmin.Wizards.DRWizards
             return (from SrRow row in dataGridViewSRs.Rows where IsRowChecked(row) select row.SrName).ToList();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DRWizardType WizardType { private get; set; }
 
         #endregion

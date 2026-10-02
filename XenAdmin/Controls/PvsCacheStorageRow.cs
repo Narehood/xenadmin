@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Linq;
 using System.Windows.Forms;
@@ -145,6 +146,7 @@ namespace XenAdmin.Controls
         }
 
         private bool _showHeader;
+        [DefaultValue(false)]
         public bool ShowHeader
         {
             get { return _showHeader; }

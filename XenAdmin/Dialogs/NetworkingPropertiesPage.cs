@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -63,6 +64,7 @@ namespace XenAdmin.Dialogs
         }
 
         private bool valid;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool Valid
         {
             get { return valid; }

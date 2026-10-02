@@ -70,6 +70,7 @@ namespace XenAdmin.Controls
 
         [Browsable(true)]
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Color LabelSingleDvdForeColor
         {
             get => labelSingleDvd.ForeColor;
@@ -78,6 +79,7 @@ namespace XenAdmin.Controls
 
         [Browsable(true)]
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Color LabelNewCdForeColor
         {
             get => newCDLabel.ForeColor;
@@ -86,6 +88,7 @@ namespace XenAdmin.Controls
 
         [Browsable(true)]
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Color LinkLabelLinkColor
         {
             get => linkLabelEject.LinkColor;

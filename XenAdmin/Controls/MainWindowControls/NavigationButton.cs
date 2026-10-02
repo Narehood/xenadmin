@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -74,6 +75,7 @@ namespace XenAdmin.Controls.MainWindowControls
                 pairedButton.Tag = tag;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public INavigationItem PairedItem { get; set; }
         public event Action<object> NavigationViewChanged;
     }
@@ -107,6 +109,7 @@ namespace XenAdmin.Controls.MainWindowControls
     {
         private int unreadEntries;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public int UnreadEntries
         {
             get { return unreadEntries; }
@@ -127,6 +130,7 @@ namespace XenAdmin.Controls.MainWindowControls
     {
         private int unreadEntries;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public int UnreadEntries
         {
             get { return unreadEntries; }

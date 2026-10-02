@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -91,6 +92,7 @@ namespace XenAdmin.Wizards.BallooningWizard_Pages
 
         #endregion
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<VM> VMs
         {
             get => _vms;

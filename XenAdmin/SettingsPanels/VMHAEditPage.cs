@@ -394,6 +394,7 @@ namespace XenAdmin.SettingsPanels
 
         public VM.HaRestartPriority SelectedPriority { get; private set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<VGPU> VGpus { private get; set; }
 
         private bool IsHaEditable()

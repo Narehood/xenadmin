@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -42,12 +43,15 @@ namespace XenAdmin.Controls
             Expanded
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string ToggleUpText { private get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string ToggleDownText { private get; set; }
         private Image ToggleUpImage { get; set; }
         private Image ToggleDownImage { get; set; }
 
         private TogglePosition currentTogglePosition;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public TogglePosition CurrentTogglePosition
         {
             get { return currentTogglePosition; }

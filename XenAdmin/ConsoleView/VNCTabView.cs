@@ -227,6 +227,7 @@ namespace XenAdmin.ConsoleView
             pictureBoxGeneralInformationMessage.Visible = labelGeneralInformationMessage.Visible = vncScreen.RdpVersionWarningNeeded;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool IsScaled
         {
             get { return scaleCheckBox.Checked; }

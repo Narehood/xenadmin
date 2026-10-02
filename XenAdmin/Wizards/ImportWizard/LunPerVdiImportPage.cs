@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System.Linq;
 using System.Collections.Generic;
 using XenAdmin.Controls;
@@ -50,6 +51,7 @@ namespace XenAdmin.Wizards.ImportWizard
         /// <summary>
         /// Data to get the user to map
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<string, VmMapping> VmMappings
         {
             get
@@ -98,6 +100,7 @@ namespace XenAdmin.Wizards.ImportWizard
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public EnvelopeType SelectedOvfEnvelope { private get; set; }
 
         private StorageResourceContainer ResourceData(string sysId)

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -44,6 +45,7 @@ namespace XenAdmin.Controls.MainWindowControls
             Overflow = ToolStripItemOverflow.Never;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public INavigationItem PairedItem { get; set; }
         public event Action<object> NavigationViewChanged;
 

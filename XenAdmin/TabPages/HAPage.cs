@@ -60,6 +60,7 @@ namespace XenAdmin.TabPages
         /// <summary>
         /// The object that the panel is displaying HA info for. Must be set on the event thread.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             set

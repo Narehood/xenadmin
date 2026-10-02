@@ -98,6 +98,7 @@ namespace XenAdmin.Wizards.GenericPages
         /// The connection from which the target networks are selected
         /// Defaults to the base class connection if not set
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenConnection TargetConnection
         {
             get
@@ -224,6 +225,7 @@ namespace XenAdmin.Wizards.GenericPages
             return m_buttonPreviousEnabled;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<string, VmMapping> VmMappings
         {
             get

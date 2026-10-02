@@ -964,6 +964,10 @@
                               VerticalAlignment="Center"
                               Command="{Binding AttachIsoCommand}"
                               ToolTip.Tip="Open the full ISO library picker" />
+                      <Button Classes="ghost" Content="Remote Desktop…"
+                              Margin="0,0,6,4" Padding="10,4"
+                              Command="{Binding OpenRdpCommand}"
+                              ToolTip.Tip="Connect directly to the guest using the installed RDP client" />
                       <Button Classes="ghost" Content="Pop Out"
                               Margin="8,0,6,4" Padding="10,4"
                               VerticalAlignment="Center"

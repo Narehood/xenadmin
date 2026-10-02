@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using XenAdmin.Wizards.GenericPages;
 using XenOvf.Definitions;
 
@@ -55,6 +56,7 @@ namespace XenAdmin.Wizards.ImportWizard
             return true;
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public EnvelopeType SelectedOvfEnvelope { private get; set; }
 
         public override StorageResourceContainer ResourceData(string sysId)

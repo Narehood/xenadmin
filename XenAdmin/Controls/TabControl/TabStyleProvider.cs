@@ -337,6 +337,7 @@ namespace XenAdmin.Controls.TabControl
         }
 
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public ContentAlignment ImageAlign
         {
             get => _ImageAlign;
@@ -348,6 +349,7 @@ namespace XenAdmin.Controls.TabControl
         }
 
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Point Padding
         {
             get => _Padding;
@@ -381,6 +383,7 @@ namespace XenAdmin.Controls.TabControl
         }
 
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public int Overlap
         {
             get => _Overlap;
@@ -393,6 +396,7 @@ namespace XenAdmin.Controls.TabControl
 
 
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public bool FocusTrack
         {
             get => _FocusTrack;
@@ -404,6 +408,7 @@ namespace XenAdmin.Controls.TabControl
         }
 
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public bool HotTrack
         {
             get => _HotTrack;
@@ -415,6 +420,7 @@ namespace XenAdmin.Controls.TabControl
         }
 
         [Category("Appearance")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public float Opacity
         {
             get => _Opacity;

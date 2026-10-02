@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -41,6 +42,7 @@ namespace XenAdmin.Wizards.DRWizards
     public partial class DRFailoverWizardAppliancesPage : XenTabPage
     {
         private Pool _pool;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Pool Pool
         {
             get { return _pool; }
@@ -101,10 +103,12 @@ namespace XenAdmin.Wizards.DRWizards
         }
 
         private Dictionary<XenRef<VDI>, PoolMetadata> allPoolMetadata;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<XenRef<VDI>, PoolMetadata> AllPoolMetadata { set { allPoolMetadata = value; } }
 
         private Dictionary<XenRef<VDI>, PoolMetadata> selectedPoolMetadata = new Dictionary<XenRef<VDI>, PoolMetadata>();
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DRWizardType WizardType { private get; set; }
 
         public Dictionary<XenRef<VDI>, PoolMetadata> SelectedPoolMetadata

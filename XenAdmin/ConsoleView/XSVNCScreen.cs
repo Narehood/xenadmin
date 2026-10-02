@@ -476,6 +476,7 @@ namespace XenAdmin.ConsoleView
 
         private bool _scaling;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool Scaling
         {
             get
@@ -493,6 +494,7 @@ namespace XenAdmin.ConsoleView
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IRemoteConsole RemoteConsole
         {
             get => _vncClient != null ? (IRemoteConsole)_vncClient : _rdpClient;
@@ -624,8 +626,10 @@ namespace XenAdmin.ConsoleView
                 ParentVNCTabView.EnableToggleVNCButton();
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal bool AutoSwitchRDPLater { get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         internal bool UseVNC
         {
             get => _useVNC;
@@ -663,6 +667,7 @@ namespace XenAdmin.ConsoleView
         /// <summary>
         /// Indicates whether to use the source or the detected vncIP
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool UseSource
         {
             get => _useSource;
@@ -1206,6 +1211,7 @@ namespace XenAdmin.ConsoleView
         // Save this for when we init a new vncClient.
         private bool _displayFocusRectangle = true;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DisplayFocusRectangle
         {
             get => _displayFocusRectangle;

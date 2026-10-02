@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -145,6 +146,7 @@ namespace XenAdmin.ConsoleView
         private bool _displayBorder = true;
         private bool _altGrReleaseSent;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool UseSource
         {
             set => _useSource = value;
@@ -154,6 +156,7 @@ namespace XenAdmin.ConsoleView
 
         public string UUID => SourceVM.uuid;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public XenAPI.VM SourceVM { get; set; }
 
         public string VmName => SourceVM.name_label;
@@ -162,6 +165,7 @@ namespace XenAdmin.ConsoleView
 
         public event EventHandler DesktopResized;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool UseQemuExtKeyEncoding { set; private get; }
 
         public VNCGraphicsClient(ContainerControl parent)
@@ -1177,6 +1181,7 @@ namespace XenAdmin.ConsoleView
 
         #region IRemoteConsole implementation
         
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public ConsoleKeyHandler KeyHandler { get; set; }
 
         public Control ConsoleControl => this;
@@ -1247,6 +1252,7 @@ namespace XenAdmin.ConsoleView
             }
         }    
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool SendScanCodes
         {
             set
@@ -1270,6 +1276,7 @@ namespace XenAdmin.ConsoleView
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool Scaling
         {
             get
@@ -1398,6 +1405,7 @@ namespace XenAdmin.ConsoleView
         /// <summary>
         /// Whether or not to display the blue rectangle around the control when it has focus.
         /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DisplayBorder
         {
             set
@@ -1412,6 +1420,7 @@ namespace XenAdmin.ConsoleView
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Size DesktopSize { get; set; }
 
         public Rectangle ConsoleBounds =>

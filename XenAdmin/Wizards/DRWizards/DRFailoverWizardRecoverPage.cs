@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -163,14 +164,17 @@ namespace XenAdmin.Wizards.DRWizards
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public DRWizardType WizardType { private get; set; }
 
         internal List<string> RecoveredVmsUuids { get; } = new List<string>();
 
         internal List<string> RecoveredVmAppliancesUuids { get; } = new List<string>();
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public StartActionAfterRecovery StartActionAfterRecovery { private get; set; }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Dictionary<XenRef<VDI>, PoolMetadata> SelectedPoolMetadata { private get; set; }
 
         protected override void PageLoadedCore(PageLoadedDirection direction)

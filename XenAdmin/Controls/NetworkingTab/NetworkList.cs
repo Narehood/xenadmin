@@ -55,6 +55,7 @@ namespace XenAdmin.Controls.NetworkingTab
         }
 
         private IXenObject _xenObject = null;
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public IXenObject XenObject
         {
             get

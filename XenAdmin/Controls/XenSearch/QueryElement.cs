@@ -616,6 +616,7 @@ namespace XenAdmin.Controls.XenSearch
             subQueryElements.Add(new QueryElement(this.Searcher, queryScope, this));
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public Searcher Searcher
         {
             get { return searcher; }
@@ -627,6 +628,7 @@ namespace XenAdmin.Controls.XenSearch
             }
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public QueryFilter QueryFilter
         {
             get

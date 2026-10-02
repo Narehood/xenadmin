@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using XenAdmin.Controls;
 
 namespace XenAdmin.Wizards.NewVMApplianceWizard
@@ -60,6 +61,7 @@ namespace XenAdmin.Wizards.NewVMApplianceWizard
             get { return "Finish"; } 
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Summary { private get; set; }
 
         protected override void PageLoadedCore(PageLoadedDirection direction)

@@ -1,8 +1,200 @@
 # Astra / Astro handoff
 
-Last updated: 2026-09-29 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-01 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### PR #62 Cursor review fixes (2026-10-01)
+
+Implementation: `2523d9f84`, in [PR #62](https://github.com/Narehood/xenadmin/pull/62).
+The later Cursor review identified two valid issues in the consolidated head.
+Their [dispositions and regression evidence](reviews/2026-10-01-pr62-review-followup.md)
+supersede the earlier consolidation snapshot that had no code findings.
+
+A failed inventory rebuild is now caught/logged per connection, while the rest
+of the batch proceeds. Failed work stays pending until another notification
+schedules a turn; newer notifications win, and persistent failures do not
+create automatic retry loops. Mapped IPv6 input now requires canonical spelling
+before mapping. The RDP dialog displays the exact authority used by the client,
+updates normalized address/port fields and stays open for another confirmation.
+Editing fields refreshes the preview and clears the previous review notice.
+
+The initial regressions reproduced ten failures; all 47 focused cases now pass.
+Full local acceptance passes all 24 automated checks: locked restore, both full
+solution builds, 977 shell tests per configuration, 73 shared tests per framework,
+333 lifecycle/designer and 23 archive checks per WinForms configuration, all
+32,138 resources in 289 sets, proxy checks, six UI modes, Windows package
+validation/startup and unchanged portable lockfiles. The actual RDP dialog now
+passes 12 checks at three render scales. Trusted local RDP interop was reused.
+Check current-head Windows/Linux and CodeQL results before merge. CodeRabbit's
+file/capacity skip remains a review availability limit; Cursor review sign-off
+remains the reviewer's decision. Physical desktop, Visual Studio, updater/UAC,
+actual RDP guest login and live-pool acceptance remain pending.
+
+### Consolidated modernization final review (2026-10-01)
+
+The user requested one final-review PR and asked for comment resolution before
+consolidation. All comments, submitted reviews and inline threads on #58?#61
+were checked first: each PR has only a CodeRabbit notice that draft review was
+skipped; there are no code findings or unresolved threads. See the
+[comment dispositions and consolidation record](reviews/2026-10-01-pr58-61-consolidation.md).
+A bot success status does not establish that those draft changes were reviewed.
+
+[PR #62](https://github.com/Narehood/xenadmin/pull/62), branch
+`modernization/final-review`, contains all six commits from the stack and targets
+`development` directly. Rebase onto current integration head
+`1c1ab84b3facad3de087c971a8d1be68cb214e69` is already up to date; there are no
+implementation conflicts or omissions. Original branches/commits are preserved.
+The combined PR replaces the old per-layer merge sequence below and is ready
+for final review. CodeRabbit attempted review but skipped it because 184 files
+exceed its 100-file limit and review capacity is unavailable; it produced no
+code findings. Its success status is not a completed review or approval.
+
+Fresh combined local acceptance passes all 24 checks: both full solution
+configurations, both required test suites (963 shell cases per configuration,
+73 shared cases per framework), 333 lifecycle/designer and 23 archive checks
+per configuration, all resources, proxy and six UI modes, package validation
+and startup. Portable lockfiles are unchanged; trusted local RDP interop was
+reused. Source comparison confirms only handoff/review documentation changed
+in consolidation; a focused source/coverage review found no new correction.
+Check hosted Windows/Linux and CodeQL results on the current #62 head before
+merge. Original PRs are superseded by #62 and their branches remain available.
+No integration merge, release or live-pool operation is part of consolidation.
+
+### IE plugin tabs archived outside builds (2026-10-01)
+
+Implementation: `56cfa2be6`, submitted as
+[original PR #61](https://github.com/Narehood/xenadmin/pull/61).
+Now included in the consolidated final-review branch described above.
+
+The user chose to remove IE browser plugin tabs from the shipped clients while
+preserving their source. The browser host, tab/scripting/authentication bridge,
+credential dialog and resources are moved byte for byte to
+[the archive](../legacy/disabled-features/ie-plugin-tabs/README.md), outside every
+project root. Pool plugin-secret helpers are extracted there too; the archive
+also records the removed MainWindow, loader, manager and Pool integration.
+No build/package contains this implementation and no registry flag enables it.
+This supersedes the earlier plan to retain the WinForms IE path.
+
+The separate menu/command extension system keeps its existing opt-in policy.
+Mixed manifests skip archived tabs and preserve valid menu commands; tab-only
+plugins remain disabled with a visible archive error. Normal VM, host and
+driver-domain console tabs no longer have plugin replacements. Existing
+server-side secrets are untouched; no live pool/profile was used for validation.
+Restoring browser integration requires deliberate source integration and a new
+design/review for an actual requirement; archived code is reference only.
+
+The native archive probe rejects the pre-archive binary and passes **23 checks
+per configuration** on the new Release/Debug builds: compiled type/resource and
+integration exclusions, absent pool-secret helpers, tab-only errors, retained
+mixed/menu/grouped commands and malformed-feature rejection. CI and platform
+acceptance run this mode. MSBuild item inspection confirms archive exclusion.
+The full local acceptance pass succeeds: locked restore, both solution builds,
+**963 shell tests per configuration**, **73 shared tests per framework**,
+333 lifecycle/designer checks per configuration, **32,138 resources in 289
+active sets**, proxy checks, all six UI modes, Windows package validation and
+startup. Seven acceptance failure/coverage fixtures pass; portable lockfiles
+and trusted reused local RDP interop remain unchanged. Physical desktop,
+Visual Studio and live-pool release acceptance remain pending; check hosted
+Windows/Linux results on the current PR head before merge.
+
+### External Remote Desktop and remaining parity strategy (2026-10-01)
+
+Implementation: `66e23e5f9`, originally stacked after #59 in PR #60.
+Now included in the consolidated final-review branch described above.
+
+The VM Console toolbar now offers **Remote Desktop…** for a connected running
+guest. A review dialog suggests validated guest-reported addresses and accepts
+a manual IPv4/IPv6 address and port. The selected VM, cache identity, connection
+and power state are checked again after review. Windows launches system
+`mstsc.exe` with a credential prompt; Linux launches system Remmina using a
+credential-free RDP URI. Arguments are separate, no shell is involved, and no
+hypervisor credentials or certificate-bypass flags are passed.
+
+Twenty-seven endpoint/identity/draft checks and seven actual RDP dialog checks
+pass. Windows CI and local acceptance run the new dialog mode. Missing clients
+produce visible guidance. Actual Windows/Linux guest login, IPv6 reachability
+and Linux Remmina/plugin availability remain manual checks. The shell connects
+directly to the guest; embedded RDP and hypervisor tunneling are not implemented.
+See [Remote Desktop](remote-desktop.md).
+
+The integrated local acceptance pass succeeds: locked restore, both solution
+builds, **963 shell tests per configuration**, **73 shared tests per framework**,
+333 lifecycle/designer checks per WinForms configuration, full resources,
+proxy/editor probes and Windows self-contained package validation/smoke.
+After separating the new probe modes, the inventory mode passes 189 checks and
+the RDP mode passes seven; acceptance failure/coverage fixtures were rerun.
+Portable lockfiles and trusted reused RDP interop are unchanged. Hosted Linux
+and Windows results must be checked on the PR heads before merge.
+
+The [remaining parity plan](modernization-remaining-plan.md) defines the plugin/
+external-tool strategy and staged DR scope. The subsequent IE archive decision
+supersedes the original plugin-tab retention plan; arbitrary legacy tool
+templates retain their supported WinForms path. Live halted recovery,
+source fencing and storage isolation must be proven before adding appliance,
+snapshot, special-hardware or running-guest recovery. No production pool, user
+profile, external RDP client or release was changed during validation.
+
+### Inventory refresh responsiveness (2026-10-01)
+
+Implementation: `7819fcd1c`, submitted as
+[original PR #59](https://github.com/Narehood/xenadmin/pull/59).
+Now included in the consolidated final-review branch described above.
+
+Inventory notifications now coalesce by connection into one UI refresh per
+dispatcher turn. Notifications arriving during a refresh schedule another turn.
+Queued callbacks retain their originating connection; disposed, removed and
+replaced server connections cannot rebuild stale inventory.
+
+The builder resolves VM/SR placement once per object. The tree updater retains
+existing nodes and containers, updates changed metadata, moves/adds/removes
+children without a collection Reset, and detaches migrated objects before
+attaching them to another parent. The main view model still refreshes details
+when the selected node instance stays the same. Selected guests keep their
+identity; their destination path expands after a move.
+
+Twenty focused inventory/scheduler/updater checks pass. The production TreeView
+probe measures both replacement and reuse with the same current builder: a
+64-host/5,000-VM refresh falls from **143.9 ms to 22.1 ms** median in the final
+synthetic run. It verifies burst coalescing, changed metadata, selection,
+collapsed hosts and migration. The [performance record](performance-baseline.md)
+retains all samples and limitations. Windows CI and platform acceptance now run
+the inventory layout probe. Live event streams, detail-pane costs, fully expanded
+large trees and physical desktop responsiveness remain acceptance work.
+
+### WinForms designer audit completion (2026-10-01)
+
+Implementation: `c26bd791e`, submitted as
+[original PR #58](https://github.com/Narehood/xenadmin/pull/58).
+Now included in the consolidated final-review branch described above.
+
+All **297 remaining WFO1000 declarations** have been audited against their
+constructors, setters, callers and generated designer assignments. The project
+suppression is removed. Runtime models, actions, connections, wizard results and
+credentials are explicitly hidden; existing graph/control references and
+resource-backed settings remain visible. Sixteen verified defaults and two
+serialization/reset hook pairs complete the inventory. Generated designer files
+and resources are unchanged. See the [audit record](reviews/2026-10-01-designer-completion.md).
+
+`MemorySpinner.Increment` now returns its configured byte input so designer
+replay cannot feed a displayed MB step back into the byte-based setter. Explicit
+legacy GB assignments remain serializable. Reset restores the original numeric
+step and clears the configured input. `DataGridViewEx.Enabled` uses framework
+local-state omission and its custom setter on Reset, preserving inherited
+disabled-parent behavior and the enabled header style.
+
+The lifecycle/designer probe grows from 239 to **333 passing checks** on Release
+and Debug. The spinner regression first reproduced 12 failures against the old
+binary. New checks cover byte replay, GB thresholds, reset, inherited Enabled,
+verified defaults, graph references/resources and hidden credential metadata.
+Both solution builds, full resource probes (**32,240 resources in 290 sets**) and
+locked restore pass; there are no WFO1000 diagnostics. Local builds reuse the
+unchanged trusted RDP interop via `SkipRdpAxImp=true`; existing ACL warnings
+remain. Evidence is under ignored `artifacts/modernization-20261001/`.
+
+Actual Visual Studio designer save/reopen, active shutdown, physical installation
+and live-pool acceptance remain pending. This closes the metadata audit, not
+those manual acceptance gates. Earlier sections below describe dated snapshots.
 
 ### PR #56 / #57 review follow-up (2026-09-29)
 

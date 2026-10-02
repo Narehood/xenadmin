@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -88,7 +89,9 @@ namespace XenAdmin.Wizards.NewSRWizard_Pages.Frontends
 
         #region Accessors
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<SrDescriptor> SuccessfullyCreatedSRs { get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public List<SrDescriptor> FailedToCreateSRs { get; set; }
 
         #endregion

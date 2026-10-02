@@ -97,6 +97,7 @@ namespace XenAdmin.Controls
         #region Accessors
 
         [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DisableFocusEvent { private get; set; }
 
         [DefaultValue("Title")]
@@ -141,6 +142,7 @@ namespace XenAdmin.Controls
         }
 
         [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public bool ShowCellToolTips
         {
             get { return dataGridViewEx1.ShowCellToolTips; }

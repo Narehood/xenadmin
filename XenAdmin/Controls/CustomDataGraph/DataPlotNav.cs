@@ -47,6 +47,7 @@ namespace XenAdmin.Controls.CustomDataGraph
 
         private ArchiveMaintainer _archivemaintainer;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public ArchiveMaintainer ArchiveMaintainer
         {
             get { return _archivemaintainer; }
@@ -59,6 +60,7 @@ namespace XenAdmin.Controls.CustomDataGraph
 
         private DataEventList _dataEventList;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public DataEventList DataEventList
         {
             get { return _dataEventList; }
@@ -68,6 +70,7 @@ namespace XenAdmin.Controls.CustomDataGraph
         private TimeSpan _graphWidth = TimeSpan.FromMinutes(10);
 
         [Browsable(true)]
+        [DefaultValue(typeof(TimeSpan), "00:10:00")]
         public TimeSpan GraphWidth
         {
             get { return _graphWidth; }
@@ -77,6 +80,7 @@ namespace XenAdmin.Controls.CustomDataGraph
         private TimeSpan _gridSpacing = TimeSpan.FromMinutes(5);
 
         [Browsable(true)]
+        [DefaultValue(typeof(TimeSpan), "00:05:00")]
         public TimeSpan GridSpacing
         {
             get { return _gridSpacing; }
@@ -86,6 +90,7 @@ namespace XenAdmin.Controls.CustomDataGraph
         private TimeSpan _graphOffset = TimeSpan.Zero;
 
         [Browsable(true)]
+        [DefaultValue(typeof(TimeSpan), "00:00:00")]
         public TimeSpan GraphOffset
         {
             get { return _graphOffset; }
@@ -94,6 +99,7 @@ namespace XenAdmin.Controls.CustomDataGraph
 
         private List<string> _displayedUuids = new List<string>();
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public List<string> DisplayedUuids
         {
             get { return _displayedUuids; }
@@ -561,6 +567,7 @@ namespace XenAdmin.Controls.CustomDataGraph
 
         private TimeSpan _scrollViewOffset = TimeSpan.Zero;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public TimeSpan ScrollViewOffset
         {
             get { return _scrollViewOffset; }
@@ -569,6 +576,7 @@ namespace XenAdmin.Controls.CustomDataGraph
 
         private TimeSpan _scrollViewWidth = TimeSpan.FromTicks(ArchiveMaintainer.TICKS_IN_TWO_HOURS);
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public TimeSpan ScrollViewWidth
         {
             get { return _scrollViewWidth; }

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System.ComponentModel;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -54,6 +55,7 @@ namespace XenAdmin.Controls.ConsoleTab
             AttachMouseOnChildren(this);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string ConnectionName
         {
             set

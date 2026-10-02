@@ -179,6 +179,7 @@ namespace XenAdmin.Controls.TabControl
 
         [Category("Appearance")]
         [RefreshProperties(RefreshProperties.All)]
+        [DefaultValue(false)]
         public new bool Multiline
         {
             get => base.Multiline;
@@ -194,6 +195,7 @@ namespace XenAdmin.Controls.TabControl
         //	We are handling this on the Style Provider
         [Browsable(false)]
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public new Point Padding
         {
             get => DisplayStyleProvider.Padding;
@@ -215,6 +217,7 @@ namespace XenAdmin.Controls.TabControl
         //	We are handling this on the Style Provider
         [Browsable(false)]
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public new bool HotTrack
         {
             get => DisplayStyleProvider.HotTrack;
@@ -222,6 +225,7 @@ namespace XenAdmin.Controls.TabControl
         }
 
         [Category("Appearance")]
+        [DefaultValue(TabAlignment.Top)]
         public new TabAlignment Alignment
         {
             get => base.Alignment;
@@ -247,6 +251,7 @@ namespace XenAdmin.Controls.TabControl
         [Browsable(false)]
         [EditorBrowsable(EditorBrowsableState.Never)]
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "value")]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public new TabAppearance Appearance
         {
             get => base.Appearance;
