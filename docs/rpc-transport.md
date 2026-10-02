@@ -30,6 +30,23 @@ deadline is `WebExceptionStatus.Timeout`. Async continuations do not require a
 UI synchronization context. Generated synchronous wrappers still block their
 calling thread and should stay on the existing action/connection workers.
 
+The October 2 lifecycle follow-up uses the async transport for heartbeat and
+graph metadata polling. Heartbeat exposes `Completion`/`StopAsync`; stopping
+cancels both the RPC and its 15-second delay, and releases only the duplicate's
+transport. Intentional cancellation does not interrupt or log out the pool.
+Its typed adapter retains the generated host-time converter outside generated
+SDK files. Graph polling exposes `Completion`/`DisposeAsync`, cancels its
+metadata RPC and five-second delay, closes blocked GET/XML transport, and drops
+queued UI updates after disposal. Raw RRD HTTP/XML parsing remains synchronous
+inside bounded worker phases; it no longer reserves a worker while sleeping.
+
+WinForms console elevation accepts a per-attempt token through the concrete
+`XenConnection` overload. Failed login/setup attempts release their transport
+and log out a known token created by that attempt. Existing interface signatures
+and generated sync APIs are retained. Administrative action execution and the
+main connection/event worker are still synchronous; cancelling a client request
+is not proof that a server mutation was cancelled.
+
 `net481` retains `HttpWebRequest` with the same async entry point and explicit
 deadline/cancellation handling. The loopback contract tests run on both target
 frameworks. Action-owned and logged-out clients release their local transport;

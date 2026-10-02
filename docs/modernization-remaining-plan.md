@@ -12,6 +12,14 @@ and fully expanded tree measurements, plus offline [redistribution notices](lega
 in both clients and their build artifacts. Live-pool and physical-desktop rows
 below remain pending.
 
+The subsequent October 2 lifecycle pass makes heartbeat and graph polling
+task-based and cancellable, extends startup/login/handshake cancellation to
+WinForms, and prepares the [verified capture workflow](performance-capture.md).
+The user confirmed no disposable pool is available, so live timings remain
+pending. Installer automation/replacement is deferred at the user's direction,
+alongside release signing. Main connection/event and administrative action
+workers retain their synchronous compatibility path.
+
 ## Desktop and release acceptance
 
 Use disposable installation directories/profiles and pools to complete

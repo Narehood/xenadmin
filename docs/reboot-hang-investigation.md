@@ -108,6 +108,16 @@ handshake. Success disarms the startup deadline, so an unchanged display does
 not acquire a general idle read timeout. Selection changes cancel the active
 generation. Local silent-peer and actual hosted-session tests cover these paths.
 This hardening does not identify the cause of the reported Debian reboot incident.
+
+The later October 2 pass shares the startup guard with WinForms. Its configured
+deadline covers elevation login, HTTP tunnel opening and RFB handshake; connected
+success disarms the deadline. Closing/replacing a VNC client cancels startup and
+retry delay. Guest port discovery is bounded and cancelled when its screen is
+disposed. Failed RFB streams are closed before another attempt, duplicate
+session transports are released locally, and independently elevated tokens are
+logged out on cleanup. The native compatibility probe exercises timeout,
+cancel-before-handoff, retry-after-failure and connected idle behavior using the
+actual WinForms RFB client. It uses only synthetic streams and in-memory settings.
 The paragraphs below describe the earlier September 27 limitation.
 
 A peer that keeps its connection open but sends no handshake data can leave the

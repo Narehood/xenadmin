@@ -4,6 +4,39 @@ Last updated: 2026-10-02 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Async polling, WinForms startup and capture workflow (2026-10-02)
+
+The user selected remaining items 1, 2 and 4, deferred installer work and
+confirmed that no disposable pool is available. Implementation:
+
+- `71cca31ed`: cancellable task-based heartbeat and graph polling, completion
+  handles, retained time conversion/wire shape, local duplicate cleanup and
+  cancellable elevation login.
+- `e8e944992`: shared startup guard in both clients; WinForms login/tunnel/RFB
+  deadlines, cancellation of retries and port discovery, stale-handoff guards,
+  immediate failed-stream cleanup and owned elevated-session logout.
+- `f9ad9b530`: bounded opt-in performance capture, offline statistics/coverage,
+  overload/completeness checks and synthetic Linux desktop CLI capture.
+
+See the [implementation/review record](reviews/2026-10-02-async-winforms-performance.md),
+[capture instructions](performance-capture.md) and updated [RPC contract](rpc-transport.md).
+Both solution configurations and full suites pass: 1,020 shell cases per
+configuration, 96 shared cases per framework, 349 WinForms lifecycle/designer
+and 23 archive checks per configuration, all resources and 12 proxy cases.
+All 26 local acceptance gates pass at `f9ad9b530`: both complete solution builds,
+both suites, WinForms/proxy checks, all six UI modes, notice fixtures and fresh
+Windows publish/package execution. Evidence is in
+`artifacts/async-winforms-capture-final-20261002`; the archive SHA-256 is
+`d2d0682063e001637cbc4f17b6b15c4ac0a8d9296164bc7dcd8c3a8b26dc3f96`.
+Portable lockfiles are unchanged. Trusted local RDP interop was reused; hosted
+Windows/Linux and CodeQL must pass on the final PR head. The capture deadline
+test asserts parsed frame dimensions, avoiding accidental matches in timestamps.
+
+Main connection/event and administrative action workers remain synchronous;
+RRD HTTP/XML parsing remains synchronous during active phases. Live timings,
+physical desktop/reboot/RDP and installation/update acceptance remain pending.
+Installer modernization and signing are deferred at the user's direction.
+
 ### Legal notices, console startup, RPC and performance (2026-10-02)
 
 The user selected console reliability, shared transport modernization and

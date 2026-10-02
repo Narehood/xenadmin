@@ -69,7 +69,12 @@ public sealed class PerformanceCaptureTests
             Assert.False(ShellPerformanceDiagnostics.Log.IsEnabled());
             ShellPerformanceDiagnostics.Log.ConsoleFrame(999, 999);
             await capture.DisposeAsync();
-            Assert.DoesNotContain("999", File.ReadAllText(path));
+            foreach (var line in File.ReadAllLines(path))
+            {
+                using var record = JsonDocument.Parse(line);
+                if (record.RootElement.GetProperty("kind").GetString() == "event")
+                    Assert.Equal(100, record.RootElement.GetProperty("payload")[0].GetInt32());
+            }
         }
         finally { File.Delete(path); }
     }

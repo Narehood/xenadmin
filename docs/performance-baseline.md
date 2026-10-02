@@ -137,6 +137,12 @@ actual event streams and native desktop behavior still need acceptance.
 
 ### October 2 production instrumentation
 
+The [bounded JSONL capture workflow](performance-capture.md) records this
+provider directly from the desktop without extra tracing tools. It also covers
+actual RRD fetch phases and reports missing phases, dropped samples and evidence
+kind. No live pool is available for this follow-up; synthetic capture checks
+do not add live performance results to the measurements below.
+
 The opt-in EventSource `XcpNgCenter-Shell-Performance` records inventory burst
 counts, per-connection rebuild/reconciliation, detail refresh phases, console
 tunnel startup, bitmap flush timings and frame dimensions. Synchronous operation

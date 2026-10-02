@@ -16,6 +16,7 @@ compatibility.
 | Full WinForms/RDP build | Release and Debug, Windows SDK interop tools | Not applicable |
 | Shared tests | net481 and net10.0 | net10.0 |
 | Shell tests | Release and Debug | Release and Debug |
+| Performance capture | Provider-isolated collection, shutdown/overload tests and six report fixtures | Same; real desktop CLI capture and synthetic summary during package smoke |
 | Acceptance evidence failure fixtures | PowerShell 5.1 native exit/UI-log failures and skipped coverage | PowerShell native exit/UI-log failures and skipped coverage |
 | Self-contained package | win-x64 ZIP | linux-x64 tar.gz |
 | Package execution | Four malformed updater helper modes reject with exit 1 | Same, using the native Linux executable |
