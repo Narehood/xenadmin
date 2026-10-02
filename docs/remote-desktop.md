@@ -4,7 +4,12 @@ Select a connected, running guest VM and open its Console tab. Choose
 **Remote Desktop…**, review the guest IP address and port, then choose
 **Open Remote Desktop**. Valid guest-reported addresses are suggested when
 privacy masking is off. You can type a different IPv4 or unscoped IPv6 address
-when guest tools are absent. The default port is 3389.
+when guest tools are absent. The default port is 3389. The dialog displays the
+exact destination authority used by the client. If confirming changes the
+address or port to its canonical spelling (including mapping IPv4-mapped IPv6
+to IPv4), the fields update and the dialog stays open. Review that destination
+and choose **Open Remote Desktop** again. Editing the fields updates the preview
+and clears the previous review notice.
 
 The guest must enable RDP and be reachable directly from this computer. This is
 a guest-network connection; the shell's hypervisor proxy and RFB tunnel do not
@@ -26,14 +31,17 @@ Flatpak/Snap client discovery and embedded RDP are outside this first adapter.
 
 Addresses are canonicalized; command fragments, credentials/URLs, ambiguous
 IPv4 shorthand, wildcard, loopback and multicast destinations are rejected.
+IPv4-mapped IPv6 input must use its canonical `::ffff:a.b.c.d` spelling; alternate
+hex, expanded and upper-case mapped spellings are rejected before mapping.
 Ports must be 1–65535. IPv6 endpoints use bracketed authorities. Scoped/link-local
 IPv6 and DNS names are not currently supported; use a reachable guest address.
 Privacy masking suppresses automatic address suggestions. Manually entered
 addresses stay in this dialog and are not saved by the shell.
 
-Twenty-seven tests cover endpoint/argument safety, guest-metric filtering,
-changed VM identity/power/context and editable review validation. The actual
-Avalonia dialog passes seven binding/action checks and is rendered at 100%,
+Thirty-eight tests cover endpoint/argument safety, mapped-address spelling,
+guest-metric filtering, changed VM identity/power/context, destination-preview
+notifications and confirmation after normalization. The actual Avalonia dialog
+passes twelve binding/action checks and is rendered at 100%,
 150% and 200% scales by the isolated Windows UI probe:
 
 ```powershell

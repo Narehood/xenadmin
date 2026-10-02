@@ -8,6 +8,7 @@ public sealed class InventoryRefreshScheduler(
     Action<Action> post,
     Action<ServerNode, IXenConnection> refresh) : IDisposable
 {
+    private static readonly log4net.ILog log = log4net.LogManager.GetLogger(typeof(InventoryRefreshScheduler));
     private readonly object gate = new();
     private readonly Dictionary<IXenConnection, ServerNode> pending = new(ReferenceEqualityComparer.Instance);
     private bool scheduled;
@@ -45,7 +46,19 @@ public sealed class InventoryRefreshScheduler(
         foreach (var (connection, server) in batch)
         {
             lock (gate) { if (disposed) return; }
-            refresh(server, connection);
+            try { refresh(server, connection); }
+            catch (Exception error)
+            {
+                lock (gate)
+                {
+                    if (disposed) return;
+                    // A notification received during refresh is more recent than
+                    // this failed pair. Keep it; otherwise retry this pair when
+                    // the next notification schedules a turn, without a busy loop.
+                    pending.TryAdd(connection, server);
+                }
+                log.Warn("Inventory refresh failed; retained for the next inventory notification.", error);
+            }
         }
     }
 

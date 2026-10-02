@@ -29,6 +29,11 @@ public class RdpClientLauncherTests
     [InlineData("127.0.0.1", "3389")]
     [InlineData("::1", "3389")]
     [InlineData("::ffff:127.0.0.1", "3389")]
+    [InlineData("::ffff:192.000.002.010", "3389")]
+    [InlineData("::ffff:0xC000020A", "3389")]
+    [InlineData("::ffff:c000:20a", "3389")]
+    [InlineData("::FFFF:192.0.2.10", "3389")]
+    [InlineData("0:0:0:0:0:ffff:c000:020a", "3389")]
     [InlineData("0.0.0.0", "3389")]
     [InlineData("::", "3389")]
     [InlineData("224.0.0.1", "3389")]
@@ -104,6 +109,72 @@ public class RdpClientLauncherTests
         vm.is_a_snapshot = false;
         Assert.False(new RdpTargetReview(new XenConnection(), "vm", "first").Matches(vm));
         Assert.False(review.Matches(null));
+    }
+
+    [Fact]
+    public void NormalizedDestinationNeedsAnotherConfirmation()
+    {
+        AssertNormalizationNeedsReview("::ffff:192.0.2.10", "3389", "192.0.2.10", "3389", "192.0.2.10:3389");
+    }
+
+    [Theory]
+    [InlineData(" 192.0.2.10 ", "3389", "192.0.2.10", "3389", "192.0.2.10:3389")]
+    [InlineData("2001:0DB8:0:0:0:0:0:10", "3390", "2001:db8::10", "3390", "[2001:db8::10]:3390")]
+    [InlineData("192.0.2.10", "03389", "192.0.2.10", "3389", "192.0.2.10:3389")]
+    public void AddressOrPortNormalizationNeedsAnotherConfirmation(string address, string port,
+        string normalizedAddress, string normalizedPort, string authority)
+        => AssertNormalizationNeedsReview(address, port, normalizedAddress, normalizedPort, authority);
+
+    private static void AssertNormalizationNeedsReview(string address, string port,
+        string normalizedAddress, string normalizedPort, string authority)
+    {
+        var launches = new List<RdpEndpoint>();
+        var model = new RdpConnectViewModel("Synthetic guest", [], launches.Add) { Address = address, Port = port };
+        model.ConnectCommand.Execute(null);
+        Assert.Empty(launches);
+        Assert.Equal(normalizedAddress, model.Address);
+        Assert.Equal(normalizedPort, model.Port);
+        Assert.Equal(authority, model.DestinationAuthority);
+        Assert.True(model.HasReviewMessage);
+        model.ConnectCommand.Execute(null);
+        Assert.Equal(authority, Assert.Single(launches).Authority);
+    }
+
+    [Fact]
+    public void DestinationPreviewUpdatesWithAddressAndPortAndHidesInvalidInput()
+    {
+        var model = new RdpConnectViewModel("Synthetic guest", [], _ => { });
+        var changes = new List<string?>();
+        model.PropertyChanged += (_, e) => changes.Add(e.PropertyName);
+        Assert.False(model.HasDestination);
+        model.Address = "2001:0DB8::10";
+        Assert.Equal("[2001:db8::10]:3389", model.DestinationAuthority);
+        Assert.True(model.HasDestination);
+        Assert.Contains(nameof(model.DestinationAuthority), changes);
+        Assert.Contains(nameof(model.HasDestination), changes);
+        changes.Clear();
+        model.Port = "3390";
+        Assert.Equal("[2001:db8::10]:3390", model.DestinationAuthority);
+        Assert.Contains(nameof(model.DestinationAuthority), changes);
+        model.Address = "192.0.2.10 /cert:ignore";
+        Assert.False(model.HasDestination);
+        Assert.Empty(model.DestinationAuthority);
+    }
+
+    [Fact]
+    public void EditingANormalizedDestinationClearsReviewAndLaunchesOnlyTheEditedEndpoint()
+    {
+        var launches = new List<RdpEndpoint>();
+        var model = new RdpConnectViewModel("Synthetic guest", [], launches.Add) { Address = "::ffff:192.0.2.10" };
+        model.ConnectCommand.Execute(null);
+        Assert.Empty(launches);
+        Assert.True(model.HasReviewMessage);
+        model.Address = "192.0.2.11";
+        model.Port = "3390";
+        Assert.False(model.HasReviewMessage);
+        Assert.Equal("192.0.2.11:3390", model.DestinationAuthority);
+        model.ConnectCommand.Execute(null);
+        Assert.Equal(model.DestinationAuthority, Assert.Single(launches).Authority);
     }
 
     [Fact]

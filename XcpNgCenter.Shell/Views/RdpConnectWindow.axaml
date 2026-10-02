@@ -16,6 +16,9 @@
     <TextBlock Text="RDP port" />
     <TextBox x:Name="PortText" Text="{Binding Port, Mode=TwoWay}" />
     <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+    <TextBlock Text="{Binding ReviewMessage}" IsVisible="{Binding HasReviewMessage}" TextWrapping="Wrap" />
+    <TextBlock Text="Destination" IsVisible="{Binding HasDestination}" />
+    <TextBlock x:Name="DestinationText" Text="{Binding DestinationAuthority}" IsVisible="{Binding HasDestination}" TextWrapping="Wrap" />
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
       <Button Content="Cancel" Click="OnCancelClick" />
       <Button x:Name="ConnectButton" Content="Open Remote Desktop" Command="{Binding ConnectCommand}" IsDefault="True" />

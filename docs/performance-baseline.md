@@ -83,6 +83,10 @@ The tree builder now resolves each VM/SR home once, rather than rescanning the
 whole inventory for every host. Inventory event bursts queue one refresh per
 connection per UI turn; updates during refresh schedule a later turn. Stale
 connection callbacks and disposed view models cannot rebuild a current tree.
+A failing connection is logged and retained until the next inventory notification
+schedules a turn; the remaining connections still refresh. A newer notification
+for that connection takes precedence, and persistent failures do not create an
+automatic UI retry loop.
 
 The desktop probe found that replacing tree nodes dominated layout time, even
 when most hosts were collapsed. Refresh now reconciles the existing nodes:
@@ -117,9 +121,11 @@ Reproduce on a Windows desktop session with no live profiles or pools:
 dotnet run --project tools/AdvancedNetworking.UiProbe -c Release -p:RestoreLockedMode=true -- --modernization --evidence-directory artifacts/inventory-layout-local
 ```
 
-Twenty focused tests cover topology/order changes, missing hosts, storage moves,
-thread-safe event bursts, updates during refresh, stale connections, disposal,
-post failure, node retention, collection moves, migration and root replacement.
+Twenty-three focused tests cover topology/order changes, missing hosts, storage
+moves, thread-safe event bursts, updates during refresh, stale connections,
+disposal, post failure, per-connection rebuild failures/retry without starvation,
+newer notifications after failure, node retention, collection moves, migration
+and root replacement.
 The UI probe additionally checks selection, fresh metadata, collapsed hosts and
 migration against the real TreeView. It bypasses MainViewModel initialization
 and detail panes; it does not load saved profiles or credentials. The timing

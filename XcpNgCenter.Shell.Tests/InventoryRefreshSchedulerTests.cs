@@ -101,6 +101,90 @@ public sealed class InventoryRefreshSchedulerTests
     }
 
     [Fact]
+    public void FailedRefreshDoesNotDropLaterConnectionsAndRemainsPendingForAnotherNotification()
+    {
+        var queue = new Queue<Action>();
+        var refreshed = new List<IXenConnection>();
+        var failing = new XenConnection();
+        var healthy = new XenConnection();
+        var fail = true;
+        using var scheduler = new InventoryRefreshScheduler(queue.Enqueue, (_, conn) =>
+        {
+            if (ReferenceEquals(conn, failing) && fail) throw new InvalidOperationException("Synthetic rebuild failure");
+            refreshed.Add(conn);
+        });
+        scheduler.Request(new ServerNode(), failing);
+        scheduler.Request(new ServerNode(), healthy);
+        var error = Record.Exception(queue.Dequeue());
+        Assert.Same(healthy, Assert.Single(refreshed));
+        Assert.Null(error);
+        Assert.Empty(queue); // A persistent failure must not create an automatic UI retry loop.
+
+        fail = false;
+        scheduler.Request(new ServerNode(), healthy);
+        queue.Dequeue()();
+        Assert.Equal(new IXenConnection[] { healthy, failing, healthy }, refreshed);
+        Assert.Empty(queue);
+    }
+
+    [Fact]
+    public void PersistentFailureCannotStarveOtherConnectionsOrScheduleABusyLoop()
+    {
+        var queue = new Queue<Action>();
+        var failing = new XenConnection();
+        var healthy = new XenConnection();
+        var failures = 0;
+        var successes = 0;
+        using var scheduler = new InventoryRefreshScheduler(queue.Enqueue, (_, conn) =>
+        {
+            if (ReferenceEquals(conn, failing))
+            {
+                failures++;
+                throw new InvalidOperationException("Synthetic persistent failure");
+            }
+            successes++;
+        });
+        scheduler.Request(new ServerNode(), failing);
+        for (var turn = 1; turn <= 3; turn++)
+        {
+            scheduler.Request(new ServerNode(), healthy);
+            Assert.Single(queue);
+            Assert.Null(Record.Exception(queue.Dequeue()));
+            Assert.Equal(turn, failures);
+            Assert.Equal(turn, successes);
+            Assert.Empty(queue);
+        }
+    }
+
+    [Fact]
+    public void FailedRefreshCannotOverwriteANewerServerNotification()
+    {
+        var queue = new Queue<Action>();
+        var connection = new XenConnection();
+        var old = new ServerNode();
+        var current = new ServerNode();
+        var refreshed = new List<ServerNode>();
+        InventoryRefreshScheduler? scheduler = null;
+        using (scheduler = new InventoryRefreshScheduler(queue.Enqueue, (server, _) =>
+        {
+            if (ReferenceEquals(server, old))
+            {
+                scheduler!.Request(current, connection);
+                throw new InvalidOperationException("Synthetic failure after a new notification");
+            }
+            refreshed.Add(server);
+        }))
+        {
+            scheduler.Request(old, connection);
+            Assert.Null(Record.Exception(queue.Dequeue()));
+            Assert.Single(queue);
+            queue.Dequeue()();
+            Assert.Same(current, Assert.Single(refreshed));
+            Assert.Empty(queue);
+        }
+    }
+
+    [Fact]
     public void ConcurrentNotificationsScheduleOnlyOneUiCallback()
     {
         var queue = new System.Collections.Concurrent.ConcurrentQueue<Action>();

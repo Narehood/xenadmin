@@ -25,7 +25,8 @@ public sealed record RdpEndpoint
             || port is < 1 or > 65535)
             return false;
         // Avoid the legacy shorthand, octal and integer forms accepted by IPAddress.
-        if (address.AddressFamily == AddressFamily.InterNetwork && text != address.ToString()) return false;
+        if ((address.AddressFamily == AddressFamily.InterNetwork || address.IsIPv4MappedToIPv6)
+            && text != address.ToString()) return false;
         if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
         if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any)
             || address.IsIPv6Multicast || address.IsIPv6LinkLocal
