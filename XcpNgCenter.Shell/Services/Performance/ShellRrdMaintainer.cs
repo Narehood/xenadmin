@@ -5,13 +5,15 @@ using XenAdmin;
 using XenAdmin.Core;
 using XenAdmin.Network;
 using XenAPI;
+using Newtonsoft.Json.Linq;
+using AsyncTask = System.Threading.Tasks.Task;
 
 namespace XcpNgCenter.Shell.Services.Performance;
 
 /// <summary>
 /// WinForms-free RRD poller: full dump + incremental <c>/rrd_updates</c> into in-memory archives.
 /// </summary>
-public sealed class ShellRrdMaintainer : IDisposable
+public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
 {
     private static readonly log4net.ILog Log =
         log4net.LogManager.GetLogger(typeof(ShellRrdMaintainer));
@@ -24,6 +26,9 @@ public sealed class ShellRrdMaintainer : IDisposable
     private const int SleepMs = 5000;
 
     private readonly object _gate = new();
+    private readonly CancellationTokenSource _cancellation = new();
+    private readonly CancellationToken _token;
+    private AsyncTask _completion = AsyncTask.CompletedTask;
     private volatile bool _cancel;
     private volatile bool _running;
     private List<Data_source> _dataSources = new();
@@ -38,6 +43,7 @@ public sealed class ShellRrdMaintainer : IDisposable
     private readonly Dictionary<RrdArchiveInterval, DateTime> _lastPoll = new();
     private readonly Dictionary<RrdArchiveInterval, long> _lastSample = new();
     private readonly Action<Action> _dispatch;
+    private readonly Func<Uri, CancellationToken, Stream> _openTransport;
 
     public ShellRrdMaintainer(IXenObject xenObject) : this(xenObject, action =>
     {
@@ -49,10 +55,15 @@ public sealed class ShellRrdMaintainer : IDisposable
     {
     }
 
-    internal ShellRrdMaintainer(IXenObject xenObject, Action<Action> dispatch)
+    internal ShellRrdMaintainer(IXenObject xenObject, Action<Action> dispatch,
+        Func<Uri, CancellationToken, Stream>? openTransport = null)
     {
         XenObject = xenObject;
         _dispatch = dispatch;
+        _token = _cancellation.Token;
+        _openTransport = openTransport ?? ((uri, token) => HTTP.HttpGetStream(uri,
+            XenAdminConfigManager.Provider.GetProxyFromSettings(XenObject.Connection, true),
+            XenAdminConfigManager.Provider.GetProxyTimeout(true), token));
         Archives[RrdArchiveInterval.FiveSecond] = new RrdArchive(FiveSecondsInTenMinutes + 4);
         Archives[RrdArchiveInterval.OneMinute] = new RrdArchive(MinutesInTwoHours);
         Archives[RrdArchiveInterval.OneHour] = new RrdArchive(HoursInOneWeek);
@@ -67,6 +78,8 @@ public sealed class ShellRrdMaintainer : IDisposable
 
     public event Action? ArchivesUpdated;
 
+    public AsyncTask Completion { get { lock (_gate) return _completion; } }
+
     private TimeSpan ClientServerOffset => XenObject.Connection?.ServerTimeOffset ?? TimeSpan.Zero;
 
     private DateTime ServerNow => DateTime.UtcNow.Subtract(ClientServerOffset);
@@ -78,22 +91,33 @@ public sealed class ShellRrdMaintainer : IDisposable
             if (_running || _cancel)
                 return;
             _running = true;
+            _completion = AsyncTask.Run(RunLoop);
         }
-
-        ThreadPool.QueueUserWorkItem(_ => RunLoop());
     }
 
     public void Dispose()
     {
-        _cancel = true;
+        lock (_gate)
+        {
+            if (_cancel) return;
+            _cancel = true;
+            _cancellation.Cancel();
+            if (!_running) _cancellation.Dispose();
+        }
     }
 
-    private void RunLoop()
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        await Completion.ConfigureAwait(false);
+    }
+
+    private async AsyncTask RunLoop()
     {
         try
         {
             var serverWas = ServerNow;
-            InitialLoad(serverWas);
+            await InitialLoad(serverWas).ConfigureAwait(false);
 
             while (!_cancel)
             {
@@ -105,24 +129,31 @@ public sealed class ShellRrdMaintainer : IDisposable
                     if (!_lastPoll.TryGetValue(interval, out var last)
                         || serverWas - last >= TimeSpan.FromSeconds(IntervalSeconds(interval)))
                     {
-                        PollArchive(interval, serverWas, (start, seconds) =>
+                        await AsyncTask.Run(() => PollArchive(interval, serverWas, (start, seconds) =>
                             Get(xo => UpdateUri(xo, start, seconds), RrdUpdateInspect, XenObject)
-                                ? _setsAdded : null);
+                                ? _setsAdded : null), _token).ConfigureAwait(false);
                     }
                 }
 
                 RaiseUpdated();
-                Thread.Sleep(SleepMs);
+                await AsyncTask.Delay(SleepMs, _token).ConfigureAwait(false);
             }
         }
+        catch (OperationCanceledException) when (_token.IsCancellationRequested) { }
+        catch (Exception error) { Log.Error("RRD polling worker failed", error); }
         finally
         {
+            LoadingInitialData = false;
             lock (_gate)
+            {
                 _running = false;
+                _cancel = true;
+                _cancellation.Dispose();
+            }
         }
     }
 
-    private void InitialLoad(DateTime initialServerTime)
+    private async AsyncTask InitialLoad(DateTime initialServerTime)
     {
         if (Helpers.FeatureForbidden(XenObject, Host.RestrictPerformanceGraphs))
         {
@@ -141,21 +172,29 @@ public sealed class ShellRrdMaintainer : IDisposable
 
         try
         {
-            switch (XenObject)
+            var method = XenObject switch
             {
-                case Host h:
-                    _dataSources = Host.get_data_sources(h.Connection.Session, h.opaque_ref);
-                    break;
-                case VM vm when vm.power_state == vm_power_state.Running:
-                    _dataSources = VM.get_data_sources(vm.Connection.Session, vm.opaque_ref);
-                    break;
+                Host => "host.get_data_sources",
+                VM vm when vm.power_state == vm_power_state.Running => "VM.get_data_sources",
+                _ => null
+            };
+            if (method != null)
+            {
+                var session = XenObject.Connection.DuplicateSession();
+                try
+                {
+                    _dataSources = await session.JsonRpcClient.CallAsync<List<Data_source>>(method,
+                        new JArray(session.opaque_ref, XenObject.opaque_ref ?? ""), _token).ConfigureAwait(false);
+                }
+                finally { session.JsonRpcClient?.Dispose(); }
             }
 
             if (_cancel)
                 return;
 
-            Get(RrdsUri, RrdFullInspect, XenObject);
+            await AsyncTask.Run(() => Get(RrdsUri, RrdFullInspect, XenObject), _token).ConfigureAwait(false);
         }
+        catch (OperationCanceledException) when (_token.IsCancellationRequested) { throw; }
         catch (Exception e)
         {
             Log.Error($"Failed to retrieve data sources for '{XenObject.Name()}'", e);
@@ -209,22 +248,26 @@ public sealed class ShellRrdMaintainer : IDisposable
             _lastSample[interval] = latest;
     }
 
-    private bool Get(Func<IXenObject, Uri?> uriBuilder, Action<XmlReader, IXenObject> readerMethod, IXenObject xo)
+    internal bool Get(Func<IXenObject, Uri?> uriBuilder, Action<XmlReader, IXenObject> readerMethod, IXenObject xo)
     {
         _setsAdded = null;
         try
         {
+            _token.ThrowIfCancellationRequested();
             var uri = uriBuilder(xo);
             if (uri == null)
                 return false;
 
-            using var stream = HTTPHelper.GET(uri, xo.Connection, true);
+            using var timing = ShellPerformanceDiagnostics.Measure("graphs.rrd-fetch");
+            using var stream = _openTransport(uri, _token);
+            using var registration = _token.Register(stream.Dispose);
             using var reader = XmlReader.Create(stream);
             _setsAdded = new List<RrdSeries>();
-            while (reader.Read() && !_cancel)
+            while (!_cancel && reader.Read())
                 readerMethod(reader, xo);
             return !_cancel;
         }
+        catch (Exception) when (_token.IsCancellationRequested) { return false; }
         catch (Exception e)
         {
             Log.Warn($"RRD get for {xo.Name()} failed", e);

@@ -472,6 +472,20 @@ namespace XenAPI
         public static Stream ConnectStream(Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs)
             => ConnectStream(uri, proxy, nodelay, timeoutMs, null);
 
+        public static Stream ConnectStream(Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, CancellationToken cancellationToken)
+        {
+            using (var attempt = new ConnectionAttempt(cancellationToken))
+            {
+                try
+                {
+                    var stream = ConnectStream(uri, proxy, nodelay, timeoutMs, attempt);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return stream;
+                }
+                catch { cancellationToken.ThrowIfCancellationRequested(); throw; }
+            }
+        }
+
         private static Stream ConnectStream(Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, ConnectionAttempt attempt)
         {
             IMockWebProxy mockProxy = proxy as IMockWebProxy;
@@ -836,6 +850,21 @@ namespace XenAPI
             return DoHttp(uri, proxy, false, timeoutMs,
                 string.Format("GET {0} HTTP/1.0", uri.PathAndQuery),
                 string.Format("Host: {0}", uri.Host));
+        }
+
+        public static Stream HttpGetStream(Uri uri, IWebProxy proxy, int timeoutMs, CancellationToken cancellationToken)
+        {
+            using (var attempt = new ConnectionAttempt(cancellationToken))
+            {
+                try
+                {
+                    var stream = DoHttp(uri, proxy, false, timeoutMs, attempt,
+                        string.Format("GET {0} HTTP/1.0", uri.PathAndQuery), string.Format("Host: {0}", uri.Host));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return stream;
+                }
+                catch { cancellationToken.ThrowIfCancellationRequested(); throw; }
+            }
         }
 
 

@@ -230,6 +230,7 @@ namespace XcpNgCenter.Shell.Tests
             public bool StallBody;
             public bool Cookie;
             public bool RequireProxyAuth;
+            public JToken Result = new JValue("ok");
             public string RedirectTo;
 
             public RpcServer(X509Certificate2 certificate = null)
@@ -288,7 +289,7 @@ namespace XcpNgCenter.Shell.Tests
                             Headers.Enqueue(headers.ToString());
                             FirstRequest.TrySetResult(true);
                             if (StallHeaders) { await Task.Delay(Timeout.Infinite, stop.Token); return; }
-                            var response = new JObject { ["id"] = request["id"], ["result"] = "ok" };
+                            var response = new JObject { ["id"] = request["id"], ["result"] = Result.DeepClone() };
                             if (request["jsonrpc"] != null) response["jsonrpc"] = "2.0";
                             if (Failure) response["error"] = request["jsonrpc"] == null
                                 ? (JToken)new JArray("PERMISSION_DENIED", "synthetic.mutation")

@@ -33,6 +33,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
+using AsyncTask = System.Threading.Tasks.Task;
 using XenAPI;
 using XenAdmin.Core;
 
@@ -52,10 +53,14 @@ namespace XenAdmin.Network
         private readonly IXenConnection connection;
         private Session session = null;
 
-        // Once set to false, the worker thread will eventually exit.
-        private volatile bool _run = true;
+        private readonly object lifecycleGate = new object();
+        private readonly CancellationTokenSource cancellation = new CancellationTokenSource();
+        private bool started;
+        private bool stopped;
+        private AsyncTask completion = AsyncTask.CompletedTask;
 
-        private bool running = false;
+        /// <summary>Finishes after polling and owned transport cleanup have stopped.</summary>
+        public AsyncTask Completion { get { lock (lifecycleGate) return completion; } }
 
         /// <summary>
         /// If true, the heartbeat has already failed once, and we are giving the server a final second chance.
@@ -75,44 +80,60 @@ namespace XenAdmin.Network
         /// </summary>
         public void Start()
         {
-            // We shouldn't need the running flag -- this is just a safety catch.
-            if (!running)
+            lock (lifecycleGate)
             {
-                running = true;
-                Thread t = new Thread(HeartbeatThread);
-                t.Name = "Heartbeat for " + connection.Hostname;
-                t.IsBackground = true;
-                t.Start();
+                if (started || stopped) return;
+                started = true;
+                completion = AsyncTask.Run(() => HeartbeatLoop(cancellation.Token));
             }
         }
 
         public void Stop()
         {
-            _run = false;
+            lock (lifecycleGate)
+            {
+                if (stopped) return;
+                stopped = true;
+                cancellation.Cancel();
+                if (!started) cancellation.Dispose();
+            }
         }
 
-        /// <param name="o">Unused</param>
-        private void HeartbeatThread(object o)
+        public AsyncTask StopAsync()
+        {
+            Stop();
+            return Completion;
+        }
+
+        private async AsyncTask HeartbeatLoop(CancellationToken token)
         {
             log.DebugFormat("Heartbeat thread for connection to {0} started", connection.Hostname);
 
             try
             {
-                while (_run)
+                while (!token.IsCancellationRequested)
                 {
-                    DoHeartbeat();
-                    System.Threading.Thread.Sleep(HeartbeatInterval);
+                    await DoHeartbeat(token).ConfigureAwait(false);
+                    await AsyncTask.Delay(HeartbeatInterval, token).ConfigureAwait(false);
                 }
             }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (Exception error) { log.Error("Heartbeat worker failed", error); }
             finally
             {
+                DropSession();
+                lock (lifecycleGate)
+                {
+                    stopped = true;
+                    cancellation.Dispose();
+                }
                 log.DebugFormat("Heartbeat thread for connection to {0} terminated", connection.Hostname);
             }
         }
 
         private readonly string heartbeatConnectionGroupName = Guid.NewGuid().ToString(); 
 
-        private void DoHeartbeat()
+        private async AsyncTask DoHeartbeat(CancellationToken token)
         {
             if (!connection.IsConnected)
                 return;
@@ -126,13 +147,16 @@ namespace XenAdmin.Network
                     session.ConnectionGroupName = heartbeatConnectionGroupName; // this will force the Heartbeat session onto its own set of TCP streams (see CA-108676)
                 }
 
-                GetServerTime();
+                await GetServerTime(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
 
                 // Now that we've successfully received a heartbeat, reset our 'second chance' for the server to timeout
                 if (retrying)
                     log.DebugFormat("Heartbeat for {0} has come back", session.Url);
                 retrying = false;
             }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch (Exception) when (token.IsCancellationRequested) { throw new OperationCanceledException(token); }
             catch (TargetInvocationException exn)
             {
                 if (exn.InnerException is SocketException ||
@@ -173,12 +197,14 @@ namespace XenAdmin.Network
             }
         }
 
-        private void GetServerTime()
+        private async AsyncTask GetServerTime(CancellationToken token)
         {
             Host coordinator = Helpers.GetCoordinator(connection);
             if (coordinator == null)
                 return;
-            DateTime t = Host.get_servertime(session, coordinator.opaque_ref);
+            DateTime t = await session.JsonRpcClient.HostGetServerTimeAsync(
+                session.opaque_ref, coordinator.opaque_ref, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
             connection.ServerTimeOffset = DateTime.UtcNow - t;
         }
 
@@ -241,10 +267,9 @@ namespace XenAdmin.Network
         {
             Session s = session;
             session = null;
-            // Do this on a new thread: if the coordinator has died, then the session logout may block
-            // up to the timeout. Doing this on the calling thread would mean doubling the actual time elapsed
-            // before we decide the server is dead.
-            connection.Logout(s);
+            // DuplicateSession shares the pool token. Release only this worker's
+            // transport; logging it out would invalidate the main connection.
+            s?.JsonRpcClient?.Dispose();
         }
     }
 }
