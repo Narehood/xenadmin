@@ -1,8 +1,52 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-01 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-02 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Legal notices, console startup, RPC and performance (2026-10-02)
+
+The user selected console reliability, shared transport modernization and
+performance instrumentation, and requested restoration of the legal notices.
+Release signing is deferred at the user's direction; no signing account is
+available. The branch starts from merged #62 (`84cb0b57c`). Implementation:
+
+- `6896346c0`: complete offline license/third-party text in both clients and
+  ordinary build/publish artifacts; package legal gates and six rejected fixtures.
+- `0da95103b`: reusable, isolated .NET 10 RPC pools, cancellable async entry point,
+  retained synchronous/generated and Framework contracts, TOFU/proxy adaptation,
+  and owned transport cleanup.
+- `0e1381a9d`: bounded/cancellable console startup with an idle-safe handshake
+  deadline; opt-in inventory/detail/console performance events and expanded-tree
+  measurements.
+
+See the [implementation and validation record](reviews/2026-10-02-legal-console-rpc-performance.md),
+[legal maintenance](legal-notices.md), [RPC contract](rpc-transport.md),
+[console limits](reboot-hang-investigation.md) and
+[performance evidence](performance-baseline.md). The original `LICENSE` remains
+unchanged. The notice bundle covers 48 pinned application packages, legacy
+source/assets, Outfit and the bundled .NET runtime, including log4net's upstream
+`NOTICE`. Both native legal controls retain complete selectable text offline.
+
+Local acceptance passes all 25 automated checks: Release/Debug full solution
+builds, 1,005 shell cases per configuration, 88 shared cases per framework,
+339 lifecycle/designer and 23 archive cases per WinForms configuration, all
+32,138 resources in 289 sets, proxy checks, six UI modes, Windows package legal
+validation/startup and unchanged portable locks during validation. The added
+shared test project reference intentionally updates only its dependency graph;
+central package versions are unchanged. After pinning the DiscUtils license
+source to its package commit and tightening the viewport assertion, focused
+checks pass again: both full builds, both offline-text tests, both native legal
+dialog probes, 24 About checks at three render scales, six rejected notice
+fixtures and a freshly published/verified Windows archive.
+
+Trusted local RDP interop was reused. Hosted Windows/Linux and CodeQL checks
+must pass on the PR head. Physical desktops, actual MSI installation, Visual
+Studio/RDP interop generation, updater/UAC/rollback/restart, RDP guest login and
+live-pool/login/proxy/event/reconnect/import/export/migration acceptance remain
+pending. Startup hardening does not establish the cause or resolution of the
+reported Debian reboot hang. Generated sync RPC calls still need worker threads;
+traces and expanded-tree numbers do not establish live-pool performance.
 
 ### PR #62 Cursor review fixes (2026-10-01)
 
