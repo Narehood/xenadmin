@@ -4,12 +4,29 @@ Last updated: 2026-10-01 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Consolidated modernization final review (2026-10-01)
+
+The user requested one final-review PR and asked for comment resolution before
+consolidation. All comments, submitted reviews and inline threads on #58?#61
+were checked first: each PR has only a CodeRabbit notice that draft review was
+skipped; there are no code findings or unresolved threads. See the
+[comment dispositions and consolidation record](reviews/2026-10-01-pr58-61-consolidation.md).
+A bot success status does not establish that those draft changes were reviewed.
+
+The `modernization/final-review` branch contains all six commits from the stack
+and targets `development` directly. Rebase onto current integration head
+`1c1ab84b3facad3de087c971a8d1be68cb214e69` is already up to date; there are no
+implementation conflicts or omissions. Original branches/commits are preserved.
+The combined PR replaces the old per-layer merge sequence below and will be
+ready for review, allowing automatic review against the default branch. The
+original PRs will be closed as superseded after the replacement is validated.
+No integration merge, release or live-pool operation is part of consolidation.
+
 ### IE plugin tabs archived outside builds (2026-10-01)
 
 Implementation: `56cfa2be6`, submitted as
-[PR #61](https://github.com/Narehood/xenadmin/pull/61), stacked after #60.
-Merge the preceding layers first and retarget this PR to `development` after
-#60 merges.
+[original PR #61](https://github.com/Narehood/xenadmin/pull/61).
+Now included in the consolidated final-review branch described above.
 
 The user chose to remove IE browser plugin tabs from the shipped clients while
 preserving their source. The browser host, tab/scripting/authentication bridge,
@@ -44,8 +61,8 @@ Windows/Linux results on the current PR head before merge.
 
 ### External Remote Desktop and remaining parity strategy (2026-10-01)
 
-Implementation: `66e23e5f9`, stacked after the inventory work in #59.
-Retarget each layer to `development` after its predecessor merges.
+Implementation: `66e23e5f9`, originally stacked after #59 in PR #60.
+Now included in the consolidated final-review branch described above.
 
 The VM Console toolbar now offers **Remote Desktop…** for a connected running
 guest. A review dialog suggests validated guest-reported addresses and accepts
@@ -82,8 +99,8 @@ profile, external RDP client or release was changed during validation.
 ### Inventory refresh responsiveness (2026-10-01)
 
 Implementation: `7819fcd1c`, submitted as
-[PR #59](https://github.com/Narehood/xenadmin/pull/59), stacked after #58.
-Merge #58 first and retarget #59 to `development` before merging it.
+[original PR #59](https://github.com/Narehood/xenadmin/pull/59).
+Now included in the consolidated final-review branch described above.
 
 Inventory notifications now coalesce by connection into one UI refresh per
 dispatcher turn. Notifications arriving during a refresh schedule another turn.
@@ -109,7 +126,8 @@ large trees and physical desktop responsiveness remain acceptance work.
 ### WinForms designer audit completion (2026-10-01)
 
 Implementation: `c26bd791e`, submitted as
-[PR #58](https://github.com/Narehood/xenadmin/pull/58).
+[original PR #58](https://github.com/Narehood/xenadmin/pull/58).
+Now included in the consolidated final-review branch described above.
 
 All **297 remaining WFO1000 declarations** have been audited against their
 constructors, setters, callers and generated designer assignments. The project
