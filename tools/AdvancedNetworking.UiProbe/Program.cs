@@ -217,6 +217,26 @@ sealed partial class ProbeApp : App
                     window.Width = width; window.Height = height; window.UpdateLayout();
                     if (BetaSettingsOnly)
                     {
+                        foreach (var (expanderName, textName, expected) in new[] {
+                            ("LicenseNoticeExpander", "LicenseNoticeText", XenCenterLib.LegalNotices.License),
+                            ("ThirdPartyNoticeExpander", "ThirdPartyNoticeText", XenCenterLib.LegalNotices.ThirdParty) })
+                        {
+                            var expander = window.FindControl<Expander>(expanderName)!;
+                            expander.IsExpanded = true;
+                            var notice = window.FindControl<TextBox>(textName)!;
+                            window.UpdateLayout();
+                            notice.BringIntoView(new Rect(0, 0, notice.Bounds.Width, 120)); window.UpdateLayout();
+                            Require(notice.Text == expected && notice.IsReadOnly,
+                                $"Complete offline {textName} is bound and read-only at {width}x{height}");
+                            Require(notice.IsEffectivelyVisible && notice.Bounds.Width > 0 && notice.Bounds.Height > 0,
+                                $"{textName} is readable at {width}x{height}");
+                            var viewport = notice.GetVisualAncestors().OfType<ScrollViewer>().First();
+                            var origin = notice.TranslatePoint(default, viewport)!.Value;
+                            Require(origin.Y >= -1 && origin.Y + 120 <= viewport.Bounds.Height + 1,
+                                $"{textName} can scroll into the visible About viewport at {width}x{height}");
+                            foreach (var scale in new[] { 1d, 1.5d, 2d }) Render(window, $"legal-{textName}-{width}", scale);
+                            expander.IsExpanded = false;
+                        }
                         var toggle = window.FindControl<CheckBox>("BetaUpdatesToggle")!;
                         toggle.BringIntoView(); window.UpdateLayout();
                         Require(toggle.IsEffectivelyVisible && toggle.Bounds.Width > 0, $"Beta toggle visible at {width}x{height}");

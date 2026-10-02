@@ -90,15 +90,9 @@ namespace XenAdmin.ConsoleView
         private readonly object _hostedConsolesLock = new object();
         private List<XenRef<Console>> _hostedConsoles;
 
-        /// <summary>
-        /// This is assigned when the hosted connection connects up.  It's used by PollPort to check for
-        /// the IP address from the guest metrics, so for the lifetime of that hosted connection, we can
-        /// poll for the in-guest VNC using the same session.  activeSession must be accessed only under
-        /// the activeSessionLock.
-        /// </summary>
-        private Session _activeSession;
-
-        private readonly object _activeSessionLock = new object();
+        private readonly CancellationTokenSource _portPollingCancellation = new CancellationTokenSource();
+        private readonly CancellationToken _portPollingToken;
+        private volatile bool _portsStopped;
 
         /// <summary>
         /// Xvnc will block us if we're too quick with the disconnect and reconnect that we do
@@ -150,6 +144,7 @@ namespace XenAdmin.ConsoleView
         internal XSVNCScreen(VM source, EventHandler resizeHandler, VNCTabView parent, string elevatedUsername,
             string elevatedPassword)
         {
+            _portPollingToken = _portPollingCancellation.Token;
             ResizeHandler = resizeHandler;
             ParentVNCTabView = parent;
             Source = source;
@@ -261,6 +256,9 @@ namespace XenAdmin.ConsoleView
 
             if (disposing)
             {
+                _portsStopped = true;
+                if (!_portPollingToken.IsCancellationRequested) _portPollingCancellation.Cancel();
+                _portPollingCancellation.Dispose();
                 if (_connectionPoller != null)
                 {
                     _connectionPoller.Change(Timeout.Infinite, Timeout.Infinite);
@@ -328,7 +326,7 @@ namespace XenAdmin.ConsoleView
         {
             try
             {
-                if (Source == null)
+                if (Source == null || _portsStopped)
                     return null;
 
                 var vm = Source;
@@ -388,7 +386,7 @@ namespace XenAdmin.ConsoleView
                     try
                     {
                         Log.DebugFormat("Poll port {0}:{1}", ipAddress, port);
-                        var s = ConnectGuest(ipAddress, port, vm.Connection);
+                        var s = ConnectGuest(ipAddress, port, vm.Connection, _portPollingToken);
                         if (vnc)
                         {
                             Log.DebugFormat("Connected. Set Pending Vnc connection {0}:{1}", ipAddress, port);
@@ -401,6 +399,7 @@ namespace XenAdmin.ConsoleView
 
                         return ipAddress;
                     }
+                    catch (OperationCanceledException) when (_portPollingToken.IsCancellationRequested) { return null; }
                     catch (Exception exn)
                     {
                         Log.Debug(exn);
@@ -424,13 +423,8 @@ namespace XenAdmin.ConsoleView
                         break;
                     case Failure.SESSION_INVALID:
                     {
-                        // SESSION_INVALID is fine -- these will expire from time to time.
-                        // We need to invalidate the session though.
-                        lock (_activeSessionLock)
-                        {
-                            _activeSession = null;
-                        }
-
+                        // Guest address discovery reads the connection's cache.
+                        // A console-owned session is cleaned up by its client.
                         break;
                     }
                     default:
@@ -458,8 +452,9 @@ namespace XenAdmin.ConsoleView
             lock (_pendingVNCConnectionLock)
             {
                 oldPending = _pendingVNCConnection;
-                _pendingVNCConnection = s;
+                _pendingVNCConnection = _portsStopped ? null : s;
             }
+            if (_portsStopped) s?.Dispose();
 
             if (oldPending != null)
             {
@@ -615,6 +610,8 @@ namespace XenAdmin.ConsoleView
         private void ConnectionSuccess(object sender, EventArgs e)
         {
             _connectionRetries = 0;
+            _errorMessage = null;
+            Invalidate();
             if (AutoSwitchRDPLater)
             {
                 if (OnDetectRDP != null)
@@ -899,6 +896,7 @@ namespace XenAdmin.ConsoleView
 
             var v = kvp.Key;
             var error = kvp.Value;
+            if (v.Terminated || v.ConnectionToken.IsCancellationRequested) return;
 
             try
             {
@@ -952,7 +950,7 @@ namespace XenAdmin.ConsoleView
                     }
 
                     Log.Debug("Did not find any hosted consoles");
-                    SleepAndRetryConnection(v);
+                    _ = SleepAndRetryConnection(v);
                 }
                 else
                 {
@@ -996,24 +994,22 @@ namespace XenAdmin.ConsoleView
                         _pendingVNCConnection = null;
                     }
 
-                    if (s == null)
-                    {
-                        Log.DebugFormat("Connecting to vncIP={0}, port={1}", VncIp, VNC_PORT);
-                        s = ConnectGuest(VncIp, VNC_PORT, _sourceVm.Connection);
-                        Log.DebugFormat("Connected to vncIP={0}, port={1}", VncIp, VNC_PORT);
-                    }
-
-                    InvokeConnection(v, s, null);
+                    var pending = s;
+                    OpenConsoleTransport(v, startup => pending ?? HTTP.ConnectStream(
+                        new Uri($"http://{VncIp}:{VNC_PORT}/"),
+                        XenAdminConfigManager.Provider.GetProxyFromSettings(_sourceVm.Connection), true, 0, startup.Token), null,
+                        pending);
 
                     // store the empty vnc password after a successful passwordless login
                     if (_haveTriedLoginWithoutPassword && _vncPassword.Length == 0)
                         Program.Invoke(this, () => Settings.SetVNCPassword(_sourceVm.uuid, _vncPassword));
                 }
             }
+            catch (OperationCanceledException) when (v.ConnectionToken.IsCancellationRequested) { }
             catch (Exception exn)
             {
                 Log.Warn(exn, exn);
-                SleepAndRetryConnection(v);
+                _ = SleepAndRetryConnection(v);
             }
         }
 
@@ -1060,12 +1056,19 @@ namespace XenAdmin.ConsoleView
             });
         }
 
-        private static Stream ConnectGuest(string ipAddress, int port, IXenConnection connection)
+        private static Stream ConnectGuest(string ipAddress, int port, IXenConnection connection, CancellationToken token)
         {
             var uriString = $"http://{ipAddress}:{port}/";
             Log.DebugFormat("Trying to connect to: {0}", uriString);
-            return HTTP.ConnectStream(new Uri(uriString),
-                XenAdminConfigManager.Provider.GetProxyFromSettings(connection), true, 0);
+            using var startup = new ConsoleStartupGuard(token, TimeSpan.FromMilliseconds(
+                Math.Clamp(XenAdminConfigManager.Provider.ConnectionTimeout, 1000, 3600000)));
+            var stream = HTTP.ConnectStream(new Uri(uriString),
+                XenAdminConfigManager.Provider.GetProxyFromSettings(connection), true, 0, startup.Token);
+            startup.AttachTransport(stream);
+            if (startup.Complete()) return stream;
+            stream.Dispose();
+            token.ThrowIfCancellationRequested();
+            throw new IOException(startup.FailureMessage);
         }
 
         private void ConnectHostedConsole(VNCGraphicsClient v, Console console)
@@ -1078,25 +1081,58 @@ namespace XenAdmin.ConsoleView
                 throw new Failure(Failure.INTERNAL_ERROR, string.Format(Messages.HOST_GONE, BrandManager.BrandConsole));
             }
 
-            var uri = new Uri(console.location);
-            string sessionRef;
-
-            lock (_activeSessionLock)
+            OpenConsoleTransport(v, startup =>
             {
                 // use the elevated credentials, if provided, for connecting to the console (CA-91132)
-                _activeSession = (string.IsNullOrEmpty(ElevatedUsername) || string.IsNullOrEmpty(ElevatedPassword))
+                var session = (string.IsNullOrEmpty(ElevatedUsername) || string.IsNullOrEmpty(ElevatedPassword))
                     ? console.Connection.DuplicateSession()
-                    : console.Connection.ElevatedSession(ElevatedUsername, ElevatedPassword);
-                sessionRef = _activeSession.opaque_ref;
-            }
-
-            var stream = HTTPHelper.CONNECT(uri, console.Connection, sessionRef, false);
-
-            InvokeConnection(v, stream, console);
+                    : console.Connection is XenConnection connection
+                        ? connection.ElevatedSession(ElevatedUsername, ElevatedPassword, startup.Token)
+                        : console.Connection.ElevatedSession(ElevatedUsername, ElevatedPassword);
+                v.OwnConsoleSession(startup, session);
+                startup.Token.ThrowIfCancellationRequested();
+                return HTTP.HttpConnectStream(new Uri(console.location),
+                    XenAdminConfigManager.Provider.GetProxyFromSettings(console.Connection), session.opaque_ref, 0, startup.Token);
+            }, console);
         }
 
-        private void InvokeConnection(VNCGraphicsClient v, Stream stream, Console console)
+        private void OpenConsoleTransport(VNCGraphicsClient v, Func<ConsoleStartupGuard, Stream> open,
+            Console console, Stream pending = null)
         {
+            var startup = v.BeginConnectionAttempt(TimeSpan.FromMilliseconds(
+                Math.Clamp(XenAdminConfigManager.Provider.ConnectionTimeout, 1000, 3600000)));
+            if (startup == null)
+            {
+                pending?.Dispose();
+                return;
+            }
+            Stream stream = null;
+            var adopted = false;
+            try
+            {
+                stream = open(startup);
+                startup.AttachTransport(stream);
+                startup.Token.ThrowIfCancellationRequested();
+                adopted = InvokeConnection(v, stream, console, startup);
+            }
+            catch (Exception error) when (startup.Token.IsCancellationRequested)
+            {
+                if (v.ConnectionToken.IsCancellationRequested) throw new OperationCanceledException(v.ConnectionToken);
+                throw new IOException(startup.FailureMessage, error);
+            }
+            finally
+            {
+                if (!adopted)
+                {
+                    stream?.Dispose();
+                    v.EndConnectionAttempt(startup);
+                }
+            }
+        }
+
+        private bool InvokeConnection(VNCGraphicsClient v, Stream stream, Console console, ConsoleStartupGuard startup)
+        {
+            var adopted = false;
             Program.Invoke(this, delegate()
             {
                 // This is the last chance that we have to make sure that we've not already
@@ -1104,7 +1140,7 @@ namespace XenAdmin.ConsoleView
                 // we're guaranteed that no-one will beat us to the v.connect() call.  We
                 // hand over responsibility for closing the stream at that point, so we have to
                 // close it ourselves if the client is already connected.
-                if (v.Connected || v.Terminated)
+                if (_vncClient != v || v.Connected || v.Terminated || startup.Token.IsCancellationRequested)
                 {
                     stream.Close();
                 }
@@ -1115,8 +1151,10 @@ namespace XenAdmin.ConsoleView
                     v.Console = console;
                     v.UseQemuExtKeyEncoding = _sourceVm != null && Helpers.InvernessOrGreater(_sourceVm.Connection);
                     v.Connect(stream, _vncPassword);
+                    adopted = true;
                 }
             });
+            return adopted;
         }
 
         private void RetryConnection(VNCGraphicsClient v, Exception exn)
@@ -1146,6 +1184,7 @@ namespace XenAdmin.ConsoleView
             Program.Invoke(this, delegate()
             {
                 var v = (VNCGraphicsClient)sender;
+                if (_vncClient != v || v.Terminated || v.Connected) return;
 
                 if (exn is VNCAuthenticationException || exn is CryptographicException)
                 {
@@ -1158,6 +1197,8 @@ namespace XenAdmin.ConsoleView
                 else if (exn is IOException || exn is Failure)
                 {
                     Log.Debug(exn, exn);
+                    _errorMessage = exn.Message;
+                    Invalidate();
                     SleepAndRetryConnection_(v);
                 }
                 else
@@ -1170,18 +1211,21 @@ namespace XenAdmin.ConsoleView
 
         private void SleepAndRetryConnection_(IDisposable v)
         {
-            ThreadPool.QueueUserWorkItem(SleepAndRetryConnection, v);
+            _ = SleepAndRetryConnection(v);
         }
 
-        private void SleepAndRetryConnection(object o)
+        private async System.Threading.Tasks.Task SleepAndRetryConnection(object o)
         {
             var v = (VNCGraphicsClient)o;
-
-            Program.AssertOffEventThread();
-
-            _connectionRetries++;
-            Thread.Sleep(_connectionRetries < SHORT_RETRY_COUNT ? SHORT_RETRY_SLEEP_TIME : RETRY_SLEEP_TIME);
-            RetryConnection(v, null);
+            var retries = Interlocked.Increment(ref _connectionRetries);
+            try
+            {
+                await System.Threading.Tasks.Task.Delay(retries < SHORT_RETRY_COUNT ? SHORT_RETRY_SLEEP_TIME : RETRY_SLEEP_TIME,
+                    v.ConnectionToken).ConfigureAwait(false);
+                RetryConnection(v, null);
+            }
+            catch (OperationCanceledException) when (v.ConnectionToken.IsCancellationRequested) { }
+            catch (Exception error) { Log.Debug("Console retry stopped", error); }
         }
 
         protected override void OnPaint(PaintEventArgs e)

@@ -6,6 +6,20 @@ IE plugin tabs outside builds. It does not close deployment acceptance or every
 legacy feature gap. The supported
 integration branch is `development`; WinForms remains the production client.
 
+The October 2 follow-up adds bounded, cancellable shell console startup, the
+[shared RPC transport](rpc-transport.md), opt-in production performance events
+and fully expanded tree measurements, plus offline [redistribution notices](legal-notices.md)
+in both clients and their build artifacts. Live-pool and physical-desktop rows
+below remain pending.
+
+The subsequent October 2 lifecycle pass makes heartbeat and graph polling
+task-based and cancellable, extends startup/login/handshake cancellation to
+WinForms, and prepares the [verified capture workflow](performance-capture.md).
+The user confirmed no disposable pool is available, so live timings remain
+pending. Installer automation/replacement is deferred at the user's direction,
+alongside release signing. Main connection/event and administrative action
+workers retain their synchronous compatibility path.
+
 ## Desktop and release acceptance
 
 Use disposable installation directories/profiles and pools to complete
@@ -18,8 +32,9 @@ performance work. Hosted Windows/Linux automation must pass on each PR head.
 
 The intermittent Windows blocking notification remains a separate investigation:
 obtain the exact notification/event and affected file before choosing a fix.
-Unsigned build artifacts still need a release signing/provenance strategy;
-directory exclusions are not evidence that all Windows app controls allow them.
+Release signing is deferred at the user's October 2 direction because no signing
+account is available. This batch remains unsigned. Directory exclusions are not
+evidence that all Windows app controls allow an artifact.
 No protection setting is disabled by these changes.
 
 ## Plugin and external-tool strategy

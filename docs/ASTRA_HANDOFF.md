@@ -1,8 +1,92 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-01 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-02 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Async polling, WinForms startup and capture workflow (2026-10-02)
+
+The user selected remaining items 1, 2 and 4, deferred installer work and
+confirmed that no disposable pool is available. Implementation:
+
+- `71cca31ed`: cancellable task-based heartbeat and graph polling, completion
+  handles, retained time conversion/wire shape, local duplicate cleanup and
+  cancellable elevation login.
+- `e8e944992`: shared startup guard in both clients; WinForms login/tunnel/RFB
+  deadlines, cancellation of retries and port discovery, stale-handoff guards,
+  immediate failed-stream cleanup and owned elevated-session logout.
+- `f9ad9b530`: bounded opt-in performance capture, offline statistics/coverage,
+  overload/completeness checks and synthetic Linux desktop CLI capture.
+- `528082be5`: serialize capture admission with queue completion so shutdown
+  cannot publish a footer before dropped-sample accounting. Footers include
+  observed counts; the reader rejects inconsistent loss totals. Concurrent
+  producer/shutdown regression, all eight capture cases and seven report
+  fixtures pass. Full shell suites pass again with 1,021 cases in each
+  configuration; both shared frameworks pass all 96 cases. Follow-up logs are
+  `artifacts/capture-shutdown-*` and `artifacts/performance-capture-shutdown-tests.log`.
+
+See the [implementation/review record](reviews/2026-10-02-async-winforms-performance.md),
+[capture instructions](performance-capture.md) and updated [RPC contract](rpc-transport.md).
+Both solution configurations and full suites pass: 1,020 shell cases per
+configuration, 96 shared cases per framework, 349 WinForms lifecycle/designer
+and 23 archive checks per configuration, all resources and 12 proxy cases.
+All 26 local acceptance gates pass at `f9ad9b530`: both complete solution builds,
+both suites, WinForms/proxy checks, all six UI modes, notice fixtures and fresh
+Windows publish/package execution. Evidence is in
+`artifacts/async-winforms-capture-final-20261002`; the archive SHA-256 is
+`d2d0682063e001637cbc4f17b6b15c4ac0a8d9296164bc7dcd8c3a8b26dc3f96`.
+Portable lockfiles are unchanged. Trusted local RDP interop was reused; hosted
+Windows/Linux and CodeQL must pass on the final PR head. The capture deadline
+test asserts parsed frame dimensions, avoiding accidental matches in timestamps.
+
+Main connection/event and administrative action workers remain synchronous;
+RRD HTTP/XML parsing remains synchronous during active phases. Live timings,
+physical desktop/reboot/RDP and installation/update acceptance remain pending.
+Installer modernization and signing are deferred at the user's direction.
+
+### Legal notices, console startup, RPC and performance (2026-10-02)
+
+The user selected console reliability, shared transport modernization and
+performance instrumentation, and requested restoration of the legal notices.
+Release signing is deferred at the user's direction; no signing account is
+available. The branch starts from merged #62 (`84cb0b57c`). Implementation:
+
+- `6896346c0`: complete offline license/third-party text in both clients and
+  ordinary build/publish artifacts; package legal gates and six rejected fixtures.
+- `0da95103b`: reusable, isolated .NET 10 RPC pools, cancellable async entry point,
+  retained synchronous/generated and Framework contracts, TOFU/proxy adaptation,
+  and owned transport cleanup.
+- `0e1381a9d`: bounded/cancellable console startup with an idle-safe handshake
+  deadline; opt-in inventory/detail/console performance events and expanded-tree
+  measurements.
+
+See the [implementation and validation record](reviews/2026-10-02-legal-console-rpc-performance.md),
+[legal maintenance](legal-notices.md), [RPC contract](rpc-transport.md),
+[console limits](reboot-hang-investigation.md) and
+[performance evidence](performance-baseline.md). The original `LICENSE` remains
+unchanged. The notice bundle covers 48 pinned application packages, legacy
+source/assets, Outfit and the bundled .NET runtime, including log4net's upstream
+`NOTICE`. Both native legal controls retain complete selectable text offline.
+
+Local acceptance passes all 25 automated checks: Release/Debug full solution
+builds, 1,005 shell cases per configuration, 88 shared cases per framework,
+339 lifecycle/designer and 23 archive cases per WinForms configuration, all
+32,138 resources in 289 sets, proxy checks, six UI modes, Windows package legal
+validation/startup and unchanged portable locks during validation. The added
+shared test project reference intentionally updates only its dependency graph;
+central package versions are unchanged. After pinning the DiscUtils license
+source to its package commit and tightening the viewport assertion, focused
+checks pass again: both full builds, both offline-text tests, both native legal
+dialog probes, 24 About checks at three render scales, six rejected notice
+fixtures and a freshly published/verified Windows archive.
+
+Trusted local RDP interop was reused. Hosted Windows/Linux and CodeQL checks
+must pass on the PR head. Physical desktops, actual MSI installation, Visual
+Studio/RDP interop generation, updater/UAC/rollback/restart, RDP guest login and
+live-pool/login/proxy/event/reconnect/import/export/migration acceptance remain
+pending. Startup hardening does not establish the cause or resolution of the
+reported Debian reboot hang. Generated sync RPC calls still need worker threads;
+traces and expanded-tree numbers do not establish live-pool performance.
 
 ### PR #62 Cursor review fixes (2026-10-01)
 

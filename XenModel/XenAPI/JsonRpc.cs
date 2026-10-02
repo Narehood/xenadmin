@@ -151,7 +151,7 @@ namespace XenAPI
     }
 
 
-    public partial class JsonRpcClient
+    public partial class JsonRpcClient : IDisposable
     {
         private int _globalId;
 
@@ -192,77 +192,49 @@ namespace XenAPI
 
         private T Rpc<T>(string callName, JToken parameters, JsonSerializer serializer)
         {
-            // Note that the following method handles an overflow condition by wrapping.
-            // If the _globalId reaches Int32.MaxValue, _globalId + 1 starts over from
-            // Int32.MinValue and no exception is thrown.
-            var id = Interlocked.Increment(ref _globalId);
+            return RpcAsync<T>(callName, parameters, serializer, CancellationToken).GetAwaiter().GetResult();
+        }
 
-            JsonRequest request = JsonRequest.Create(JsonRpcVersion, id, callName, parameters);
-#pragma warning disable SYSLIB0014 // JSON-RPC client still uses HttpWebRequest; HttpClient migration is separate
-            var webRequest = (HttpWebRequest)WebRequest.Create(JsonRpcUrl);
-#pragma warning restore SYSLIB0014
-            webRequest.Method = "POST";
-            webRequest.ContentType = "application/json";
-            webRequest.Accept = "application/json";
-            webRequest.Timeout = Timeout;
-            webRequest.Proxy = WebProxy;
-            webRequest.KeepAlive = KeepAlive;
-            webRequest.UserAgent = UserAgent;
-            webRequest.ConnectionGroupName = ConnectionGroupName;
-            webRequest.ProtocolVersion = ProtocolVersion ?? webRequest.ProtocolVersion;
-            webRequest.ServicePoint.Expect100Continue = Expect100Continue;
-            webRequest.AllowAutoRedirect = AllowAutoRedirect;
-            webRequest.PreAuthenticate = PreAuthenticate;
-            webRequest.AllowWriteStreamBuffering = true;
-            webRequest.CookieContainer = Cookies ?? webRequest.CookieContainer ?? new CookieContainer();
-#pragma warning disable SYSLIB0014 // Preserve the application TOFU policy until the shared transport is migrated.
-            webRequest.ServerCertificateValidationCallback = ServerCertificateValidationCallback ?? ServicePointManager.ServerCertificateValidationCallback;
-#pragma warning restore SYSLIB0014
+        /// <summary>An asynchronous entry point for callers that already supply JSON parameters.</summary>
+        public System.Threading.Tasks.Task<T> CallAsync<T>(string callName, JToken parameters, CancellationToken cancellationToken = default(CancellationToken))
+            => RpcAsync<T>(callName, parameters, CreateSerializer(new List<JsonConverter>()), cancellationToken);
 
-            using (var str = webRequest.GetRequestStream())
-            using (var sw = new StreamWriter(str))
+        /// <summary>Cancellation for synchronous generated calls on this client/session.</summary>
+        public CancellationToken CancellationToken { get; set; }
+
+        private async System.Threading.Tasks.Task<T> RpcAsync<T>(string callName, JToken parameters, JsonSerializer serializer, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var version = JsonRpcVersion;
+            var request = JsonRequest.Create(version, Interlocked.Increment(ref _globalId), callName, parameters);
+            string body;
+            using (var writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture))
             {
-                RequestEvent?.Invoke(callName);
-                serializer.Serialize(sw, request);
-                sw.Flush();
+                serializer.Serialize(writer, request);
+                body = writer.ToString();
             }
-
-            using (var webResponse = (HttpWebResponse)webRequest.GetResponse())
+            RequestEvent?.Invoke(callName);
+            return await SendAsync(body, reader =>
             {
-                if (webResponse.StatusCode != HttpStatusCode.OK)
-                    throw new WebException(webResponse.StatusCode.ToString());
-
-                using (var str = webResponse.GetResponseStream())
+                if (version == JsonRpcVersion.v2)
                 {
-                    if (str == null)
-                        throw new WebException();
-
-                    using (var responseReader = new StreamReader(str))
+                    var result = (JsonResponseV2<T>)serializer.Deserialize(reader, typeof(JsonResponseV2<T>));
+                    if (result.Error != null)
                     {
-                        switch (JsonRpcVersion)
-                        {
-                            case JsonRpcVersion.v2:
-                                var res2 = (JsonResponseV2<T>)serializer.Deserialize(responseReader, typeof(JsonResponseV2<T>));
-                                if (res2.Error != null)
-                                {
-                                    var descr = new List<string> { res2.Error.Message };
-                                    descr.AddRange(res2.Error.Data.ToObject<string[]>());
-                                    throw new Failure(descr);
-                                }
-                                return res2.Result;
-                            default:
-                                var res1 = (JsonResponseV1<T>)serializer.Deserialize(responseReader, typeof(JsonResponseV1<T>));
-                                if (res1.Error != null)
-                                {
-                                    var errorArray = res1.Error.ToObject<string[]>();
-                                    if (errorArray != null)
-                                        throw new Failure(errorArray);
-                                }
-                                return res1.Result;
-                        }
+                        var description = new List<string> { result.Error.Message };
+                        if (result.Error.Data != null) description.AddRange(result.Error.Data.ToObject<string[]>());
+                        throw new Failure(description);
                     }
+                    return result.Result;
                 }
-            }
+                var legacy = (JsonResponseV1<T>)serializer.Deserialize(reader, typeof(JsonResponseV1<T>));
+                if (legacy.Error != null)
+                {
+                    var errorArray = legacy.Error.ToObject<string[]>();
+                    if (errorArray != null) throw new Failure(errorArray);
+                }
+                return legacy.Result;
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         private JsonSerializerSettings CreateSettings(IList<JsonConverter> converters)

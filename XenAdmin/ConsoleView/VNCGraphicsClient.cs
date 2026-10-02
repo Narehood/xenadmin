@@ -61,6 +61,66 @@ namespace XenAdmin.ConsoleView
         public event Action<object, Exception> ErrorOccurred;
         public event EventHandler ConnectionSuccess;
         private VNCStream _vncStream;
+        private readonly object _startupGate = new object();
+        private readonly CancellationTokenSource _connectionCancellation = new CancellationTokenSource();
+        private readonly CancellationToken _connectionToken;
+        private ConsoleStartupGuard _startup;
+        private XenAPI.Session _consoleSession;
+
+        internal CancellationToken ConnectionToken => _connectionToken;
+
+        internal ConsoleStartupGuard BeginConnectionAttempt(TimeSpan timeout)
+        {
+            lock (_startupGate)
+            {
+                if (_terminated || _startup != null || _connected) return null;
+                return _startup = new ConsoleStartupGuard(_connectionToken, timeout);
+            }
+        }
+
+        internal void EndConnectionAttempt(ConsoleStartupGuard startup)
+        {
+            XenAPI.Session session;
+            lock (_startupGate)
+            {
+                if (_startup != startup) return;
+                _startup = null;
+                session = _consoleSession;
+                _consoleSession = null;
+            }
+            startup.End();
+            startup.Dispose();
+            ReleaseConsoleSession(session);
+        }
+
+        internal void OwnConsoleSession(ConsoleStartupGuard startup, XenAPI.Session session)
+        {
+            lock (_startupGate)
+            {
+                if (_startup == startup && !_terminated)
+                {
+                    _consoleSession = session;
+                    return;
+                }
+            }
+            ReleaseConsoleSession(session);
+            throw new OperationCanceledException(_connectionToken);
+        }
+
+        private static void ReleaseConsoleSession(XenAPI.Session session)
+        {
+            if (session == null) return;
+            try
+            {
+                if (session.IsElevatedSession)
+                {
+                    session.JsonRpcClient.CancellationToken = CancellationToken.None;
+                    session.Connection.Logout(session);
+                }
+                else session.JsonRpcClient?.Dispose();
+            }
+            catch (Exception error) { Log.Debug("Console session cleanup failed", error); session.JsonRpcClient?.Dispose(); }
+        }
 
         /// <summary>
         /// connected implies that vncStream is non-null and ready to be used.
@@ -171,6 +231,7 @@ namespace XenAdmin.ConsoleView
         public VNCGraphicsClient(ContainerControl parent)
         {
             Program.AssertOnEventThread();
+            _connectionToken = _connectionCancellation.Token;
 
             this.SetStyle(ControlStyles.AllPaintingInWmPaint
                         | ControlStyles.UserPaint
@@ -207,12 +268,13 @@ namespace XenAdmin.ConsoleView
         {
             try
             {
-                if (!disposing)
+                if (!disposing || IsDisposed)
                     return;
 
                 Clip.ClipboardChanged -= ClipboardChanged;
 
                 Disconnect();
+                _connectionCancellation.Dispose();
 
                 lock (_backBuffer)
                 {
@@ -250,6 +312,11 @@ namespace XenAdmin.ConsoleView
         {
             Program.AssertOffEventThread();
 
+            lock (_startupGate)
+            {
+                if (sender != _vncStream || _terminated || (_startup != null && !_startup.Complete())) return;
+            }
+
             // Set the remote clipboard based on the current contents.
             Program.Invoke(this, (EventHandler)ClipboardChanged, null, null);
 
@@ -262,11 +329,27 @@ namespace XenAdmin.ConsoleView
             Program.AssertOffEventThread();
             System.Diagnostics.Debug.Assert(sender == _vncStream); // Please see to CA-236844 if this assertion fails
 
-            if (sender != _vncStream)
-                return;
-            
-            _connected = false;
-            if (ErrorOccurred != null)
+            ConsoleStartupGuard startup;
+            var failedStream = (VNCStream)sender;
+            lock (_startupGate)
+            {
+                if (failedStream != _vncStream || _terminated) return;
+                startup = _startup;
+                _connected = false;
+                _vncStream = null;
+            }
+            // Release this attempt before allowing a new one. Never close a
+            // replacement stream that another UI callback has already installed.
+            failedStream.ErrorOccurred -= OnError;
+            failedStream.ConnectionSuccess -= vncStream_ConnectionSuccess;
+            failedStream.Close();
+            if (startup != null)
+            {
+                if (startup.Token.IsCancellationRequested)
+                    e = new IOException(startup.FailureMessage, e);
+                EndConnectionAttempt(startup);
+            }
+            if (!_terminated && ErrorOccurred != null)
                 ErrorOccurred(this, e);
         }
 
@@ -274,6 +357,17 @@ namespace XenAdmin.ConsoleView
         {
             _connected = false;
             _terminated = true;
+            ConsoleStartupGuard startup;
+            XenAPI.Session session;
+            lock (_startupGate)
+            {
+                startup = _startup;
+                _startup = null;
+                session = _consoleSession;
+                _consoleSession = null;
+            }
+            if (!_connectionToken.IsCancellationRequested) _connectionCancellation.Cancel();
+            startup?.Dispose();
             if (_vncStream != null)
             {
                 _vncStream.ErrorOccurred -= OnError;
@@ -282,6 +376,7 @@ namespace XenAdmin.ConsoleView
             VNCStream s = _vncStream;
             _vncStream = null;
             s?.Close();
+            ReleaseConsoleSession(session);
         }
 
         private bool RedirectingClipboard()

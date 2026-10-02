@@ -242,6 +242,9 @@ namespace XenAdmin.Actions
                     }
                 }
 
+                // RunSync may borrow the caller's session. Only release the
+                // transport when this action created its own duplicate.
+                if (o == null) Session?.JsonRpcClient?.Dispose();
                 Session = null;
                 LogoutCancelSession();
             }

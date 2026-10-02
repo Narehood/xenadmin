@@ -210,6 +210,7 @@ namespace XenAdmin.Actions
         {
             lock (connectionLock)
             {
+                _cancel_session?.JsonRpcClient?.Dispose();
                 _cancel_session = null;
             }
         }

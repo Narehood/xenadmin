@@ -105,6 +105,11 @@ Fork on GitHub and open a pull request against **`development`**. Discussion als
 
 BSD 2-Clause. See [LICENSE](LICENSE).
 
+Builds include the complete license and [third-party notices](THIRD-PARTY-NOTICES.txt).
+Read them offline in Settings → About (shell) or About → View Legal Notices
+(WinForms). Preserve both files when redistributing a build; see
+[notice maintenance](docs/legal-notices.md).
+
 ## Maintainers
 
 See [MAINTAINERS.md](./MAINTAINERS.md) and [CREDITS.md](./CREDITS.md).

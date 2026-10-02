@@ -50,7 +50,7 @@ internal static class ProxyAuthenticationProbe
                 var destination = new Uri("http://proxy-probe.invalid/test");
                 if (customTunnel)
                 {
-                    using var stream = (Stream)http.GetMethod("ConnectStream")!
+                    using var stream = (Stream)http.GetMethod("ConnectStream", [typeof(Uri), typeof(IWebProxy), typeof(bool), typeof(int)])!
                         .Invoke(null, [destination, proxy, true, 3000])!;
                 }
                 else

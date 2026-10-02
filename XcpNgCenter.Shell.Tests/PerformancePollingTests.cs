@@ -1,11 +1,54 @@
 using XenAPI;
 using XcpNgCenter.Shell.Services.Performance;
 using Xunit;
+using Newtonsoft.Json.Linq;
 
 namespace XcpNgCenter.Shell.Tests;
 
 public sealed class PerformancePollingTests
 {
+    [Fact]
+    public async System.Threading.Tasks.Task DisposeInterruptsBlockedRrdBodyAndDropsLateUiWork()
+    {
+        using var stream = new BlockingRrdStream();
+        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => stream);
+        var work = System.Threading.Tasks.Task.Run(() => maintainer.Get(
+            _ => new Uri("http://synthetic.invalid/rrd"), (_, _) => { }, maintainer.XenObject));
+        await stream.Reading.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await maintainer.DisposeAsync();
+        Assert.False(await work.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.True(stream.Closed);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task DisposeCancelsInitialMetadataRpcAndReleasesOnlyDuplicateClient()
+    {
+        using var server = new JsonRpcTransportTests.RpcServer { StallHeaders = true };
+        using var connection = HeartbeatLifecycleTests.Connection(server);
+        var host = connection.Cache.Hosts[0];
+        using var maintainer = new ShellRrdMaintainer(host, action => action());
+        maintainer.Start();
+        await server.FirstRequest.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await maintainer.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(maintainer.LoadingInitialData);
+        Assert.True(connection.IsConnected);
+        Assert.Equal("host.get_data_sources", Assert.Single(server.Requests)["method"]!.Value<string>());
+        server.StallHeaders = false;
+        Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new Newtonsoft.Json.Linq.JArray()));
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task DisposalCancelsIdleDelayAndCannotRestartPoller()
+    {
+        using var maintainer = new ShellRrdMaintainer(new SR(), action => action());
+        var updated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        maintainer.ArchivesUpdated += () => updated.TrySetResult();
+        maintainer.Start();
+        await updated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await maintainer.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(1));
+        maintainer.Start();
+        Assert.True(maintainer.Completion.IsCompleted);
+    }
     [Theory]
     [InlineData(RrdArchiveInterval.FiveSecond, 5)]
     [InlineData(RrdArchiveInterval.OneMinute, 60)]
@@ -74,6 +117,24 @@ public sealed class PerformancePollingTests
         series.Points.AddRange(Enumerable.Range(0, count).Select(i =>
             new RrdPoint(latest.AddSeconds(-(long)i * seconds).Ticks, 50)));
         return series;
+    }
+
+    private sealed class BlockingRrdStream : Stream
+    {
+        private readonly ManualResetEventSlim closed = new();
+        public readonly TaskCompletionSource Reading = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool Closed => closed.IsSet;
+        public override int Read(byte[] buffer, int offset, int count) { Reading.TrySetResult(); closed.Wait(); return 0; }
+        protected override void Dispose(bool disposing) { closed.Set(); base.Dispose(disposing); }
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
     }
 
 }

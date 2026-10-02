@@ -31,6 +31,9 @@ jobs:
         shell: powershell
         run: ./scripts/Test-PlatformAcceptanceChecks.ps1 -EvidenceDirectory artifacts/acceptance-fixtures
 
+      - name: Reject missing or stale redistribution notices
+        run: python scripts/test-redistribution-notices.py
+
       - name: Build Release
         run: dotnet build XenAdmin.sln -c Release --no-restore -p:BuildRevision=${{ github.run_number }} --nologo
 
@@ -80,6 +83,9 @@ jobs:
       - name: Exercise inventory refresh layout
         run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --modernization --evidence-directory artifacts/ui-modernization
 
+      - name: Exercise offline legal notices and update preferences
+        run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --beta-settings --evidence-directory artifacts/ui-beta-settings
+
       - name: Exercise Remote Desktop review dialog
         run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --remote-desktop --evidence-directory artifacts/ui-remote-desktop
 
@@ -124,6 +130,7 @@ jobs:
             artifacts/smoke-windows
             artifacts/ui-access-recovery
             artifacts/ui-modernization
+            artifacts/ui-beta-settings
             artifacts/ui-remote-desktop
             artifacts/acceptance-fixtures
           if-no-files-found: ignore

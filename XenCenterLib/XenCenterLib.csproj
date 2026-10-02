@@ -6,6 +6,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<EmbeddedResource Include="..\LICENSE" LogicalName="XenCenterLib.LICENSE" />
+		<EmbeddedResource Include="..\THIRD-PARTY-NOTICES.txt" LogicalName="XenCenterLib.THIRD-PARTY-NOTICES.txt" />
 		<PackageReference Include="SharpZipLib" />
 		<PackageReference Include="log4net" />
 	</ItemGroup>
