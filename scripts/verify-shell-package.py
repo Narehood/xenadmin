@@ -169,12 +169,30 @@ def main():
             if args.rid == "linux-x64":
                 require(executable.stat().st_mode & 0o111 == 0o111, "Archive did not preserve executable permissions.")
 
+            # A copyright summary or online link alone cannot replace the binary
+            # redistribution conditions and disclaimer. Require the exact files.
+            source_root = Path(__file__).resolve().parent.parent
+            for notice in ("LICENSE", "THIRD-PARTY-NOTICES.txt"):
+                require((payload / notice).is_file(), f"Missing archive-root redistribution notice: {notice}")
+                require((payload / notice).read_bytes() == (source_root / notice).read_bytes(),
+                        f"Packaged redistribution notice differs from the reviewed source: {notice}")
+            report["redistribution_notices"] = ["LICENSE", "THIRD-PARTY-NOTICES.txt"]
+
             runtime = json.loads((payload / "XcpNgCenter.Shell.runtimeconfig.json").read_text(encoding="utf-8"))["runtimeOptions"]
             require(runtime.get("tfm") == "net10.0", "The package must target net10.0.")
             require("framework" not in runtime and "frameworks" not in runtime, "The package must be self-contained.")
             require(any(item["name"] == "Microsoft.NETCore.App" and item["version"].startswith("10.0.") for item in runtime.get("includedFrameworks", [])), "Missing bundled .NET 10 runtime metadata.")
             require(runtime.get("configProperties", {}).get("System.StartupHookProvider.IsSupported") is False, "Startup hooks must remain disabled in the published app.")
             report["runtime"] = runtime["includedFrameworks"]
+            third_party = (payload / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8").casefold()
+            dependencies = json.loads((payload / "XcpNgCenter.Shell.deps.json").read_text(encoding="utf-8"))["libraries"]
+            for name, dependency in dependencies.items():
+                if dependency["type"] == "package":
+                    require(name.casefold() in third_party, f"No recorded redistribution notice for packaged dependency: {name}")
+            for framework in runtime["includedFrameworks"]:
+                if framework["name"] == "Microsoft.NETCore.App":
+                    require(f"bundled .net runtime {framework['version']}" in third_party,
+                            "Refresh third-party notices for the packaged .NET runtime version.")
 
             profile = scratch / "profile"
             environment = os.environ.copy()

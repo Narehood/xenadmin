@@ -379,6 +379,18 @@
                        Margin="0,6,0,0" />
           </Grid>
 
+          <TextBlock Text="{Binding CopyrightText}" TextWrapping="Wrap" />
+          <Expander x:Name="LicenseNoticeExpander" Header="License and legal notices" HorizontalAlignment="Stretch">
+            <TextBox x:Name="LicenseNoticeText" Text="{Binding LicenseText}" IsReadOnly="True"
+                     AcceptsReturn="True" TextWrapping="Wrap" Height="260"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto" />
+          </Expander>
+          <Expander x:Name="ThirdPartyNoticeExpander" Header="Third-party notices" HorizontalAlignment="Stretch">
+            <TextBox x:Name="ThirdPartyNoticeText" Text="{Binding ThirdPartyNoticesText}" IsReadOnly="True"
+                     AcceptsReturn="True" TextWrapping="Wrap" Height="260"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto" />
+          </Expander>
+
           <CheckBox x:Name="BetaUpdatesToggle"
                     Content="Receive beta updates"
                     IsChecked="{Binding UseBetaUpdates}"

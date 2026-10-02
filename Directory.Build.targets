@@ -1,4 +1,9 @@
 <Project>
+	<!-- Keep the complete redistribution terms with ordinary build and publish artifacts. -->
+	<ItemGroup Condition="'$(MSBuildProjectName)' == 'XenAdmin' or '$(MSBuildProjectName)' == 'XcpNgCenter.Shell'">
+		<Content Include="$(MSBuildThisFileDirectory)LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+	</ItemGroup>
 	<Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">
 		<Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8" StandardOutputImportance="low" StandardErrorImportance="low" ConsoleToMSBuild="True" IgnoreExitCode="False" ContinueOnError="True">
 			<Output PropertyName="SourceRevisionIdOutput" TaskParameter="ConsoleOutput"/>

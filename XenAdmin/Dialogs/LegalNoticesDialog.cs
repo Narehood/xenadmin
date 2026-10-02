@@ -41,6 +41,7 @@ namespace XenAdmin.Dialogs
             InitializeComponent();
             label1.Text = BrandManager.Copyright;
             label2.Text = BrandManager.Trademarks;
+            textBox1.Text = XenCenterLib.LegalNotices.License + "\r\n\r\n" + XenCenterLib.LegalNotices.ThirdParty;
         }
 
         private void button1_Click(object sender, EventArgs e)
