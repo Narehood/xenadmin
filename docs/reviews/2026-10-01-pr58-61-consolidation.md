@@ -1,5 +1,10 @@
 # PR #58–#61 comment review and consolidation
 
+This records the consolidation snapshot at `6f586ecad`. A subsequent Cursor
+review identified two production issues; see the
+[PR #62 review fixes](2026-10-01-pr62-review-followup.md) for corrections and
+updated regression/acceptance evidence.
+
 Reviewed all issue comments, submitted reviews and inline review threads before
 consolidating the four open modernization PRs. The complete API inventories had
 no further pages, no submitted reviews and no inline threads. Each PR had one

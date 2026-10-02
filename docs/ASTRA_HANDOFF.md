@@ -4,6 +4,33 @@ Last updated: 2026-10-01 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### PR #62 Cursor review fixes (2026-10-01)
+
+Implementation: `2523d9f84`, in [PR #62](https://github.com/Narehood/xenadmin/pull/62).
+The later Cursor review identified two valid issues in the consolidated head.
+Their [dispositions and regression evidence](reviews/2026-10-01-pr62-review-followup.md)
+supersede the earlier consolidation snapshot that had no code findings.
+
+A failed inventory rebuild is now caught/logged per connection, while the rest
+of the batch proceeds. Failed work stays pending until another notification
+schedules a turn; newer notifications win, and persistent failures do not
+create automatic retry loops. Mapped IPv6 input now requires canonical spelling
+before mapping. The RDP dialog displays the exact authority used by the client,
+updates normalized address/port fields and stays open for another confirmation.
+Editing fields refreshes the preview and clears the previous review notice.
+
+The initial regressions reproduced ten failures; all 47 focused cases now pass.
+Full local acceptance passes all 24 automated checks: locked restore, both full
+solution builds, 977 shell tests per configuration, 73 shared tests per framework,
+333 lifecycle/designer and 23 archive checks per WinForms configuration, all
+32,138 resources in 289 sets, proxy checks, six UI modes, Windows package
+validation/startup and unchanged portable lockfiles. The actual RDP dialog now
+passes 12 checks at three render scales. Trusted local RDP interop was reused.
+Check current-head Windows/Linux and CodeQL results before merge. CodeRabbit's
+file/capacity skip remains a review availability limit; Cursor review sign-off
+remains the reviewer's decision. Physical desktop, Visual Studio, updater/UAC,
+actual RDP guest login and live-pool acceptance remain pending.
+
 ### Consolidated modernization final review (2026-10-01)
 
 The user requested one final-review PR and asked for comment resolution before
