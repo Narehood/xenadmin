@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using XcpNgCenter.Shell.Services;
 using XenAPI;
+using Newtonsoft.Json.Linq;
 using Xunit;
 using Task = System.Threading.Tasks.Task;
 
@@ -139,6 +140,43 @@ public sealed class HttpTransportCertificateTests : IDisposable
         }, timeout.Token));
 
         return (error, await server);
+    }
+
+    [Fact]
+    public async Task RpcTransportWithoutApplicationPolicyRejectsUntrustedCertificate()
+    {
+        using var certificate = CreateCertificate();
+        ServicePointManager.ServerCertificateValidationCallback = null;
+        using var server = new JsonRpcTransportTests.RpcServer(certificate);
+        using var rpc = new JsonRpcClient(server.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
+        var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+        Assert.Equal(WebExceptionStatus.TrustFailure, error.Status);
+        Assert.Empty(server.Requests);
+    }
+
+    [Fact]
+    public async Task RpcTransportRejectsChangedPinBeforeSendingCredentials()
+    {
+        using var original = CreateCertificate();
+        using var replacement = CreateCertificate();
+        var store = new TofuCertificateStore(Path.Combine(_root, "rpc-pins.json"));
+        store.Set("127.0.0.1", original.GetCertHashString());
+        using var settings = new ShellAppSettings(Path.Combine(_root, "rpc-settings.json"));
+        CertificateTrustRequest? prompt = null;
+        var validator = new TofuCertificateValidator(store, settings, request => { prompt = request; return false; });
+        ServicePointManager.ServerCertificateValidationCallback = validator.Validate;
+        using var trusted = new JsonRpcTransportTests.RpcServer(original);
+        using var changed = new JsonRpcTransportTests.RpcServer(replacement);
+        using var first = new JsonRpcClient(trusted.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
+        using var second = new JsonRpcClient(changed.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
+        Assert.Equal("ok", await first.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+        var error = await Assert.ThrowsAsync<WebException>(() => second.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+        Assert.Equal(WebExceptionStatus.TrustFailure, error.Status);
+        Assert.NotNull(prompt);
+        Assert.Equal(CertificateTrustKind.Changed, prompt.Kind);
+        Assert.Empty(changed.Requests);
+        Assert.True(store.TryGet("127.0.0.1", out var fingerprint));
+        Assert.Equal(original.GetCertHashString(), fingerprint);
     }
 
     private static X509Certificate2 CreateCertificate()

@@ -851,6 +851,10 @@ namespace XenAdmin.Network
             {
                 log.Debug("Session.logout() failed", e);
             }
+            finally
+            {
+                session.JsonRpcClient?.Dispose();
+            }
         }
 
         public void Interrupt()
