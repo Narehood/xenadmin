@@ -6,6 +6,7 @@ This executes the package: do not pass an untrusted downloaded archive.
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -82,8 +83,11 @@ def check_linux_desktop(executable, environment, profile, evidence):
     trace = profile / "data/XCP-ng/XCP-ng Center Shell/startup-trace.log"
     crash = trace.with_name("startup-crash.log")
     window = None
+    performance = evidence / "desktop-performance.jsonl"
     with (evidence / "desktop-stdout.log").open("w", encoding="utf-8") as stdout, (evidence / "desktop-stderr.log").open("w", encoding="utf-8") as stderr:
-        process = subprocess.Popen([str(executable)], cwd=executable.parent, env=environment, stdout=stdout, stderr=stderr)
+        process = subprocess.Popen([str(executable), "--performance-capture", str(performance.resolve()),
+                                    "--performance-capture-seconds", "2"],
+                                   cwd=executable.parent, env=environment, stdout=stdout, stderr=stderr)
         try:
             deadline = time.monotonic() + 45
             inspected = []
@@ -129,7 +133,16 @@ def check_linux_desktop(executable, environment, profile, evidence):
             require(process.poll() is None and not crash.exists(), "Desktop failed immediately after startup.")
             geometry = subprocess.run(["xdotool", "getwindowgeometry", window], capture_output=True, text=True, check=True, timeout=5)
             (evidence / "desktop-window.log").write_text(geometry.stdout, encoding="utf-8")
-            return {"main_window_visible": True, "post_window_startup": True, "survived_seconds": 3}
+            require(performance.exists(), "Desktop did not create the requested performance capture.")
+            spec = importlib.util.spec_from_file_location("performance_capture",
+                                                         Path(__file__).with_name("summarize-performance-capture.py"))
+            summarizer = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(summarizer)
+            capture_report = summarizer.summarize(performance, "synthetic")
+            require(capture_report["complete"], "Desktop performance capture did not finish its bounded duration.")
+            (evidence / "desktop-performance-summary.json").write_text(json.dumps(capture_report, indent=2) + "\n", encoding="utf-8")
+            return {"main_window_visible": True, "post_window_startup": True, "survived_seconds": 3,
+                    "performance_capture_complete": True, "performance_evidence_kind": "synthetic"}
         finally:
             stop_process(process)
             for diagnostic in (trace, crash):

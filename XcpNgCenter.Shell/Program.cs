@@ -38,6 +38,7 @@ internal static class Program
         }
 
         args = ShellUpdateInstaller.PrepareApplicationStartup(args);
+        using var performanceCapture = PerformanceCaptureSession.FromArguments(ref args);
 
         // XenModel's snapshot action references System.Drawing.Common for an optional
         // console thumbnail. The shell supplies no thumbnail, so all snapshot modes stay GDI-free.

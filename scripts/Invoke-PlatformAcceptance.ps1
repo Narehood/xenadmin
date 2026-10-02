@@ -103,6 +103,7 @@ try {
     $manifest.workingTree = @(git status --short)
     if ($LASTEXITCODE -ne 0) { throw 'Cannot identify source changes.' }
     Invoke-Check 'redistribution-notice-fixtures' $python @((Join-Path $PSScriptRoot 'test-redistribution-notices.py'))
+    Invoke-Check 'performance-capture-fixtures' $python @((Join-Path $PSScriptRoot 'test-performance-capture.py'))
     $lockPaths = @(git ls-files '*/packages.lock.json')
     if ($LASTEXITCODE -ne 0 -or $lockPaths.Count -eq 0) { throw 'Cannot enumerate portable lockfiles.' }
     foreach ($path in $lockPaths) { $locks[$path] = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
