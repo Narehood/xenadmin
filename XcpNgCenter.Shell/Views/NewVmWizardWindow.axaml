@@ -25,7 +25,7 @@
       <Panel Grid.Row="1" Margin="0,16,0,16">
         <StackPanel IsVisible="{Binding ShowTemplateStep}" Spacing="8">
           <TextBlock Text="Select a template" Foreground="{DynamicResource Brush.TextMuted}" />
-          <TextBox Watermark="Filter templates…" Text="{Binding TemplateFilter}" />
+          <TextBox PlaceholderText="Filter templates…" Text="{Binding TemplateFilter}" />
           <ListBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" MaxHeight="280">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="views:TemplateOption">
@@ -58,9 +58,9 @@
 
         <StackPanel IsVisible="{Binding ShowNameStep}" Spacing="10">
           <TextBlock Text="VM name" Foreground="{DynamicResource Brush.TextMuted}" />
-          <TextBox Watermark="VM name" Text="{Binding VmName}" />
+          <TextBox PlaceholderText="VM name" Text="{Binding VmName}" />
           <TextBlock Text="Description" Foreground="{DynamicResource Brush.TextMuted}" />
-          <TextBox Watermark="Description" Text="{Binding VmDescription}" AcceptsReturn="True" Height="80" TextWrapping="Wrap" />
+          <TextBox PlaceholderText="Description" Text="{Binding VmDescription}" AcceptsReturn="True" Height="80" TextWrapping="Wrap" />
           <TextBlock Text="Home / placement host" Foreground="{DynamicResource Brush.TextMuted}" />
           <ComboBox ItemsSource="{Binding Hosts}" SelectedItem="{Binding SelectedHost}" PlaceholderText="Select a placement host">
             <ComboBox.ItemTemplate>
@@ -76,8 +76,8 @@
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowComputeStep}" Spacing="10">
-          <TextBox Watermark="vCPUs" Text="{Binding VcpusText}" />
-          <TextBox Watermark="Memory (MiB)" Text="{Binding MemoryMibText}" />
+          <TextBox PlaceholderText="vCPUs" Text="{Binding VcpusText}" />
+          <TextBox PlaceholderText="Memory (MiB)" Text="{Binding MemoryMibText}" />
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowStorageStep}" Spacing="10">
@@ -110,7 +110,7 @@
                      TextWrapping="Wrap"
                      Foreground="{DynamicResource Brush.AccentText}" />
           <TextBlock Text="Disk size" Foreground="{DynamicResource Brush.TextMuted}" />
-          <TextBox Watermark="Disk size (GiB)" Text="{Binding DiskGibText}" />
+          <TextBox PlaceholderText="Disk size (GiB)" Text="{Binding DiskGibText}" />
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowNetworkStep}" Spacing="10">

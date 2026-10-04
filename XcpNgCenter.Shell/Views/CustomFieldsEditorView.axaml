@@ -32,7 +32,7 @@
               </StackPanel>
               <TextBox Grid.Column="1"
                        Text="{Binding ValueText}"
-                       Watermark="Value; dates may use YYYY-MM-DD HH:MM:SS" />
+                       PlaceholderText="Value; dates may use YYYY-MM-DD HH:MM:SS" />
               <TextBlock Grid.Row="1" Grid.Column="1"
                          Text="Use local date and time; leave blank to clear the value."
                          IsVisible="{Binding IsDate}"
@@ -61,7 +61,7 @@
         <Grid ColumnDefinitions="*,150,Auto">
           <TextBox Grid.Column="0"
                    Text="{Binding NewFieldName}"
-                   Watermark="Field name" />
+                   PlaceholderText="Field name" />
           <ComboBox Grid.Column="1"
                     Margin="8,0,0,0"
                     ItemsSource="{Binding FieldTypes}"

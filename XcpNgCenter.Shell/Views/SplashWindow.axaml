@@ -4,7 +4,7 @@
         Title="XCP-ng Center"
         Width="420" Height="228"
         CanResize="False"
-        SystemDecorations="None"
+        WindowDecorations="None"
         WindowStartupLocation="CenterScreen"
         ShowInTaskbar="False"
         Topmost="True"

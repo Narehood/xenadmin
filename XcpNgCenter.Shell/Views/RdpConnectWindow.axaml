@@ -12,7 +12,7 @@
     <ComboBox ItemsSource="{Binding Addresses}" SelectedItem="{Binding SelectedAddress, Mode=TwoWay}"
               IsVisible="{Binding HasAddresses}" HorizontalAlignment="Stretch" />
     <TextBlock Text="Guest IP address" />
-    <TextBox x:Name="AddressText" Text="{Binding Address, Mode=TwoWay}" Watermark="IPv4 or IPv6 address" />
+    <TextBox x:Name="AddressText" Text="{Binding Address, Mode=TwoWay}" PlaceholderText="IPv4 or IPv6 address" />
     <TextBlock Text="RDP port" />
     <TextBox x:Name="PortText" Text="{Binding Port, Mode=TwoWay}" />
     <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />

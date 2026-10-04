@@ -22,8 +22,8 @@
                  TextWrapping="Wrap"
                  Foreground="{DynamicResource Brush.TextMuted}"
                  IsVisible="{Binding StatusMessage.Length}" />
-      <TextBox Watermark="Name" Text="{Binding CopyName}" />
-      <TextBox Watermark="Description"
+      <TextBox PlaceholderText="Name" Text="{Binding CopyName}" />
+      <TextBox PlaceholderText="Description"
                Text="{Binding CopyDescription}"
                AcceptsReturn="True"
                Height="64"

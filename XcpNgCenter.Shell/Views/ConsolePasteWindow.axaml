@@ -18,7 +18,7 @@
                    MaxLength="{x:Static services:ConsolePasteText.MaxLength}" PastingFromClipboard="OnEditorPasting"
                    TextChanging="OnEditorTextChanging"
                    IsUndoEnabled="False" MinHeight="110" MaxHeight="200" TextWrapping="Wrap"
-                   Watermark="Enter text (maximum 4,096 characters)" />
+                   PlaceholderText="Enter text (maximum 4,096 characters)" />
           <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
           <CheckBox IsChecked="{Binding AllowEnterAndTab}">
             <TextBlock Text="Allow Enter and Tab keys in this text. These may execute commands or change focus."

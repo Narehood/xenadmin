@@ -6,7 +6,7 @@ using Xunit;
 namespace XcpNgCenter.Shell.Tests;
 
 [Collection("Infrastructure rendering")]
-public sealed class FramebufferCopyRectangleTests
+public sealed class FramebufferCopyRectangleTests(InfrastructureRenderingFixture rendering)
 {
     [Theory]
     [InlineData(1, 1, 4, 3, 2, 1)] // right
@@ -31,57 +31,60 @@ public sealed class FramebufferCopyRectangleTests
     [InlineData(int.MinValue, int.MinValue, 6, 5, 0, 0)]
     [InlineData(0, 0, 6, 5, int.MaxValue, int.MaxValue)]
     [InlineData(0, 0, int.MaxValue, int.MaxValue, 0, 0)]
-    public void ActualPixelsMatchSnapshotSemanticsWithOverlapAndClipping(int x, int y, int width, int height, int dx, int dy)
-    {
-        using var framebuffer = new AvaloniaRfbFramebuffer("Test", "test");
-        var initial = InitialPixels();
-        framebuffer.DesktopSize(6, 5);
-        framebuffer.DrawImage(initial, 0, 24, 0, 0, 6, 5);
-        framebuffer.CopyRectangle(x, y, width, height, dx, dy);
-        framebuffer.FrameBufferUpdate();
-        Dispatcher.UIThread.RunJobs();
-        Assert.Equal(Expected(initial, x, y, width, height, dx, dy), ReadPixels(framebuffer));
-    }
-
-    [Fact]
-    public void DeterministicMixedCopiesKeepTheSameResultAsAnIndependentSnapshot()
-    {
-        using var framebuffer = new AvaloniaRfbFramebuffer("Test", "test");
-        var expected = InitialPixels();
-        framebuffer.DesktopSize(6, 5);
-        framebuffer.DrawImage(expected, 0, 24, 0, 0, 6, 5);
-        var random = new Random(627);
-        for (var index = 0; index < 100; index++)
+    public Task ActualPixelsMatchSnapshotSemanticsWithOverlapAndClipping(int x, int y, int width, int height, int dx, int dy)
+        => rendering.Run(() =>
         {
-            var x = random.Next(-3, 8);
-            var y = random.Next(-3, 7);
-            var dx = random.Next(-3, 8);
-            var dy = random.Next(-3, 7);
-            var width = random.Next(1, 9);
-            var height = random.Next(1, 8);
-            expected = Expected(expected, x, y, width, height, dx, dy);
+            using var framebuffer = new AvaloniaRfbFramebuffer("Test", "test");
+            var initial = InitialPixels();
+            framebuffer.DesktopSize(6, 5);
+            framebuffer.DrawImage(initial, 0, 24, 0, 0, 6, 5);
             framebuffer.CopyRectangle(x, y, width, height, dx, dy);
             framebuffer.FrameBufferUpdate();
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(expected, ReadPixels(framebuffer));
-        }
-    }
+            Assert.Equal(Expected(initial, x, y, width, height, dx, dy), ReadPixels(framebuffer));
+        });
 
     [Fact]
-    public void RepeatedScrollCopiesDoNotAllocateRectangleSizedBuffers()
-    {
-        using var framebuffer = new AvaloniaRfbFramebuffer("Test", "test");
-        framebuffer.DesktopSize(1920, 1080);
-        Dispatcher.UIThread.RunJobs();
-        for (var index = 0; index < 5; index++) framebuffer.CopyRectangle(0, 1, 1920, 1079, 0, 0);
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var index = 0; index < 10; index++) framebuffer.CopyRectangle(0, 1, 1920, 1079, 0, 0);
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        // Guard against rectangle-sized buffers, not incidental runtime/profiler
-        // allocations. One 1920x1079 BGRA snapshot alone exceeds 8 MB; this budget
-        // applies to all ten copies and is below 1% of even one such snapshot.
-        Assert.InRange(allocated, 0, 64 * 1024);
-    }
+    public Task DeterministicMixedCopiesKeepTheSameResultAsAnIndependentSnapshot()
+        => rendering.Run(() =>
+        {
+            using var framebuffer = new AvaloniaRfbFramebuffer("Test", "test");
+            var expected = InitialPixels();
+            framebuffer.DesktopSize(6, 5);
+            framebuffer.DrawImage(expected, 0, 24, 0, 0, 6, 5);
+            var random = new Random(627);
+            for (var index = 0; index < 100; index++)
+            {
+                var x = random.Next(-3, 8);
+                var y = random.Next(-3, 7);
+                var dx = random.Next(-3, 8);
+                var dy = random.Next(-3, 7);
+                var width = random.Next(1, 9);
+                var height = random.Next(1, 8);
+                expected = Expected(expected, x, y, width, height, dx, dy);
+                framebuffer.CopyRectangle(x, y, width, height, dx, dy);
+                framebuffer.FrameBufferUpdate();
+                Dispatcher.UIThread.RunJobs();
+                Assert.Equal(expected, ReadPixels(framebuffer));
+            }
+        });
+
+    [Fact]
+    public Task RepeatedScrollCopiesDoNotAllocateRectangleSizedBuffers()
+        => rendering.Run(() =>
+        {
+            using var framebuffer = new AvaloniaRfbFramebuffer("Test", "test");
+            framebuffer.DesktopSize(1920, 1080);
+            Dispatcher.UIThread.RunJobs();
+            for (var index = 0; index < 5; index++) framebuffer.CopyRectangle(0, 1, 1920, 1079, 0, 0);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            for (var index = 0; index < 10; index++) framebuffer.CopyRectangle(0, 1, 1920, 1079, 0, 0);
+            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            // Guard against rectangle-sized buffers, not incidental runtime/profiler
+            // allocations. One 1920x1079 BGRA snapshot alone exceeds 8 MB; this budget
+            // applies to all ten copies and is below 1% of even one such snapshot.
+            Assert.InRange(allocated, 0, 64 * 1024);
+        });
 
     private static byte[] InitialPixels() => Enumerable.Range(0, 6 * 5 * 4).Select(value => (byte)(value + 1)).ToArray();
 

@@ -81,7 +81,7 @@ public sealed class HaManagementTests : IDisposable
         using var server = new RpcServer(f);
         if (condition != "disconnected") f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot), TestContext.Current.CancellationToken));
         Assert.Empty(server.Requests);
     }
 
@@ -114,7 +114,7 @@ public sealed class HaManagementTests : IDisposable
             case "sriov": f.Pifs[0].sriov_physical_PIF_of = [new("sriov")]; break;
             case "pbd-detached": f.Pbds[1].currently_attached = false; break;
         }
-        await Assert.ThrowsAsync<InvalidOperationException>(() => HaManagement.ReviewAsync(f.Connection, snapshot, request));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken));
         Assert.Empty(server.Requests);
     }
 
@@ -127,7 +127,7 @@ public sealed class HaManagementTests : IDisposable
         var snapshot = HaManagement.Capture(f.Pool);
         var original = snapshot.Fingerprint;
         var request = new HaRequest(HaOperation.Enable, 1, null, f.Request(snapshot).VmSettings);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         Assert.False(review.CanApply);
         Assert.Contains("Select a heartbeat", review.Error);
         Assert.True(Assert.Single(review.HeartbeatCandidates).IsAvailable);
@@ -148,7 +148,7 @@ public sealed class HaManagementTests : IDisposable
         using var server = new RpcServer(f);
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot));
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot), TestContext.Current.CancellationToken);
         Assert.True(review.CanApply, review.Error);
         Assert.Equal(state, f.Vms[1].power_state);
         Assert.DoesNotContain(server.Requests, IsMutation);
@@ -161,7 +161,7 @@ public sealed class HaManagementTests : IDisposable
         using var server = new RpcServer(f) { SrFailure = "SR_OPERATION_NOT_SUPPORTED" };
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot));
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot), TestContext.Current.CancellationToken);
         Assert.False(review.CanApply);
         Assert.False(Assert.Single(review.HeartbeatCandidates).IsAvailable);
         Assert.NotEmpty(review.HeartbeatCandidates[0].Error!);
@@ -180,7 +180,7 @@ public sealed class HaManagementTests : IDisposable
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
         var request = f.Request(snapshot);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         Assert.False(review.CanApply);
         var action = new ShellHaAction(f.Connection, snapshot, request, review);
         var calls = server.Requests.Count;
@@ -202,7 +202,7 @@ public sealed class HaManagementTests : IDisposable
         var initial = f.Request(snapshot);
         var request = new HaRequest(initial.Operation, 1, initial.HeartbeatSrReference,
             initial.VmSettings.Select(setting => setting with { Priority = priority }).ToArray());
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         Assert.Equal(applicable, review.CanApply);
         Assert.All(review.VmAgility, result => Assert.False(result.IsAgile));
         var map = server.Requests.Single(request => Method(request) == "pool.ha_compute_hypothetical_max_host_failures_to_tolerate")["params"]![1]!.ToObject<Dictionary<string, string>>()!;
@@ -219,7 +219,7 @@ public sealed class HaManagementTests : IDisposable
         using var server = new RpcServer(f) { AgilityFailure = failure };
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
-        await Assert.ThrowsAsync<Failure>(() => HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot)));
+        await Assert.ThrowsAsync<Failure>(() => HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot), TestContext.Current.CancellationToken));
         Assert.Single(server.Requests, request => Method(request) == "VM.assert_agile");
         Assert.DoesNotContain(server.Requests, request => Method(request).Contains("hypothetical", StringComparison.Ordinal));
         Assert.DoesNotContain(server.Requests, IsMutation);
@@ -232,7 +232,7 @@ public sealed class HaManagementTests : IDisposable
         using var server = new RpcServer(f) { AddServerVgpuAfterCapacity = true };
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot)));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot), TestContext.Current.CancellationToken));
         Assert.Contains("changed", error.Message);
         Assert.Empty(f.Vms[0].VGPUs);
         Assert.Equal(2, server.Requests.Count(request => Method(request) == "VM.get_all_records"));
@@ -248,7 +248,7 @@ public sealed class HaManagementTests : IDisposable
         typeof(Session).GetProperty(nameof(Session.Permissions))!.SetValue(server.Session, new[] { "pool.get_record" });
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot)));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => HaManagement.ReviewAsync(f.Connection, snapshot, f.Request(snapshot), TestContext.Current.CancellationToken));
         Assert.Contains("permissions", error.Message);
         Assert.Empty(server.Requests);
     }
@@ -265,7 +265,7 @@ public sealed class HaManagementTests : IDisposable
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
         var request = f.Request(snapshot, operation);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         Assert.True(review.CanApply, review.Error);
         var action = new ShellHaAction(f.Connection, snapshot, request, review);
         var permissions = action.GetApiMethodsToRoleCheck.Select(method => method.Method).ToArray();
@@ -275,7 +275,7 @@ public sealed class HaManagementTests : IDisposable
         Assert.Contains("pool.set_ha_host_failures_to_tolerate", permissions);
         Assert.Contains("task.destroy", permissions);
         Assert.Contains(operation == HaOperation.Enable ? "pool.enable_ha" : "pool.sync_database", permissions);
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => action.RunSync(server.Session)));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => action.RunSync(server.Session), TestContext.Current.CancellationToken));
         Assert.Contains("partially changed", error.Message);
         Assert.Equal(mutationFailure, Assert.IsType<Failure>(error.InnerException).ErrorDescription[0]);
         var mutations = server.Requests.Where(IsMutation).ToArray();
@@ -309,10 +309,10 @@ public sealed class HaManagementTests : IDisposable
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
         var request = new HaRequest(HaOperation.Disable, -7, null, []);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         Assert.True(review.CanApply, review.Error);
         var action = new ShellHaAction(f.Connection, snapshot, request, review);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => action.RunSync(server.Session)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => action.RunSync(server.Session), TestContext.Current.CancellationToken));
         Assert.Equal(new[] { "pool.get_record", "pool.get_record", "Async.pool.disable_ha" }, server.Requests.Select(Method));
         var permission = action.GetApiMethodsToRoleCheck.Select(method => method.Method).ToArray();
         Assert.Contains("pool.disable_ha", permission);
@@ -329,13 +329,13 @@ public sealed class HaManagementTests : IDisposable
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
         var request = f.Request(snapshot);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         var changedRequest = new HaRequest(request.Operation, 0, request.HeartbeatSrReference, request.VmSettings);
         var calls = server.Requests.Count;
         Assert.Throws<InvalidOperationException>(() => new ShellHaAction(f.Connection, snapshot, changedRequest, review).RunSync(server.Session));
         Assert.Equal(calls, server.Requests.Count);
         server.Capacity = 0;
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => new ShellHaAction(f.Connection, snapshot, request, review).RunSync(server.Session)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => new ShellHaAction(f.Connection, snapshot, request, review).RunSync(server.Session), TestContext.Current.CancellationToken));
         Assert.Equal(2, server.Requests.Count(call => Method(call) == "pool.ha_compute_hypothetical_max_host_failures_to_tolerate"));
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
@@ -352,7 +352,7 @@ public sealed class HaManagementTests : IDisposable
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
         var request = f.Request(snapshot, HaOperation.Configure);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         Assert.True(review.CanApply, review.Error);
         typeof(Session).GetProperty(nameof(Session.IsLocalSuperuser))!.SetValue(server.Session, false);
         typeof(Session).GetProperty(nameof(Session.Permissions))!.SetValue(server.Session,
@@ -378,10 +378,10 @@ public sealed class HaManagementTests : IDisposable
         f.MarkConnected(server.Session);
         var snapshot = HaManagement.Capture(f.Pool);
         var request = operation == HaOperation.Disable ? new HaRequest(operation, snapshot.FailuresToTolerate, null, []) : f.Request(snapshot, operation);
-        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await HaManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         Assert.True(review.CanApply, review.Error);
         var action = new ShellHaAction(f.Connection, snapshot, request, review);
-        await Task.Run(() => action.RunSync(server.Session));
+        await Task.Run(() => action.RunSync(server.Session), TestContext.Current.CancellationToken);
         Assert.True(action.Succeeded, action.Exception?.ToString());
         Assert.Contains(operation == HaOperation.Disable ? "disabled" : "applied", action.Description);
         Assert.Single(server.Requests, call => Method(call) == expectedMutation);

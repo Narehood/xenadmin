@@ -20,7 +20,7 @@ namespace XenCenterLib.Tests
             using var guard = new ConsoleStartupGuard(parent.Token, TimeSpan.FromMilliseconds(100));
             guard.AttachTransport(stream);
             Assert.True(guard.Complete());
-            await Task.Delay(250);
+            await Task.Delay(250, TestContext.Current.CancellationToken);
             Assert.False(stream.Closed);
             Assert.False(guard.Token.IsCancellationRequested);
             parent.Cancel();
@@ -47,16 +47,20 @@ namespace XenCenterLib.Tests
             {
                 using var cancellation = new CancellationTokenSource();
                 var url = new Uri("http://127.0.0.1:" + ((IPEndPoint)listener.LocalEndpoint).Port + "/rrd");
+#if NETFRAMEWORK
                 var accept = listener.AcceptTcpClientAsync();
+#else
+                var accept = listener.AcceptTcpClientAsync(TestContext.Current.CancellationToken).AsTask();
+#endif
                 var get = Task.Run(() => HTTP.HttpGetStream(url, null, 0, cancellation.Token));
-                Assert.Same(accept, await Task.WhenAny(accept, Task.Delay(5000)));
+                Assert.Same(accept, await Task.WhenAny(accept, Task.Delay(5000, TestContext.Current.CancellationToken)));
                 using var peer = await accept;
                 var buffer = new byte[1024];
-                var read = peer.GetStream().ReadAsync(buffer, 0, buffer.Length);
-                Assert.Same(read, await Task.WhenAny(read, Task.Delay(5000)));
+                var read = peer.GetStream().ReadAsync(buffer, 0, buffer.Length, TestContext.Current.CancellationToken);
+                Assert.Same(read, await Task.WhenAny(read, Task.Delay(5000, TestContext.Current.CancellationToken)));
                 Assert.True(await read > 0);
                 cancellation.Cancel();
-                Assert.Same(get, await Task.WhenAny(get, Task.Delay(5000)));
+                Assert.Same(get, await Task.WhenAny(get, Task.Delay(5000, TestContext.Current.CancellationToken)));
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await get);
             }
             finally { listener.Stop(); }

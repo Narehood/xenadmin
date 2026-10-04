@@ -221,7 +221,7 @@ public sealed class GraphLayoutTests
         var action = new SaveShellGraphLayoutAction(target, draft, ShellGraphLayout.Snapshot(target));
         draft[0] = new("Later edit", ["cpu9"]);
         Assert.Contains("pool.set_gui_config", action.GetApiMethodsToRoleCheck.Select(method => method.Method));
-        await Task.Run(() => action.RunSync(server.Session));
+        await Task.Run(() => action.RunSync(server.Session), TestContext.Current.CancellationToken);
         var requests = await server.Requests;
 
         Assert.Equal(new[] { vmTarget ? "VM.get_uuid" : "host.get_uuid", "pool.get_uuid", "pool.get_gui_config", "pool.set_gui_config" },
@@ -248,7 +248,7 @@ public sealed class GraphLayoutTests
         using var server = new RpcServer(3, request => ReplyFor(request, f.Host, f.Pool, fresh));
         f.MarkConnected(server.Session);
         var action = new SaveShellGraphLayoutAction(f.Host, [new GraphLayoutDefinition("Mine", ["cpu1"])], ShellGraphLayout.Snapshot(f.Host));
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => action.RunSync(server.Session)));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => action.RunSync(server.Session), TestContext.Current.CancellationToken));
         Assert.Contains("changed after", error.Message);
         Assert.DoesNotContain(await server.Requests, request => request.GetProperty("method").GetString() == "pool.set_gui_config");
         Assert.False(server.HasPendingRequest);
@@ -268,7 +268,7 @@ public sealed class GraphLayoutTests
         });
         f.MarkConnected(server.Session);
         var action = new SaveShellGraphLayoutAction(f.Host, [new GraphLayoutDefinition("CPU", ["cpu0"])]);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => action.RunSync(server.Session)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Task.Run(() => action.RunSync(server.Session), TestContext.Current.CancellationToken));
         Assert.Equal(calls, (await server.Requests).Count);
         Assert.False(server.HasPendingRequest);
     }
@@ -306,7 +306,7 @@ public sealed class GraphLayoutTests
             ? new RpcReply(null, failure) : ReplyFor(request, f.Host, f.Pool, before));
         f.MarkConnected(server.Session);
         var action = new SaveShellGraphLayoutAction(f.Host, [new GraphLayoutDefinition("Unsaved", ["missing"])]);
-        var error = await Assert.ThrowsAsync<Failure>(() => Task.Run(() => action.RunSync(server.Session)));
+        var error = await Assert.ThrowsAsync<Failure>(() => Task.Run(() => action.RunSync(server.Session), TestContext.Current.CancellationToken));
         Assert.Equal(failure, error.ErrorDescription[0]);
         Assert.Equal(4, (await server.Requests).Count);
         Assert.Equal(before.OrderBy(pair => pair.Key), f.Pool.gui_config.OrderBy(pair => pair.Key));

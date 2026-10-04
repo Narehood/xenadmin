@@ -31,43 +31,43 @@
             </ComboBox.ItemTemplate>
           </ComboBox>
 
-          <TextBox Watermark="Name" Text="{Binding NameLabel}" />
-          <TextBox Watermark="Description" Text="{Binding Description}" />
+          <TextBox PlaceholderText="Name" Text="{Binding NameLabel}" />
+          <TextBox PlaceholderText="Description" Text="{Binding Description}" />
 
           <StackPanel Spacing="8" IsVisible="{Binding ShowIsoNfs}">
             <TextBlock Text="NFS ISO path (server:/share/path)" FontSize="12"
                        Foreground="{DynamicResource Brush.TextMuted}" />
-            <TextBox Watermark="filer.example:/iso" Text="{Binding NfsPath}" />
+            <TextBox PlaceholderText="filer.example:/iso" Text="{Binding NfsPath}" />
           </StackPanel>
 
           <StackPanel Spacing="8" IsVisible="{Binding ShowIsoCifs}">
             <TextBlock Text="SMB/CIFS ISO share (//server/share)" FontSize="12"
                        Foreground="{DynamicResource Brush.TextMuted}" />
-            <TextBox Watermark="//fileserver/isos" Text="{Binding CifsLocation}" />
-            <TextBox Watermark="Username (optional)" Text="{Binding CifsUsername}" />
-            <TextBox Watermark="Password (optional)" Text="{Binding CifsPassword}" PasswordChar="•" />
+            <TextBox PlaceholderText="//fileserver/isos" Text="{Binding CifsLocation}" />
+            <TextBox PlaceholderText="Username (optional)" Text="{Binding CifsUsername}" />
+            <TextBox PlaceholderText="Password (optional)" Text="{Binding CifsPassword}" PasswordChar="•" />
           </StackPanel>
 
           <StackPanel Spacing="8" IsVisible="{Binding ShowNfs}">
             <TextBlock Text="NFS VHD path (server:/share/path)" FontSize="12"
                        Foreground="{DynamicResource Brush.TextMuted}" />
-            <TextBox Watermark="filer.example:/export" Text="{Binding NfsPath}" />
+            <TextBox PlaceholderText="filer.example:/export" Text="{Binding NfsPath}" />
           </StackPanel>
 
           <StackPanel Spacing="8" IsVisible="{Binding ShowSmb}">
             <TextBlock Text="SMB storage path (server:/share)" FontSize="12"
                        Foreground="{DynamicResource Brush.TextMuted}" />
-            <TextBox Watermark="fileserver:/vms" Text="{Binding SmbPath}" />
-            <TextBox Watermark="Username (optional)" Text="{Binding SmbUsername}" />
-            <TextBox Watermark="Password (optional)" Text="{Binding SmbPassword}" PasswordChar="•" />
+            <TextBox PlaceholderText="fileserver:/vms" Text="{Binding SmbPath}" />
+            <TextBox PlaceholderText="Username (optional)" Text="{Binding SmbUsername}" />
+            <TextBox PlaceholderText="Password (optional)" Text="{Binding SmbPassword}" PasswordChar="•" />
           </StackPanel>
 
           <StackPanel Spacing="8" IsVisible="{Binding ShowIscsi}">
             <TextBlock Text="iSCSI target" FontSize="12" Foreground="{DynamicResource Brush.TextMuted}" />
-            <TextBox Watermark="Host / IP" Text="{Binding IscsiHost}" />
-            <TextBox Watermark="Port" Text="{Binding IscsiPort}" />
-            <TextBox Watermark="CHAP username (optional)" Text="{Binding IscsiChapUser}" />
-            <TextBox Watermark="CHAP password (optional)" Text="{Binding IscsiChapPassword}" PasswordChar="•" />
+            <TextBox PlaceholderText="Host / IP" Text="{Binding IscsiHost}" />
+            <TextBox PlaceholderText="Port" Text="{Binding IscsiPort}" />
+            <TextBox PlaceholderText="CHAP username (optional)" Text="{Binding IscsiChapUser}" />
+            <TextBox PlaceholderText="CHAP password (optional)" Text="{Binding IscsiChapPassword}" PasswordChar="•" />
 
             <WrapPanel>
               <Button Classes="ghost" Content="Scan IQNs" Margin="0,0,8,6"
@@ -105,7 +105,7 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
 
-            <TextBox Watermark="SCSI ID (filled by LUN scan, or enter manually)"
+            <TextBox PlaceholderText="SCSI ID (filled by LUN scan, or enter manually)"
                      Text="{Binding IscsiScsiId}" />
             <TextBlock Text="Scan IQNs, pick a target, scan LUNs, then Create. CHAP is optional."
                        FontSize="11" TextWrapping="Wrap"

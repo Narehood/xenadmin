@@ -12,14 +12,14 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parent.parent
 LOG4NET_SOURCE = "https://raw.githubusercontent.com/apache/logging-log4net/f7794ae187ab2e228e1754cb478568dd305d1b32"
 FALLBACKS = {
-    "avalonia": "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md",
+    "avalonia": "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/8eeda4f6f546165b3f72e63c9f42247abb306905/licence.md",
     "discutils": "https://raw.githubusercontent.com/DiscUtils/DiscUtils/59d7cadab839c6d8dfcf52f8be5efe6d2ced190f/LICENSE.txt",
     "log4net": LOG4NET_SOURCE + "/LICENSE",
     "lzfse-net": "https://raw.githubusercontent.com/quamotion/lzfse-net/2e86a8f485fc4624d0c49e54c4050db527710704/LICENSE",
     "lzo.net": "https://raw.githubusercontent.com/zivillian/lzo.net/9c803ebc3d04ecf91035acd8c91ccdc6de043221/LICENSE",
-    "microcom.runtime": "https://raw.githubusercontent.com/kekekeks/MicroCom/4b8a38f773c109bad558ee3713d9f16d80776e42/LICENSE",
+    "microcom.runtime": "https://raw.githubusercontent.com/kekekeks/MicroCom/76785efcafd91b5902fd19dd11145f6dd655b7b4/LICENSE",
     "sharpziplib": "https://raw.githubusercontent.com/icsharpcode/SharpZipLib/v1.4.2/LICENSE.txt",
-    "tmds.dbus.protocol": "https://raw.githubusercontent.com/tmds/Tmds.DBus/8cb04f66c330b64244e996ff68f685f27f7381a0/COPYING",
+    "tmds.dbus.protocol": "https://raw.githubusercontent.com/tmds/Tmds.DBus/491bde2c16d65a7904397933cffa24e15e45eb2a/COPYING",
     "system": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT",
     "microsoft": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT",
 }

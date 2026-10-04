@@ -108,7 +108,7 @@ public sealed class OvfImportSecurityTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_root, "enc_outside.vhd"), "outside sentinel");
         WriteDescriptor(reference);
-        Assert.False(OVF.Validate(Package.Create(Descriptor), out _));
+        Assert.False(OVF.Validate(Package.Create(Descriptor, TestContext.Current.CancellationToken), out _));
         Assert.IsType<InvalidDataException>(InvokeImport(reference));
         Assert.Equal("outside sentinel", File.ReadAllText(Path.Combine(_root, "enc_outside.vhd")));
     }
@@ -127,7 +127,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         var path = WriteFile("disks/disk.vhd", "disk");
         WriteDescriptor("disks/disk.vhd");
         Assert.Equal(path, OvfFilePath.Resolve(PackageDirectory, "disks/disk.vhd"));
-        Assert.True(OVF.Validate(Package.Create(Descriptor), out _));
+        Assert.True(OVF.Validate(Package.Create(Descriptor, TestContext.Current.CancellationToken), out _));
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         var link = Path.Combine(PackageDirectory, "linked");
         CreateDirectoryLink(link, outsideDirectory);
         WriteDescriptor("linked/disk.vhd");
-        Assert.False(OVF.Validate(Package.Create(Descriptor), out _));
+        Assert.False(OVF.Validate(Package.Create(Descriptor, TestContext.Current.CancellationToken), out _));
         Assert.Throws<InvalidDataException>(() => OvfFilePath.Resolve(PackageDirectory, "linked/disk.vhd"));
         Assert.IsType<InvalidDataException>(InvokeImport("linked/disk.vhd"));
         Assert.Equal("outside disk", File.ReadAllText(Path.Combine(outsideDirectory, "disk.vhd")));
@@ -164,7 +164,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         var entries = coverage == "descriptor-only" ? Digest("appliance.ovf") :
             coverage == "disk-only" ? Digest("disk.vhd") : "";
         WriteFile("appliance.mf", entries);
-        Assert.Throws<InvalidDataException>(() => Package.Create(Descriptor).VerifyManifest());
+        Assert.Throws<InvalidDataException>(() => Package.Create(Descriptor, TestContext.Current.CancellationToken).VerifyManifest());
     }
 
     [Fact]
@@ -173,9 +173,9 @@ public sealed class OvfImportSecurityTests : IDisposable
         WriteDescriptor("disk.vhd");
         WriteFile("disk.vhd", "disk");
         WriteFile("appliance.mf", Digest("appliance.ovf") + Digest("disk.vhd"));
-        Package.Create(Descriptor).VerifyManifest();
+        Package.Create(Descriptor, TestContext.Current.CancellationToken).VerifyManifest();
         WriteFile("disk.vhd", "tampered");
-        Assert.ThrowsAny<Exception>(() => Package.Create(Descriptor).VerifyManifest());
+        Assert.ThrowsAny<Exception>(() => Package.Create(Descriptor, TestContext.Current.CancellationToken).VerifyManifest());
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         WriteDescriptor("disk.vhd");
         WriteFile("disk.vhd", "disk");
         WriteFile("appliance.mf", Digest("appliance.ovf") + Digest("disk.vhd") + Digest("./disk.vhd"));
-        Assert.Throws<InvalidDataException>(() => Package.Create(Descriptor).VerifyManifest());
+        Assert.Throws<InvalidDataException>(() => Package.Create(Descriptor, TestContext.Current.CancellationToken).VerifyManifest());
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         WriteFile("disk.vhd", "disk");
         File.WriteAllText(Path.Combine(_root, "outside.vhd"), "outside disk");
         WriteFile("appliance.mf", Digest("appliance.ovf") + Digest("disk.vhd") + Digest("../outside.vhd"));
-        Assert.Throws<InvalidDataException>(() => Package.Create(Descriptor).VerifyManifest());
+        Assert.Throws<InvalidDataException>(() => Package.Create(Descriptor, TestContext.Current.CancellationToken).VerifyManifest());
     }
 
     [Theory]
@@ -217,7 +217,7 @@ public sealed class OvfImportSecurityTests : IDisposable
 
         Package CreatePackage() => Package.Create(archive
             ? WriteArchive("appliance.ovf", "appliance.mf", "disk.vhd", payload)
-            : Descriptor);
+            : Descriptor, TestContext.Current.CancellationToken);
 
         var incomplete = CreatePackage();
         Assert.True(OVF.Validate(incomplete, out _));
@@ -239,7 +239,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         WriteDescriptorWithExtraReference(reference);
         WriteFile("disk.vhd", "disk");
         WriteFile("appliance.mf", Digest("appliance.ovf") + Digest("disk.vhd"));
-        var package = Package.Create(archive ? WriteArchive("appliance.ovf", "appliance.mf", "disk.vhd") : Descriptor);
+        var package = Package.Create(archive ? WriteArchive("appliance.ovf", "appliance.mf", "disk.vhd") : Descriptor, TestContext.Current.CancellationToken);
         Assert.False(OVF.Validate(package, out _));
         Assert.ThrowsAny<Exception>(() => package.VerifyManifest());
     }
@@ -261,7 +261,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         WriteFile("appliance.cert", "certificate placeholder");
         var package = Package.Create(archive
             ? WriteArchive("appliance.ovf", "appliance.mf", "appliance.cert", "disk.vhd")
-            : Descriptor);
+            : Descriptor, TestContext.Current.CancellationToken);
         Assert.False(OVF.Validate(package, out _));
         Assert.Throws<InvalidDataException>(() => package.VerifyManifest());
     }
@@ -272,7 +272,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         WriteDescriptor("disk.vhd");
         WriteFile("disk.vhd", "disk");
         WriteFile("appliance.mf", Digest("appliance.ovf") + Digest("disk.vhd"));
-        var package = Package.Create(WriteArchive("appliance.mf", "appliance.ovf", "disk.vhd"));
+        var package = Package.Create(WriteArchive("appliance.mf", "appliance.ovf", "disk.vhd"), TestContext.Current.CancellationToken);
         Assert.True(package.HasManifest());
         Assert.True(OVF.Validate(package, out _));
         package.VerifyManifest();
@@ -297,9 +297,9 @@ public sealed class OvfImportSecurityTests : IDisposable
         var archive = WriteArchive("appliance.ovf", "appliance.mf", "disk.vhd");
 
         if (scenario == "complete")
-            Package.Create(archive).VerifyManifest();
+            Package.Create(archive, TestContext.Current.CancellationToken).VerifyManifest();
         else
-            Assert.ThrowsAny<Exception>(() => Package.Create(archive).VerifyManifest());
+            Assert.ThrowsAny<Exception>(() => Package.Create(archive, TestContext.Current.CancellationToken).VerifyManifest());
     }
 
     [Theory]
@@ -337,7 +337,7 @@ public sealed class OvfImportSecurityTests : IDisposable
         WriteFile("appliance.ovf", xml);
         WriteFile("correct.vhd", "disk 10");
         WriteFile("wrong.vhd", "disk 1");
-        Assert.False(OVF.Validate(Package.Create(Descriptor), out _));
+        Assert.False(OVF.Validate(Package.Create(Descriptor, TestContext.Current.CancellationToken), out _));
     }
 
     private Exception InvokeImport(string reference, CompressionFactory.Type? compression = null, bool cancelling = false)

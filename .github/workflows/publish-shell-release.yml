@@ -198,7 +198,7 @@ jobs:
           persist-credentials: false
 
       - name: Download assets
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: release-*-x64
           path: dist
@@ -212,7 +212,7 @@ jobs:
         run: python scripts/generate-release-notes.py --version "$env:RELEASE_VERSION" --codename "$env:RELEASE_CODENAME" --output release-notes.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           name: XCP-ng Center Shell ${{ needs.prepare.outputs.version }} (${{ needs.prepare.outputs.codename }})
@@ -246,7 +246,7 @@ jobs:
         run: python scripts/generate-release-notes.py --version "$env:RELEASE_VERSION" --codename "$env:RELEASE_CODENAME" --notes-only --output release-notes.md
 
       - name: Create GitHub Release (notes only)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           name: XCP-ng Center Shell ${{ needs.prepare.outputs.version }} (${{ needs.prepare.outputs.codename }})

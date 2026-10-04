@@ -52,13 +52,13 @@
           <!-- General -->
           <StackPanel Spacing="10" IsVisible="{Binding ShowGeneral}" Margin="0,0,0,8">
             <TextBlock Text="Name, description, and tags" FontWeight="SemiBold" FontSize="16" />
-            <TextBox Watermark="Name" Text="{Binding NameLabel}" />
-            <TextBox Watermark="Description"
+            <TextBox PlaceholderText="Name" Text="{Binding NameLabel}" />
+            <TextBox PlaceholderText="Description"
                      Text="{Binding Description}"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"
                      Height="100" />
-            <TextBox Watermark="Tags (comma-separated)" Text="{Binding TagsText}" />
+            <TextBox PlaceholderText="Tags (comma-separated)" Text="{Binding TagsText}" />
             <TextBlock Text="Tags help organize VMs in the infrastructure tree and searches."
                        FontSize="11"
                        TextWrapping="Wrap"
@@ -78,8 +78,8 @@
           <!-- CPU & Memory -->
           <StackPanel Spacing="10" IsVisible="{Binding ShowCpuMemory}" Margin="0,0,0,8">
             <TextBlock Text="CPU and memory" FontWeight="SemiBold" FontSize="16" />
-            <TextBox Watermark="vCPUs" Text="{Binding VcpusText}" />
-            <TextBox Watermark="Memory (MiB)" Text="{Binding MemoryMibText}" />
+            <TextBox PlaceholderText="vCPUs" Text="{Binding VcpusText}" />
+            <TextBox PlaceholderText="Memory (MiB)" Text="{Binding MemoryMibText}" />
             <TextBlock Text="CPU/memory changes on a running VM may require a reboot to fully apply."
                        FontSize="11"
                        TextWrapping="Wrap"
@@ -119,7 +119,7 @@
               <TextBlock Text="Boot device" Foreground="{DynamicResource Brush.TextMuted}" />
               <ComboBox ItemsSource="{Binding PvBootDevices}"
                         SelectedItem="{Binding SelectedPvBootDevice}" />
-              <TextBox Watermark="OS boot parameters (PV_args)" Text="{Binding PvArgs}" />
+              <TextBox PlaceholderText="OS boot parameters (PV_args)" Text="{Binding PvArgs}" />
             </StackPanel>
           </StackPanel>
 
@@ -129,8 +129,8 @@
             <TextBlock Text="{Binding HaStatusText}"
                        TextWrapping="Wrap"
                        Foreground="{DynamicResource Brush.TextMuted}" />
-            <TextBox Watermark="Start order" Text="{Binding OrderText}" />
-            <TextBox Watermark="Start delay (seconds)" Text="{Binding StartDelayText}" />
+            <TextBox PlaceholderText="Start order" Text="{Binding OrderText}" />
+            <TextBox PlaceholderText="Start delay (seconds)" Text="{Binding StartDelayText}" />
             <ComboBox ItemsSource="{Binding HaPriorities}"
                       SelectedItem="{Binding SelectedHaPriority}"
                       IsEnabled="{Binding PoolHaEnabled}"
@@ -170,7 +170,7 @@
                       IsEnabled="{Binding CanEditAdvanced}" />
             <StackPanel Spacing="6" IsVisible="{Binding ShowCustomShadowMultiplier}">
               <TextBlock Text="Custom multiplier" Foreground="{DynamicResource Brush.TextMuted}" />
-              <TextBox Watermark="1.0 or greater"
+              <TextBox PlaceholderText="1.0 or greater"
                        Text="{Binding ShadowMultiplierText}"
                        IsEnabled="{Binding CanEditAdvanced}" />
             </StackPanel>
@@ -209,7 +209,7 @@
                          Height="4"
                          IsVisible="{Binding IsLoadingCloudConfig}" />
             <TextBox Text="{Binding CloudConfigText}"
-                     Watermark="Config-drive configuration"
+                     PlaceholderText="Config-drive configuration"
                      AcceptsReturn="True"
                      TextWrapping="NoWrap"
                      ScrollViewer.HorizontalScrollBarVisibility="Auto"

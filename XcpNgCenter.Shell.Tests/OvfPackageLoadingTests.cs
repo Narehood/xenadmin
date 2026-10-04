@@ -26,7 +26,7 @@ public sealed class OvfPackageLoadingTests : IDisposable
         });
         try
         {
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             Assert.False(load.IsCompleted);
         }
         finally
@@ -62,7 +62,7 @@ public sealed class OvfPackageLoadingTests : IDisposable
         Assert.False(vm.HasPackage);
         vm.Dispose();
         Assert.True(received.IsCancellationRequested);
-        completion.SetResult(new(Package.Create(path), ["Stale VM"], []));
+        completion.SetResult(new(Package.Create(path, TestContext.Current.CancellationToken), ["Stale VM"], []));
         await browse;
         Assert.False(vm.IsLoading);
         Assert.False(vm.HasPackage);
@@ -95,9 +95,9 @@ public sealed class OvfPackageLoadingTests : IDisposable
         var oldLoad = vm.BrowseCommand.ExecuteAsync(null);
         vm.FilePath = newerPath;
         var newLoad = vm.LoadCommand.ExecuteAsync(null);
-        newCompletion.SetResult(new(Package.Create(newerPath), ["New VM"], []));
+        newCompletion.SetResult(new(Package.Create(newerPath, TestContext.Current.CancellationToken), ["New VM"], []));
         await newLoad;
-        oldCompletion.SetResult(new(Package.Create(path), ["Stale VM"], []));
+        oldCompletion.SetResult(new(Package.Create(path, TestContext.Current.CancellationToken), ["Stale VM"], []));
         await oldLoad;
         Assert.True(vm.HasPackage);
         Assert.Equal(["New VM"], vm.SystemSummaries);

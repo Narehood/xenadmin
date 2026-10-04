@@ -4,6 +4,35 @@ Last updated: 2026-10-04 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Latest stable platform migration (2026-10-04)
+
+The next platform migration in [PR #64](https://github.com/Narehood/xenadmin/pull/64)
+follows the tested beta at `c9911533c`, on branch
+`modernization/latest-stable-platform`. It upgrades Avalonia to 12.1.3,
+SkiaSharp/native assets to 4.153.1, HarfBuzzSharp/native assets to 14.2.1.301,
+D-Bus to 0.95.1, and xUnit to the v3 MTP-off package 4.0.1. Transitive compatibility
+dependencies, central pins, locks and all 50 application redistribution notices
+are refreshed. Focus, clipboard, decorations, placeholders, text shaping and
+rendering-test dispatch are migrated to the current APIs. Shared libraries
+retain both Framework 4.8.1 and .NET 10 targets.
+
+See the [migration record](reviews/2026-10-04-latest-stable-platform.md) for
+upstream sources, regression evidence, current validation and remaining limits.
+Implementation: `afcff7dd1`. All 27 local checks pass: zero-warning builds,
+1,056 shell tests per configuration, 113 .NET 10 and 112 Framework shared tests,
+WinForms checks, all six UI probe modes and fresh Windows package smoke.
+Evidence: `artifacts/latest-stable-complete-20261004-r3`, plus a warning-free
+PNG encoder probe in `artifacts/latest-stable-png-api-20261004`. No stable package
+updates or known NuGet vulnerabilities remain in the audited graphs.
+The follow-up targets `development` and depends on PR #63; merge the parent first
+and check the upgrade PR's current-head Windows/Linux, CodeQL and review results.
+The initial Linux shared restore exposed a Windows-only inferred Framework RID;
+`1d996b507` makes the restore RID list explicit on all hosts. Both shared suites
+pass again locally and the portable lock stays unchanged. CodeRabbit's initial
+file/capacity skip remains a review availability limitation.
+The user reports that the published beta seems to work; the full manual release
+checklist remains pending. This follow-up does not replace or publish that beta.
+
 ### PR #63 release candidate cleanup (2026-10-04)
 
 [PR #63](https://github.com/Narehood/xenadmin/pull/63) targets `development`.

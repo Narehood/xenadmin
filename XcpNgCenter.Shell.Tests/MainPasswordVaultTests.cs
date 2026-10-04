@@ -51,7 +51,7 @@ public sealed class MainPasswordVaultTests : IDisposable
             new SavedServerEntry("no password", "root")]);
         using var vault = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
         Assert.False(vault.RequiresMainPassword);
-        vault.ChangePassword("synthetic main password");
+        vault.ChangePassword("synthetic main password", TestContext.Current.CancellationToken);
         Assert.True(vault.RequiresMainPassword);
         Assert.NotNull(store.ReadDocument()!.MainPassword);
         Assert.Equal(new[] { "first secret", "second secret", null }, store.Load().Select(e => vault.Unprotect(e.EncryptedPassword)));
@@ -67,9 +67,9 @@ public sealed class MainPasswordVaultTests : IDisposable
         using (var vault = new MainPasswordVault(store, new ShellAppSettings(SettingsPath)))
         {
             var original = File.ReadAllText(ServersPath);
-            Assert.False(vault.Unlock("wrong"));
+            Assert.False(vault.Unlock("wrong", TestContext.Current.CancellationToken));
             Assert.Equal(original, File.ReadAllText(ServersPath));
-            Assert.True(vault.Unlock("old main"));
+            Assert.True(vault.Unlock("old main", TestContext.Current.CancellationToken));
             Assert.Equal("server secret", vault.Unprotect(store.Load().Single().EncryptedPassword));
             Assert.StartsWith("mp2:", store.Load().Single().EncryptedPassword);
             Assert.DoesNotContain("mainPasswordHash", File.ReadAllText(SettingsPath));
@@ -78,7 +78,7 @@ public sealed class MainPasswordVaultTests : IDisposable
         using var restarted = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
         Assert.True(restarted.RequiresMainPassword);
         Assert.Null(restarted.Unprotect(store.Load().Single().EncryptedPassword));
-        Assert.True(restarted.Unlock("old main"));
+        Assert.True(restarted.Unlock("old main", TestContext.Current.CancellationToken));
         Assert.Equal("server secret", restarted.Unprotect(store.Load().Single().EncryptedPassword));
     }
 
@@ -88,14 +88,14 @@ public sealed class MainPasswordVaultTests : IDisposable
         WriteLegacy();
         var store = new SavedServerStore(ServersPath);
         using var vault = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
-        Assert.True(vault.Unlock("old main"));
+        Assert.True(vault.Unlock("old main", TestContext.Current.CancellationToken));
         var stale = store.Load().ToList();
-        vault.ChangePassword("new main");
+        vault.ChangePassword("new main", TestContext.Current.CancellationToken);
         Assert.False(vault.VerifyPassword("old main"));
         Assert.True(vault.VerifyPassword("new main"));
         Assert.Equal("server secret", vault.Unprotect(store.Load().Single().EncryptedPassword));
         Assert.ThrowsAny<CryptographicException>(() => vault.Save(stale));
-        vault.ChangePassword(null);
+        vault.ChangePassword(null, TestContext.Current.CancellationToken);
         Assert.False(vault.RequiresMainPassword);
         Assert.Equal("server secret", store.UnprotectDevicePassword(store.Load().Single().EncryptedPassword));
         using var restarted = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
@@ -116,7 +116,7 @@ public sealed class MainPasswordVaultTests : IDisposable
         Assert.False(vault.IsUnlocked);
         store.Save(store.Load().Append(new SavedServerEntry("broken", "root", "mp1:invalid")));
         originalServers = File.ReadAllText(ServersPath);
-        Assert.Throws<CryptographicException>(() => vault.Unlock("old main"));
+        Assert.Throws<CryptographicException>(() => vault.Unlock("old main", TestContext.Current.CancellationToken));
         Assert.Equal(originalServers, File.ReadAllText(ServersPath));
         Assert.Equal(originalSettings, File.ReadAllText(SettingsPath));
         Assert.False(vault.IsUnlocked);
@@ -128,14 +128,14 @@ public sealed class MainPasswordVaultTests : IDisposable
         WriteLegacy();
         var store = new SavedServerStore(ServersPath);
         using var first = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
-        Assert.True(first.Unlock("old main"));
+        Assert.True(first.Unlock("old main", TestContext.Current.CancellationToken));
         using var second = new MainPasswordVault(new SavedServerStore(ServersPath), new ShellAppSettings(SettingsPath));
-        Assert.True(second.Unlock("old main"));
+        Assert.True(second.Unlock("old main", TestContext.Current.CancellationToken));
         using var start = new ManualResetEventSlim();
         Task<bool> Change(MainPasswordVault vault, string password) => Task.Run(() =>
         {
-            start.Wait();
-            try { vault.ChangePassword(password); return true; }
+            start.Wait(TestContext.Current.CancellationToken);
+            try { vault.ChangePassword(password, TestContext.Current.CancellationToken); return true; }
             catch (InvalidOperationException) { return false; }
         });
         var a = Change(first, "first replacement");
@@ -144,7 +144,7 @@ public sealed class MainPasswordVaultTests : IDisposable
         var results = await Task.WhenAll(a, b);
         Assert.Single(results, success => success);
         using var restarted = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
-        Assert.True(restarted.Unlock(results[0] ? "first replacement" : "second replacement"));
+        Assert.True(restarted.Unlock(results[0] ? "first replacement" : "second replacement", TestContext.Current.CancellationToken));
         Assert.Equal("server secret", restarted.Unprotect(store.Load().Single().EncryptedPassword));
     }
 
@@ -154,15 +154,15 @@ public sealed class MainPasswordVaultTests : IDisposable
         WriteLegacy();
         var store = new SavedServerStore(ServersPath);
         using var first = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
-        Assert.True(first.Unlock("old main"));
+        Assert.True(first.Unlock("old main", TestContext.Current.CancellationToken));
         using var second = new MainPasswordVault(new SavedServerStore(ServersPath), new ShellAppSettings(SettingsPath));
-        Assert.True(second.Unlock("old main"));
+        Assert.True(second.Unlock("old main", TestContext.Current.CancellationToken));
         var previousEntries = store.Load().ToList();
-        first.ChangePassword("new main");
+        first.ChangePassword("new main", TestContext.Current.CancellationToken);
         var committed = File.ReadAllText(ServersPath);
         Assert.Throws<InvalidOperationException>(() => second.Save(previousEntries));
-        Assert.Throws<InvalidOperationException>(() => second.ChangePassword("third main"));
-        Assert.Throws<InvalidOperationException>(() => second.Unlock("old main"));
+        Assert.Throws<InvalidOperationException>(() => second.ChangePassword("third main", TestContext.Current.CancellationToken));
+        Assert.Throws<InvalidOperationException>(() => second.Unlock("old main", TestContext.Current.CancellationToken));
         Assert.Equal(committed, File.ReadAllText(ServersPath));
         Assert.Equal("server secret", first.Unprotect(store.Load().Single().EncryptedPassword));
     }
@@ -190,14 +190,14 @@ public sealed class MainPasswordVaultTests : IDisposable
         {
             using (var locked = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                Assert.True(vault.Unlock("old main"));
+                Assert.True(vault.Unlock("old main", TestContext.Current.CancellationToken));
                 Assert.NotNull(vault.CleanupWarning);
                 Assert.StartsWith("mp2:", store.Load().Single().EncryptedPassword);
                 Assert.Equal("server secret", vault.Unprotect(store.Load().Single().EncryptedPassword));
             }
         }
         using var restarted = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
-        Assert.True(restarted.Unlock("old main"));
+        Assert.True(restarted.Unlock("old main", TestContext.Current.CancellationToken));
         Assert.DoesNotContain("mainPasswordHash", File.ReadAllText(SettingsPath));
     }
 
@@ -207,14 +207,14 @@ public sealed class MainPasswordVaultTests : IDisposable
         WriteLegacy();
         var store = new SavedServerStore(ServersPath);
         using var vault = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
-        Assert.True(vault.Unlock("old main"));
+        Assert.True(vault.Unlock("old main", TestContext.Current.CancellationToken));
         var before = File.ReadAllText(ServersPath);
         // Windows denies replacing an open file without FileShare.Delete.
         if (OperatingSystem.IsWindows())
         {
             using (var locked = new FileStream(ServersPath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                var error = Record.Exception(() => vault.ChangePassword("new main"));
+                var error = Record.Exception(() => vault.ChangePassword("new main", TestContext.Current.CancellationToken));
                 Assert.True(error is IOException or UnauthorizedAccessException,
                     $"Expected a file replacement failure, got {error?.GetType().FullName ?? "no exception"}.");
             }
@@ -234,15 +234,15 @@ public sealed class MainPasswordVaultTests : IDisposable
         var store = new SavedServerStore(ServersPath);
         using (var vault = new MainPasswordVault(store, new ShellAppSettings(SettingsPath)))
         {
-            Assert.True(vault.Unlock("old main"));
+            Assert.True(vault.Unlock("old main", TestContext.Current.CancellationToken));
             if (disable)
-                vault.ChangePassword(null);
+                vault.ChangePassword(null, TestContext.Current.CancellationToken);
         }
         File.WriteAllText(SettingsPath, legacySettings); // interrupted cleanup
         using var restarted = new MainPasswordVault(store, new ShellAppSettings(SettingsPath));
         Assert.Equal(!disable, restarted.RequiresMainPassword);
         if (!disable)
-            Assert.True(restarted.Unlock("old main"));
+            Assert.True(restarted.Unlock("old main", TestContext.Current.CancellationToken));
         Assert.Equal("server secret", restarted.Unprotect(store.Load().Single().EncryptedPassword));
         Assert.DoesNotContain("mainPasswordHash", File.ReadAllText(SettingsPath));
     }
@@ -253,7 +253,7 @@ public sealed class MainPasswordVaultTests : IDisposable
         File.WriteAllText(ServersPath, "{ invalid");
         using var vault = new MainPasswordVault(new SavedServerStore(ServersPath), new ShellAppSettings(SettingsPath));
         Assert.True(vault.RequiresMainPassword);
-        Assert.Throws<InvalidDataException>(() => vault.ChangePassword("new main"));
+        Assert.Throws<InvalidDataException>(() => vault.ChangePassword("new main", TestContext.Current.CancellationToken));
         Assert.Throws<InvalidDataException>(() => vault.Save([]));
         Assert.Equal("{ invalid", File.ReadAllText(ServersPath));
     }

@@ -30,7 +30,7 @@
         </WrapPanel>
         <StackPanel Spacing="12" IsEnabled="{Binding CanEditGraph}">
           <TextBlock Text="Graph title" />
-          <TextBox x:Name="GraphTitleText" Text="{Binding SelectedGraph.Title}" Watermark="Graph title"
+          <TextBox x:Name="GraphTitleText" Text="{Binding SelectedGraph.Title}" PlaceholderText="Graph title"
                    AutomationProperties.Name="Selected graph title" />
           <TextBlock Text="Data sources in this graph" FontWeight="SemiBold" />
           <ListBox x:Name="SelectedSeriesList" ItemsSource="{Binding SelectedGraph.Series}"

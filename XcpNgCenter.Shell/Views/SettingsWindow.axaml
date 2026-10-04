@@ -118,7 +118,7 @@
               <TextBox Grid.Column="1"
                        Margin="8,0,0,0"
                        Text="{Binding ConnectionTimeoutText}"
-                       Watermark="20" />
+                       PlaceholderText="20" />
               <TextBlock Grid.Column="2"
                          Text="seconds"
                          Margin="8,0,0,0"
@@ -136,11 +136,11 @@
               <Grid ColumnDefinitions="*,120">
                 <TextBox Grid.Column="0"
                          Text="{Binding ProxyAddress}"
-                         Watermark="Proxy hostname or IP address" />
+                         PlaceholderText="Proxy hostname or IP address" />
                 <TextBox Grid.Column="1"
                          Margin="8,0,0,0"
                          Text="{Binding ProxyPortText}"
-                         Watermark="Port" />
+                         PlaceholderText="Port" />
               </Grid>
               <CheckBox Content="Bypass the proxy for host and pool connections"
                         IsChecked="{Binding BypassProxyForServers}" />
@@ -148,9 +148,9 @@
                         IsChecked="{Binding ProvideProxyAuthentication}" />
 
               <StackPanel Spacing="8" IsVisible="{Binding ShowProxyAuthentication}">
-                <TextBox Text="{Binding ProxyUsername}" Watermark="Proxy username" />
+                <TextBox Text="{Binding ProxyUsername}" PlaceholderText="Proxy username" />
                 <TextBox Text="{Binding ProxyPassword}"
-                         Watermark="Proxy password"
+                         PlaceholderText="Proxy password"
                          PasswordChar="*" />
                 <TextBlock Text="Transfer tunnel authentication" />
                 <ComboBox ItemsSource="{Binding ProxyAuthenticationMethods}"

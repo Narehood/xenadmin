@@ -19,9 +19,9 @@
       <TextBlock Text="Connect another host or pool. Existing connections stay open."
                  TextWrapping="Wrap"
                  Foreground="{DynamicResource Brush.TextMuted}" />
-      <TextBox Watermark="host.example or 10.0.0.5" Text="{Binding HostInput}" />
-      <TextBox Watermark="Username" Text="{Binding Username}" />
-      <TextBox Watermark="Password" Text="{Binding Password}" PasswordChar="•" />
+      <TextBox PlaceholderText="host.example or 10.0.0.5" Text="{Binding HostInput}" />
+      <TextBox PlaceholderText="Username" Text="{Binding Username}" />
+      <TextBox PlaceholderText="Password" Text="{Binding Password}" PasswordChar="•" />
       <CheckBox IsChecked="{Binding RememberPassword}"
                 IsEnabled="{Binding CanPersistPasswords}"
                 Content="{Binding RememberPasswordLabel}" />

@@ -40,7 +40,7 @@ namespace XcpNgCenter.Shell.Tests
             else action.RunSync(null);
             Assert.Same(main, action.Used);
             Assert.Null(action.Session);
-            Assert.Equal("ok", await main.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal("ok", await main.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             Assert.DoesNotContain(server.Requests, request => request["method"].Value<string>() == "session.logout");
         }
 
@@ -54,8 +54,8 @@ namespace XcpNgCenter.Shell.Tests
             var action = new ProbeAction(connection, true, retry: true);
             action.RunSync(null);
             Assert.NotSame(main, action.Used);
-            await Assert.ThrowsAsync<ObjectDisposedException>(() => action.Used.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
-            Assert.Equal("ok", await main.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => action.Used.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
+            Assert.Equal("ok", await main.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             Assert.DoesNotContain(server.Requests, request => request["method"].Value<string>() == "session.logout");
         }
 
@@ -75,11 +75,11 @@ namespace XcpNgCenter.Shell.Tests
                 Assert.Equal(3, action.Attempts.Count);
                 Assert.Same(supplied, action.Attempts[0]);
                 foreach (var replaced in action.Attempts.GetRange(1, 2))
-                    await Assert.ThrowsAsync<ObjectDisposedException>(() => replaced.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                    await Assert.ThrowsAsync<ObjectDisposedException>(() => replaced.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 foreach (var cancel in action.CancelClients)
-                    await Assert.ThrowsAsync<ObjectDisposedException>(() => cancel.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
-                Assert.Equal("ok", await supplied.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
-                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                    await Assert.ThrowsAsync<ObjectDisposedException>(() => cancel.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
+                Assert.Equal("ok", await supplied.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
+                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 Assert.DoesNotContain(server.Requests, request => request["method"].Value<string>() == "session.logout");
             }
             finally { if (callerSupplied) supplied.JsonRpcClient.Dispose(); }
@@ -94,13 +94,13 @@ namespace XcpNgCenter.Shell.Tests
             action.RunSync(null);
             Assert.Equal(2, action.Attempts.Count);
             foreach (var owned in action.Attempts)
-                await Assert.ThrowsAsync<ObjectDisposedException>(() => owned.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => owned.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             foreach (var cancel in action.CancelClients)
-                await Assert.ThrowsAsync<ObjectDisposedException>(() => cancel.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => cancel.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             var logoutTokens = server.Requests.Where(request => request["method"].Value<string>() == "session.logout")
                 .Select(request => request["params"][0].Value<string>()).ToArray();
             Assert.Equal(new[] { "synthetic-elevated-1", "synthetic-elevated-2" }, logoutTokens);
-            Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
         }
 
         [Theory]
@@ -116,9 +116,9 @@ namespace XcpNgCenter.Shell.Tests
             else action.RunSync(null);
             Assert.Equal(2, action.Used.Count);
             foreach (var duplicate in action.Used)
-                await Assert.ThrowsAsync<ObjectDisposedException>(() => duplicate.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => duplicate.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             foreach (var connection in new[] { first, second })
-                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             Assert.DoesNotContain(server.Requests, request => request["method"].Value<string>() == "session.logout");
         }
 
@@ -130,12 +130,12 @@ namespace XcpNgCenter.Shell.Tests
             var action = new ProbeAction(connection, false);
             action.RunAsync(new AsyncAction.SudoElevationResult(null, null, null));
             var until = DateTime.UtcNow.AddSeconds(5);
-            while ((!action.IsCompleted || action.Session != null) && DateTime.UtcNow < until) await Task.Delay(10);
+            while ((!action.IsCompleted || action.Session != null) && DateTime.UtcNow < until) await Task.Delay(10, TestContext.Current.CancellationToken);
             Assert.True(action.Succeeded, action.Exception?.Message);
             Assert.Null(action.Session);
             Assert.NotSame(connection.Session, action.Used);
-            await Assert.ThrowsAsync<ObjectDisposedException>(() => action.Used.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
-            Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => action.Used.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
+            Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             Assert.DoesNotContain(server.Requests, request => request["method"].Value<string>() == "session.logout");
         }
 
@@ -151,9 +151,9 @@ namespace XcpNgCenter.Shell.Tests
             {
                 var action = new ProbeAction(connection, false, retry: retry);
                 action.RunSync(supplied);
-                Assert.Equal("ok", await supplied.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                Assert.Equal("ok", await supplied.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 if (retry)
-                    await Assert.ThrowsAsync<ObjectDisposedException>(() => action.Used.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                    await Assert.ThrowsAsync<ObjectDisposedException>(() => action.Used.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 else Assert.Same(supplied, action.Used);
             }
             finally { supplied.JsonRpcClient.Dispose(); }
@@ -175,16 +175,16 @@ namespace XcpNgCenter.Shell.Tests
             try
             {
                 Assert.NotSame(connection.Session.JsonRpcClient, metadata.JsonRpcClient);
-                Assert.Equal("ok", await metadata.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                Assert.Equal("ok", await metadata.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 if (failLogout) server.Status = 503;
                 Action close = () => VdiOpenDatabaseAction.CloseMetadataSession(metadata, connection.Session, new XenRef<Session>("synthetic-metadata"));
                 if (failLogout) Assert.Throws<WebException>(close);
                 else close();
-                await Assert.ThrowsAsync<ObjectDisposedException>(() => metadata.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => metadata.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 var logout = Assert.Single(server.Requests, request => request["method"].Value<string>() == "session.logout");
                 Assert.Equal("synthetic-metadata", logout["params"][0].Value<string>());
                 server.Status = 200;
-                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             }
             finally { metadata.JsonRpcClient.Dispose(); }
         }
@@ -200,7 +200,7 @@ namespace XcpNgCenter.Shell.Tests
             Assert.Equal("session.logout", logout["method"].Value<string>());
             Assert.Equal("synthetic-metadata", logout["params"][0].Value<string>());
             Assert.Equal(poolToken, connection.Session.opaque_ref);
-            Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
         }
 
         private static void Authorize(XenConnection connection)

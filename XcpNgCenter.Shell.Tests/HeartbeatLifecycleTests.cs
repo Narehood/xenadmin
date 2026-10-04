@@ -29,16 +29,20 @@ namespace XcpNgCenter.Shell.Tests
                     Hostname = "127.0.0.1", Port = ((IPEndPoint)listener.LocalEndpoint).Port
                 };
                 using var cancellation = new CancellationTokenSource();
+#if NETFRAMEWORK
                 var accept = listener.AcceptTcpClientAsync();
+#else
+                var accept = listener.AcceptTcpClientAsync(TestContext.Current.CancellationToken).AsTask();
+#endif
                 var login = Task.Run(() => connection.ElevatedSession("synthetic-user", "synthetic-password", cancellation.Token));
                 await Within(accept);
                 using var peer = await accept;
                 var buffer = new byte[1024];
-                var hello = peer.GetStream().ReadAsync(buffer, 0, buffer.Length);
+                var hello = peer.GetStream().ReadAsync(buffer, 0, buffer.Length, TestContext.Current.CancellationToken);
                 await Within(hello);
                 Assert.True(await hello > 0);
                 cancellation.Cancel();
-                Assert.Same(login, await Task.WhenAny(login, Task.Delay(5000)));
+                Assert.Same(login, await Task.WhenAny(login, Task.Delay(5000, TestContext.Current.CancellationToken)));
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await login);
             }
             finally { listener.Stop(); }
@@ -73,7 +77,7 @@ namespace XcpNgCenter.Shell.Tests
                 Assert.Single(server.Requests);
                 Assert.Equal("host.get_servertime", server.Requests.ToArray()[0]["method"].Value<string>());
                 server.StallHeaders = false;
-                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 Assert.DoesNotContain(server.Requests, request => request["method"].Value<string>() == "session.logout");
                 heartbeat.Stop();
                 heartbeat.Start();
@@ -92,7 +96,7 @@ namespace XcpNgCenter.Shell.Tests
             await Within(stopped.Completion);
             var idle = new Heartbeat(connection, 20000);
             idle.Start();
-            await Task.Delay(100);
+            await Task.Delay(100, TestContext.Current.CancellationToken);
             await Within(idle.StopAsync());
         }
 

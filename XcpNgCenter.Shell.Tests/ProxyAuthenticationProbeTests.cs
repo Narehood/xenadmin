@@ -24,7 +24,7 @@ public sealed class ProxyAuthenticationProbeTests
             var cancel = cancellation.CancelAsync();
             if (stopListenerDuringCancellation) listener.Stop();
             await cancel;
-            await server.WaitAsync(TimeSpan.FromSeconds(5));
+            await server.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             Assert.Empty(schemes);
         }
@@ -40,7 +40,7 @@ public sealed class ProxyAuthenticationProbeTests
 
         listener.Stop();
 
-        var error = await Record.ExceptionAsync(() => server.WaitAsync(TimeSpan.FromSeconds(5)));
+        var error = await Record.ExceptionAsync(() => server.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         Assert.True(error is SocketException or ObjectDisposedException,
             $"An unexpected listener shutdown must fail; observed {error?.GetType().Name ?? "success"}.");
     }

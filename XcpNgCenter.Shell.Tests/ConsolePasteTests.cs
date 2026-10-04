@@ -22,7 +22,7 @@ public sealed class ConsolePasteTests
     public async Task InvalidTextIsRejectedBeforeAnyTransmission(string text)
     {
         var fixture = new PasteFixture();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync(text, true, null, default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync(text, true, null, TestContext.Current.CancellationToken));
         Assert.Empty(fixture.Keys);
         Assert.Equal(0, fixture.Begins);
     }
@@ -45,9 +45,9 @@ public sealed class ConsolePasteTests
     public async Task EnterAndTabRequireExplicitConsent(string text)
     {
         var fixture = new PasteFixture();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync(text, false, null, default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync(text, false, null, TestContext.Current.CancellationToken));
         Assert.Empty(fixture.Keys);
-        await fixture.Target.SendAsync(text, true, null, default);
+        await fixture.Target.SendAsync(text, true, null, TestContext.Current.CancellationToken);
         Assert.Equal(ConsolePasteText.Normalize(text).Select(ConsolePasteText.KeySym), fixture.Keys);
     }
 
@@ -55,7 +55,7 @@ public sealed class ConsolePasteTests
     public async Task NormalizesLineEndingsWithoutAddingEnter()
     {
         var fixture = new PasteFixture();
-        await fixture.Target.SendAsync("A!\r\nb\rc\td", true, null, default);
+        await fixture.Target.SendAsync("A!\r\nb\rc\td", true, null, TestContext.Current.CancellationToken);
         Assert.Equal(new[] { 65, 33, 0xff0d, 98, 0xff0d, 99, 0xff09, 100 }, fixture.Keys);
         Assert.Equal(1, fixture.Ends);
     }
@@ -129,8 +129,7 @@ public sealed class ConsolePasteTests
     public async Task TargetChangeStopsRemainingText()
     {
         var fixture = new PasteFixture();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync("secret", false,
-            new InlineProgress(_ => fixture.Current = false), default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync("secret", false, new InlineProgress(_ => fixture.Current = false), TestContext.Current.CancellationToken));
         Assert.Equal(new[] { (int)'s' }, fixture.Keys);
         Assert.Equal(1, fixture.Ends);
     }
@@ -139,12 +138,12 @@ public sealed class ConsolePasteTests
     public async Task StaleTargetAndCancelledConnectionSendNothing()
     {
         var fixture = new PasteFixture { Current = false };
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync("secret", false, null, default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync("secret", false, null, TestContext.Current.CancellationToken));
         Assert.Empty(fixture.Keys);
         using var connection = new CancellationTokenSource();
         var target = new ConsolePasteTarget("VM", () => true, () => true, () => { }, _ => throw new Exception("Sent"), connection.Token);
         connection.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => target.SendAsync("secret", false, null, default));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => target.SendAsync("secret", false, null, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -153,7 +152,7 @@ public sealed class ConsolePasteTests
         using var cancellation = new CancellationTokenSource();
         var fixture = new PasteFixture();
         var first = fixture.Target.SendAsync(new string('x', 100), false, null, cancellation.Token);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync("second", false, null, default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Target.SendAsync("second", false, null, TestContext.Current.CancellationToken));
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
         Assert.Equal(1, fixture.Ends);
@@ -200,10 +199,10 @@ public sealed class ConsolePasteTests
         session.Stop();
         using var replacement = new MemoryStream();
         Attach(session, replacement, secure: true, generation: 3);
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => target.SendAsync("secret", false, null, default));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => target.SendAsync("secret", false, null, TestContext.Current.CancellationToken));
         Assert.Empty(oldStream.ToArray());
         Assert.Empty(replacement.ToArray());
-        await session.CapturePasteTarget()!.SendAsync("ok", false, null, default);
+        await session.CapturePasteTarget()!.SendAsync("ok", false, null, TestContext.Current.CancellationToken);
         Assert.Equal(new[] { (true, 111), (false, 111), (true, 107), (false, 107) }, DecodeKeys(replacement.ToArray()).Skip(8));
     }
 
@@ -238,7 +237,7 @@ public sealed class ConsolePasteTests
             session.SendKey(true, 'x');
             session.SendPointer(1, 0, 0);
             session.SendPointerWheel(0, 0, 1);
-        }), default);
+        }), TestContext.Current.CancellationToken);
         Assert.True(session.CanPaste);
         Assert.Equal(new[] { (true, 97), (false, 97), (true, 98), (false, 98) }, DecodeKeys(stream.ToArray()).Skip(8));
     }
@@ -248,7 +247,7 @@ public sealed class ConsolePasteTests
     {
         using var session = new HostedConsoleSession();
         Attach(session, new FailingStream(), secure: true, generation: 1);
-        await Assert.ThrowsAsync<IOException>(() => session.CapturePasteTarget()!.SendAsync("secret", false, null, default));
+        await Assert.ThrowsAsync<IOException>(() => session.CapturePasteTarget()!.SendAsync("secret", false, null, TestContext.Current.CancellationToken));
         Assert.False(session.IsConnected);
         Assert.Null(session.CapturePasteTarget());
     }
@@ -304,7 +303,7 @@ public sealed class ConsolePasteTests
         var read = vm.LoadClipboardCommand.ExecuteAsync(null);
         if (cancel) vm.StopCommand.Execute(null);
         else clipboard.SetException(new IOException("private provider details"));
-        await read.WaitAsync(TimeSpan.FromSeconds(5));
+        await read.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.Equal("edited\n", vm.Text);
         Assert.True(vm.ShowText);
         Assert.True(vm.AllowEnterAndTab);
@@ -487,7 +486,7 @@ public sealed class ConsolePasteTests
         using var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => clipboard.Task);
         var read = vm.LoadClipboardCommand.ExecuteAsync(null);
         vm.StopCommand.Execute(null);
-        await read.WaitAsync(TimeSpan.FromSeconds(5));
+        await read.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         clipboard.SetResult("late secret");
         Assert.Equal("", vm.Text);
         Assert.False(vm.IsBusy);
@@ -506,9 +505,9 @@ public sealed class ConsolePasteTests
         var vm = new ConsolePasteViewModel(target, () => Task.FromResult<string?>(null));
         vm.Text = new string('s', 4096);
         var sending = vm.SendCommand.ExecuteAsync(null);
-        await sent.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await sent.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         vm.Dispose();
-        await sending.WaitAsync(TimeSpan.FromSeconds(5));
+        await sending.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.InRange(keys.Count, 1, 4095);
         Assert.Equal("", vm.Text);
         Assert.False(vm.CanSend);

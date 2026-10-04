@@ -20,9 +20,9 @@
                  TextWrapping="Wrap"
                  Foreground="{DynamicResource Brush.TextMuted}"
                  IsVisible="{Binding StatusMessage.Length}" />
-      <TextBox Watermark="Name" Text="{Binding NameLabel}" />
-      <TextBox Watermark="vCPUs" Text="{Binding VcpusText}" />
-      <TextBox Watermark="Memory (MiB)" Text="{Binding MemoryMibText}" />
+      <TextBox PlaceholderText="Name" Text="{Binding NameLabel}" />
+      <TextBox PlaceholderText="vCPUs" Text="{Binding VcpusText}" />
+      <TextBox PlaceholderText="Memory (MiB)" Text="{Binding MemoryMibText}" />
       <TextBlock Text="CPU/memory changes on a running VM may require a reboot to fully apply."
                  FontSize="11"
                  TextWrapping="Wrap"

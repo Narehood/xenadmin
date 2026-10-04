@@ -284,11 +284,11 @@
                          Foreground="{DynamicResource Brush.TextMuted}" />
 
               <StackPanel Spacing="10" Margin="0,8,0,0" Width="360" MaxWidth="360" HorizontalAlignment="Left">
-                <TextBox Watermark="host.example or 10.0.0.5"
+                <TextBox PlaceholderText="host.example or 10.0.0.5"
                          Text="{Binding HostInput}" />
-                <TextBox Watermark="Username"
+                <TextBox PlaceholderText="Username"
                          Text="{Binding Username}" />
-                <TextBox Watermark="Password"
+                <TextBox PlaceholderText="Password"
                          Text="{Binding Password}"
                          PasswordChar="•" />
                 <CheckBox IsChecked="{Binding RememberPassword}"
@@ -1163,8 +1163,8 @@
                                  TextWrapping="Wrap"
                                  FontSize="12"
                                  Foreground="{DynamicResource Brush.TextMuted}" />
-                      <TextBox Watermark="Snapshot name" Text="{Binding NewSnapshotName}" />
-                      <TextBox Watermark="Description (optional)" Text="{Binding NewSnapshotDescription}" />
+                      <TextBox PlaceholderText="Snapshot name" Text="{Binding NewSnapshotName}" />
+                      <TextBox PlaceholderText="Description (optional)" Text="{Binding NewSnapshotDescription}" />
                       <ComboBox ItemsSource="{Binding SnapshotTypeOptions}"
                                 SelectedItem="{Binding SelectedSnapshotType}">
                         <ComboBox.ItemTemplate>
