@@ -66,6 +66,17 @@ class ReleaseNotesTests(unittest.TestCase):
         result = notes.generate(self.repository, "2026.9.1.1")
         self.assertIn("Changes in this build:", result)
 
+    def test_rerun_ignores_newer_release_tags_on_the_same_commit(self):
+        with tempfile.TemporaryDirectory(prefix="xcp-release-rerun-") as directory:
+            notes.git(directory, "clone", "--quiet", str(self.repository), ".")
+            notes.git(directory, "tag", "v2026.10.5.1", "HEAD")
+            for notes_only in (False, True):
+                with self.subTest(notes_only=notes_only):
+                    result = notes.generate(directory, "2026.10.4.1", notes_only=notes_only)
+                    self.assertIn("Changes since `v2026.9.1.1`:", result)
+                    self.assertIn("_90 commit(s) since v2026.9.1.1._", result)
+                    self.assertIn("Change 91", result)
+
     def test_invalid_metadata_is_rejected(self):
         for version, codename in (("2026.10.4", "Awa"), ("2026.10.4.1", "Awa\nInjected")):
             with self.subTest(version=version, codename=codename), self.assertRaises(ValueError):

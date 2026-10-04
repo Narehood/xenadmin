@@ -19,7 +19,9 @@ def generate(repository, version, codename="Awa", notes_only=False):
         raise ValueError("Use a four-part version and a single-line codename")
     codename = codename.strip() or "Awa"
     tags = git(repository, "tag", "--merged", "HEAD", "--sort=-version:refname", "-l", "v*").splitlines()
-    previous = next((tag for tag in tags if tag != "v" + version and VERSION.fullmatch(tag[1:])), None)
+    requested_version = tuple(map(int, version.split(".")))
+    previous = next((tag for tag in tags if VERSION.fullmatch(tag[1:])
+                     and tuple(map(int, tag[1:].split("."))) < requested_version), None)
     revision_range = f"{previous}..HEAD" if previous else "HEAD"
     limit = 80 if previous else 40
     subjects = git(repository, "log", revision_range, "--no-merges", f"--max-count={limit}", "--format=%s")
