@@ -34,6 +34,9 @@ jobs:
       - name: Reject missing or stale redistribution notices
         run: python scripts/test-redistribution-notices.py
 
+      - name: Verify release note generation
+        run: python scripts/test-release-notes.py
+
       - name: Build Release
         run: dotnet build XenAdmin.sln -c Release --no-restore -p:BuildRevision=${{ github.run_number }} --nologo
 

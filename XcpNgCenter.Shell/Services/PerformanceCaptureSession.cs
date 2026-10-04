@@ -19,6 +19,7 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
     private int stopped;
     private long observed;
     private long dropped;
+    private double durationMilliseconds;
     private Exception? writeError;
     private const long MaxFileBytes = 128 * 1024 * 1024;
 
@@ -116,20 +117,21 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
                 await foreach (var sample in queue.Reader.ReadAllAsync().ConfigureAwait(false))
                 {
                     var json = JsonSerializer.Serialize(sample);
-                    if (bytes + Encoding.UTF8.GetByteCount(json) + 1 > MaxFileBytes)
+                    var sampleBytes = Encoding.UTF8.GetByteCount(json) + 1;
+                    if (bytes + sampleBytes > MaxFileBytes)
                     {
                         Interlocked.Increment(ref dropped);
                         continue;
                     }
                     await text.WriteLineAsync(json).ConfigureAwait(false);
-                    bytes += Encoding.UTF8.GetByteCount(json) + 1;
+                    bytes += sampleBytes;
                     events++;
                 }
                 await text.WriteLineAsync(JsonSerializer.Serialize(new
                 {
                     kind = "summary", eventsObserved = Interlocked.Read(ref observed),
                     eventsWritten = events, eventsDropped = Interlocked.Read(ref dropped),
-                    durationMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds
+                    durationMilliseconds
                 })).ConfigureAwait(false);
             }
         }
@@ -145,6 +147,7 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
         lock (captureGate)
         {
             if (Interlocked.Exchange(ref stopped, 1) != 0) return;
+            durationMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             queue.Writer.TryComplete();
         }
         // EventSource has its own callback lock; never acquire it while holding

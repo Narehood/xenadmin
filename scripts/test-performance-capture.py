@@ -3,6 +3,8 @@
 import importlib.util
 import json
 import tempfile
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -42,6 +44,12 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(.1, report["console"]["framesPerSecond"])
         self.assertEqual([], report["pendingPhases"])
 
+    def test_even_unsorted_samples_retain_median_and_nearest_rank_percentiles(self):
+        report = self.summarize([(1, ["details.refresh", value, value * 2]) for value in reversed(range(100))])
+        operation = report["operations"]["details.refresh"]
+        self.assertEqual((49.5, 94, 98, 99, 99), (operation["medianMs"], operation["p95Ms"],
+                         operation["p99Ms"], operation["maximumMs"], operation["medianAllocatedBytes"]))
+
     def test_missing_footer_is_incomplete(self):
         report = self.summarize([(1, ["details.refresh", 1, 1])], footer=False)
         self.assertFalse(report["complete"])
@@ -59,10 +67,23 @@ class CaptureTests(unittest.TestCase):
             self.summarize([(3, [10, 10])], observed=2)
 
     def test_invalid_event_and_nonfinite_samples_rejected(self):
-        for event in [(99, []), (1, ["details.refresh", float("nan"), 1]), (3, [-1, 3])]:
+        for event in [(99, []), (True, ["details.refresh", 1, 1]), (1, {"a": 1}),
+                      (1, ["details.refresh", float("nan"), 1]), (3, [-1, 3])]:
             with self.assertRaises(ValueError):
                 self.summarize([event])
 
+    def test_nonobject_records_fail_with_a_clear_cli_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "capture.jsonl")
+            for row in ([], None, "capture", 1):
+                with self.subTest(row=row):
+                    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+                    result = subprocess.run([sys.executable, str(Path(capture.__file__)), str(path)],
+                                            capture_output=True, text=True)
+                    self.assertEqual(1, result.returncode)
+                    self.assertIn("Performance capture rejected:", result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(testRunner=unittest.TextTestRunner(stream=sys.stdout))

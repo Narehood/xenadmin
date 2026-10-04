@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Security.Principal;
@@ -146,6 +147,7 @@ public sealed class ShellUpdateBootstrapTests
     }
 
     [Fact]
+    [SupportedOSPlatform("windows")]
     public void ProtectedStagingDescriptor_HasAdministrativeOwnerAndNoUserWriteRights()
     {
         if (!OperatingSystem.IsWindows()) return;

@@ -11,63 +11,63 @@ Notice 1: NuGet package: LICENSE
 
 ========================================================================
 
-Avalonia.Controls.ColorPicker/11.3.20
+Avalonia.Controls.ColorPicker/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia.Desktop/11.3.20
+Avalonia.Desktop/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia.FreeDesktop/11.3.20
+Avalonia.FreeDesktop/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia.Native/11.3.20
+Avalonia.Native/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia.Remote.Protocol/11.3.20
+Avalonia.Remote.Protocol/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia.Skia/11.3.20
+Avalonia.Skia/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia.Themes.Fluent/11.3.20
+Avalonia.Themes.Fluent/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia.Win32/11.3.20
+Avalonia.Win32/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia.X11/11.3.20
+Avalonia.X11/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
-Avalonia/11.3.20
+Avalonia/11.3.22
 Copyright 2013-2026 © The AvaloniaUI Project
-Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md
+Notice 2: https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md
 
 ========================================================================
 
@@ -154,10 +154,10 @@ Notice 6: NuGet package: LICENSE.txt
 
 ========================================================================
 
-log4net/3.4.0
+log4net/3.5.0
 Copyright © 2004 - 2026 The Apache Software Foundation
-Notice 8: https://raw.githubusercontent.com/apache/logging-log4net/rel/3.4.0/LICENSE
-Notice 9: https://raw.githubusercontent.com/apache/logging-log4net/rel/3.4.0/NOTICE
+Notice 8: https://raw.githubusercontent.com/apache/logging-log4net/f7794ae187ab2e228e1754cb478568dd305d1b32/LICENSE
+Notice 9: https://raw.githubusercontent.com/apache/logging-log4net/f7794ae187ab2e228e1754cb478568dd305d1b32/NOTICE
 
 ========================================================================
 

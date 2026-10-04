@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Diagnostics;
 using XcpNgCenter.Shell.Services;
 using Xunit;
 
@@ -62,6 +63,32 @@ public sealed class PerformanceCaptureTests
             finally { race.Set(); File.Delete(path); }
         }
     }
+    [Fact]
+    public async Task CaptureDurationExcludesTimeSpentDrainingBlockedOutput()
+    {
+        using var output = new BlockedOutput();
+        var collection = Stopwatch.StartNew();
+        await using var capture = new PerformanceCaptureSession(
+            Path.Combine(Path.GetTempPath(), "synthetic-performance.jsonl"), TimeSpan.FromSeconds(30),
+            openOutput: _ => output);
+        try
+        {
+            for (var i = 0; i < 2000; i++) ShellPerformanceDiagnostics.Log.ConsoleFrame(100, 100);
+            await output.Writing.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var closing = capture.DisposeAsync().AsTask();
+            collection.Stop();
+            Assert.False(closing.IsCompleted);
+            await Task.Delay(500);
+            output.Continue.TrySetResult();
+            await closing.WaitAsync(TimeSpan.FromSeconds(10));
+            var lines = System.Text.Encoding.UTF8.GetString(output.ToArray()).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            using var footer = JsonDocument.Parse(lines[^1]);
+            Assert.InRange(footer.RootElement.GetProperty("durationMilliseconds").GetDouble(),
+                0, collection.Elapsed.TotalMilliseconds + 100);
+        }
+        finally { output.Continue.TrySetResult(); }
+    }
+
     [Fact]
     public async Task CaptureWritesOnlyPerformanceProviderAndFlushesCompleteSchema()
     {
@@ -151,5 +178,18 @@ public sealed class PerformanceCaptureTests
     {
         [System.Diagnostics.Tracing.Event(1)]
         public void Secret(string secret) => WriteEvent(1, secret);
+    }
+
+    private sealed class BlockedOutput : MemoryStream
+    {
+        public readonly TaskCompletionSource Writing = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly TaskCompletionSource Continue = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Writing.TrySetResult();
+            await Continue.Task.WaitAsync(cancellationToken);
+            await base.WriteAsync(buffer, cancellationToken);
+        }
     }
 }

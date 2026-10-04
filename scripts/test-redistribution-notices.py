@@ -96,8 +96,8 @@ class RedistributionNoticeTests(unittest.TestCase):
 
     def test_dependency_name_suffix_is_not_a_recorded_identity(self):
         self.reject(lambda payload: (payload / "XcpNgCenter.Shell.deps.json").write_text(
-            json.dumps({"libraries": {"valonia/11.3.20": {"type": "package"}}}), encoding="utf-8"),
-            "No recorded redistribution notice for packaged dependency: valonia/11.3.20")
+            json.dumps({"libraries": {"valonia/11.3.22": {"type": "package"}}}), encoding="utf-8"),
+            "No recorded redistribution notice for packaged dependency: valonia/11.3.22")
 
     def test_runtime_version_prefix_is_not_a_recorded_identity(self):
         def change(payload):
@@ -111,7 +111,7 @@ class RedistributionNoticeTests(unittest.TestCase):
         verifier = load_script("verify-shell-package")
         packages, runtimes = verifier.recorded_notice_identities((ROOT / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"))
         self.assertEqual(48, len(packages))
-        self.assertIn(("avalonia", "11.3.20"), packages)
+        self.assertIn(("avalonia", "11.3.22"), packages)
         self.assertIn(("10.0.12", "LICENSE.TXT"), runtimes)
         self.assertIn(("10.0.12", "THIRD-PARTY-NOTICES.TXT"), runtimes)
 

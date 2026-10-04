@@ -20,7 +20,7 @@ public sealed class LegalNoticeTests
     public void CurrentDependencyFontAndLegacyNoticesSurviveDistribution()
     {
         Assert.Equal(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY-NOTICES.txt")), LegalNotices.ThirdParty);
-        foreach (var notice in new[] { "Avalonia/11.3.20", "SharpZipLib/1.4.2", "log4net/3.4.0", "SIL OPEN FONT LICENSE Version 1.1", "Bundled .NET runtime 10.0.12", "World Wide Web Consortium" })
+        foreach (var notice in new[] { "Avalonia/11.3.22", "SharpZipLib/1.4.2", "log4net/3.5.0", "SIL OPEN FONT LICENSE Version 1.1", "Bundled .NET runtime 10.0.12", "World Wide Web Consortium" })
             Assert.Contains(notice, LegalNotices.ThirdParty);
     }
 }

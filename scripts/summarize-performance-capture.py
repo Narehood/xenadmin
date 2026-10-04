@@ -5,12 +5,15 @@ import json
 import math
 from collections import Counter, defaultdict
 from pathlib import Path
-from statistics import median
 
 
-def percentile(values, fraction):
-    ordered = sorted(values)
+def percentile(ordered, fraction):
     return ordered[max(0, math.ceil(len(ordered) * fraction) - 1)]
+
+
+def median(ordered):
+    middle = len(ordered) // 2
+    return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
 
 
 def number(value, minimum=0):
@@ -29,6 +32,8 @@ def summarize(path, evidence_kind="unclassified"):
     with Path(path).open(encoding="utf-8") as capture:
         for line_number, line in enumerate(capture, 1):
             row = json.loads(line)
+            if not isinstance(row, dict):
+                raise ValueError(f"Expected a performance record object at line {line_number}")
             kind = row.get("kind")
             if line_number == 1:
                 if kind != "capture" or row.get("schema") != 1 or row.get("provider") != "XcpNgCenter-Shell-Performance":
@@ -45,6 +50,8 @@ def summarize(path, evidence_kind="unclassified"):
             number(row["elapsedMilliseconds"])
             event = row["eventId"]
             values = row["payload"]
+            if type(event) is not int or not isinstance(values, list):
+                raise ValueError("Invalid performance event shape")
             if event == 1 and len(values) == 3:
                 operation, elapsed, allocated = values
                 if not isinstance(operation, str) or len(operation) > 100:
@@ -77,11 +84,13 @@ def summarize(path, evidence_kind="unclassified"):
         raise ValueError("Capture observed count does not match written and dropped samples")
     timings = {}
     for operation, values in sorted(operations.items()):
+        values.sort()
+        allocated = sorted(allocations[operation])
         timings[operation] = {
             "count": len(values), "medianMs": median(values), "p95Ms": percentile(values, .95),
-            "p99Ms": percentile(values, .99), "maximumMs": max(values),
-            "knownAllocationSamples": len(allocations[operation]),
-            "medianAllocatedBytes": median(allocations[operation]) if allocations[operation] else None,
+            "p99Ms": percentile(values, .99), "maximumMs": values[-1],
+            "knownAllocationSamples": len(allocated),
+            "medianAllocatedBytes": median(allocated) if allocated else None,
         }
     coverage = {
         "inventory": batches > 0 and "inventory.refresh" in timings,

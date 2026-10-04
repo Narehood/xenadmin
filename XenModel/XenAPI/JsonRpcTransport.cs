@@ -81,7 +81,7 @@ namespace XenAPI
                             if (!string.IsNullOrEmpty(UserAgent)) request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
                             request.Headers.ExpectContinue = Expect100Continue;
                             request.Headers.ConnectionClose = !KeepAlive;
-                            request.Content = new StringContent(body, new UTF8Encoding(false), "application/json");
+                            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
                             using (var response = await lease.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false))
                             {
                                 if (response.StatusCode != HttpStatusCode.OK)
@@ -189,7 +189,7 @@ namespace XenAPI
         }
 
 #if NET8_0_OR_GREATER
-        private sealed class TransportSettings
+        private readonly struct TransportSettings
         {
             public readonly IWebProxy Proxy;
             public readonly CookieContainer Cookies;

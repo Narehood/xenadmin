@@ -10,10 +10,11 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
+LOG4NET_SOURCE = "https://raw.githubusercontent.com/apache/logging-log4net/f7794ae187ab2e228e1754cb478568dd305d1b32"
 FALLBACKS = {
-    "avalonia": "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md",
+    "avalonia": "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md",
     "discutils": "https://raw.githubusercontent.com/DiscUtils/DiscUtils/59d7cadab839c6d8dfcf52f8be5efe6d2ced190f/LICENSE.txt",
-    "log4net": "https://raw.githubusercontent.com/apache/logging-log4net/rel/3.4.0/LICENSE",
+    "log4net": LOG4NET_SOURCE + "/LICENSE",
     "lzfse-net": "https://raw.githubusercontent.com/quamotion/lzfse-net/2e86a8f485fc4624d0c49e54c4050db527710704/LICENSE",
     "lzo.net": "https://raw.githubusercontent.com/zivillian/lzo.net/9c803ebc3d04ecf91035acd8c91ccdc6de043221/LICENSE",
     "microcom.runtime": "https://raw.githubusercontent.com/kekekeks/MicroCom/4b8a38f773c109bad558ee3713d9f16d80776e42/LICENSE",
@@ -62,11 +63,13 @@ def main():
             if key is None:
                 raise RuntimeError(f"No reviewed license source for {name}")
             url = FALLBACKS[key]
-            texts.insert(0, (url, sources.setdefault(url, download(url)) if url not in sources else sources[url]))
+            if url not in sources:
+                sources[url] = download(url)
+            texts.insert(0, (url, sources[url]))
         if name.lower().startswith("log4net/"):
             # The package omits the upstream NOTICE. Apache-2.0 section 4(d)
             # also requires these attribution notices in a redistribution.
-            url = "https://raw.githubusercontent.com/apache/logging-log4net/rel/3.4.0/NOTICE"
+            url = LOG4NET_SOURCE + "/NOTICE"
             texts.append((url, download(url)))
         references = []
         for title, body in texts:
