@@ -37,10 +37,11 @@ normal X11 window-manager session. The verifier still requires the exact visible
 main-window title, its owning process ID, completed startup, and a surviving
 process; starting a window manager does not bypass those checks. Failed window
 discovery includes raw X11 window identities in the uploaded evidence.
-Avalonia 11.3.22 [looks up existing X11 atoms](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/tools/DevGenerators/X11AtomsGenerator.cs);
-a bare Xvfb display can lack the PID atom required for process identification.
-[Openbox creates that metadata](https://github.com/danakj/openbox/blob/master/obt/prop.c).
-The verifier waits for its EWMH readiness property before starting Avalonia.
+[Openbox supplies the window-manager metadata](https://github.com/danakj/openbox/blob/master/obt/prop.c)
+used by the smoke verifier. The verifier waits for its EWMH readiness property
+before starting Avalonia. Avalonia 12.1.3 now
+[creates missing X11 atoms](https://github.com/AvaloniaUI/Avalonia/blob/12.1.3/src/tools/DevGenerators/X11AtomsGenerator.cs);
+the isolated Openbox session still exercises ordinary window-manager behavior.
 
 `scripts/verify-shell-package.py` extracts and **executes a trusted local build**.
 It checks archive-root contents, bundled runtime metadata, Linux executable mode,
@@ -89,7 +90,7 @@ automation peer and checks the credential textboxes after decline, failure, and
 close. Default dimensions are captured before showing each window; both client
 and layout bounds must match the requested default/minimum size. For these hidden
 probe windows only, infinite maxima become finite requested dimensions so
-[Avalonia's Win32 tracking limits](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Windows/Avalonia.Win32/WindowImpl.AppWndProc.cs)
+[Avalonia's Win32 tracking limits](https://github.com/AvaloniaUI/Avalonia/blob/12.1.3/src/Windows/Avalonia.Win32/WindowImpl.AppWndProc.cs)
 allow the intended client size on a small CI desktop. Desktop resolution and
 production window limits are unchanged. Rendered 1x/1.5x/2x images test layout and
 rendering; physical display scaling remains a separate manual check.
