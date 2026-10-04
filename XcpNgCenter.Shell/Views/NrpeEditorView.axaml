@@ -32,7 +32,7 @@
                 IsChecked="{Binding Enabled}" />
       <StackPanel Spacing="8" IsEnabled="{Binding CanEditConfiguration}">
         <TextBox Text="{Binding AllowedHosts}"
-                 Watermark="Allowed clients, comma-separated (IPv4, CIDR, or DNS)" />
+                 PlaceholderText="Allowed clients, comma-separated (IPv4, CIDR, or DNS)" />
         <CheckBox Content="Enable NRPE debug logging"
                   IsChecked="{Binding DebugLogging}" />
         <CheckBox Content="Enable SSL debug logging"

@@ -149,7 +149,7 @@ public sealed class HttpTransportCertificateTests : IDisposable
         ServicePointManager.ServerCertificateValidationCallback = null;
         using var server = new JsonRpcTransportTests.RpcServer(certificate);
         using var rpc = new JsonRpcClient(server.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
-        var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+        var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-credential"), TestContext.Current.CancellationToken));
         Assert.Equal(WebExceptionStatus.TrustFailure, error.Status);
         Assert.Empty(server.Requests);
     }
@@ -169,8 +169,8 @@ public sealed class HttpTransportCertificateTests : IDisposable
         using var changed = new JsonRpcTransportTests.RpcServer(replacement);
         using var first = new JsonRpcClient(trusted.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
         using var second = new JsonRpcClient(changed.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
-        Assert.Equal("ok", await first.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
-        var error = await Assert.ThrowsAsync<WebException>(() => second.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+        Assert.Equal("ok", await first.CallAsync<string>("synthetic.read", new JArray("synthetic-credential"), TestContext.Current.CancellationToken));
+        var error = await Assert.ThrowsAsync<WebException>(() => second.CallAsync<string>("synthetic.read", new JArray("synthetic-credential"), TestContext.Current.CancellationToken));
         Assert.Equal(WebExceptionStatus.TrustFailure, error.Status);
         Assert.NotNull(prompt);
         Assert.Equal(CertificateTrustKind.Changed, prompt.Kind);
@@ -211,7 +211,7 @@ public sealed class HttpTransportCertificateTests : IDisposable
         try
         {
             ServicePointManager.CheckCertificateRevocationList = enabled;
-            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             Assert.Equal(expected, seen);
         }
         finally { ServicePointManager.CheckCertificateRevocationList = previous; }

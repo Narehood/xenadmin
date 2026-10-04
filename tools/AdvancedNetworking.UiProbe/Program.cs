@@ -280,7 +280,7 @@ sealed partial class ProbeApp : App
         var content = window;
         using var bitmap = new RenderTargetBitmap(new PixelSize((int)(content.Bounds.Width * scale), (int)(content.Bounds.Height * scale)), new Vector(96 * scale, 96 * scale));
         bitmap.Render(content);
-        bitmap.Save(Path.Combine(Evidence, $"{window.GetType().Name}-{size}-{scale}.png"));
+        bitmap.Save(Path.Combine(Evidence, $"{window.GetType().Name}-{size}-{scale}.png"), PngBitmapEncoderOptions.Default);
     }
     void Fail(IClassicDesktopStyleApplicationLifetime lifetime, Exception error)
     { File.WriteAllText(Path.Combine(Evidence, "results.log"), string.Join("\n", checks) + "\nFAIL: " + error); Console.Error.WriteLine(error); theme?.Dispose(); settings?.Dispose(); lifetime.Shutdown(1); }

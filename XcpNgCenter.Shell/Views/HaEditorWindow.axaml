@@ -48,7 +48,7 @@
             <TextBlock Text="The current heartbeat storage is retained. Selecting a different SR requires disabling and enabling HA."
                        IsVisible="{Binding IsConfiguring}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />
             <TextBlock Text="Host failures to tolerate" FontWeight="SemiBold" />
-            <TextBox x:Name="FailureToleranceText" Text="{Binding FailuresToTolerate}" Watermark="Host failure count"
+            <TextBox x:Name="FailureToleranceText" Text="{Binding FailuresToTolerate}" PlaceholderText="Host failure count"
                      AutomationProperties.Name="Host failures to tolerate" />
             <TextBlock Text="The server calculates capacity for your drafted VM restart policies. A tolerance of 0 reserves no host-failure capacity."
                        TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" />

@@ -14,9 +14,9 @@ public sealed class PerformancePollingTests
         using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => stream);
         var work = System.Threading.Tasks.Task.Run(() => maintainer.Get(
             _ => new Uri("http://synthetic.invalid/rrd"), (_, _) => { }, maintainer.XenObject));
-        await stream.Reading.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await stream.Reading.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         await maintainer.DisposeAsync();
-        Assert.False(await work.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.False(await work.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         Assert.True(stream.Closed);
     }
 
@@ -28,13 +28,13 @@ public sealed class PerformancePollingTests
         var host = connection.Cache.Hosts[0];
         using var maintainer = new ShellRrdMaintainer(host, action => action());
         maintainer.Start();
-        await server.FirstRequest.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await maintainer.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        await server.FirstRequest.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await maintainer.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.False(maintainer.LoadingInitialData);
         Assert.True(connection.IsConnected);
         Assert.Equal("host.get_data_sources", Assert.Single(server.Requests)["method"]!.Value<string>());
         server.StallHeaders = false;
-        Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new Newtonsoft.Json.Linq.JArray()));
+        Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new Newtonsoft.Json.Linq.JArray(), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -44,8 +44,8 @@ public sealed class PerformancePollingTests
         var updated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         maintainer.ArchivesUpdated += () => updated.TrySetResult();
         maintainer.Start();
-        await updated.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await maintainer.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(1));
+        await updated.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await maintainer.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
         maintainer.Start();
         Assert.True(maintainer.Completion.IsCompleted);
     }

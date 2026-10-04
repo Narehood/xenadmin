@@ -24,7 +24,7 @@ public partial class ShellUpdateButton : UserControl
     }
 
     private void OnTriggerEntered(object? sender, PointerEventArgs e) => OpenDetails();
-    private void OnTriggerFocused(object? sender, GotFocusEventArgs e)
+    private void OnTriggerFocused(object? sender, FocusChangedEventArgs e)
     {
         if (e.NavigationMethod == NavigationMethod.Tab) OpenDetails();
     }

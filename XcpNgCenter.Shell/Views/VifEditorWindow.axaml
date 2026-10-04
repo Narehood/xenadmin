@@ -12,7 +12,7 @@
           <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:VmNetworkOption"><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate></ComboBox.ItemTemplate>
         </ComboBox>
         <TextBlock Text="MAC address (leave blank to generate)" />
-        <TextBox Text="{Binding Mac}" Watermark="02:00:00:00:00:01" />
+        <TextBox Text="{Binding Mac}" PlaceholderText="02:00:00:00:00:01" />
         <StackPanel Spacing="8" IsEnabled="{Binding CanEditRate}">
           <CheckBox Content="Limit bandwidth" IsChecked="{Binding Limit}" />
           <StackPanel Spacing="8" IsVisible="{Binding Limit}">

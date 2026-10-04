@@ -45,7 +45,7 @@ public sealed class PerformanceCaptureTests
                     race.Wait();
                     for (var i = 0; i < 10000; i++) ShellPerformanceDiagnostics.Log.ConsoleFrame(100, 100);
                 }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)).ToArray();
-                var reachedRace = ready.Wait(TimeSpan.FromSeconds(10));
+                var reachedRace = ready.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
                 race.Set();
                 await capture.DisposeAsync();
                 await Task.WhenAll(producers);
@@ -74,13 +74,13 @@ public sealed class PerformanceCaptureTests
         try
         {
             for (var i = 0; i < 2000; i++) ShellPerformanceDiagnostics.Log.ConsoleFrame(100, 100);
-            await output.Writing.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await output.Writing.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             var closing = capture.DisposeAsync().AsTask();
             collection.Stop();
             Assert.False(closing.IsCompleted);
-            await Task.Delay(500);
+            await Task.Delay(500, TestContext.Current.CancellationToken);
             output.Continue.TrySetResult();
-            await closing.WaitAsync(TimeSpan.FromSeconds(10));
+            await closing.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             var lines = System.Text.Encoding.UTF8.GetString(output.ToArray()).Split('\n', StringSplitOptions.RemoveEmptyEntries);
             using var footer = JsonDocument.Parse(lines[^1]);
             Assert.InRange(footer.RootElement.GetProperty("durationMilliseconds").GetDouble(),
@@ -132,7 +132,7 @@ public sealed class PerformanceCaptureTests
         {
             await using var capture = new PerformanceCaptureSession(path, TimeSpan.FromMilliseconds(100));
             ShellPerformanceDiagnostics.Log.ConsoleFrame(100, 100);
-            await Task.Delay(250);
+            await Task.Delay(250, TestContext.Current.CancellationToken);
             Assert.False(ShellPerformanceDiagnostics.Log.IsEnabled());
             ShellPerformanceDiagnostics.Log.ConsoleFrame(999, 999);
             await capture.DisposeAsync();

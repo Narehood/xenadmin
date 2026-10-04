@@ -31,6 +31,7 @@ try
         .UseStandardRuntimePlatformSubsystem()
         .UseWindowingSubsystem(() => { }, "Offscreen")
         .UseSkia()
+        .UseHarfBuzz()
         .SetupWithoutStarting();
 
     var results = new List<Measurement>();

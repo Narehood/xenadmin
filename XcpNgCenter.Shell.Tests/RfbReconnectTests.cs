@@ -49,7 +49,7 @@ public sealed class RfbReconnectTests
         try
         {
             client.Connect([]);
-            var error = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var error = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             Assert.IsType<EndOfStreamException>(error);
             Assert.Equal(1, connected);
@@ -81,10 +81,10 @@ public sealed class RfbReconnectTests
         try
         {
             client.Connect([]);
-            await connected.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            await transport.ReadBlocked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await connected.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await transport.ReadBlocked.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             client.Close();
-            await transport.ReadReleased.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await transport.ReadReleased.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             Assert.True(transport.Closed);
             Assert.Equal(0, Volatile.Read(ref errors));
         }

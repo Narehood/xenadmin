@@ -34,12 +34,12 @@
           </ComboBox>
           <StackPanel Spacing="6" IsVisible="{Binding IsJoining}">
             <TextBlock Text="Domain DNS name" />
-            <TextBox x:Name="DomainText" Text="{Binding Domain}" Watermark="example.org" AutomationProperties.Name="Domain DNS name" />
+            <TextBox x:Name="DomainText" Text="{Binding Domain}" PlaceholderText="example.org" AutomationProperties.Name="Domain DNS name" />
             <TextBlock Text="Verify that each host can reach domain DNS and that host and directory time are synchronized." TextWrapping="Wrap" />
           </StackPanel>
           <StackPanel Spacing="6" IsVisible="{Binding IsAdding}">
             <TextBlock Text="User or group name" />
-            <TextBox x:Name="SubjectNameText" Text="{Binding SubjectName}" Watermark="DOMAIN\name or user@example.org" AutomationProperties.Name="User or group name" />
+            <TextBox x:Name="SubjectNameText" Text="{Binding SubjectName}" PlaceholderText="DOMAIN\name or user@example.org" AutomationProperties.Name="User or group name" />
             <TextBlock Text="Review resolves the name to its directory identifier. Verify that identifier and the selected roles." TextWrapping="Wrap" />
           </StackPanel>
           <StackPanel Spacing="6" IsVisible="{Binding ShowRoles}">

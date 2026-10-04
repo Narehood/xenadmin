@@ -24,7 +24,7 @@ public sealed class ShellReleaseHistoryTests
         });
         using var http = new HttpClient(handler);
         var checker = CreateChecker(http);
-        var result = await checker.CheckForUpdateDetailedAsync(ignoreDismissed: true);
+        var result = await checker.CheckForUpdateDetailedAsync(ignoreDismissed: true, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(ShellUpdateCheckStatus.Available, result.Status);
         Assert.Equal(new[] { latest, middle }, result.Offer!.ReleaseNotes.Select(n => n.Version));
         Assert.All(result.Offer.ReleaseNotes, note => Assert.Contains("Fix the update", note.DisplayBody));
@@ -39,7 +39,7 @@ public sealed class ShellReleaseHistoryTests
         using var handler = new Handler(path => path.EndsWith("/latest")
             ? JsonSerializer.Serialize(Release(latest)) : throw new HttpRequestException("Rate limit exceeded"));
         using var http = new HttpClient(handler);
-        var result = await CreateChecker(http).CheckForUpdateDetailedAsync(ignoreDismissed: true);
+        var result = await CreateChecker(http).CheckForUpdateDetailedAsync(ignoreDismissed: true, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(ShellUpdateCheckStatus.Available, result.Status);
         Assert.Single(result.Offer!.ReleaseNotes);
         Assert.Contains("Rate limit exceeded", result.Offer.ReleaseNotesError);
@@ -51,7 +51,7 @@ public sealed class ShellReleaseHistoryTests
         using var handler = new Handler(_ => JsonSerializer.Serialize(Release(ShellVersionInfo.Current)));
         using var http = new HttpClient(handler);
         Assert.Equal(ShellUpdateCheckStatus.UpToDate,
-            (await CreateChecker(http).CheckForUpdateDetailedAsync()).Status);
+            (await CreateChecker(http).CheckForUpdateDetailedAsync(cancellationToken: TestContext.Current.CancellationToken)).Status);
         Assert.Equal(1, handler.Requests);
     }
 

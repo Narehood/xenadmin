@@ -49,8 +49,8 @@
         <StackPanel Spacing="0" Margin="0,0,8,40">
           <StackPanel Spacing="10" IsVisible="{Binding ShowGeneral}" Margin="0,0,0,8">
             <TextBlock Text="Name and description" FontWeight="SemiBold" FontSize="16" />
-            <TextBox Watermark="Name" Text="{Binding NameLabel}" />
-            <TextBox Watermark="Description"
+            <TextBox PlaceholderText="Name" Text="{Binding NameLabel}" />
+            <TextBox PlaceholderText="Description"
                      Text="{Binding Description}"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"
@@ -96,14 +96,14 @@
                       IsChecked="{Binding EmailNotificationsEnabled}" />
             <StackPanel Spacing="8" IsEnabled="{Binding CanEditAlertDelivery}">
               <TextBox Text="{Binding AlertEmailAddress}"
-                       Watermark="Destination email address" />
+                       PlaceholderText="Destination email address" />
               <Grid ColumnDefinitions="*,120">
                 <TextBox Grid.Column="0"
                          Text="{Binding SmtpServer}"
-                         Watermark="SMTP hostname or IPv4 address" />
+                         PlaceholderText="SMTP hostname or IPv4 address" />
                 <TextBox Grid.Column="1"
                          Text="{Binding SmtpPort}"
-                         Watermark="Port"
+                         PlaceholderText="Port"
                          Margin="8,0,0,0" />
               </Grid>
               <ComboBox ItemsSource="{Binding MailLanguages}"
@@ -224,23 +224,23 @@
                       PlaceholderText="Power-on mode" />
 
             <StackPanel Spacing="8" IsVisible="{Binding ShowPowerOnCredentials}">
-              <TextBox Watermark="Management controller IP address"
+              <TextBox PlaceholderText="Management controller IP address"
                        Text="{Binding PowerOnAddress}"
                        IsEnabled="{Binding CanEditPowerOnSettings}" />
-              <TextBox Watermark="Username"
+              <TextBox PlaceholderText="Username"
                        Text="{Binding PowerOnUsername}"
                        IsEnabled="{Binding CanEditPowerOnSettings}" />
-              <TextBox Watermark="Password"
+              <TextBox PlaceholderText="Password"
                        PasswordChar="*"
                        Text="{Binding PowerOnPassword}"
                        IsEnabled="{Binding CanEditPowerOnSettings}" />
             </StackPanel>
 
             <StackPanel Spacing="8" IsVisible="{Binding ShowCustomPowerOn}">
-              <TextBox Watermark="Custom mode name"
+              <TextBox PlaceholderText="Custom mode name"
                        Text="{Binding CustomPowerOnMode}"
                        IsEnabled="{Binding CanEditPowerOnSettings}" />
-              <TextBox Watermark="Configuration, one key=value per line"
+              <TextBox PlaceholderText="Configuration, one key=value per line"
                        Text="{Binding CustomPowerOnConfig}"
                        AcceptsReturn="True"
                        TextWrapping="NoWrap"
@@ -285,7 +285,7 @@
                        Foreground="{DynamicResource Brush.TextMuted}" />
             <CheckBox Content="Send logs to a remote syslog server"
                       IsChecked="{Binding RemoteLoggingEnabled}" />
-            <TextBox Watermark="Syslog hostname or IPv4 address"
+            <TextBox PlaceholderText="Syslog hostname or IPv4 address"
                      Text="{Binding SyslogDestination}"
                      IsEnabled="{Binding CanEditSyslogDestination}" />
             <TextBlock Text="The host applies the new destination immediately after the settings are saved."

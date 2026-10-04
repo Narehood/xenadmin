@@ -62,7 +62,7 @@ public sealed class ShellUpdateChannelTests : IDisposable
                     Release(NewVersion(9), draft: true), Release(NewVersion(8), tag: "v" + NewVersion(8) + "-beta") });
         });
         using var http = new HttpClient(handler);
-        var result = await new ShellGitHubUpdateChecker(Preferences, httpClient: http).CheckForUpdateDetailedAsync();
+        var result = await new ShellGitHubUpdateChecker(Preferences, httpClient: http).CheckForUpdateDetailedAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(ShellUpdateCheckStatus.Available, result.Status);
         Assert.Equal(NewVersion(3), result.Offer!.Version);
         Assert.True(result.Offer.IsPrerelease);
@@ -83,7 +83,7 @@ public sealed class ShellUpdateChannelTests : IDisposable
             ? JsonSerializer.Serialize(Release(NewVersion(3)))
             : JsonSerializer.Serialize(new[] { Release(NewVersion(2), beta: true), Release(NewVersion(3)) }));
         using var http = new HttpClient(handler);
-        var result = await new ShellGitHubUpdateChecker(Preferences, httpClient: http).CheckForUpdateDetailedAsync();
+        var result = await new ShellGitHubUpdateChecker(Preferences, httpClient: http).CheckForUpdateDetailedAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(NewVersion(3), result.Offer!.Version);
         Assert.False(result.Offer.IsPrerelease);
         Assert.Equal(beta ? 2 : 1, result.Offer.ReleaseNotes.Count);
@@ -100,7 +100,7 @@ public sealed class ShellUpdateChannelTests : IDisposable
             : JsonSerializer.Serialize(new[] { Release(new Version(2000, 1, 1, 1), beta: true) }));
         using var http = new HttpClient(handler);
         Assert.Equal(ShellUpdateCheckStatus.UpToDate,
-            (await new ShellGitHubUpdateChecker(Preferences, httpClient: http).CheckForUpdateDetailedAsync()).Status);
+            (await new ShellGitHubUpdateChecker(Preferences, httpClient: http).CheckForUpdateDetailedAsync(cancellationToken: TestContext.Current.CancellationToken)).Status);
     }
 
     [Fact]
@@ -111,10 +111,10 @@ public sealed class ShellUpdateChannelTests : IDisposable
         using var handler = new Handler(_ => JsonSerializer.Serialize(new[] { Release(NewVersion(), beta: true) }));
         using var http = new HttpClient(handler);
         var checker = new ShellGitHubUpdateChecker(Preferences, httpClient: http);
-        Assert.Equal(ShellUpdateCheckStatus.Available, (await checker.CheckForUpdateDetailedAsync()).Status);
+        Assert.Equal(ShellUpdateCheckStatus.Available, (await checker.CheckForUpdateDetailedAsync(cancellationToken: TestContext.Current.CancellationToken)).Status);
         checker.Dismiss(NewVersion());
-        Assert.Equal(ShellUpdateCheckStatus.Dismissed, (await checker.CheckForUpdateDetailedAsync()).Status);
-        Assert.Equal(ShellUpdateCheckStatus.Available, (await checker.CheckForUpdateDetailedAsync(ignoreDismissed: true)).Status);
+        Assert.Equal(ShellUpdateCheckStatus.Dismissed, (await checker.CheckForUpdateDetailedAsync(cancellationToken: TestContext.Current.CancellationToken)).Status);
+        Assert.Equal(ShellUpdateCheckStatus.Available, (await checker.CheckForUpdateDetailedAsync(ignoreDismissed: true, cancellationToken: TestContext.Current.CancellationToken)).Status);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class ShellUpdateChannelTests : IDisposable
         Preferences.SetChannel(ShellUpdateChannel.Beta);
         using var handler = new Handler(_ => throw new HttpRequestException("offline"));
         using var http = new HttpClient(handler);
-        var result = await new ShellGitHubUpdateChecker(Preferences, httpClient: http).CheckForUpdateDetailedAsync();
+        var result = await new ShellGitHubUpdateChecker(Preferences, httpClient: http).CheckForUpdateDetailedAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(ShellUpdateCheckStatus.Failed, result.Status);
         Assert.Contains("offline", result.Detail);
     }

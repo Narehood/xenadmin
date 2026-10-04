@@ -27,7 +27,7 @@
 
           <TextBlock Text="XVA file" Foreground="{DynamicResource Brush.TextMuted}" />
           <Grid ColumnDefinitions="*,Auto">
-            <TextBox Text="{Binding FilePath}" Watermark="/path/to/backup.xva" />
+            <TextBox Text="{Binding FilePath}" PlaceholderText="/path/to/backup.xva" />
             <Button Grid.Column="1" Classes="ghost" Content="Browse…"
                     Margin="8,0,0,0" Command="{Binding BrowseCommand}" />
           </Grid>

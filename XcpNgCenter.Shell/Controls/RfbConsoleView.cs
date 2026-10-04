@@ -166,7 +166,7 @@ public sealed class RfbConsoleView : Control
 
     private void ReleaseInputCapture()
     {
-        TopLevel.GetTopLevel(this)?.FocusManager?.ClearFocus();
+        TopLevel.GetTopLevel(this)?.FocusManager?.Focus(null);
     }
 
     private void SubscribeSession(HostedConsoleSession? session)
@@ -364,13 +364,13 @@ public sealed class RfbConsoleView : Control
             e.Handled = true;
     }
 
-    protected override void OnGotFocus(GotFocusEventArgs e)
+    protected override void OnGotFocus(FocusChangedEventArgs e)
     {
         base.OnGotFocus(e);
         RaiseEvent(new RoutedEventArgs(FocusCaptureChangedEvent, this));
     }
 
-    protected override void OnLostFocus(RoutedEventArgs e)
+    protected override void OnLostFocus(FocusChangedEventArgs e)
     {
         base.OnLostFocus(e);
         foreach (var sym in _pressed.Values)

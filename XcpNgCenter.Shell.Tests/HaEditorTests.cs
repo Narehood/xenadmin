@@ -254,7 +254,7 @@ public sealed class HaEditorTests
         Assert.Single(f.Confirmations);
         Assert.Empty(f.Applies);
         confirmation.SetResult(true);
-        await f.ApplyStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await f.ApplyStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.True(f.Editor.IsSaving);
         Assert.False(f.Editor.CanReview);
         await f.Editor.ApplyCommand.ExecuteAsync(null);

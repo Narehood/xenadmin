@@ -29,8 +29,8 @@ namespace XcpNgCenter.Shell.Tests
             using var server = new RpcServer();
             using var rpc = Client(server);
             rpc.JsonRpcVersion = version;
-            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-token", "value")));
-            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-token", "value")));
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-token", "value"), TestContext.Current.CancellationToken));
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-token", "value"), TestContext.Current.CancellationToken));
             Assert.Equal(2, server.Requests.Count);
             Assert.Equal(1, server.Connections);
             var requests = server.Requests.ToArray();
@@ -48,7 +48,7 @@ namespace XcpNgCenter.Shell.Tests
             using var server = new RpcServer { Failure = true };
             using var rpc = Client(server);
             rpc.JsonRpcVersion = version;
-            var error = await Assert.ThrowsAsync<Failure>(() => rpc.CallAsync<string>("synthetic.mutation", new JArray()));
+            var error = await Assert.ThrowsAsync<Failure>(() => rpc.CallAsync<string>("synthetic.mutation", new JArray(), TestContext.Current.CancellationToken));
             Assert.Equal(new[] { "PERMISSION_DENIED", "synthetic.mutation" }, error.ErrorDescription);
             Assert.Single(server.Requests);
         }
@@ -60,7 +60,7 @@ namespace XcpNgCenter.Shell.Tests
         {
             using var server = new RpcServer { Status = status };
             using var rpc = Client(server);
-            var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.mutation", new JArray()));
+            var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.mutation", new JArray(), TestContext.Current.CancellationToken));
             Assert.Equal(WebExceptionStatus.ProtocolError, error.Status);
             Assert.Equal((HttpStatusCode)status, JsonRpcClient.GetHttpStatus(error));
             Assert.Single(server.Requests);
@@ -72,12 +72,12 @@ namespace XcpNgCenter.Shell.Tests
             using var server = new RpcServer { StallBody = true };
             using var rpc = Client(server);
             rpc.Timeout = 150;
-            var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.mutation", new JArray()));
+            var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.mutation", new JArray(), TestContext.Current.CancellationToken));
             Assert.Equal(WebExceptionStatus.Timeout, error.Status);
             Assert.Single(server.Requests);
             server.StallBody = false;
             rpc.Timeout = 5000;
-            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             Assert.Equal(2, server.Requests.Count);
         }
 
@@ -89,7 +89,7 @@ namespace XcpNgCenter.Shell.Tests
             using var cancellation = new CancellationTokenSource();
             var pending = rpc.CallAsync<string>("synthetic.mutation", new JArray(), cancellation.Token);
             Assert.Same(server.FirstRequest.Task,
-                await Task.WhenAny(server.FirstRequest.Task, pending, Task.Delay(TimeSpan.FromSeconds(5))));
+                await Task.WhenAny(server.FirstRequest.Task, pending, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)));
             cancellation.Cancel();
             var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
             Assert.Equal(cancellation.Token, error.CancellationToken);
@@ -105,12 +105,12 @@ namespace XcpNgCenter.Shell.Tests
             var duplicate = new Session(original);
             try
             {
-                Assert.Equal("ok", await original.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
-                Assert.Equal("ok", await duplicate.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                Assert.Equal("ok", await original.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
+                Assert.Equal("ok", await duplicate.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 Assert.Equal(2, server.Connections);
                 duplicate.JsonRpcClient.Dispose();
-                Assert.Equal("ok", await original.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
-                await Assert.ThrowsAsync<ObjectDisposedException>(() => duplicate.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                Assert.Equal("ok", await original.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => duplicate.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 Assert.Equal(3, server.Requests.Count);
             }
             finally { original.JsonRpcClient.Dispose(); duplicate.JsonRpcClient.Dispose(); }
@@ -122,10 +122,10 @@ namespace XcpNgCenter.Shell.Tests
             using var server = new RpcServer { Cookie = true };
             using var one = Client(server);
             one.Cookies = new CookieContainer();
-            await one.CallAsync<string>("synthetic.read", new JArray());
-            await one.CallAsync<string>("synthetic.read", new JArray());
+            await one.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken);
+            await one.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken);
             using var two = Client(server);
-            await two.CallAsync<string>("synthetic.read", new JArray());
+            await two.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken);
             var headers = server.Headers.ToArray();
             Assert.DoesNotContain("Cookie:", headers[0]);
             Assert.Contains("synthetic-cookie=1", headers[1]);
@@ -155,7 +155,7 @@ namespace XcpNgCenter.Shell.Tests
                 Assert.NotEqual(SslPolicyErrors.None, errors);
                 return accept;
             };
-            var failure = await Record.ExceptionAsync(() => rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+            var failure = await Record.ExceptionAsync(() => rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-credential"), TestContext.Current.CancellationToken));
             Assert.Equal("127.0.0.1", hostname);
             if (accept)
             {
@@ -178,7 +178,7 @@ namespace XcpNgCenter.Shell.Tests
                 Timeout = 5000, KeepAlive = true, JsonRpcVersion = JsonRpcVersion.v2,
                 WebProxy = new WebProxy(proxy.Url) { Credentials = new NetworkCredential("synthetic-user", "synthetic-proxy-password") }
             };
-            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             var headers = proxy.Headers.ToArray();
             Assert.Equal(2, headers.Length);
             Assert.DoesNotContain("Proxy-Authorization:", headers[0]);
@@ -197,13 +197,13 @@ namespace XcpNgCenter.Shell.Tests
             rpc.AllowAutoRedirect = allow;
             if (allow)
             {
-                Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-token")));
+                Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-token"), TestContext.Current.CancellationToken));
                 Assert.Single(destination.Requests);
                 Assert.Equal("synthetic-token", destination.Requests.ToArray()[0]["params"]![0]!.Value<string>());
             }
             else
             {
-                var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray()));
+                var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
                 Assert.Equal((HttpStatusCode)307, JsonRpcClient.GetHttpStatus(error));
                 Assert.Empty(destination.Requests);
             }
@@ -221,10 +221,10 @@ namespace XcpNgCenter.Shell.Tests
             using var server = new RpcServer { RawBody = "" };
             using var rpc = Client(server);
             rpc.JsonRpcVersion = version;
-            var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray()));
+            var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             Assert.Equal(WebExceptionStatus.ServerProtocolViolation, error.Status);
             server.RawBody = null;
-            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray(), TestContext.Current.CancellationToken));
             Assert.Equal(2, server.Requests.Count);
         }
 
@@ -240,9 +240,9 @@ namespace XcpNgCenter.Shell.Tests
             try
             {
                 var until = DateTime.UtcNow.AddSeconds(5);
-                while (server.Requests.Count < 20 && DateTime.UtcNow < until) await Task.Delay(10);
+                while (server.Requests.Count < 20 && DateTime.UtcNow < until) await Task.Delay(10, TestContext.Current.CancellationToken);
                 Assert.Equal(20, server.Requests.Count);
-                await Task.Delay(150);
+                await Task.Delay(150, TestContext.Current.CancellationToken);
                 Assert.Equal(20, server.Requests.Count);
                 Assert.Equal(20, server.Connections);
             }

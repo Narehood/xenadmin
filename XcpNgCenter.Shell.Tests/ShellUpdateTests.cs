@@ -273,7 +273,7 @@ public sealed class ShellUpdateTests
         using var temp = new TemporaryDirectory();
         var path = Path.Combine(temp.Path, "update.zip");
         var bytes = "verified update bytes"u8.ToArray();
-        await File.WriteAllBytesAsync(path, bytes);
+        await File.WriteAllBytesAsync(path, bytes, TestContext.Current.CancellationToken);
         var digest = "sha256:" + Convert.ToHexString(SHA256.HashData(bytes));
         var asset = new ShellUpdateAsset("update.zip", "https://github.com/update.zip", bytes.Length, digest);
 
@@ -286,7 +286,7 @@ public sealed class ShellUpdateTests
         using var temp = new TemporaryDirectory();
         var path = Path.Combine(temp.Path, "update.zip");
         var bytes = "tampered update bytes"u8.ToArray();
-        await File.WriteAllBytesAsync(path, bytes);
+        await File.WriteAllBytesAsync(path, bytes, TestContext.Current.CancellationToken);
         var asset = new ShellUpdateAsset("update.zip", "https://github.com/update.zip", bytes.Length, ValidDigest);
 
         await Assert.ThrowsAsync<InvalidDataException>(() =>
@@ -303,7 +303,7 @@ public sealed class ShellUpdateTests
 
         await ShellUpdateInstaller.ExtractArchiveAsync(archivePath, destination, CancellationToken.None);
 
-        Assert.Equal("content", await File.ReadAllTextAsync(Path.Combine(destination, "nested", "file.txt")));
+        Assert.Equal("content", await File.ReadAllTextAsync(Path.Combine(destination, "nested", "file.txt"), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -353,7 +353,7 @@ public sealed class ShellUpdateTests
 
         await ShellUpdateInstaller.ExtractArchiveAsync(archivePath, destination, CancellationToken.None);
 
-        Assert.Equal("content", await File.ReadAllTextAsync(Path.Combine(destination, "nested", "file.txt")));
+        Assert.Equal("content", await File.ReadAllTextAsync(Path.Combine(destination, "nested", "file.txt"), TestContext.Current.CancellationToken));
     }
 
     [Fact]

@@ -37,7 +37,7 @@ public sealed class AdManagementTests : IDisposable
         using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
         var request = f.Request(operation, operation is AdOperation.Join or AdOperation.Leave ? "directory-user" : "");
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         Assert.DoesNotContain(server.Requests, IsMutation);
         Assert.DoesNotContain("directory-password", JsonConvert.SerializeObject(review));
         using var credentials = new AdCredentials("directory-user", "directory-password");
@@ -70,7 +70,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.SetRoles);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         switch (change)
         {
             case "pool": f.Pool.uuid = "replacement"; break;
@@ -93,7 +93,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.RemoveSubject);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         server.ReplaceServerSubject = true;
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
         Assert.False(error.MutationAttempted);
@@ -108,7 +108,7 @@ public sealed class AdManagementTests : IDisposable
         using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
         var request = f.Request(AdOperation.SetRoles);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         var inventoryReads = 0;
         var changed = false;
         server.BeforeReply = method =>
@@ -143,7 +143,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(operation != AdOperation.Join); using var server = new RpcServer(f) { LocalRoot = false }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
-        var error = await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, f.Request(operation)));
+        var error = await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, f.Request(operation), TestContext.Current.CancellationToken));
         Assert.Contains("local root", error.Message);
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
@@ -153,7 +153,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f) { LocalRoot = false }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.SetRoles);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session);
         Assert.Contains(server.Requests, r => Method(r) == "subject.add_to_roles");
     }
@@ -168,7 +168,7 @@ public sealed class AdManagementTests : IDisposable
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
         foreach (var operation in new[] { AdOperation.SetRoles, AdOperation.RemoveSubject })
         {
-            var error = await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, f.Request(operation)));
+            var error = await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, f.Request(operation), TestContext.Current.CancellationToken));
             Assert.Contains("current account", error.Message);
         }
         Assert.DoesNotContain(server.Requests, IsMutation);
@@ -183,7 +183,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f) { LocalRoot = false }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.SetRoles);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         server.DeniedPermission = permission;
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
         Assert.False(error.MutationAttempted);
@@ -198,7 +198,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.SetRoles);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request); server.FailureMethod = failureMethod;
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken); server.FailureMethod = failureMethod;
         server.Echo = "raw-provider-error-must-not-escape";
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
         Assert.True(error.MutationAttempted);
@@ -217,7 +217,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(operation);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request); server.FailureMethod = failureMethod;
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken); server.FailureMethod = failureMethod;
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
         Assert.True(error.MutationAttempted);
         Assert.Contains(AdManagement.RecoveryNotice, error.Message);
@@ -231,7 +231,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.AddSubject);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request); server.ResolvedSid = "replacement-sid";
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken); server.ResolvedSid = "replacement-sid";
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
         Assert.False(error.MutationAttempted);
         Assert.Contains("directory identity changed", error.Message);
@@ -254,7 +254,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.AddSubject);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         var lookups = 0;
         server.BeforeReply = method =>
         {
@@ -277,7 +277,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(operation != AdOperation.Join); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(operation, reviewedUsername);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         using var credentials = new AdCredentials(appliedUsername, appliedUsername.Length == 0 ? "" : "secret");
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, credentials).RunSync(server.Session));
         Assert.False(error.MutationAttempted);
@@ -294,7 +294,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(false); using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.Join);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         const string secret = "provider-echoed-directory-password";
         // The synchronous transport hook can throw any exception type, just as
         // a provider can; InvalidOperationException itself is not a safe marker.
@@ -413,7 +413,7 @@ public sealed class AdManagementTests : IDisposable
         action.Cancel();
         var field = typeof(EnableAdAction).GetField("password", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var limit = DateTime.UtcNow.AddSeconds(5);
-        while (field.GetValue(action) != null && DateTime.UtcNow < limit) await Task.Delay(10);
+        while (field.GetValue(action) != null && DateTime.UtcNow < limit) await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.Null(field.GetValue(action));
     }
 
@@ -422,7 +422,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(false); using var server = new RpcServer(f) { FailureMethod = "pool.disable_external_auth" }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.Join);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("directory-user", "secret")).RunSync(server.Session));
         Assert.True(error.MutationAttempted);
         Assert.Contains("preparatory domain leave", error.Message);
@@ -477,7 +477,7 @@ public sealed class AdManagementTests : IDisposable
     {
         var f = new Fixture(); using var server = new RpcServer(f) { ChangeDomainOnCreate = true }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.AddSubject);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
         Assert.True(error.MutationAttempted);
         Assert.Contains("pool, domain or role definitions changed", error.Message);
@@ -506,7 +506,7 @@ public sealed class AdManagementTests : IDisposable
         using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid");
         var request = new AdRequest(AdOperation.SetRoles, "", "", "subject", ["admin"], condition != "no-recovery");
-        await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, request));
+        await Assert.ThrowsAsync<AdValidationException>(() => AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken));
         Assert.DoesNotContain(server.Requests, IsMutation);
     }
 
@@ -516,7 +516,7 @@ public sealed class AdManagementTests : IDisposable
         var f = new Fixture(); f.Metrics.live = false; f.Host.license_params["restrict_ad"] = "true";
         using var server = new RpcServer(f); f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(AdOperation.Leave);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session);
         var mutation = Assert.Single(server.Requests, IsMutation);
         Assert.Equal("pool.disable_external_auth", Method(mutation));
@@ -535,7 +535,7 @@ public sealed class AdManagementTests : IDisposable
         server.GroupMemberships["affected-user"] = [target];
         f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(operation);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request);
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken);
         var action = new AdAction(f.Connection, snapshot, request, review, new("", "")); action.RunSync(server.Session);
         Assert.True(action.Succeeded);
         var logouts = server.Requests.Where(request => Method(request) == "session.logout_subject_identifier")
@@ -552,7 +552,7 @@ public sealed class AdManagementTests : IDisposable
         var f = new Fixture(); f.Subject.other_config["subject-is-group"] = "true";
         using var server = new RpcServer(f) { ActiveSessionIdentifiers = ["affected-user"] }; f.Connect(server.Session);
         var snapshot = await AdManagement.LoadAsync(f.Connection, "pool", "pool-uuid"); var request = f.Request(operation);
-        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request); server.FailureMethod = failureMethod;
+        var review = await AdManagement.ReviewAsync(f.Connection, snapshot, request, TestContext.Current.CancellationToken); server.FailureMethod = failureMethod;
         var error = Assert.Throws<AdActionException>(() => new AdAction(f.Connection, snapshot, request, review, new("", "")).RunSync(server.Session));
         Assert.True(error.MutationAttempted);
         Assert.Contains(AdManagement.RecoveryNotice, error.Message);

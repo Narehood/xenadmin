@@ -21,8 +21,8 @@
                  TextWrapping="Wrap"
                  Foreground="{DynamicResource Brush.TextMuted}"
                  IsVisible="{Binding StatusMessage.Length}" />
-      <TextBox Watermark="Name" Text="{Binding CloneName}" />
-      <TextBox Watermark="Description"
+      <TextBox PlaceholderText="Name" Text="{Binding CloneName}" />
+      <TextBox PlaceholderText="Description"
                Text="{Binding CloneDescription}"
                AcceptsReturn="True"
                Height="72"
