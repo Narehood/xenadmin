@@ -10,14 +10,13 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
-CACHE = Path.home() / ".nuget/packages"
 FALLBACKS = {
     "avalonia": "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/11.3.20/licence.md",
     "discutils": "https://raw.githubusercontent.com/DiscUtils/DiscUtils/59d7cadab839c6d8dfcf52f8be5efe6d2ced190f/LICENSE.txt",
     "log4net": "https://raw.githubusercontent.com/apache/logging-log4net/rel/3.4.0/LICENSE",
     "lzfse-net": "https://raw.githubusercontent.com/quamotion/lzfse-net/2e86a8f485fc4624d0c49e54c4050db527710704/LICENSE",
-    "lzo.net": "https://raw.githubusercontent.com/zivillian/lzo.net/master/LICENSE",
-    "microcom.runtime": "https://raw.githubusercontent.com/kekekeks/MicroCom/master/LICENSE",
+    "lzo.net": "https://raw.githubusercontent.com/zivillian/lzo.net/9c803ebc3d04ecf91035acd8c91ccdc6de043221/LICENSE",
+    "microcom.runtime": "https://raw.githubusercontent.com/kekekeks/MicroCom/4b8a38f773c109bad558ee3713d9f16d80776e42/LICENSE",
     "sharpziplib": "https://raw.githubusercontent.com/icsharpcode/SharpZipLib/v1.4.2/LICENSE.txt",
     "tmds.dbus.protocol": "https://raw.githubusercontent.com/tmds/Tmds.DBus/8cb04f66c330b64244e996ff68f685f27f7381a0/COPYING",
     "system": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT",
@@ -30,14 +29,24 @@ def download(url):
         return response.read().decode("utf-8-sig")
 
 
+def package_directory(package_path, folders):
+    for folder in folders:
+        directory = Path(folder) / package_path
+        if directory.is_dir():
+            return directory
+    raise RuntimeError(f"Restore the pinned package before regeneration: {package_path}")
+
+
 def main():
     packages = {}
+    package_folders = {}
     for project in ("XenAdmin", "XcpNgCenter.Shell", "XenCenterLib", "XenModel", "XenOvfApi", "CommandLib"):
         assets = json.loads((ROOT / project / "obj/project.assets.json").read_text(encoding="utf-8"))
+        package_folders.update(assets["packageFolders"])
         for name, library in assets["libraries"].items():
             if library["type"] != "package" or name.lower().startswith(("microsoft.netframework.referenceassemblies", "avalonia.buildservices")):
                 continue
-            packages[name] = CACHE / library["path"]
+            packages[name] = package_directory(library["path"], assets["packageFolders"])
     sections = []
     sources = {}
     notices = {}
@@ -70,9 +79,9 @@ def main():
     # Preserve notices for retained source/assets; current package licenses above
     # supersede historical descriptions of older package versions.
     sections.append("Historical source and asset notices\nCurrent package licenses above apply to the pinned binaries.\n\n" + legacy)
-    url = "https://raw.githubusercontent.com/google/fonts/main/ofl/outfit/OFL.txt"
+    url = "https://raw.githubusercontent.com/google/fonts/29e94d990c84a54f83644e7c43f42dfc9e1a4ac7/ofl/outfit/OFL.txt"
     sections.append("Outfit fonts\n" + url + "\n\n" + download(url))
-    runtime = CACHE / "microsoft.netcore.app.runtime.win-x64/10.0.12"
+    runtime = package_directory("microsoft.netcore.app.runtime.win-x64/10.0.12", package_folders)
     for filename in ("LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT"):
         path = runtime / filename
         if not path.is_file():

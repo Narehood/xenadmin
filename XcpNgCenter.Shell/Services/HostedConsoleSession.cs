@@ -152,12 +152,18 @@ public sealed class HostedConsoleSession : IDisposable
             {
                 if (startup.Complete())
                     SetStatus(generation, "Live console — click to focus for keyboard/mouse.", connected: true);
+                else
+                {
+                    startup.End();
+                    SetStatus(generation, startup.FailureMessage, connected: false);
+                    TearDownTransport(generation);
+                }
             };
 
             RfbClient connectClient;
             lock (_gate)
             {
-                if (_disposed || _generation != generation || token.IsCancellationRequested)
+                if (_disposed || _generation != generation)
                 {
                     client.Close();
                     SafeDispose(stream);
@@ -165,6 +171,9 @@ public sealed class HostedConsoleSession : IDisposable
                     return;
                 }
 
+                // Deadline cancellation can happen before the RFB thread starts,
+                // when no error callback will clear the connecting state.
+                token.ThrowIfCancellationRequested();
                 _stream = stream;
                 // HTTP CONNECT can follow redirects. Check the resulting transport,
                 // not the original URI, before allowing clipboard content onto it.

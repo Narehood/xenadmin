@@ -25,6 +25,16 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
+def recorded_notice_identities(text):
+    # Parse recorded headings followed by notice references, rather than finding
+    # package/version prefixes or unrelated version strings in the license text.
+    packages = {(name.casefold(), version.casefold()) for name, version in re.findall(
+        r"(?m)^([A-Za-z0-9_.-]+)/([^\s/]+)\n[^\n]*\nNotice \d+: ", text)}
+    runtimes = {(version, filename) for version, filename in re.findall(
+        r"(?m)^Bundled \.NET runtime ([^\s:]+): (LICENSE\.TXT|THIRD-PARTY-NOTICES\.TXT)\nNotice \d+\b", text)}
+    return packages, runtimes
+
+
 def stop_process(process):
     if process.poll() is None:
         process.terminate()
@@ -197,14 +207,17 @@ def main():
             require(any(item["name"] == "Microsoft.NETCore.App" and item["version"].startswith("10.0.") for item in runtime.get("includedFrameworks", [])), "Missing bundled .NET 10 runtime metadata.")
             require(runtime.get("configProperties", {}).get("System.StartupHookProvider.IsSupported") is False, "Startup hooks must remain disabled in the published app.")
             report["runtime"] = runtime["includedFrameworks"]
-            third_party = (payload / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8").casefold()
+            packages, runtimes = recorded_notice_identities(
+                (payload / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"))
             dependencies = json.loads((payload / "XcpNgCenter.Shell.deps.json").read_text(encoding="utf-8"))["libraries"]
             for name, dependency in dependencies.items():
                 if dependency["type"] == "package":
-                    require(name.casefold() in third_party, f"No recorded redistribution notice for packaged dependency: {name}")
+                    require(tuple(part.casefold() for part in name.rsplit("/", 1)) in packages,
+                            f"No recorded redistribution notice for packaged dependency: {name}")
             for framework in runtime["includedFrameworks"]:
                 if framework["name"] == "Microsoft.NETCore.App":
-                    require(f"bundled .net runtime {framework['version']}" in third_party,
+                    require(all((framework["version"], filename) in runtimes
+                                for filename in ("LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT")),
                             "Refresh third-party notices for the packaged .NET runtime version.")
 
             profile = scratch / "profile"

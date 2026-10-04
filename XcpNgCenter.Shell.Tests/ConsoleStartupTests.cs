@@ -114,7 +114,67 @@ public sealed class ConsoleStartupTests
         Assert.Contains("handshake", session.StatusMessage);
     }
 
-    private sealed class BlockingStream : Stream
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancellationBeforeRfbStartsClearsConnectingWithoutUpdatingStoppedGeneration(bool stop)
+    {
+        using var connection = new XenConnection { Hostname = "synthetic-host" };
+        using var stream = new PreConnectStream();
+        using var session = new HostedConsoleSession((_, _) => stream, TimeSpan.FromMilliseconds(150));
+        var target = new LiveRfbTarget(connection, new XenAPI.Console { location = "http://synthetic.invalid/console" },
+            "Synthetic guest", "Synthetic guest", "synthetic-uuid", false, 1);
+        session.Start(target);
+        try
+        {
+            // BufferedStream checks CanRead inside the RFB constructor, after the
+            // worker's first token check and before it can start the RFB thread.
+            await stream.BeforeConnect.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var worker = (Task)typeof(HostedConsoleSession).GetField("_connectWorker",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(session)!;
+            if (stop) session.Stop();
+            var until = DateTime.UtcNow.AddSeconds(5);
+            while (!stream.Closed && DateTime.UtcNow < until) await Task.Delay(10);
+            Assert.True(stream.Closed);
+            var stoppedStatus = session.StatusMessage;
+            stream.ContinueConnect.Set();
+            await worker.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(session.IsConnected);
+            Assert.False(session.IsConnecting);
+            Assert.False(stream.Reading.Task.IsCompleted);
+            if (stop) Assert.Equal(stoppedStatus, session.StatusMessage);
+            else
+            {
+                Assert.Contains("timed out", session.StatusMessage);
+                // The same target can start a fresh attempt after this failure.
+                session.Start(target);
+                Assert.True(session.IsConnecting);
+                session.Stop();
+            }
+        }
+        finally { stream.ContinueConnect.Set(); }
+    }
+
+    private sealed class PreConnectStream : BlockingStream
+    {
+        private int entered;
+        public readonly TaskCompletionSource BeforeConnect = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly ManualResetEventSlim ContinueConnect = new();
+        public override bool CanRead
+        {
+            get
+            {
+                if (Interlocked.Exchange(ref entered, 1) == 0)
+                {
+                    BeforeConnect.TrySetResult();
+                    if (!ContinueConnect.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("Test did not release RFB construction");
+                }
+                return true;
+            }
+        }
+    }
+
+    private class BlockingStream : Stream
     {
         private readonly ManualResetEventSlim closed = new();
         public readonly TaskCompletionSource Reading = new(TaskCreationOptions.RunContinuationsAsynchronously);

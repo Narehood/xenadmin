@@ -193,6 +193,66 @@ public sealed class HttpTransportCertificateTests : IDisposable
         return X509CertificateLoader.LoadPkcs12(generated.Export(X509ContentType.Pfx), null, X509KeyStorageFlags.Exportable);
     }
 
+    [Theory]
+    [InlineData(false, X509RevocationMode.NoCheck)]
+    [InlineData(true, X509RevocationMode.Online)]
+    public async Task RpcTransportUsesExplicitApplicationRevocationPolicy(bool enabled, X509RevocationMode expected)
+    {
+        var previous = ServicePointManager.CheckCertificateRevocationList;
+        using var certificate = CreateCertificate();
+        using var server = new JsonRpcTransportTests.RpcServer(certificate);
+        using var rpc = new JsonRpcClient(server.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
+        X509RevocationMode? seen = null;
+        rpc.ServerCertificateValidationCallback = (_, _, chain, _) =>
+        {
+            seen = chain?.ChainPolicy.RevocationMode;
+            return true;
+        };
+        try
+        {
+            ServicePointManager.CheckCertificateRevocationList = enabled;
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal(expected, seen);
+        }
+        finally { ServicePointManager.CheckCertificateRevocationList = previous; }
+    }
+
+    [Fact]
+    public async Task SuccessfulElevatedLoginDoesNotRetainStartupCancellationAndLogoutStillWorks()
+    {
+        using var certificate = CreateCertificate();
+        using var server = new JsonRpcTransportTests.RpcServer(certificate)
+        {
+            ResultForRequest = request => request["method"]!.Value<string>() switch
+            {
+                "session.login_with_password" => new JValue("synthetic-elevated-token"),
+                "pool.get_all_records" => new JObject(),
+                "session.get_is_local_superuser" => new JValue(true),
+                "session.get_rbac_permissions" => new JArray(),
+                "role.get_all_records" => new JObject(),
+                _ => new JValue("ok")
+            }
+        };
+        using var connection = new XenAdmin.Network.XenConnection
+        {
+            Hostname = "127.0.0.1", Port = new Uri(server.Url).Port
+        };
+        ServicePointManager.ServerCertificateValidationCallback = (_, _, _, _) => true;
+        var cancellation = new CancellationTokenSource();
+        var session = await Task.Run(() => connection.ElevatedSession("synthetic-user", "synthetic-password", cancellation.Token));
+        try
+        {
+            cancellation.Cancel();
+            cancellation.Dispose();
+            Assert.False(session.JsonRpcClient.CancellationToken.CanBeCanceled);
+            Assert.Equal("ok", session.JsonRpcClient.session_get_uuid(session.opaque_ref, session.opaque_ref));
+            session.logout();
+            var logout = Assert.Single(server.Requests, request => request["method"]!.Value<string>() == "session.logout");
+            Assert.Equal("synthetic-elevated-token", logout["params"]![0]!.Value<string>());
+        }
+        finally { session.JsonRpcClient.Dispose(); cancellation.Dispose(); }
+    }
+
     public void Dispose()
     {
         ServicePointManager.ServerCertificateValidationCallback = _previousCallback;

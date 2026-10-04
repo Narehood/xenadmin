@@ -219,6 +219,8 @@ namespace XenAPI
                 if (version == JsonRpcVersion.v2)
                 {
                     var result = (JsonResponseV2<T>)serializer.Deserialize(reader, typeof(JsonResponseV2<T>));
+                    if (result == null)
+                        throw new WebException("JSON-RPC response was empty.", WebExceptionStatus.ServerProtocolViolation);
                     if (result.Error != null)
                     {
                         var description = new List<string> { result.Error.Message };
@@ -228,6 +230,8 @@ namespace XenAPI
                     return result.Result;
                 }
                 var legacy = (JsonResponseV1<T>)serializer.Deserialize(reader, typeof(JsonResponseV1<T>));
+                if (legacy == null)
+                    throw new WebException("JSON-RPC response was empty.", WebExceptionStatus.ServerProtocolViolation);
                 if (legacy.Error != null)
                 {
                     var errorArray = legacy.Error.ToObject<string[]>();

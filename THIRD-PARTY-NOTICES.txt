@@ -169,13 +169,13 @@ Notice 10: https://raw.githubusercontent.com/quamotion/lzfse-net/2e86a8f485fc462
 
 lzo.net/0.0.6
 
-Notice 11: https://raw.githubusercontent.com/zivillian/lzo.net/master/LICENSE
+Notice 11: https://raw.githubusercontent.com/zivillian/lzo.net/9c803ebc3d04ecf91035acd8c91ccdc6de043221/LICENSE
 
 ========================================================================
 
 MicroCom.Runtime/0.11.0
 Copyright 2021 © Nikita Tsukanov
-Notice 12: https://raw.githubusercontent.com/kekekeks/MicroCom/master/LICENSE
+Notice 12: https://raw.githubusercontent.com/kekekeks/MicroCom/4b8a38f773c109bad558ee3713d9f16d80776e42/LICENSE
 
 ========================================================================
 
@@ -391,7 +391,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 ========================================================================
 
 Outfit fonts
-https://raw.githubusercontent.com/google/fonts/main/ofl/outfit/OFL.txt
+https://raw.githubusercontent.com/google/fonts/29e94d990c84a54f83644e7c43f42dfc9e1a4ac7/ofl/outfit/OFL.txt
 
 Copyright 2021 The Outfit Project Authors (https://github.com/Outfitio/Outfit-Fonts)
 

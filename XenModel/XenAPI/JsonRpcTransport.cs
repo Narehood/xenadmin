@@ -141,19 +141,30 @@ namespace XenAPI
 #if NET8_0_OR_GREATER
                 catch (HttpRequestException error)
                 {
-                    var status = error.HttpRequestError switch
-                    {
-                        HttpRequestError.NameResolutionError => WebExceptionStatus.NameResolutionFailure,
-                        HttpRequestError.ConnectionError => WebExceptionStatus.ConnectFailure,
-                        HttpRequestError.SecureConnectionError => WebExceptionStatus.TrustFailure,
-                        HttpRequestError.HttpProtocolError => WebExceptionStatus.ServerProtocolViolation,
-                        _ => WebExceptionStatus.ReceiveFailure
-                    };
-                    throw new WebException("JSON-RPC transport failed.", error, status, null);
+                    throw TranslateTransportError(error);
                 }
 #endif
             }
         }
+
+#if NET8_0_OR_GREATER
+        private static WebException TranslateTransportError(HttpRequestException error)
+        {
+            var status = error.HttpRequestError switch
+            {
+                HttpRequestError.NameResolutionError => WebExceptionStatus.NameResolutionFailure,
+                HttpRequestError.ConnectionError => WebExceptionStatus.ConnectFailure,
+                HttpRequestError.SecureConnectionError => WebExceptionStatus.TrustFailure,
+                HttpRequestError.HttpProtocolError => WebExceptionStatus.ServerProtocolViolation,
+                HttpRequestError.ProxyTunnelError => WebExceptionStatus.RequestProhibitedByProxy,
+                HttpRequestError.ResponseEnded => WebExceptionStatus.ReceiveFailure,
+                HttpRequestError.InvalidResponse => WebExceptionStatus.ServerProtocolViolation,
+                HttpRequestError.VersionNegotiationError => WebExceptionStatus.ServerProtocolViolation,
+                _ => WebExceptionStatus.UnknownError
+            };
+            return new WebException("JSON-RPC transport failed.", error, status, null);
+        }
+#endif
 
         public void Dispose()
         {
@@ -165,10 +176,7 @@ namespace XenAPI
                 transport = null;
 #endif
             }
-            GC.SuppressFinalize(this);
         }
-
-        ~JsonRpcClient() { Dispose(); }
 
         public static HttpStatusCode? GetHttpStatus(WebException error)
             => error.Response is HttpWebResponse legacy ? legacy.StatusCode
@@ -189,6 +197,7 @@ namespace XenAPI
             public readonly bool Redirects;
             public readonly bool PreAuthenticate;
             public readonly string Group;
+            public readonly bool CheckRevocation;
 
             public TransportSettings(JsonRpcClient owner)
             {
@@ -196,6 +205,7 @@ namespace XenAPI
                 Cookies = owner.Cookies;
 #pragma warning disable SYSLIB0014 // Read the application's explicit policy; HttpClient does not inherit it.
                 Certificate = owner.ServerCertificateValidationCallback ?? ServicePointManager.ServerCertificateValidationCallback;
+                CheckRevocation = ServicePointManager.CheckCertificateRevocationList;
 #pragma warning restore SYSLIB0014
                 Redirects = owner.AllowAutoRedirect;
                 PreAuthenticate = owner.PreAuthenticate;
@@ -204,7 +214,8 @@ namespace XenAPI
 
             public bool Matches(TransportSettings other) => ReferenceEquals(Proxy, other.Proxy)
                 && ReferenceEquals(Cookies, other.Cookies) && Equals(Certificate, other.Certificate)
-                && Redirects == other.Redirects && PreAuthenticate == other.PreAuthenticate && Group == other.Group;
+                && Redirects == other.Redirects && PreAuthenticate == other.PreAuthenticate && Group == other.Group
+                && CheckRevocation == other.CheckRevocation;
         }
 
         private sealed class HttpTransport
@@ -226,12 +237,13 @@ namespace XenAPI
                     CookieContainer = settings.Cookies ?? new CookieContainer(),
                     AllowAutoRedirect = settings.Redirects,
                     PreAuthenticate = settings.PreAuthenticate,
+                    MaxConnectionsPerServer = 20,
                     PooledConnectionLifetime = TimeSpan.FromMinutes(5),
                     PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1),
                     SslOptions = new SslClientAuthenticationOptions
                     {
                         EnabledSslProtocols = TlsPolicy.AllowedSslProtocols,
-                        CertificateRevocationCheckMode = X509RevocationMode.Online,
+                        CertificateRevocationCheckMode = settings.CheckRevocation ? X509RevocationMode.Online : X509RevocationMode.NoCheck,
                         RemoteCertificateValidationCallback = (sender, certificate, chain, errors) =>
                         {
                             var hostname = (sender as SslStream)?.TargetHostName;

@@ -22,13 +22,14 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
     private Exception? writeError;
     private const long MaxFileBytes = 128 * 1024 * 1024;
 
-    internal PerformanceCaptureSession(string path, TimeSpan duration, int capacity = 4096)
+    internal PerformanceCaptureSession(string path, TimeSpan duration, int capacity = 4096,
+        Func<string, Stream>? openOutput = null)
     {
         if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("Use an absolute performance capture path.", nameof(path));
         if (duration <= TimeSpan.Zero || duration > TimeSpan.FromHours(1)) throw new ArgumentOutOfRangeException(nameof(duration));
         if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
-        var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read,
-            65536, FileOptions.Asynchronous);
+        var output = openOutput != null ? openOutput(path) : new FileStream(path, FileMode.CreateNew,
+            FileAccess.Write, FileShare.Read, 65536, FileOptions.Asynchronous);
         queue = Channel.CreateBounded<CaptureEvent>(new BoundedChannelOptions(capacity)
         {
             SingleReader = true,
@@ -40,7 +41,7 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
         timer = new Timer(_ => Stop(), null, duration, Timeout.InfiniteTimeSpan);
     }
 
-    internal static PerformanceCaptureSession? FromArguments(ref string[] args)
+    internal static PerformanceCaptureSession? FromArguments(ref string[] args, Func<string, Stream>? openOutput = null)
     {
         const string pathOption = "--performance-capture";
         const string secondsOption = "--performance-capture-seconds";
@@ -67,7 +68,7 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
         }
         if (path == null && hasSeconds) throw new ArgumentException("Capture seconds requires a performance capture path.");
         args = remaining.ToArray();
-        return path == null ? null : new PerformanceCaptureSession(path, TimeSpan.FromSeconds(seconds));
+        return path == null ? null : new PerformanceCaptureSession(path, TimeSpan.FromSeconds(seconds), openOutput: openOutput);
     }
 
     protected override void OnEventSourceCreated(EventSource source)
@@ -98,7 +99,7 @@ internal sealed class PerformanceCaptureSession : EventListener, IAsyncDisposabl
         }
     }
 
-    private async Task Write(FileStream output)
+    private async Task Write(Stream output)
     {
         try
         {

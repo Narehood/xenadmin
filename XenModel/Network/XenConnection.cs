@@ -459,6 +459,9 @@ namespace XenAdmin.Network
                     session.login_with_password(uname, pwd, Helper.APIVersionString(API_Version.LATEST), Session.UserAgent);
                     cancellationToken.ThrowIfCancellationRequested();
                     NetworkCredential = new NetworkCredential(uname, pwd);
+                    // The attempt token bounds login/setup, not the returned
+                    // session's later API calls or owned-session logout.
+                    session.JsonRpcClient.CancellationToken = CancellationToken.None;
                     returned = true;
                     return session;
                 }

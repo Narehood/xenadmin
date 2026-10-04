@@ -21,6 +21,7 @@
   <ItemGroup>
     <Compile Include="..\XcpNgCenter.Shell.Tests\JsonRpcTransportTests.cs" Link="JsonRpcTransportTests.cs" />
     <Compile Include="..\XcpNgCenter.Shell.Tests\HeartbeatLifecycleTests.cs" Link="HeartbeatLifecycleTests.cs" />
+    <Compile Include="..\XcpNgCenter.Shell.Tests\ActionSessionOwnershipTests.cs" Link="ActionSessionOwnershipTests.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net481'">
     <Reference Include="System.IO.Compression" />

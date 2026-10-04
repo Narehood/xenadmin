@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Security;
@@ -212,6 +213,48 @@ namespace XcpNgCenter.Shell.Tests
         private static JsonRpcClient Client(RpcServer server) => new(server.Url)
         { Timeout = 5000, KeepAlive = true, JsonRpcVersion = JsonRpcVersion.v2 };
 
+        [Theory]
+        [InlineData(JsonRpcVersion.v1)]
+        [InlineData(JsonRpcVersion.v2)]
+        public async Task EmptySuccessfulResponseIsAProtocolFailureAndNextCallWorks(JsonRpcVersion version)
+        {
+            using var server = new RpcServer { RawBody = "" };
+            using var rpc = Client(server);
+            rpc.JsonRpcVersion = version;
+            var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal(WebExceptionStatus.ServerProtocolViolation, error.Status);
+            server.RawBody = null;
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal(2, server.Requests.Count);
+        }
+
+#if NET8_0_OR_GREATER
+        [Fact]
+        public async Task ConcurrentCallsRespectTwentyConnectionLimitAndCanBeCancelledWhileQueued()
+        {
+            using var server = new RpcServer { StallHeaders = true };
+            using var rpc = Client(server);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var calls = Enumerable.Range(0, 25).Select(_ =>
+                rpc.CallAsync<string>("synthetic.read", new JArray(), cancellation.Token)).ToArray();
+            try
+            {
+                var until = DateTime.UtcNow.AddSeconds(5);
+                while (server.Requests.Count < 20 && DateTime.UtcNow < until) await Task.Delay(10);
+                Assert.Equal(20, server.Requests.Count);
+                await Task.Delay(150);
+                Assert.Equal(20, server.Requests.Count);
+                Assert.Equal(20, server.Connections);
+            }
+            finally
+            {
+                cancellation.Cancel();
+                foreach (var call in calls)
+                    await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
+            }
+        }
+#endif
+
         internal sealed class RpcServer : IDisposable
         {
             private readonly TcpListener listener = new(IPAddress.Loopback, 0);
@@ -232,6 +275,8 @@ namespace XcpNgCenter.Shell.Tests
             public bool RequireProxyAuth;
             public JToken Result = new JValue("ok");
             public string RedirectTo;
+            public string RawBody;
+            public Func<JObject, JToken> ResultForRequest { get; set; }
 
             public RpcServer(X509Certificate2 certificate = null)
             {
@@ -289,13 +334,13 @@ namespace XcpNgCenter.Shell.Tests
                             Headers.Enqueue(headers.ToString());
                             FirstRequest.TrySetResult(true);
                             if (StallHeaders) { await Task.Delay(Timeout.Infinite, stop.Token); return; }
-                            var response = new JObject { ["id"] = request["id"], ["result"] = Result.DeepClone() };
+                            var response = new JObject { ["id"] = request["id"], ["result"] = (ResultForRequest?.Invoke(request) ?? Result).DeepClone() };
                             if (request["jsonrpc"] != null) response["jsonrpc"] = "2.0";
                             if (Failure) response["error"] = request["jsonrpc"] == null
                                 ? (JToken)new JArray("PERMISSION_DENIED", "synthetic.mutation")
                                 : new JObject { ["code"] = 1, ["message"] = "PERMISSION_DENIED", ["data"] = new JArray("synthetic.mutation") };
                             else if (request["jsonrpc"] == null) response["error"] = null;
-                            var body = response.ToString(Newtonsoft.Json.Formatting.None);
+                            var body = RawBody ?? response.ToString(Newtonsoft.Json.Formatting.None);
                             var status = RequireProxyAuth && !headers.ToString().Contains("Proxy-Authorization:") ? 407 : Status;
                             var reply = "HTTP/1.1 " + status + " Response\r\nContent-Type: application/json\r\nContent-Length: " + Encoding.UTF8.GetByteCount(body)
                                 + "\r\n" + (Cookie ? "Set-Cookie: synthetic-cookie=1; Path=/\r\n" : "")
