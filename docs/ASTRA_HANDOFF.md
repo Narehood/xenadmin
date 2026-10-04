@@ -4,6 +4,27 @@ Last updated: 2026-10-03 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### PR #63 WinForms metadata database owners (2026-10-03)
+
+Implementation: `dd963ddba`. Cursor confirmed the preceding ownership fixes and
+found that WinForms recovery logged out successful metadata sessions without
+disposing their independent RPC clients. Storage loading, recovery completion
+and prechecks now close metadata sessions with client disposal in a `finally`.
+Precheck cancellation, errors and VDI changes release the current owner; partial
+setup closes a known independent handle through the borrowed caller. Preview
+cleanup remains unchanged. See the [follow-up record](reviews/2026-10-03-pr63-review-followup.md)
+and [RPC ownership contract](rpc-transport.md).
+
+All 14 focused ownership cases pass, covering successful `get_record`, successful
+and failed logout, partial setup and preservation of the borrowed pool client.
+The complete Release/Debug shell suites pass 1,055 tests each; shared .NET 10
+passes 113 and Framework passes 112, with no failures or skips. All 26 complete
+acceptance checks pass, including both solution builds, WinForms/proxy checks,
+all six UI modes and fresh Windows package/startup/legal verification. Evidence:
+`artifacts/pr63-metadata-acceptance-20261003`; portable lockfiles are unchanged.
+Hosted CI and review must also validate the final PR head. The live-pool,
+physical desktop/reboot/RDP and installer/signing limits below remain unchanged.
+
 ### PR #63 remaining session owners (2026-10-03)
 
 Implementation: `5f6ffd530`. The second Cursor pass confirmed the prior

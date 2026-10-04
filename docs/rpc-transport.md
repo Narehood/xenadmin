@@ -72,6 +72,13 @@ short-lived management/precheck clients release their transport on exit. Host
 menus own their shared client until close or disposal; already active calls
 finish through their retained transport lease.
 
+`Session.get_record` for a metadata database returns a separately owned client.
+WinForms recovery closes that metadata login and disposes its client in a
+`finally`, including failed logout, precheck cancellation and VDI changes.
+Partial setup closes a known metadata handle through the caller's live client;
+that caller remains borrowed. Preview recovery already follows this ownership
+contract.
+
 The retained SDK branch is not merged by this change. Live server login,
 proxy deployment, event polling/reconnect, import/export and migration still
 require the [platform acceptance](platform-acceptance.md) exercises.

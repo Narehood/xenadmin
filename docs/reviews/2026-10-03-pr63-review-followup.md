@@ -100,3 +100,37 @@ Portable lockfiles are unchanged. As in the preceding pass, the manifest records
 the previous head plus working-tree changes because the run began before commit.
 Final-head hosted CI and bot review remain required. The remaining limits above
 are unchanged.
+
+## Third Cursor pass: WinForms metadata database cleanup
+
+The [next Cursor review](https://github.com/Narehood/xenadmin/pull/63#pullrequestreview-5404063156)
+confirmed the ownership audit at `17850c27a` and identified the successful
+`Session.get_record` metadata client as a remaining WinForms owner gap.
+CodeRabbit completed its review through that head with no actionable findings.
+Implementation: `dd963ddba`.
+
+WinForms storage loading and recovery completion now close the metadata login
+and dispose its independently owned client in a `finally`, including failed
+logout. A precheck group owns its metadata session through cancellation and
+errors, and closes the preceding session before changing VDIs. Opening a new
+VDI uses the current check's VDI. Partial setup closes a known metadata handle
+through the caller's live client without disposing or logging out the caller's
+pool session. Preview cleanup remains unchanged.
+
+All 14 focused ownership cases pass. Two added loopback cases obtain a
+successful `Session.get_record` client, exercise successful and failed logout,
+assert that subsequent calls reject the disposed metadata client, and verify
+that the borrowed pool client remains usable. A third case covers partial setup,
+verifying the exact independent handle passed to logout and the caller's
+pool token. The existing live-pool and desktop limits above remain unchanged.
+
+All 26 full local acceptance checks pass: both solution configurations, 1,055
+shell tests per configuration, 113 shared .NET 10 and 112 Framework tests,
+WinForms resources/lifecycle/archive/proxy checks, all six UI modes and fresh
+Windows package/startup/legal verification. No tests fail or skip. Evidence:
+`artifacts/pr63-metadata-acceptance-20261003`; archive SHA-256:
+`a55900c3a41ea239b18a6dc13124c2a9a746797ebe94f267b1c97ec9be545811`.
+Portable lockfiles are unchanged. The manifest records `17850c27a` and the
+metadata working-tree fixes because the run began before committing them.
+Trusted local RDP interop was reused. Hosted CI and both reviewers must validate
+the final PR head.
