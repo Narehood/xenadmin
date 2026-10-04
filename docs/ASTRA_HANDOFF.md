@@ -4,6 +4,32 @@ Last updated: 2026-10-04 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Paste status follow-up before beta publication (2026-10-04)
+
+PRs [#63](https://github.com/Narehood/xenadmin/pull/63) and
+[#64](https://github.com/Narehood/xenadmin/pull/64) are merged into `development`.
+The beta branch was advanced to the combined merge `021fbce8d`, whose tree matches
+the reviewed #64 head. Fresh beta CI exposed an intermittent paste progress
+callback overwriting the terminal result. Publication was held for this fix;
+the original beta remains available for testing.
+
+Implementation: `260accfdc`, on `fix/console-paste-completion-progress`.
+Progress writes, operation retirement and terminal publication share a lock;
+success, cancellation and failure retire callbacks before notifying observers.
+Disposal follows the same ordering, with cancellation outside the lock.
+Five deterministic cases cover reentrant terminal notifications, a later
+clipboard operation and disposal. Three terminal cases fail before the fix;
+all 59 focused paste cases pass afterward without warnings or errors. Independent
+agent review found no defects. See the [follow-up record](reviews/2026-10-04-paste-progress-release-followup.md)
+for the original hosted failure and regression evidence.
+
+Full acceptance is tracked in `artifacts/paste-progress-complete-20261004` and
+the follow-up PR; verify current-head Windows/Linux, CodeQL and exact beta
+package results before publication. Physical desktop/scaling, actual updater/
+UAC/rollback/restart, native RDP/guest reboot and live-pool acceptance remain
+pending. Installer modernization/signing remain deferred; the next build is a
+testing beta, with manual sign-off still required for a final release.
+
 ### Latest stable platform migration (2026-10-04)
 
 The next platform migration in [PR #64](https://github.com/Narehood/xenadmin/pull/64)
