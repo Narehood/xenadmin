@@ -31,6 +31,9 @@ application early also flushes the capture. The buffer holds up to 4096 samples
 and the file up to 128 MiB. Overload drops samples instead of waiting on the UI
 or console worker. The summary records observed, written and dropped counts;
 shutdown waits for admitted callbacks to finish that accounting before flushing.
+Invalid capture arguments or output paths report an error and return a nonzero
+exit code before desktop startup. A writer failure is reported at shutdown and
+also returns a nonzero exit code, preserving any separate desktop exception.
 
 For comparisons, record the exact commit/build, OS/session, display scale,
 inventory size and workload outside the capture. Use the same deployment and
@@ -74,8 +77,11 @@ available when runtime/CPU investigation is needed.
 
 `PerformanceCaptureTests` exercises the actual EventListener/writer, provider
 isolation, concurrent shutdown/overload accounting, argument handling, no-overwrite behavior and
-automatic stop. `scripts/test-performance-capture.py` checks report statistics,
-phase coverage and incomplete/dropped/empty/invalid evidence. Both suites run
+automatic stop.
+`PerformanceCaptureStartupTests` covers application startup/shutdown errors with
+an actual failing capture output stream.
+`scripts/test-performance-capture.py` checks report statistics, phase coverage
+and incomplete/dropped/empty/invalid evidence. These suites run
 through [platform acceptance](platform-acceptance.md). Linux package startup
 creates `desktop-performance.jsonl` and its synthetic summary in the evidence
 directory, while retaining the visible-window and startup checks.

@@ -11,6 +11,9 @@ group changes replace the pool; existing calls finish on their original pool.
 Timeout changes apply per request. Connections expire after five minutes and
 idle connections after one minute. Explicit cookie containers retain their
 existing sharing contract; clients without one do not retain response cookies.
+Each modern pool permits at most 20 connections per server. RPC revocation
+checks follow the application's explicit `CheckCertificateRevocationList`
+policy; the default remains `NoCheck`, matching the Framework RPC path.
 
 The TLS adapter gives the application policy the actual TLS destination
 hostname, including redirects. Existing pins still take precedence over OS
@@ -20,6 +23,9 @@ transport errors preserve the `WebException` contract; heartbeat can inspect
 HTTP status from both old and new responses. The transport adds no application
 retry loop for a failed mutation. HTTP proxy authentication and enabled redirects
 retain their protocol behavior.
+Empty responses are `ServerProtocolViolation`. Proxy-tunnel and unknown HTTP
+errors retain distinct statuses so the heartbeat gives them its existing second
+chance rather than classifying every unrecognized error as a broken connection.
 
 `CallAsync<T>(method, JToken parameters, CancellationToken)` provides an async
 entry point for callers with explicit JSON parameters. Set a dedicated client's
@@ -43,7 +49,9 @@ inside bounded worker phases; it no longer reserves a worker while sleeping.
 WinForms console elevation accepts a per-attempt token through the concrete
 `XenConnection` overload. Failed login/setup attempts release their transport
 and log out a known token created by that attempt. Existing interface signatures
-and generated sync APIs are retained. Administrative action execution and the
+are retained. A successful login clears the attempt token before returning its
+session; console tunnel cancellation still uses the startup guard's token.
+Administrative action execution and the
 main connection/event worker are still synchronous; cancelling a client request
 is not proof that a server mutation was cancelled.
 
@@ -54,6 +62,9 @@ disposal never logs out a copied pool session token. Borrowed `RunSync` sessions
 remain owned by their caller. Disposing a client retires its pool after any
 active request finishes; cancel a request explicitly when immediate interruption
 is required.
+RBAC-authorized actions also preserve the main session they borrow. Sessions
+created from a null-session elevation result or during retry are owned by the
+action and released explicitly. Managed HTTP pools have no client finalizer.
 
 The retained SDK branch is not merged by this change. Live server login,
 proxy deployment, event polling/reconnect, import/export and migration still

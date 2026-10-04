@@ -1,8 +1,41 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-02 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-03 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### PR #63 bot review fixes (2026-10-03)
+
+Implementation: `18b4052b1`, in [PR #63](https://github.com/Narehood/xenadmin/pull/63).
+CodeRabbit and both completed Cursor runs raised 13 threads covering 12 distinct
+issues. All were verified against the code and corrected. See the
+[review dispositions and validation](reviews/2026-10-03-pr63-review-followup.md).
+
+Actions preserve borrowed RBAC/caller sessions and explicitly release owned
+retry/elevation clients. Successful elevation clears the startup token before
+returning; managed RPC clients no longer have a finalizer. Modern RPC pools cap
+connections at 20, follow the application's explicit revocation policy, preserve
+heartbeat retry statuses and reject empty successful bodies as protocol errors.
+Console deadline cancellation between tunnel completion and RFB startup now
+clears connecting state, while stale generations leave status untouched.
+Capture argument/output errors and shutdown write failures report clear errors
+with nonzero exit codes. Notice generation follows configured restore caches
+and immutable upstream sources; verification compares exact package/runtime
+identities instead of accepting version prefixes.
+
+All 26 local acceptance checks pass on the reviewed follow-up source: full
+Release/Debug solution builds, 1,047 shell tests per configuration, 105 shared
+.NET 10 and 104 shared Framework tests, all WinForms resources and lifecycle
+checks, 12 proxy checks, all six UI modes, 13 notice fixtures, seven report
+fixtures and fresh Windows packaging/startup/legal verification. Evidence is in
+`artifacts/pr63-review-acceptance-20261003`; portable lockfiles are unchanged.
+Trusted local RDP interop was reused; final-head hosted Windows/Linux and bot
+reviews must also pass. TLS regressions observe the actual loopback chain policy;
+an OS-trusted certificate with an unreachable CRL was not provisioned.
+
+No disposable pool is available, so live performance and pool acceptance remain
+pending. Physical desktop/reboot/RDP guest and MSI/updater/UAC/rollback acceptance
+also remain pending. Installer modernization and signing stay deferred.
 
 ### Async polling, WinForms startup and capture workflow (2026-10-02)
 
