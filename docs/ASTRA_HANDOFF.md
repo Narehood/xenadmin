@@ -1,8 +1,55 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-01 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-04 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### PR #63 release candidate cleanup (2026-10-04)
+
+[PR #63](https://github.com/Narehood/xenadmin/pull/63) targets `development`.
+The supported WinForms client and additive Avalonia preview retain their shared
+.NET 10/Framework contracts. This pass fixes capture duration during output
+draining, rejects malformed report rows, avoids repeated statistics sorting and
+RPC allocations, and consolidates release-note generation with bounded Git
+history and reachable release tags. Avalonia is updated to 11.3.22, log4net to
+3.5.0, and test tooling to current compatible versions. All affected lockfiles
+and exact redistribution notices are refreshed. The dependency audit reports
+no known vulnerabilities at the time of this pass.
+
+See the [cleanup and release evidence](reviews/2026-10-04-pr63-release-cleanup.md)
+for regressions, dependency sources, validation and the implementation commit.
+Implementation: `00d15d58e`. All 27 local acceptance checks pass: zero-warning
+Release/Debug solution builds, 1,056 shell tests each, 113 shared .NET 10 and
+112 Framework tests, WinForms/proxy checks, all six UI modes, and fresh Windows
+package/legal/startup verification. Evidence:
+`artifacts/pr63-cleanup-complete-20261004`; portable locks are preserved.
+Hosted Windows/Linux and CodeQL also pass at `89c52b72d`. Cursor approved that
+cleanup; CodeRabbit found one valid release-rerun tag baseline issue, fixed in
+`2b962b007` with a failing-before/passing-after regression in both publication
+modes. All seven release-note fixtures pass. Final-head checks and review
+dispositions are tracked in the cleanup record and PR.
+Current acceptance documentation describes the refreshed versions and fixtures.
+Use that record and final-head hosted checks when assessing readiness; older
+validation counts below are dated snapshots.
+
+Earlier ownership/review fixes are implemented in `18b4052b1`, `5f6ffd530`
+and `dd963ddba`. The [review follow-up](reviews/2026-10-03-pr63-review-followup.md)
+records dispositions and regressions, including borrowed-client preservation,
+repeated retries, elevated logout and WinForms metadata client disposal.
+The [async/startup/capture record](reviews/2026-10-02-async-winforms-performance.md)
+and [original modernization record](reviews/2026-10-02-legal-console-rpc-performance.md)
+retain earlier implementation and acceptance evidence. Current operational
+contracts are in [RPC transport](rpc-transport.md),
+[capture](performance-capture.md) and [legal maintenance](legal-notices.md).
+
+The candidate remains unsigned. Installer modernization/signing are deferred
+at the user's direction; no disposable pool is available. Physical desktop and
+scaling, actual MSI/updater/UAC/rollback/restart, live-pool performance/recovery,
+native RDP and guest reboot checks remain pending. Startup hardening does not
+establish a resolution of the reported Debian reboot hang. Main connection/event
+and administrative action workers, plus RRD HTTP/XML parsing during active
+phases, retain synchronous compatibility paths. TLS loopback coverage observes
+chain policy without provisioning an OS-trusted root with an unreachable CRL.
 
 ### PR #62 Cursor review fixes (2026-10-01)
 

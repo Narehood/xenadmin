@@ -44,6 +44,7 @@ namespace XenAdmin.Actions
 
         private Session _cancel_session = null;
         private Session _session;
+        protected Session BorrowedSession;
 
         /// <summary>
         /// Whether, the last time we checked on the server, this task could be cancelled.  This is a cached
@@ -86,7 +87,15 @@ namespace XenAdmin.Actions
         public Session Session
         {
             get { return _session; }
-            set { _session = value; }
+            set
+            {
+                lock (connectionLock)
+                {
+                    if (!ReferenceEquals(_session, value))
+                        LogoutCancelSession();
+                    _session = value;
+                }
+            }
         }
 
         
@@ -210,6 +219,7 @@ namespace XenAdmin.Actions
         {
             lock (connectionLock)
             {
+                _cancel_session?.JsonRpcClient?.Dispose();
                 _cancel_session = null;
             }
         }
@@ -365,6 +375,29 @@ namespace XenAdmin.Actions
             return Connection?.DuplicateSession();
         }
 
+        protected void ReleaseSession(Session session)
+        {
+            if (session == null || ReferenceEquals(session, BorrowedSession) ||
+                ReferenceEquals(session, Connection?.Session))
+                return;
+
+            try
+            {
+                // Duplicates share a pool token; only independent elevated logins
+                // own a server session that can be logged out.
+                if (session.IsElevatedSession)
+                    session.logout();
+            }
+            catch (Exception error)
+            {
+                log.Debug("Session.logout() failed. ", error);
+            }
+            finally
+            {
+                session.JsonRpcClient?.Dispose();
+            }
+        }
+
         /// <summary>
         /// Overload for use by actions, using elevated credentials on the retry, if implemented in NewSession().
         /// Try and run the delegate.
@@ -425,7 +458,21 @@ namespace XenAdmin.Actions
                 {
                     // try to create a new TCP stream to use, as the other one has failed us
                     newSession = NewSession();
-                    session = newSession;
+                    if (!ReferenceEquals(session, newSession))
+                    {
+                        var replacesActionSession = ReferenceEquals(session, Session);
+                        try { ReleaseSession(session); }
+                        finally
+                        {
+                            session = newSession;
+                            if (replacesActionSession)
+                            {
+                                // A cancel client copied the previous login handle.
+                                LogoutCancelSession();
+                                Session = newSession;
+                            }
+                        }
+                    }
                 }
                 catch (DisconnectionException)
                 {

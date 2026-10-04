@@ -90,6 +90,7 @@ public static class AdManagement
     {
         RequirePool(connection, poolReference, poolUuid);
         var session = connection.DuplicateSession(60000);
+        using var sessionTransport = session.JsonRpcClient;
         var inventory = AdInventory.Read(session, poolReference);
         if (inventory.Pool.uuid != poolUuid) throw new AdValidationException("The pool identity changed. Reopen access management.");
         var local = session.get_is_local_superuser();
@@ -97,7 +98,12 @@ public static class AdManagement
     });
 
     public static Task<AdReview> ReviewAsync(IXenConnection connection, AdSnapshot snapshot, AdRequest request,
-        CancellationToken token = default) => Task.Run(() => Review(connection, connection.DuplicateSession(60000), snapshot, request, token), token);
+        CancellationToken token = default) => Task.Run(() =>
+    {
+        var session = connection.DuplicateSession(60000);
+        using var sessionTransport = session.JsonRpcClient;
+        return Review(connection, session, snapshot, request, token);
+    }, token);
 
     internal static AdReview Review(IXenConnection connection, Session session, AdSnapshot snapshot, AdRequest request,
         CancellationToken token = default)

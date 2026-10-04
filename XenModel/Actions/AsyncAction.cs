@@ -190,18 +190,20 @@ namespace XenAdmin.Actions
             if (Cancelled)  // already cancelled before it's started
                 return;
 
+            BorrowedSession = Session;
             try
             {
                 if (o is Session session)
-                    Session = session;
+                    Session = BorrowedSession = session;
                 else if (o is SudoElevationResult ser)
                 {
                     sudoUsername = ser.ElevatedUsername;
                     sudoPassword = ser.ElevatedPassword;
+                    BorrowedSession = ser.ElevatedSession;
                     Session = ser.ElevatedSession ?? NewSession();
                 }
                 else
-                    SetSessionByRole(); //construct a new session and sudo it if necessary
+                    BorrowedSession = SetSessionByRole(); //construct a new session and sudo it if necessary
 
                 Run();
                 AuditLogSuccess();
@@ -224,26 +226,19 @@ namespace XenAdmin.Actions
             }
             finally
             {
-                Clean();
-
-                if (Exception != null)
-                    CleanOnError();
-
-                if (o == null && Session != null && Session.IsElevatedSession)
+                try
                 {
-                    // The session is a new, sudo-ed session: we need to log these ones out
-                    try
-                    {
-                        Session.logout();
-                    }
-                    catch (Failure f)
-                    {
-                        log.Debug("Session.logout() failed. ", f);
-                    }
+                    Clean();
+                    if (Exception != null)
+                        CleanOnError();
                 }
-
-                Session = null;
-                LogoutCancelSession();
+                finally
+                {
+                    ReleaseSession(Session);
+                    Session = null;
+                    BorrowedSession = null;
+                    LogoutCancelSession();
+                }
             }
         }
 
@@ -400,12 +395,12 @@ namespace XenAdmin.Actions
         /// If the current user's role is not on the list, show the Role Elevation Dialog so they can enter
         /// credentials of a user with a permitted role.
         /// </summary>
-        private void SetSessionByRole()
+        private Session SetSessionByRole()
         {
             if (Connection == null
                 || Connection.Session == null
                 || Session != null) // We have been pre-seeded with a Session to use
-                return;
+                return Session;
 
             RbacMethodList rbacMethodList;
 
@@ -417,7 +412,7 @@ namespace XenAdmin.Actions
             if (rbacMethodList.Count == 0)
             {
                 Session = NewSession();
-                return;
+                return null;
             }
 
             bool ableToCompleteAction = Role.CanPerform(rbacMethodList, Connection, out var allowedRoles);
@@ -429,7 +424,7 @@ namespace XenAdmin.Actions
             {
                 log.Debug("Subject authorized to complete action");
                 Session = Connection.Session;
-                return;
+                return Session;
             }
 
             log.Debug("Subject not authorized to complete action, showing sudo dialog");
@@ -443,6 +438,7 @@ namespace XenAdmin.Actions
             sudoUsername = result.ElevatedUsername;
             sudoPassword = result.ElevatedPassword;
             Session = result.ElevatedSession;
+            return null;
         }
 
         public class SudoElevationResult

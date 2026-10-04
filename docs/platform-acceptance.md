@@ -16,6 +16,9 @@ compatibility.
 | Full WinForms/RDP build | Release and Debug, Windows SDK interop tools | Not applicable |
 | Shared tests | net481 and net10.0 | net10.0 |
 | Shell tests | Release and Debug | Release and Debug |
+| Performance capture | Provider-isolated collection, shutdown/overload/blocked-output tests and nine report fixtures | Same; real desktop CLI capture and synthetic summary during package smoke |
+| Redistribution notices | 13 notice fixtures and exact packaged package/runtime identities | Same |
+| Release notes | Seven isolated Git-history and CLI fixtures | Same |
 | Acceptance evidence failure fixtures | PowerShell 5.1 native exit/UI-log failures and skipped coverage | PowerShell native exit/UI-log failures and skipped coverage |
 | Self-contained package | win-x64 ZIP | linux-x64 tar.gz |
 | Package execution | Four malformed updater helper modes reject with exit 1 | Same, using the native Linux executable |
@@ -34,7 +37,7 @@ normal X11 window-manager session. The verifier still requires the exact visible
 main-window title, its owning process ID, completed startup, and a surviving
 process; starting a window manager does not bypass those checks. Failed window
 discovery includes raw X11 window identities in the uploaded evidence.
-Avalonia 11.3.20 [looks up existing X11 atoms](https://github.com/AvaloniaUI/Avalonia/blob/11.3.20/src/tools/DevGenerators/X11AtomsGenerator.cs);
+Avalonia 11.3.22 [looks up existing X11 atoms](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/tools/DevGenerators/X11AtomsGenerator.cs);
 a bare Xvfb display can lack the PID atom required for process identification.
 [Openbox creates that metadata](https://github.com/danakj/openbox/blob/master/obt/prop.c).
 The verifier waits for its EWMH readiness property before starting Avalonia.
@@ -75,7 +78,7 @@ package revision in the manifest and published archive.
 
 Each Windows editor probe must exit successfully and write a nonempty
 `results.log` without a `FAIL:` line before its check can pass. The final summary
-rechecks all four logs. Linux records four explicit `skipped` entries and a
+rechecks all six logs. Linux records six explicit `skipped` entries and a
 different result summary; its package desktop smoke does not claim editor-probe
 coverage. `scripts/Test-PlatformAcceptanceChecks.ps1` exercises native failures,
 missing/empty/failed UI evidence, final evidence validation, benign native stderr,
@@ -86,7 +89,7 @@ automation peer and checks the credential textboxes after decline, failure, and
 close. Default dimensions are captured before showing each window; both client
 and layout bounds must match the requested default/minimum size. For these hidden
 probe windows only, infinite maxima become finite requested dimensions so
-[Avalonia's Win32 tracking limits](https://github.com/AvaloniaUI/Avalonia/blob/11.3.20/src/Windows/Avalonia.Win32/WindowImpl.AppWndProc.cs#L676-L703)
+[Avalonia's Win32 tracking limits](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Windows/Avalonia.Win32/WindowImpl.AppWndProc.cs)
 allow the intended client size on a small CI desktop. Desktop resolution and
 production window limits are unchanged. Rendered 1x/1.5x/2x images test layout and
 rendering; physical display scaling remains a separate manual check.

@@ -135,6 +135,7 @@ namespace XenAdmin.Diagnostics.Checks
                 Problem problem = FindProblem(f);
                 return problem ?? new PrecheckFailed(this, Host, f);
             }
+            finally { session.JsonRpcClient?.Dispose(); }
         }
 
         public override string Description => Messages.SERVER_SIDE_CHECK_DESCRIPTION;

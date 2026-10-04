@@ -32,6 +32,7 @@ public sealed partial class DrManagement : IDrWorkflow
     {
         RequirePool();
         var session = _connection.DuplicateSession(60000);
+        using var sessionTransport = session.JsonRpcClient;
         RequirePermissions(session, ReadMethods());
         var action = new GetMetadataVDIsAction(_connection, null);
         action.RunSync(session);
@@ -43,6 +44,7 @@ public sealed partial class DrManagement : IDrWorkflow
     {
         RequirePool();
         var session = _connection.DuplicateSession(60000);
+        using var sessionTransport = session.JsonRpcClient;
         RequirePermissions(session, ReadMethods());
         return WithMetadata(session, metadata, source => Inspect(metadata, source, ReadTarget(session)));
     });
@@ -51,6 +53,7 @@ public sealed partial class DrManagement : IDrWorkflow
     {
         RequirePool();
         var session = _connection.DuplicateSession(60000);
+        using var sessionTransport = session.JsonRpcClient;
         RequirePermissions(session, RecoveryMethods());
         return WithMetadata(session, inspection.Metadata, source => Review(session, inspection, request, source));
     });
@@ -300,6 +303,9 @@ public sealed partial class DrManagement : IDrWorkflow
         catch (Exception error) { failure = error; throw; }
         finally
         {
+            // This client addresses an independently opened metadata database;
+            // its server handle is closed through the still-live caller below.
+            open.MetadataSession?.JsonRpcClient?.Dispose();
             // A failure after open_database but before Session.get_record must also release the metadata session.
             if (open.MetadataSessionRef is { } reference && !string.IsNullOrEmpty(reference.opaque_ref) && reference.opaque_ref != "OpaqueRef:NULL")
             {

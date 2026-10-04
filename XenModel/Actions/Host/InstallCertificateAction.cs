@@ -264,6 +264,9 @@ namespace XenAdmin.Actions
 
         protected override void Clean()
         {
+            if (!ReferenceEquals(_session, Session))
+                ReleaseSession(_session);
+            _session = null;
             Connection.ExpectDisruption = false;
         }
 
@@ -283,7 +286,10 @@ namespace XenAdmin.Actions
 
                     try
                     {
-                        _session = Connection.DuplicateSession();
+                        var reconnectedSession = Connection.DuplicateSession();
+                        if (!ReferenceEquals(_session, Session))
+                            ReleaseSession(_session);
+                        _session = reconnectedSession;
                         log.InfoFormat("Reconnected after {0:0.0}sec...", (DateTime.Now - startTime).TotalSeconds);
                     }
                     catch (Exception e)

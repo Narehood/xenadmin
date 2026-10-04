@@ -104,8 +104,9 @@ namespace XenAdmin.Diagnostics.Checks
                 return problems;
 
             Session session = Host.Connection.DuplicateSession();
-            Dictionary<XenRef<VM>, String[]> vms =
-                Host.get_vms_which_prevent_evacuation(session, Host.opaque_ref);
+            Dictionary<XenRef<VM>, String[]> vms;
+            using (session.JsonRpcClient)
+                vms = Host.get_vms_which_prevent_evacuation(session, Host.opaque_ref);
 
             foreach (KeyValuePair<XenRef<VM>, String[]> kvp in vms)
             {

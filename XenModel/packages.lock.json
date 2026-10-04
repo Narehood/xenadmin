@@ -132,20 +132,20 @@
         "type": "Project",
         "dependencies": {
           "SharpZipLib": "[1.4.2, )",
-          "log4net": "[3.4.0, )"
+          "log4net": "[3.5.0, )"
         }
       },
       "xenovfapi": {
         "type": "Project",
         "dependencies": {
-          "XenCenterLib": "[2026.9.26, )"
+          "XenCenterLib": "[2026.10.4, )"
         }
       },
       "log4net": {
         "type": "CentralTransitive",
-        "requested": "[3.4.0, )",
-        "resolved": "3.4.0",
-        "contentHash": "IubYl1l3vs4pZ8hRJBWjfPOW8osR1gS/FAweVYpc2n7SZ0yrZ64uMGQYjjt1nna/Hpm10IHiw4D6HSh/JFbj9w=="
+        "requested": "[3.5.0, )",
+        "resolved": "3.5.0",
+        "contentHash": "JJJ1L3/WJZA8OAyaz0ghG8+DNo2t9qn0nbV3HzIBVMheO62R1Zdz+mvyizpYsYDu/+k35tg324r2P/LCvAtfKw=="
       },
       "SharpZipLib": {
         "type": "CentralTransitive",
@@ -268,21 +268,21 @@
           "SharpZipLib": "[1.4.2, )",
           "System.Management": "[10.0.12, )",
           "System.Security.Cryptography.ProtectedData": "[10.0.12, )",
-          "log4net": "[3.4.0, )"
+          "log4net": "[3.5.0, )"
         }
       },
       "xenovfapi": {
         "type": "Project",
         "dependencies": {
           "System.Management": "[10.0.12, )",
-          "XenCenterLib": "[2026.9.26, )"
+          "XenCenterLib": "[2026.10.4, )"
         }
       },
       "log4net": {
         "type": "CentralTransitive",
-        "requested": "[3.4.0, )",
-        "resolved": "3.4.0",
-        "contentHash": "IubYl1l3vs4pZ8hRJBWjfPOW8osR1gS/FAweVYpc2n7SZ0yrZ64uMGQYjjt1nna/Hpm10IHiw4D6HSh/JFbj9w==",
+        "requested": "[3.5.0, )",
+        "resolved": "3.5.0",
+        "contentHash": "JJJ1L3/WJZA8OAyaz0ghG8+DNo2t9qn0nbV3HzIBVMheO62R1Zdz+mvyizpYsYDu/+k35tg324r2P/LCvAtfKw==",
         "dependencies": {
           "System.Configuration.ConfigurationManager": "4.5.0"
         }

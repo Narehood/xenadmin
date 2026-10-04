@@ -91,25 +91,27 @@ namespace XenAPI
             foreach (PBD pbd in pbds)
             {
                 Session session = pbd.Connection.DuplicateSession();
-
-                log.DebugFormat("Waiting for PBDs {0} to become plugged", pbd.Name());
-                // Wait 2 min for PBD to become plugged
-                if (WaitForPlug(session, pbd.opaque_ref))
-                    continue;
-
-                // if it's still unplugged, try plugging it - this will probably
-                // fail, but at least we'll get a better error message.
-                try
+                using (session.JsonRpcClient)
                 {
-                    log.DebugFormat("Plugging PBD {0}", pbd.Name());
-                    plug(session, pbd.opaque_ref);
-                }
-                catch (Exception e)
-                {
-                    log.Debug(string.Format("Error plugging PBD {0}", pbd.Name()), e);
+                    log.DebugFormat("Waiting for PBDs {0} to become plugged", pbd.Name());
+                    // Wait 2 min for PBD to become plugged
+                    if (WaitForPlug(session, pbd.opaque_ref))
+                        continue;
 
-                    if (!ignoreFailure)
-                        throw;
+                    // if it's still unplugged, try plugging it - this will probably
+                    // fail, but at least we'll get a better error message.
+                    try
+                    {
+                        log.DebugFormat("Plugging PBD {0}", pbd.Name());
+                        plug(session, pbd.opaque_ref);
+                    }
+                    catch (Exception e)
+                    {
+                        log.Debug(string.Format("Error plugging PBD {0}", pbd.Name()), e);
+
+                        if (!ignoreFailure)
+                            throw;
+                    }
                 }
             }
         }

@@ -311,7 +311,10 @@ namespace XenAdmin.Wizards.DRWizards
 
             metadataSession = senderAction.MetadataSession;
             if (metadataSession == null)
+            {
+                VdiOpenDatabaseAction.CloseMetadataSession(null, Connection.Session, senderAction.MetadataSessionRef);
                 return;
+            }
 
             // assign metadata session to all recover actions
             List<AsyncAction> recoverSubActions = new List<AsyncAction>();
@@ -340,7 +343,9 @@ namespace XenAdmin.Wizards.DRWizards
 
             log.Debug("Finished recovery. Close metadata database");
             // logout from metadata session
-            metadataSession.logout();
+            var completedMetadataSession = metadataSession;
+            metadataSession = null;
+            VdiOpenDatabaseAction.CloseMetadataSession(completedMetadataSession, Connection.Session, null);
 
             Program.BeginInvoke(this, () =>
             {

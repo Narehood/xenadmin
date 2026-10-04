@@ -1393,6 +1393,7 @@ namespace XenAPI
                 {
                     log.Debug(string.Format("Error plugging PBD {0} on host {1}", pbd.Name(), Name()), e);
                 }
+                finally { session.JsonRpcClient?.Dispose(); }
             }
         }
 

@@ -94,7 +94,8 @@ namespace XenAdmin.Actions
                 {
                     string uuid = f.ErrorDescription[1];
                     Session session = Host.Connection.DuplicateSession();
-                    _patch = Connection.Resolve(Pool_patch.get_by_uuid(session, uuid));
+                    using (session.JsonRpcClient)
+                        _patch = Connection.Resolve(Pool_patch.get_by_uuid(session, uuid));
                 }
                 else
                     throw;
@@ -151,6 +152,7 @@ namespace XenAdmin.Actions
 
                 throw;
             }
+            finally { ReleaseSession(session); }
         }
 
         private void UpdateProgress(int percent)

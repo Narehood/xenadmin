@@ -52,6 +52,22 @@ namespace XenAdmin.Actions.DR
             get { return _metadataSessionRef; }
         }
 
+        /// <summary>
+        /// Close an owned metadata database and always release its client. The
+        /// caller is only used to close a handle whose client setup failed.
+        /// </summary>
+        public static void CloseMetadataSession(Session metadataSession, Session caller, XenRef<Session> reference)
+        {
+            try
+            {
+                if (metadataSession != null)
+                    metadataSession.logout();
+                else if (reference != null && !string.IsNullOrEmpty(reference.opaque_ref) && reference.opaque_ref != "OpaqueRef:NULL")
+                    caller?.logout(reference.opaque_ref);
+            }
+            finally { metadataSession?.JsonRpcClient?.Dispose(); }
+        }
+
         public VdiOpenDatabaseAction(IXenConnection connection, VDI vdi)
             : base(connection, String.Format(Messages.ACTION_VDI_OPEN_DATABASE_TITLE, connection.Resolve(vdi.SR).Name()))
         {

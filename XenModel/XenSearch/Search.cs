@@ -290,15 +290,17 @@ namespace XenAdmin.XenSearch
                 return false;
 
             var session = connection.DuplicateSession();
+            using (session.JsonRpcClient)
+            {
+                var pools = connection.Cache.Pools;
+                if (pools.Length <= 0)
+                    return false;
 
-            var pools = connection.Cache.Pools;
-            if (pools.Length <= 0)
-                return false;
-
-            var pool = pools.First();
-            Pool.remove_from_gui_config(session, pool.opaque_ref, key);
-            Pool.add_to_gui_config(session, pool.opaque_ref, key, value);
-            return true;
+                var pool = pools.First();
+                Pool.remove_from_gui_config(session, pool.opaque_ref, key);
+                Pool.add_to_gui_config(session, pool.opaque_ref, key, value);
+                return true;
+            }
         }
 
         public void Save(String filename)
@@ -332,9 +334,10 @@ namespace XenAdmin.XenSearch
                     continue;
 
                 Session session = connection.DuplicateSession();
-                foreach (Pool pool in connection.Cache.Pools)
+                using (session.JsonRpcClient)
                 {
-                    Pool.remove_from_gui_config(session, pool.opaque_ref, key);
+                    foreach (Pool pool in connection.Cache.Pools)
+                        Pool.remove_from_gui_config(session, pool.opaque_ref, key);
                 }
             }
 

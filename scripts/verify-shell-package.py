@@ -6,6 +6,7 @@ This executes the package: do not pass an untrusted downloaded archive.
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,16 @@ import zipfile
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
+
+
+def recorded_notice_identities(text):
+    # Parse recorded headings followed by notice references, rather than finding
+    # package/version prefixes or unrelated version strings in the license text.
+    packages = {(name.casefold(), version.casefold()) for name, version in re.findall(
+        r"(?m)^([A-Za-z0-9_.-]+)/([^\s/]+)\n[^\n]*\nNotice \d+: ", text)}
+    runtimes = {(version, filename) for version, filename in re.findall(
+        r"(?m)^Bundled \.NET runtime ([^\s:]+): (LICENSE\.TXT|THIRD-PARTY-NOTICES\.TXT)\nNotice \d+\b", text)}
+    return packages, runtimes
 
 
 def stop_process(process):
@@ -82,8 +93,11 @@ def check_linux_desktop(executable, environment, profile, evidence):
     trace = profile / "data/XCP-ng/XCP-ng Center Shell/startup-trace.log"
     crash = trace.with_name("startup-crash.log")
     window = None
+    performance = evidence / "desktop-performance.jsonl"
     with (evidence / "desktop-stdout.log").open("w", encoding="utf-8") as stdout, (evidence / "desktop-stderr.log").open("w", encoding="utf-8") as stderr:
-        process = subprocess.Popen([str(executable)], cwd=executable.parent, env=environment, stdout=stdout, stderr=stderr)
+        process = subprocess.Popen([str(executable), "--performance-capture", str(performance.resolve()),
+                                    "--performance-capture-seconds", "2"],
+                                   cwd=executable.parent, env=environment, stdout=stdout, stderr=stderr)
         try:
             deadline = time.monotonic() + 45
             inspected = []
@@ -129,7 +143,16 @@ def check_linux_desktop(executable, environment, profile, evidence):
             require(process.poll() is None and not crash.exists(), "Desktop failed immediately after startup.")
             geometry = subprocess.run(["xdotool", "getwindowgeometry", window], capture_output=True, text=True, check=True, timeout=5)
             (evidence / "desktop-window.log").write_text(geometry.stdout, encoding="utf-8")
-            return {"main_window_visible": True, "post_window_startup": True, "survived_seconds": 3}
+            require(performance.exists(), "Desktop did not create the requested performance capture.")
+            spec = importlib.util.spec_from_file_location("performance_capture",
+                                                         Path(__file__).with_name("summarize-performance-capture.py"))
+            summarizer = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(summarizer)
+            capture_report = summarizer.summarize(performance, "synthetic")
+            require(capture_report["complete"], "Desktop performance capture did not finish its bounded duration.")
+            (evidence / "desktop-performance-summary.json").write_text(json.dumps(capture_report, indent=2) + "\n", encoding="utf-8")
+            return {"main_window_visible": True, "post_window_startup": True, "survived_seconds": 3,
+                    "performance_capture_complete": True, "performance_evidence_kind": "synthetic"}
         finally:
             stop_process(process)
             for diagnostic in (trace, crash):
@@ -169,12 +192,33 @@ def main():
             if args.rid == "linux-x64":
                 require(executable.stat().st_mode & 0o111 == 0o111, "Archive did not preserve executable permissions.")
 
+            # A copyright summary or online link alone cannot replace the binary
+            # redistribution conditions and disclaimer. Require the exact files.
+            source_root = Path(__file__).resolve().parent.parent
+            for notice in ("LICENSE", "THIRD-PARTY-NOTICES.txt"):
+                require((payload / notice).is_file(), f"Missing archive-root redistribution notice: {notice}")
+                require((payload / notice).read_bytes() == (source_root / notice).read_bytes(),
+                        f"Packaged redistribution notice differs from the reviewed source: {notice}")
+            report["redistribution_notices"] = ["LICENSE", "THIRD-PARTY-NOTICES.txt"]
+
             runtime = json.loads((payload / "XcpNgCenter.Shell.runtimeconfig.json").read_text(encoding="utf-8"))["runtimeOptions"]
             require(runtime.get("tfm") == "net10.0", "The package must target net10.0.")
             require("framework" not in runtime and "frameworks" not in runtime, "The package must be self-contained.")
             require(any(item["name"] == "Microsoft.NETCore.App" and item["version"].startswith("10.0.") for item in runtime.get("includedFrameworks", [])), "Missing bundled .NET 10 runtime metadata.")
             require(runtime.get("configProperties", {}).get("System.StartupHookProvider.IsSupported") is False, "Startup hooks must remain disabled in the published app.")
             report["runtime"] = runtime["includedFrameworks"]
+            packages, runtimes = recorded_notice_identities(
+                (payload / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"))
+            dependencies = json.loads((payload / "XcpNgCenter.Shell.deps.json").read_text(encoding="utf-8"))["libraries"]
+            for name, dependency in dependencies.items():
+                if dependency["type"] == "package":
+                    require(tuple(part.casefold() for part in name.rsplit("/", 1)) in packages,
+                            f"No recorded redistribution notice for packaged dependency: {name}")
+            for framework in runtime["includedFrameworks"]:
+                if framework["name"] == "Microsoft.NETCore.App":
+                    require(all((framework["version"], filename) in runtimes
+                                for filename in ("LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT")),
+                            "Refresh third-party notices for the packaged .NET runtime version.")
 
             profile = scratch / "profile"
             environment = os.environ.copy()

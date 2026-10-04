@@ -50,6 +50,9 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
+      - name: Verify release note generation
+        run: python3 scripts/test-release-notes.py
+
       - name: Validate channel and select a unique version
         id: ver
         shell: pwsh
@@ -201,52 +204,12 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Build release notes from commits
-        id: notes
-        shell: bash
+      - name: Generate release notes
+        shell: pwsh
         env:
-          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
           RELEASE_CODENAME: ${{ needs.prepare.outputs.codename }}
-        run: |
-          set -euo pipefail
-          TAG="$RELEASE_TAG"
-          VERSION="$RELEASE_VERSION"
-          CODENAME="$RELEASE_CODENAME"
-
-          # Previous shell release tag (vYYYY.M.D.N), excluding the tag we are about to create.
-          PREV="$(git tag -l 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -n1 || true)"
-
-          {
-            echo "## ${VERSION} (${CODENAME})"
-            echo
-            if [[ -n "$PREV" ]]; then
-              echo "Changes since \`${PREV}\`:"
-              echo
-              # Prefer subject lines; skip merge commits and empty noise.
-              git log "${PREV}..HEAD" --pretty=format:'- %s' --no-merges \
-                | sed '/^$/d' \
-                | head -n 80
-              echo
-              echo
-              COUNT="$(git rev-list --count "${PREV}..HEAD" --no-merges || echo 0)"
-              echo "_${COUNT} commit(s) since ${PREV}._"
-            else
-              echo "Changes in this build:"
-              echo
-              git log -n 40 --pretty=format:'- %s' --no-merges \
-                | sed '/^$/d'
-              echo
-            fi
-            echo
-            echo "## Downloads"
-            echo
-            echo "- \`XcpNgCenter.Shell-win-x64-${VERSION}.zip\`"
-            echo "- \`XcpNgCenter.Shell-linux-x64-${VERSION}.tar.gz\`"
-          } > release-notes.md
-
-          echo "Wrote release notes:"
-          cat release-notes.md
+        run: python scripts/generate-release-notes.py --version "$env:RELEASE_VERSION" --codename "$env:RELEASE_CODENAME" --output release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -275,40 +238,12 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
-      - name: Build release notes from commits
-        id: notes
-        shell: bash
+      - name: Generate release notes
+        shell: pwsh
         env:
-          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
           RELEASE_CODENAME: ${{ needs.prepare.outputs.codename }}
-        run: |
-          set -euo pipefail
-          TAG="$RELEASE_TAG"
-          VERSION="$RELEASE_VERSION"
-          CODENAME="$RELEASE_CODENAME"
-          PREV="$(git tag -l 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -n1 || true)"
-
-          {
-            echo "## ${VERSION} (${CODENAME})"
-            echo
-            if [[ -n "$PREV" ]]; then
-              echo "Changes since \`${PREV}\`:"
-              echo
-              git log "${PREV}..HEAD" --pretty=format:'- %s' --no-merges \
-                | sed '/^$/d' \
-                | head -n 80
-              echo
-            else
-              echo "Changes in this build:"
-              echo
-              git log -n 40 --pretty=format:'- %s' --no-merges \
-                | sed '/^$/d'
-              echo
-            fi
-            echo
-            echo "CI artifacts: download \`drop-shell-linux-x64\` / \`drop-shell-win-x64\` from the Test Builds workflow on the branch used for this release."
-          } > release-notes.md
+        run: python scripts/generate-release-notes.py --version "$env:RELEASE_VERSION" --codename "$env:RELEASE_CODENAME" --notes-only --output release-notes.md
 
       - name: Create GitHub Release (notes only)
         uses: softprops/action-gh-release@v2

@@ -1414,7 +1414,7 @@ namespace DotNetVnc
                 stream.Close();
                 lock (pauseMonitor)
                     Monitor.PulseAll(pauseMonitor);
-                thread.Interrupt();
+                if (thread != Thread.CurrentThread) thread.Interrupt();
             }
             catch
             {

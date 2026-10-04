@@ -286,57 +286,63 @@ namespace XenAdmin.Wizards.DRWizards
                     _worker.ReportProgress(5, row);
 
                     Session metadataSession = null;
+                    XenRef<Session> metadataReference = null;
 
-                    // run checks
-                    for (int j = 0; j < checkGroup.Count; j++)
+                    try
                     {
-                        if (_worker.CancellationPending)
+                        // run checks
+                        for (int j = 0; j < checkGroup.Count; j++)
                         {
-                            e.Cancel = true;
-                            return;
-                        }
-                        Check check = checkGroup[j];
-
-                        // special case - AssertCanBeRecoveredCheck - we need to open the metadata database
-                        if (check is AssertCanBeRecoveredCheck)
-                        {
-                            AssertCanBeRecoveredCheck thisCheck = check as AssertCanBeRecoveredCheck;
-                            AssertCanBeRecoveredCheck prevCheck = j > 0
-                                                                      ? checkGroup[j - 1] as
-                                                                        AssertCanBeRecoveredCheck
-                                                                      : null;
-                            if (prevCheck == null || prevCheck.Vdi.uuid != thisCheck.Vdi.uuid)
+                            if (_worker.CancellationPending)
                             {
-                                // close previous metadata session
+                                e.Cancel = true;
+                                return;
+                            }
+                            Check check = checkGroup[j];
+
+                            // special case - AssertCanBeRecoveredCheck - we need to open the metadata database
+                            if (check is AssertCanBeRecoveredCheck thisCheck)
+                            {
+                                AssertCanBeRecoveredCheck prevCheck = j > 0
+                                                                          ? checkGroup[j - 1] as
+                                                                            AssertCanBeRecoveredCheck
+                                                                          : null;
+                                if (prevCheck == null || prevCheck.Vdi.uuid != thisCheck.Vdi.uuid)
+                                {
+                                    // Detach before closing so a failed logout cannot
+                                    // make the outer finally close a disposed client twice.
+                                    var previousSession = metadataSession;
+                                    var previousReference = metadataReference;
+                                    metadataSession = null;
+                                    metadataReference = null;
+                                    VdiOpenDatabaseAction.CloseMetadataSession(previousSession, Connection.Session, previousReference);
+
+                                    var action = new VdiOpenDatabaseAction(Connection, thisCheck.Vdi);
+                                    try { action.RunSync(action.Session); }
+                                    finally
+                                    {
+                                        metadataSession = action.MetadataSession;
+                                        metadataReference = action.MetadataSessionRef;
+                                    }
+                                }
+
                                 if (metadataSession != null)
-                                    metadataSession.logout();
-
-                                // open metadata database
-                                VdiOpenDatabaseAction action = new VdiOpenDatabaseAction(Connection,
-                                                                                         ((AssertCanBeRecoveredCheck
-                                                                                          )checkGroup[0]).Vdi);
-                                action.RunSync(action.Session);
-                                if (action.Succeeded && action.MetadataSession != null)
-                                    metadataSession = action.MetadataSession;
+                                {
+                                    thisCheck.MetadataSession = metadataSession;
+                                    row = RunCheck(thisCheck);
+                                    _worker.ReportProgress(PercentageSelectedObjects(j + 1), row);
+                                }
                             }
-
-                            // run check
-                            if (metadataSession != null)
+                            else
                             {
-                                thisCheck.MetadataSession = metadataSession;
-                                row = RunCheck(thisCheck);
+                                row = RunCheck(check);
                                 _worker.ReportProgress(PercentageSelectedObjects(j + 1), row);
-
-                                // close metadata session if this is the last check
-                                if (j == checkGroup.Count - 1)
-                                    metadataSession.logout();
                             }
                         }
-                        else
-                        {
-                            row = RunCheck(check);
-                            _worker.ReportProgress(PercentageSelectedObjects(j + 1), row);
-                        }
+                    }
+                    finally
+                    {
+                        VdiOpenDatabaseAction.CloseMetadataSession(metadataSession, Connection.Session, metadataReference);
                     }
                 }
             }

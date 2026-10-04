@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using XcpNgCenter.Shell.Services;
 using XenAPI;
+using Newtonsoft.Json.Linq;
 using Xunit;
 using Task = System.Threading.Tasks.Task;
 
@@ -141,6 +142,43 @@ public sealed class HttpTransportCertificateTests : IDisposable
         return (error, await server);
     }
 
+    [Fact]
+    public async Task RpcTransportWithoutApplicationPolicyRejectsUntrustedCertificate()
+    {
+        using var certificate = CreateCertificate();
+        ServicePointManager.ServerCertificateValidationCallback = null;
+        using var server = new JsonRpcTransportTests.RpcServer(certificate);
+        using var rpc = new JsonRpcClient(server.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
+        var error = await Assert.ThrowsAsync<WebException>(() => rpc.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+        Assert.Equal(WebExceptionStatus.TrustFailure, error.Status);
+        Assert.Empty(server.Requests);
+    }
+
+    [Fact]
+    public async Task RpcTransportRejectsChangedPinBeforeSendingCredentials()
+    {
+        using var original = CreateCertificate();
+        using var replacement = CreateCertificate();
+        var store = new TofuCertificateStore(Path.Combine(_root, "rpc-pins.json"));
+        store.Set("127.0.0.1", original.GetCertHashString());
+        using var settings = new ShellAppSettings(Path.Combine(_root, "rpc-settings.json"));
+        CertificateTrustRequest? prompt = null;
+        var validator = new TofuCertificateValidator(store, settings, request => { prompt = request; return false; });
+        ServicePointManager.ServerCertificateValidationCallback = validator.Validate;
+        using var trusted = new JsonRpcTransportTests.RpcServer(original);
+        using var changed = new JsonRpcTransportTests.RpcServer(replacement);
+        using var first = new JsonRpcClient(trusted.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
+        using var second = new JsonRpcClient(changed.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
+        Assert.Equal("ok", await first.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+        var error = await Assert.ThrowsAsync<WebException>(() => second.CallAsync<string>("synthetic.read", new JArray("synthetic-credential")));
+        Assert.Equal(WebExceptionStatus.TrustFailure, error.Status);
+        Assert.NotNull(prompt);
+        Assert.Equal(CertificateTrustKind.Changed, prompt.Kind);
+        Assert.Empty(changed.Requests);
+        Assert.True(store.TryGet("127.0.0.1", out var fingerprint));
+        Assert.Equal(original.GetCertHashString(), fingerprint);
+    }
+
     private static X509Certificate2 CreateCertificate()
     {
         using var key = RSA.Create(2048);
@@ -153,6 +191,66 @@ public sealed class HttpTransportCertificateTests : IDisposable
         // Schannel needs a usable key container for server credentials; a freshly generated
         // ephemeral RSA key can fail before the client receives any certificate on Windows.
         return X509CertificateLoader.LoadPkcs12(generated.Export(X509ContentType.Pfx), null, X509KeyStorageFlags.Exportable);
+    }
+
+    [Theory]
+    [InlineData(false, X509RevocationMode.NoCheck)]
+    [InlineData(true, X509RevocationMode.Online)]
+    public async Task RpcTransportUsesExplicitApplicationRevocationPolicy(bool enabled, X509RevocationMode expected)
+    {
+        var previous = ServicePointManager.CheckCertificateRevocationList;
+        using var certificate = CreateCertificate();
+        using var server = new JsonRpcTransportTests.RpcServer(certificate);
+        using var rpc = new JsonRpcClient(server.Url) { Timeout = 5000, JsonRpcVersion = JsonRpcVersion.v2 };
+        X509RevocationMode? seen = null;
+        rpc.ServerCertificateValidationCallback = (_, _, chain, _) =>
+        {
+            seen = chain?.ChainPolicy.RevocationMode;
+            return true;
+        };
+        try
+        {
+            ServicePointManager.CheckCertificateRevocationList = enabled;
+            Assert.Equal("ok", await rpc.CallAsync<string>("synthetic.read", new JArray()));
+            Assert.Equal(expected, seen);
+        }
+        finally { ServicePointManager.CheckCertificateRevocationList = previous; }
+    }
+
+    [Fact]
+    public async Task SuccessfulElevatedLoginDoesNotRetainStartupCancellationAndLogoutStillWorks()
+    {
+        using var certificate = CreateCertificate();
+        using var server = new JsonRpcTransportTests.RpcServer(certificate)
+        {
+            ResultForRequest = request => request["method"]!.Value<string>() switch
+            {
+                "session.login_with_password" => new JValue("synthetic-elevated-token"),
+                "pool.get_all_records" => new JObject(),
+                "session.get_is_local_superuser" => new JValue(true),
+                "session.get_rbac_permissions" => new JArray(),
+                "role.get_all_records" => new JObject(),
+                _ => new JValue("ok")
+            }
+        };
+        using var connection = new XenAdmin.Network.XenConnection
+        {
+            Hostname = "127.0.0.1", Port = new Uri(server.Url).Port
+        };
+        ServicePointManager.ServerCertificateValidationCallback = (_, _, _, _) => true;
+        var cancellation = new CancellationTokenSource();
+        var session = await Task.Run(() => connection.ElevatedSession("synthetic-user", "synthetic-password", cancellation.Token));
+        try
+        {
+            cancellation.Cancel();
+            cancellation.Dispose();
+            Assert.False(session.JsonRpcClient.CancellationToken.CanBeCanceled);
+            Assert.Equal("ok", session.JsonRpcClient.session_get_uuid(session.opaque_ref, session.opaque_ref));
+            session.logout();
+            var logout = Assert.Single(server.Requests, request => request["method"]!.Value<string>() == "session.logout");
+            Assert.Equal("synthetic-elevated-token", logout["params"]![0]!.Value<string>());
+        }
+        finally { session.JsonRpcClient.Dispose(); cancellation.Dispose(); }
     }
 
     public void Dispose()

@@ -58,6 +58,8 @@ namespace XenAdmin.Actions
             // 1st download patch from the pool that has it (the connection on the xenobject)
 
             string filename = Path.GetTempFileName();
+            var originalSession = Session;
+            var originalConnection = Connection;
 
             try
             {
@@ -106,8 +108,9 @@ namespace XenAdmin.Actions
                 }
                 finally
                 {
-                    Session = null;
-                    Connection = null;
+                    ReleaseSession(Session);
+                    Session = originalSession;
+                    Connection = originalConnection;
                 }
 
                 // Then, put it on the pool that doesn't have it
@@ -142,8 +145,9 @@ namespace XenAdmin.Actions
                 }
                 finally
                 {
-                    Session = null;
-                    Connection = null;
+                    ReleaseSession(Session);
+                    Session = originalSession;
+                    Connection = originalConnection;
                 }
             }
             finally

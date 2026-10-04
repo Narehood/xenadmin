@@ -245,26 +245,29 @@ namespace XenAdmin.Commands
 
                 var reasons = new Dictionary<IXenObject, string>();
 
-                foreach (Host host in connection.Cache.Hosts)
+                using (session.JsonRpcClient)
                 {
-                    reasons[host] = string.Empty;
-                    if (!isStart && VMOperationHostCommand.VmCpuIncompatibleWithHost(host, vm))
+                    foreach (Host host in connection.Cache.Hosts)
                     {
-                        reasons[host] = FriendlyErrorNames.VM_INCOMPATIBLE_WITH_THIS_HOST;
-                        continue;
-                    }
-                    try
-                    {
-                        VM.assert_can_boot_here(session, vm.opaque_ref, host.opaque_ref);
-                    }
-                    catch (Failure failure)
-                    {
-                        reasons[host] = failure.Message;
-                    }
-                    catch (Exception e)
-                    {
-                        log.ErrorFormat("There was an error calling assert_can_boot_here on host {0}: {1}", host.Name(), e.Message);
-                        reasons[host] = Messages.HOST_MENU_UNKNOWN_ERROR;
+                        reasons[host] = string.Empty;
+                        if (!isStart && VMOperationHostCommand.VmCpuIncompatibleWithHost(host, vm))
+                        {
+                            reasons[host] = FriendlyErrorNames.VM_INCOMPATIBLE_WITH_THIS_HOST;
+                            continue;
+                        }
+                        try
+                        {
+                            VM.assert_can_boot_here(session, vm.opaque_ref, host.opaque_ref);
+                        }
+                        catch (Failure failure)
+                        {
+                            reasons[host] = failure.Message;
+                        }
+                        catch (Exception e)
+                        {
+                            log.ErrorFormat("There was an error calling assert_can_boot_here on host {0}: {1}", host.Name(), e.Message);
+                            reasons[host] = Messages.HOST_MENU_UNKNOWN_ERROR;
+                        }
                     }
                 }
 

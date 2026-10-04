@@ -124,6 +124,7 @@ public static class ShellVmHaPrompt
         }
 
         // DuplicateSession reuses the main connection opaque_ref — never logout it.
+        using var sessionTransport = session.JsonRpcClient;
         var rows = new List<HostBootReasonRow>();
         foreach (Host host in connection.Cache.Hosts.OrderBy(h => Helpers.GetName(h), StringComparer.OrdinalIgnoreCase))
         {

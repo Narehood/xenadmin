@@ -175,7 +175,9 @@ namespace XenAdmin.Wizards.CrossPoolMigrateWizard.Filters
                 XenAPI.Network managementNetwork = host.Connection.Cache.Resolve(managementPif.network);
 
                 Session session = host.Connection.DuplicateSession();
-                Dictionary<string, string> receiveMapping = Host.migrate_receive(session, host.opaque_ref, managementNetwork.opaque_ref, new Dictionary<string, string>());
+                Dictionary<string, string> receiveMapping;
+                using (session.JsonRpcClient)
+                    receiveMapping = Host.migrate_receive(session, host.opaque_ref, managementNetwork.opaque_ref, new Dictionary<string, string>());
 
                 var targetSrs = host.Connection.Cache.SRs.Where(sr => sr.SupportsStorageMigration()).ToList();
                 var targetNetwork = GetANetwork(host);

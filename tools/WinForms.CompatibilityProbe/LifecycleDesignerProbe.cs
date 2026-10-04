@@ -48,6 +48,8 @@ internal sealed partial class LifecycleDesignerProbe(Assembly assembly)
         RunCase("Group box designer text", CheckGroupBoxDesignerText);
         RunCase("Snapshot time designer values", CheckSnapshotTimeDesignerValues);
         RunCase("Existing header resources", CheckHeaderResources);
+        RunCase("Complete offline redistribution notices", CheckLegalNotices);
+        RunCase("Console startup and cancellation", CheckConsoleStartup);
         foreach (var typeName in new[] { "EnableableComboBox", "EnableableComboBoxEditingControl", "NetworkComboBox" })
             RunCase(typeName + " enabled designer state", () => CheckComboBoxEnabledState(typeName));
         RunCase("Grid editor runtime metadata", CheckGridEditorMetadata);
@@ -83,6 +85,28 @@ internal sealed partial class LifecycleDesignerProbe(Assembly assembly)
     }
 
     private Type ClientType(string name) => assembly.GetType("XenAdmin." + name, throwOnError: true)!;
+
+    private void CheckLegalNotices()
+    {
+        var directory = Path.GetDirectoryName(assembly.Location)!;
+        var expected = File.ReadAllText(Path.Combine(directory, "LICENSE")) + "\r\n\r\n"
+            + File.ReadAllText(Path.Combine(directory, "THIRD-PARTY-NOTICES.txt"));
+        var previousCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            foreach (var culture in new[] { "en-US", "fr-FR" })
+            {
+                CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+                using var dialog = (Form)Activator.CreateInstance(ClientType("Dialogs.LegalNoticesDialog"))!;
+                var text = (TextBox)dialog.GetType().GetField("textBox1", InstanceMembers)!.GetValue(dialog)!;
+                Require(text.Text == expected, $"{culture}: legal dialog must contain both complete offline notices.");
+                _ = text.Handle; // Exercise the native edit control, including long-text limits.
+                Require(text.Text == expected, $"{culture}: native legal control must retain the full notices without truncation.");
+                Require(text.ReadOnly && text.Multiline, $"{culture}: notices must remain read-only and readable on multiple lines.");
+            }
+        }
+        finally { CultureInfo.CurrentUICulture = previousCulture; }
+    }
 
     private void CheckDesignerValues(string typeName, params (string Name, object Changed)[] values)
     {

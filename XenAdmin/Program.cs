@@ -525,7 +525,7 @@ namespace XenAdmin
 
         internal static void AssertOffEventThread()
         {
-            if (MainWindow.Visible && !MainWindow.InvokeRequired)
+            if (MainWindow != null && MainWindow.Visible && !MainWindow.InvokeRequired)
             {
                 FatalError();
             }

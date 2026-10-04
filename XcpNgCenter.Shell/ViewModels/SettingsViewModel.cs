@@ -71,6 +71,10 @@ public partial class SettingsViewModel : ViewModelBase
 
     public AppearanceViewModel Appearance { get; }
 
+    public string CopyrightText => XenCenterLib.LegalNotices.CopyrightSummary;
+    public string LicenseText => XenCenterLib.LegalNotices.License;
+    public string ThirdPartyNoticesText => XenCenterLib.LegalNotices.ThirdParty;
+
     public MainViewModel Updates => _main;
     public bool UseBetaUpdates
     {

@@ -1342,12 +1342,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 ? SelectedInfraNode.OpaqueRef
                 : null;
 
+        using var refreshMeasurement = ShellPerformanceDiagnostics.Measure("inventory.refresh");
+
         var existing = InfrastructureRoots.FirstOrDefault(r => r.Server == server);
         var expandState = existing != null
             ? CaptureExpandState(existing)
             : new Dictionary<string, bool>(StringComparer.Ordinal);
 
-        var root = InfrastructureTreeBuilder.Build(server, conn);
+        InfraTreeNode root;
+        using (ShellPerformanceDiagnostics.Measure("inventory.build"))
+            root = InfrastructureTreeBuilder.Build(server, conn);
         ApplyExpandState(root, expandState);
 
         var detailsRefreshed = false;
@@ -1357,7 +1361,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             if (existing != null)
             {
-                root = InfrastructureTreeUpdater.Apply(existing, root);
+                using (ShellPerformanceDiagnostics.Measure("inventory.reconcile"))
+                    root = InfrastructureTreeUpdater.Apply(existing, root);
                 var index = InfrastructureRoots.IndexOf(existing);
                 if (!ReferenceEquals(existing, root)) InfrastructureRoots[index] = root;
             }
@@ -1460,15 +1465,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void RefreshDetailPanes()
     {
+        using var measurement = ShellPerformanceDiagnostics.Measure("details.refresh");
         NotifyDetailTabVisibility();
         var node = SelectedInfraNode ?? _pinnedInfraNode;
         RefreshSelectedVm();
-        RefreshGeneralProperties(node);
-        RefreshStorageProperties(node);
-        RefreshNetworkProperties(node);
-        RefreshConsoleProperties(node);
-        RefreshSnapshotProperties();
-        RefreshPerformanceProperties(node);
+        using (ShellPerformanceDiagnostics.Measure("details.general")) RefreshGeneralProperties(node);
+        using (ShellPerformanceDiagnostics.Measure("details.storage")) RefreshStorageProperties(node);
+        using (ShellPerformanceDiagnostics.Measure("details.network")) RefreshNetworkProperties(node);
+        using (ShellPerformanceDiagnostics.Measure("details.console")) RefreshConsoleProperties(node);
+        using (ShellPerformanceDiagnostics.Measure("details.snapshots")) RefreshSnapshotProperties();
+        using (ShellPerformanceDiagnostics.Measure("details.performance")) RefreshPerformanceProperties(node);
     }
 
     private void NotifyDetailTabVisibility()

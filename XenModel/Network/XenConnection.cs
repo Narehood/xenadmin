@@ -418,6 +418,11 @@ namespace XenAdmin.Network
             return GetNewSession(Hostname, Port, username, password, true);
         }
 
+        public Session ElevatedSession(string username, string password, CancellationToken cancellationToken)
+        {
+            return GetNewSession(Hostname, Port, username, password, true, cancellationToken);
+        }
+
         /// <summary>
         /// For retrieving a new session. 
         /// </summary>
@@ -428,12 +433,14 @@ namespace XenAdmin.Network
         /// <param name="isElevated"></param>
         /// <returns>null if the server password has changed, the user has been prompted for the new password,
         /// but the user has clicked cancel on the dialog.</returns>
-        private Session GetNewSession(string hostname, int port, string username, string password, bool isElevated)
+        private Session GetNewSession(string hostname, int port, string username, string password, bool isElevated,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             const int DELAY = 250; // unit = ms
             int attempt = 0;
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 attempt++;
                 string uname = isElevated ? username : Username;
                 string pwd = isElevated ? password : Password; // Keep the password that we're using for this iteration, as it may
@@ -442,15 +449,23 @@ namespace XenAdmin.Network
                 // as the connection's Username and Password are not updated.
 
                 Session session = new Session(this, hostname, port);
+                session.JsonRpcClient.CancellationToken = cancellationToken;
+                var returned = false;
                 if (isElevated)
                     session.IsElevatedSession = true;
 
                 try
                 {
                     session.login_with_password(uname, pwd, Helper.APIVersionString(API_Version.LATEST), Session.UserAgent);
+                    cancellationToken.ThrowIfCancellationRequested();
                     NetworkCredential = new NetworkCredential(uname, pwd);
+                    // The attempt token bounds login/setup, not the returned
+                    // session's later API calls or owned-session logout.
+                    session.JsonRpcClient.CancellationToken = CancellationToken.None;
+                    returned = true;
                     return session;
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
                 catch (Failure f)
                 {
                     if (connectTask == null || connectTask.Cancelled) // the user has clicked cancel on the connection to server dialog
@@ -524,7 +539,25 @@ namespace XenAdmin.Network
                     if (attempt >= DEFAULT_MAX_SESSION_LOGIN_ATTEMPTS)
                         throw;
                 }
-                Thread.Sleep(DELAY);
+                finally
+                {
+                    if (!returned)
+                    {
+                        if (string.IsNullOrEmpty(session.opaque_ref)) session.JsonRpcClient?.Dispose();
+                        else
+                        {
+                            // A login can finish before a later setup RPC is cancelled.
+                            // This method created that token, so it owns its logout.
+                            session.JsonRpcClient.CancellationToken = CancellationToken.None;
+                            Logout(session);
+                        }
+                    }
+                }
+                if (cancellationToken.CanBeCanceled)
+                {
+                    if (cancellationToken.WaitHandle.WaitOne(DELAY)) cancellationToken.ThrowIfCancellationRequested();
+                }
+                else Thread.Sleep(DELAY);
             }
         }
 
@@ -851,6 +884,10 @@ namespace XenAdmin.Network
             {
                 log.Debug("Session.logout() failed", e);
             }
+            finally
+            {
+                session.JsonRpcClient?.Dispose();
+            }
         }
 
         public void Interrupt()
@@ -1137,6 +1174,7 @@ namespace XenAdmin.Network
             ConnectTask task = (ConnectTask)o;
             Exception error = null;
             Pool pool = null;
+            Session eventNextSession = null;
 
             try
             {
@@ -1150,7 +1188,7 @@ namespace XenAdmin.Network
                     throw new ServerNotSupported();
 
                 // Event.next uses a different session with a shorter timeout: see CA-33145.
-                Session eventNextSession = DuplicateSession(EVENT_NEXT_TIMEOUT);
+                eventNextSession = DuplicateSession(EVENT_NEXT_TIMEOUT);
                 eventNextSession.ConnectionGroupName = eventNextConnectionGroupName; // this will force the eventNextSession onto its own set of TCP streams (see CA-108676)
 
                 CacheIsPopulated = false;
@@ -1317,7 +1355,8 @@ namespace XenAdmin.Network
             }
             finally
             {
-                HandleConnectionResult(task, error, pool);
+                try { eventNextSession?.JsonRpcClient?.Dispose(); }
+                finally { HandleConnectionResult(task, error, pool); }
             }
         }
 

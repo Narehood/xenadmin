@@ -27,7 +27,8 @@ sealed partial class ProbeApp
                 var measurements = new List<object>();
                 foreach (var size in new[] { (4, 100), (16, 1000), (64, 5000) })
                     foreach (var reuse in new[] { false, true })
-                        measurements.Add(await MeasureTreeRefresh(lifetime, size.Item1, size.Item2, reuse));
+                        foreach (var expanded in new[] { false, true })
+                            measurements.Add(await MeasureTreeRefresh(lifetime, size.Item1, size.Item2, reuse, expanded));
                 var shell = typeof(MainWindow).Assembly;
                 File.WriteAllText(Path.Combine(Evidence, "inventory-layout.json"), JsonSerializer.Serialize(new
                 {
@@ -47,7 +48,7 @@ sealed partial class ProbeApp
         }, TimeSpan.FromMilliseconds(100));
     }
 
-    async Task<object> MeasureTreeRefresh(IClassicDesktopStyleApplicationLifetime lifetime, int hosts, int vms, bool reuse)
+    async Task<object> MeasureTreeRefresh(IClassicDesktopStyleApplicationLifetime lifetime, int hosts, int vms, bool reuse, bool fullyExpanded)
     {
         var connection = new XenConnection { Hostname = "192.0.2.1" };
         var changes = new List<ObjectChange>();
@@ -66,7 +67,7 @@ sealed partial class ProbeApp
         tree.IsVisible = true;
         var root = InfrastructureTreeBuilder.Build(server, connection);
         // Exercise both expanded and collapsed containers, retaining the selected guest.
-        foreach (var host in root.Children.Where(n => n.Kind == InfraNodeKind.Host).Skip(1)) host.IsExpanded = false;
+        foreach (var host in root.Children.Where(n => n.Kind == InfraNodeKind.Host).Skip(1)) host.IsExpanded = fullyExpanded;
         var roots = new ObservableCollection<InfraTreeNode> { root };
         tree.ItemsSource = roots;
         tree.SelectedItem = FlattenTree(root).First(n => n.Kind == InfraNodeKind.Vm);
@@ -107,8 +108,8 @@ sealed partial class ProbeApp
             if (sample >= 2) { times.Add(watch.Elapsed.TotalMilliseconds); allocations.Add(GC.GetAllocatedBytesForCurrentThread() - before); }
             Require(((InfraTreeNode)tree.SelectedItem!).OpaqueRef == "vm-0", $"{hosts}/{vms} sample {sample}: selected guest survives replacement");
             Require(((InfraTreeNode)tree.SelectedItem!).Title == $"Changed guest {sample}", $"{hosts}/{vms} sample {sample}: fresh guest metadata reaches the selected node");
-            Require(root.Children.Where(n => n.Kind == InfraNodeKind.Host).Skip(1).All(n => !n.IsExpanded),
-                $"{hosts}/{vms} sample {sample}: unrelated hosts remain collapsed");
+            Require(root.Children.Where(n => n.Kind == InfraNodeKind.Host).Skip(1).All(n => n.IsExpanded == fullyExpanded),
+                $"{hosts}/{vms} sample {sample}: unrelated host expansion is preserved ({fullyExpanded})");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
         }
         Require(builds == 7, $"{hosts}/{vms}: seven bursts produce seven builds");
@@ -121,11 +122,11 @@ sealed partial class ProbeApp
             $"{hosts}/{vms}: migration expands the selected guest's destination path");
         if (reuse) Require(ReferenceEquals(selectedBeforeMove, tree.SelectedItem),
             $"{hosts}/{vms}: migration retains the selected guest instance");
-        Render(window, $"inventory-{hosts}-{vms}-{(reuse ? "reuse" : "replace")}", 1);
+        Render(window, $"inventory-{hosts}-{vms}-{(reuse ? "reuse" : "replace")}-{(fullyExpanded ? "expanded" : "collapsed")}", 1);
         window.Close();
         times.Sort();
         Console.WriteLine($"Tree layout {hosts} hosts/{vms} VMs, reuse={reuse}: median {times[times.Count / 2]:F3} ms");
-        return new { Hosts = hosts, Vms = vms, ReusesNodes = reuse, RenderScaling = window.RenderScaling, EventsPerBurst = 200, Warmups = 2, Samples = times,
+        return new { Hosts = hosts, Vms = vms, ReusesNodes = reuse, FullyExpanded = fullyExpanded, RenderScaling = window.RenderScaling, EventsPerBurst = 200, Warmups = 2, Samples = times,
             MedianMilliseconds = times[times.Count / 2], AllocatedBytes = allocations };
     }
 

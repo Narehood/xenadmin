@@ -213,7 +213,10 @@ namespace XenAdmin.Dialogs
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
                 // Get a spare userdevice
-                string[] uds = VM.get_allowed_VBD_devices(connection.DuplicateSession(), TheVM.opaque_ref);
+                var session = connection.DuplicateSession();
+                string[] uds;
+                using (session.JsonRpcClient)
+                    uds = VM.get_allowed_VBD_devices(session, TheVM.opaque_ref);
                 if (uds.Length == 0)
                 {
                     Program.Invoke(Program.MainWindow, delegate()
