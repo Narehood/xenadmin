@@ -113,7 +113,9 @@ namespace XenAdmin.Actions
             // We need a coordinator session for ClearNonSharedSrs.
             // No need to log out the supporter session, because the server is going to reset its database anyway.
 
-            Session = NewSession(Pool.Connection);
+            var poolSession = NewSession(Pool.Connection);
+            ReleaseSession(Session);
+            Session = poolSession;
             ClearNonSharedSrs(Pool);
 
             this.Description = Messages.POOLCREATE_ADDED;

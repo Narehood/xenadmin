@@ -142,18 +142,22 @@ namespace XenAdmin.Actions
                 };
 
                 Session session = NewSession();
-                RelatedTask = Task.create(Session, "put_import_raw_vdi_task", hostUrl);
-                log.DebugFormat("HTTP PUTTING file from {0} to {1}", suppPackFilePath, hostUrl);
+                try
+                {
+                    RelatedTask = Task.create(Session, "put_import_raw_vdi_task", hostUrl);
+                    log.DebugFormat("HTTP PUTTING file from {0} to {1}", suppPackFilePath, hostUrl);
 
-                HTTP_actions.put_import_raw_vdi(progressDelegate,
-                    () => XenAdminConfigManager.Provider.ForcedExiting || GetCancelling(),
-                    XenAdminConfigManager.Provider.GetProxyTimeout(true),
-                    hostUrl,
-                    XenAdminConfigManager.Provider.GetProxyFromSettings(Connection),
-                    suppPackFilePath, RelatedTask.opaque_ref, session.opaque_ref, vdiRef.opaque_ref);
+                    HTTP_actions.put_import_raw_vdi(progressDelegate,
+                        () => XenAdminConfigManager.Provider.ForcedExiting || GetCancelling(),
+                        XenAdminConfigManager.Provider.GetProxyTimeout(true),
+                        hostUrl,
+                        XenAdminConfigManager.Provider.GetProxyFromSettings(Connection),
+                        suppPackFilePath, RelatedTask.opaque_ref, session.opaque_ref, vdiRef.opaque_ref);
 
-                PollToCompletion();
-                result = Result;
+                    PollToCompletion();
+                    result = Result;
+                }
+                finally { ReleaseSession(session); }
             }
             catch (Exception ex)
             {

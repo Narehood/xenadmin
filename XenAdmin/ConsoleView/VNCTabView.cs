@@ -1168,7 +1168,8 @@ namespace XenAdmin.ConsoleView
                         {
                             Session session = source.Connection.DuplicateSession();
                             Dictionary<string, string> _arguments = new Dictionary<string, string>();
-                            VM.call_plugin(session, source.opaque_ref, "guest-agent-operation", "request-rdp-on", _arguments);
+                            using (session.JsonRpcClient)
+                                VM.call_plugin(session, source.opaque_ref, "guest-agent-operation", "request-rdp-on", _arguments);
                             tryToConnectRDP = true;
                         }
                     }

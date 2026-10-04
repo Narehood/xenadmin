@@ -71,6 +71,7 @@ namespace XenAdmin.Actions
 
                     sudoUsername = result.ElevatedUsername;
                     sudoPassword = result.ElevatedPassword;
+                    ReleaseSession(Session);
                     Session = result.ElevatedSession;
                     Run();
                 }

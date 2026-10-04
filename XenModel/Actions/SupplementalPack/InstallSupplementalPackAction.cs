@@ -86,6 +86,7 @@ namespace XenAdmin.Actions
             }
             finally
             {
+                session.JsonRpcClient?.Dispose();
                 Connection = null;
             }
         }

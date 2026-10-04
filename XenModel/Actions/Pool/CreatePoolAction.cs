@@ -123,7 +123,9 @@ namespace XenAdmin.Actions
                 int lo = (int)(i2 * p2);
                 int hi = (int)((i2 + 1) * p2);
                 // RBAC: We have forced identical AD configs, but this will fail unless both supporter-to-be and coordinator sessions have the correct role.
-                Session = NewSession(supporter.Connection);
+                var nextSession = NewSession(supporter.Connection);
+                ReleaseSession(Session);
+                Session = nextSession;
                 RelatedTask = XenAPI.Pool.async_join(Session, coordinator_pool.Connection.Hostname, coordinator_pool.Connection.Username, coordinator_pool.Connection.Password);
                 PollToCompletion(lo, hi);
                 i2++;

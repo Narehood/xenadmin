@@ -89,6 +89,17 @@ namespace XenAdmin.Actions
             // CanCancel is always true.
         }
 
+        protected override void Clean()
+        {
+            try
+            {
+                foreach (var session in Sessions.Values)
+                    session.JsonRpcClient?.Dispose();
+                Sessions.Clear();
+            }
+            finally { base.Clean(); }
+        }
+
         private readonly Dictionary<IXenConnection, List<string>> emptyFolders = new Dictionary<IXenConnection, List<string>>();
 
        /// <summary>

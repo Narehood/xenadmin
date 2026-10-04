@@ -291,16 +291,19 @@ namespace XenAdmin.Wizards.HAWizard_Pages
             Session session = connection.DuplicateSession();
             var results = new Dictionary<VM, string>();
 
-            foreach (VM vm in vms)
+            using (session.JsonRpcClient)
             {
-                try
+                foreach (VM vm in vms)
                 {
-                    VM.assert_agile(session, vm.opaque_ref);
-                    results[vm] = null;
-                }
-                catch (Failure failure)//The VM wasn't agile
-                {
-                    results[vm] = failure.ErrorDescription[0];
+                    try
+                    {
+                        VM.assert_agile(session, vm.opaque_ref);
+                        results[vm] = null;
+                    }
+                    catch (Failure failure)//The VM wasn't agile
+                    {
+                        results[vm] = failure.ErrorDescription[0];
+                    }
                 }
             }
 

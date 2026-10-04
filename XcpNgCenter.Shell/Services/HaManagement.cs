@@ -112,6 +112,7 @@ public static class HaManagement
         // DuplicateSession borrows the same server login handle. It has a separate
         // transport but must not be logged out, which would disconnect the user.
         var session = connection.DuplicateSession(60000);
+        using var sessionTransport = session.JsonRpcClient;
         return Review(connection, session, snapshot, request, cancellationToken);
     }, cancellationToken);
 

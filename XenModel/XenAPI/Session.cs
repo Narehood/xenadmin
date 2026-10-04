@@ -340,8 +340,16 @@ namespace XenAPI
         public static Session get_record(Session session, string _session)
         {
             Session newSession = new Session(session.Url) { opaque_ref = _session };
-            newSession.SetAPIVersion();
-            return newSession;
+            try
+            {
+                newSession.SetAPIVersion();
+                return newSession;
+            }
+            catch
+            {
+                newSession.JsonRpcClient?.Dispose();
+                throw;
+            }
         }
 
         public void login_with_password(string username, string password)

@@ -45,10 +45,13 @@ namespace XenAdmin.Actions
         protected override void Run()
         {
             var session = NewSession();
-
-            Description = string.Format(Messages.ACTION_TOOLSTACK_RESTARTING_ON, Host.Name().Ellipsise(30));
-            RelatedTask = Host.async_restart_agent(session, Host.opaque_ref);
-            PollToCompletion();
+            try
+            {
+                Description = string.Format(Messages.ACTION_TOOLSTACK_RESTARTING_ON, Host.Name().Ellipsise(30));
+                RelatedTask = Host.async_restart_agent(session, Host.opaque_ref);
+                PollToCompletion();
+            }
+            finally { ReleaseSession(session); }
 
             //call interrupt so we can reconnect afterwards
             if (Helpers.HostIsCoordinator(Host))

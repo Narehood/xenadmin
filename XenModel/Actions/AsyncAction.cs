@@ -190,20 +190,20 @@ namespace XenAdmin.Actions
             if (Cancelled)  // already cancelled before it's started
                 return;
 
-            Session borrowedSession = Session;
+            BorrowedSession = Session;
             try
             {
                 if (o is Session session)
-                    Session = borrowedSession = session;
+                    Session = BorrowedSession = session;
                 else if (o is SudoElevationResult ser)
                 {
                     sudoUsername = ser.ElevatedUsername;
                     sudoPassword = ser.ElevatedPassword;
-                    borrowedSession = ser.ElevatedSession;
+                    BorrowedSession = ser.ElevatedSession;
                     Session = ser.ElevatedSession ?? NewSession();
                 }
                 else
-                    borrowedSession = SetSessionByRole(); //construct a new session and sudo it if necessary
+                    BorrowedSession = SetSessionByRole(); //construct a new session and sudo it if necessary
 
                 Run();
                 AuditLogSuccess();
@@ -226,30 +226,19 @@ namespace XenAdmin.Actions
             }
             finally
             {
-                Clean();
-
-                if (Exception != null)
-                    CleanOnError();
-
-                var ownsSession = Session != null && !ReferenceEquals(Session, borrowedSession);
-                if (ownsSession && Session.IsElevatedSession)
+                try
                 {
-                    // The session is a new, sudo-ed session: we need to log these ones out
-                    try
-                    {
-                        Session.logout();
-                    }
-                    catch (Exception error)
-                    {
-                        log.Debug("Session.logout() failed. ", error);
-                    }
+                    Clean();
+                    if (Exception != null)
+                        CleanOnError();
                 }
-
-                // RBAC and RunSync can borrow a session. A replacement created
-                // during retry is owned even when the initial session was borrowed.
-                if (ownsSession) Session.JsonRpcClient?.Dispose();
-                Session = null;
-                LogoutCancelSession();
+                finally
+                {
+                    ReleaseSession(Session);
+                    Session = null;
+                    BorrowedSession = null;
+                    LogoutCancelSession();
+                }
             }
         }
 

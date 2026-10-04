@@ -115,6 +115,7 @@ namespace XenAdmin.Commands
         #region UpdateHostList
 
         private ProduceConsumerQueue workerQueueWithoutWlb;
+        private Session hostListSession;
         readonly object locker = new object();
         private bool stopped;
 
@@ -141,6 +142,17 @@ namespace XenAdmin.Commands
             Stopped = true;
             if (workerQueueWithoutWlb != null)
                 workerQueueWithoutWlb.CancelWorkers(false);
+            lock (locker)
+            {
+                hostListSession?.JsonRpcClient?.Dispose();
+                hostListSession = null;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) Stop();
+            base.Dispose(disposing);
         }
 
         private void UpdateHostList()
@@ -167,6 +179,11 @@ namespace XenAdmin.Commands
             var selection = Command.GetSelection();
             var connection = selection[0].Connection;
             var session = connection.DuplicateSession();
+            lock (locker)
+            {
+                hostListSession?.JsonRpcClient?.Dispose();
+                hostListSession = session;
+            }
 
             var affinityHost = connection.Resolve(((VM)selection[0].XenObject).affinity);
 

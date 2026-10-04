@@ -103,7 +103,20 @@ namespace XenAPI
                 {
                     // try to create a new TCP stream to use, as the other one has failed us
                     newSession = connection.DuplicateSession();
-                    session = newSession;
+                    try
+                    {
+                        if (session != null && !ReferenceEquals(session, newSession) &&
+                            !ReferenceEquals(session, connection.Session))
+                        {
+                            try
+                            {
+                                if (session.IsElevatedSession) session.logout();
+                            }
+                            catch (Exception error) { log.Debug("Session.logout() failed. ", error); }
+                            finally { session.JsonRpcClient?.Dispose(); }
+                        }
+                    }
+                    finally { session = newSession; }
                 }
                 catch
                 {

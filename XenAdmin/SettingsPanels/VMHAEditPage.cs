@@ -220,6 +220,7 @@ namespace XenAdmin.SettingsPanels
                     // VM wasn't agile
                     vmIsAgile = false;
                 }
+                finally { session.JsonRpcClient?.Dispose(); }
                 Program.Invoke(Program.MainWindow, RefillPrioritiesComboBox);
             }
             catch (Exception e)

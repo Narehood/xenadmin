@@ -97,8 +97,10 @@ namespace XenAdmin.Actions.VMActions
             {
                 PercentComplete = 0;
                 Session session = Host.Connection.DuplicateSession();
-                var sendData = Host.migrate_receive(session, Host.opaque_ref,
-                    transferNetwork.opaque_ref, new Dictionary<string, string>());
+                Dictionary<string, string> sendData;
+                using (session.JsonRpcClient)
+                    sendData = Host.migrate_receive(session, Host.opaque_ref,
+                        transferNetwork.opaque_ref, new Dictionary<string, string>());
                 PercentComplete = 5;
 
                 var options = copy

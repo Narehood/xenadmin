@@ -49,7 +49,9 @@ namespace XenAdmin.Actions.HostActions
         protected override void Run()
         {
             Session session = Host.Connection.DuplicateSession();
-            Dictionary<XenRef<XenAPI.VM>, string[]> dict = Host.get_vms_which_prevent_evacuation(session, Host.opaque_ref);
+            Dictionary<XenRef<XenAPI.VM>, string[]> dict;
+            using (session.JsonRpcClient)
+                dict = Host.get_vms_which_prevent_evacuation(session, Host.opaque_ref);
 
             foreach (KeyValuePair<XenRef<VM>, string[]> pair in dict)
             {

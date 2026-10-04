@@ -1174,6 +1174,7 @@ namespace XenAdmin.Network
             ConnectTask task = (ConnectTask)o;
             Exception error = null;
             Pool pool = null;
+            Session eventNextSession = null;
 
             try
             {
@@ -1187,7 +1188,7 @@ namespace XenAdmin.Network
                     throw new ServerNotSupported();
 
                 // Event.next uses a different session with a shorter timeout: see CA-33145.
-                Session eventNextSession = DuplicateSession(EVENT_NEXT_TIMEOUT);
+                eventNextSession = DuplicateSession(EVENT_NEXT_TIMEOUT);
                 eventNextSession.ConnectionGroupName = eventNextConnectionGroupName; // this will force the eventNextSession onto its own set of TCP streams (see CA-108676)
 
                 CacheIsPopulated = false;
@@ -1354,7 +1355,8 @@ namespace XenAdmin.Network
             }
             finally
             {
-                HandleConnectionResult(task, error, pool);
+                try { eventNextSession?.JsonRpcClient?.Dispose(); }
+                finally { HandleConnectionResult(task, error, pool); }
             }
         }
 
