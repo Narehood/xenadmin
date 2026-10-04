@@ -59,3 +59,44 @@ import/export/migration acceptance remain pending. Physical desktop, reboot,
 RDP guest and actual MSI/updater/UAC/rollback acceptance remain pending. Installer
 modernization and signing are deferred at the user's direction. Console startup
 hardening does not establish the cause or resolution of the Debian reboot hang.
+
+## Second Cursor pass: remaining session owners
+
+The [follow-up Cursor review](https://github.com/Narehood/xenadmin/pull/63#pullrequestreview-5403972306)
+confirmed the preceding corrections at `16380cca9` and raised one additional
+ownership thread. Implementation: `5f6ffd530`.
+
+- Retry helpers release each replaced owned client, log out independent elevated
+  sessions, and preserve the main connection and caller-borrowed sessions. The
+  action's session follows the replacement immediately; cached cancellation
+  clients are discarded when their copied login handle changes.
+- The connection worker disposes its event-next client on every exit. Patch
+  download/upload phases release their temporary clients and restore the original
+  action session/connection, so subsequent work and final cleanup retain their owner.
+- Folder actions release every cached cross-connection client on success or
+  failure. Migration, patch lookup, host/PBD plugging, search, supplemental-pack
+  and other action-local clients have explicit bounded lifetimes. Cross-pool and
+  certificate-reconnect replacements also release their previous clients.
+- Preview access, HA and recovery reads release their duplicate transports.
+  Recovery also releases its metadata client, including partial setup failure.
+  WinForms prechecks, HA calculations, disk/RDP helpers and host diagnosis release
+  their short-lived clients. A host menu owns its shared client until closure or
+  disposal; active RPC leases retain their transport until calls finish.
+
+All 11 focused action-ownership cases pass. Added loopback regressions exercise
+two consecutive retry failures with both main and caller-borrowed sessions,
+disposal of both replacements and cached cancellation clients, exact logout
+requests for independent elevated handles, and folder-cache cleanup on success
+and failure. Duplicates never log out the pool token. The shared implementation
+retains C# 7.3 compatibility for the Framework target.
+
+All 26 full local acceptance checks pass on the complete follow-up source:
+Release/Debug solution builds, 1,052 shell tests in each configuration, 110 shared
+.NET 10 and 109 shared Framework tests, all WinForms/proxy checks, all six UI
+modes and fresh Windows package/startup/legal verification. No tests fail or
+skip. Evidence: `artifacts/pr63-ownership-complete-20261003`. The archive SHA-256
+is `ebe7570ef13c13a06ea82bc87ec6e4164ba698e4777493ca398bc13497d6eddc`.
+Portable lockfiles are unchanged. As in the preceding pass, the manifest records
+the previous head plus working-tree changes because the run began before commit.
+Final-head hosted CI and bot review remain required. The remaining limits above
+are unchanged.

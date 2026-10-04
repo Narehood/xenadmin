@@ -4,6 +4,29 @@ Last updated: 2026-10-03 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### PR #63 remaining session owners (2026-10-03)
+
+Implementation: `5f6ffd530`. The second Cursor pass confirmed the prior
+fixes and found remaining clients abandoned during repeated retries and by
+short-lived session owners. Retry cleanup now releases every owned predecessor,
+logs out independent elevated handles, preserves borrowed main/caller clients,
+and replaces cached cancellation clients when their login handle changes.
+Event-next, patch phases, folder caches, action-local and preview management
+clients now have explicit cleanup. WinForms prechecks, HA/diagnosis and disk/RDP
+helpers also release their clients; host menus own their shared pool until close
+or disposal. Patch phases restore their original action session and connection.
+
+See the [follow-up record](reviews/2026-10-03-pr63-review-followup.md) for the
+ownership audit and regressions. All 11 focused ownership cases pass, including
+two consecutive failures, caller/main preservation, elevated logout and folder
+cache cleanup. All 26 full acceptance checks pass: both solution builds, 1,052
+shell tests per configuration, 110 shared .NET 10 and 109 shared Framework tests,
+WinForms/proxy checks, all six UI modes and fresh Windows package/startup/legal
+verification. Evidence: `artifacts/pr63-ownership-complete-20261003`; portable
+lockfiles are unchanged. Final-head hosted checks and bot review remain required.
+The live-pool, physical desktop/reboot/RDP and installer/signing limits below
+remain unchanged.
+
 ### PR #63 bot review fixes (2026-10-03)
 
 Implementation: `18b4052b1`, in [PR #63](https://github.com/Narehood/xenadmin/pull/63).

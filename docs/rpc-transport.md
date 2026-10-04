@@ -65,6 +65,12 @@ is required.
 RBAC-authorized actions also preserve the main session they borrow. Sessions
 created from a null-session elevation result or during retry are owned by the
 action and released explicitly. Managed HTTP pools have no client finalizer.
+Each retry releases its owned predecessor before dropping the reference and
+logs out independent elevated handles. Replacing the action's login also retires
+its cached cancellation client. Event-next, folder caches, patch phases and
+short-lived management/precheck clients release their transport on exit. Host
+menus own their shared client until close or disposal; already active calls
+finish through their retained transport lease.
 
 The retained SDK branch is not merged by this change. Live server login,
 proxy deployment, event polling/reconnect, import/export and migration still
