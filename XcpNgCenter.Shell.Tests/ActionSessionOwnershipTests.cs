@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using XenAdmin;
 using XenAdmin.Actions;
+using XenAdmin.Actions.DR;
 using XenAdmin.Core;
 using XenAdmin.Network;
 using XenAPI;
@@ -156,6 +157,50 @@ namespace XcpNgCenter.Shell.Tests
                 else Assert.Same(supplied, action.Used);
             }
             finally { supplied.JsonRpcClient.Dispose(); }
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task MetadataRecordCleanupDisposesOwnedClientEvenWhenLogoutFails(bool failLogout)
+        {
+            using var server = new JsonRpcTransportTests.RpcServer
+            {
+                ResultForRequest = request => request["method"].Value<string>() == "pool.get_all_records"
+                    ? (JToken)new JObject() : new JValue("ok")
+            };
+            using var connection = HeartbeatLifecycleTests.Connection(server);
+            var metadata = Session.get_record(connection.Session, "synthetic-metadata");
+            metadata.Timeout = 5000;
+            try
+            {
+                Assert.NotSame(connection.Session.JsonRpcClient, metadata.JsonRpcClient);
+                Assert.Equal("ok", await metadata.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                if (failLogout) server.Status = 503;
+                Action close = () => VdiOpenDatabaseAction.CloseMetadataSession(metadata, connection.Session, new XenRef<Session>("synthetic-metadata"));
+                if (failLogout) Assert.Throws<WebException>(close);
+                else close();
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => metadata.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+                var logout = Assert.Single(server.Requests, request => request["method"].Value<string>() == "session.logout");
+                Assert.Equal("synthetic-metadata", logout["params"][0].Value<string>());
+                server.Status = 200;
+                Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
+            }
+            finally { metadata.JsonRpcClient.Dispose(); }
+        }
+
+        [Fact]
+        public async Task MetadataSetupFailureClosesOnlyTheIndependentHandleThroughBorrowedCaller()
+        {
+            using var server = new JsonRpcTransportTests.RpcServer();
+            using var connection = HeartbeatLifecycleTests.Connection(server);
+            var poolToken = connection.Session.opaque_ref;
+            VdiOpenDatabaseAction.CloseMetadataSession(null, connection.Session, new XenRef<Session>("synthetic-metadata"));
+            var logout = Assert.Single(server.Requests);
+            Assert.Equal("session.logout", logout["method"].Value<string>());
+            Assert.Equal("synthetic-metadata", logout["params"][0].Value<string>());
+            Assert.Equal(poolToken, connection.Session.opaque_ref);
+            Assert.Equal("ok", await connection.Session.JsonRpcClient.CallAsync<string>("synthetic.read", new JArray()));
         }
 
         private static void Authorize(XenConnection connection)

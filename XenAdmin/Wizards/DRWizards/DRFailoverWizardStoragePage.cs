@@ -482,16 +482,15 @@ namespace XenAdmin.Wizards.DRWizards
 
         private void LoadPoolMetadata(VDI vdi)
         {
-            Session metadataSession = null;
+            VdiLoadMetadataAction action = null;
             try
             {
-                VdiLoadMetadataAction action = new VdiLoadMetadataAction(Connection, vdi);
+                action = new VdiLoadMetadataAction(Connection, vdi);
                 using (var dialog = new ActionProgressDialog(action, ProgressBarStyle.Marquee))
                     dialog.ShowDialog(this); //Will block until dialog closes, action completed
 
                 if (action.Succeeded && action.MetadataSession != null)
                 {
-                    metadataSession = action.MetadataSession;
                     XenRef<VDI> vdiRef = new XenRef<VDI>(vdi);
                     if (action.PoolMetadata != null && !allPoolMetadata.ContainsKey(vdiRef))
                     {
@@ -502,8 +501,7 @@ namespace XenAdmin.Wizards.DRWizards
             }
             finally
             {
-                if (metadataSession != null)
-                    metadataSession.logout();
+                VdiOpenDatabaseAction.CloseMetadataSession(action?.MetadataSession, Connection.Session, action?.MetadataSessionRef);
             }
         }
         #endregion
