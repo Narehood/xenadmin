@@ -7,8 +7,9 @@ That feedback does not complete the outstanding manual acceptance checklist.
 The published beta is unchanged; this work is on `modernization/latest-stable-platform`.
 
 Implementation: `afcff7dd1ce252357fe22b1f9df5d91f9ecb519d`.
-The follow-up targets `development` and depends on PR #63. Its focused
-[implementation diff](https://github.com/Narehood/xenadmin/compare/c9911533c36745cd6f471a45633b05fcbaecb1ee...afcff7dd1ce252357fe22b1f9df5d91f9ecb519d)
+[PR #64](https://github.com/Narehood/xenadmin/pull/64) targets `development` and
+depends on PR #63. Its focused
+[implementation diff](https://github.com/Narehood/xenadmin/compare/c9911533c36745cd6f471a45633b05fcbaecb1ee...1d996b5079680224c41f39d80c9a9bf6ae69fa93)
 excludes the parent's already reviewed changes. Merge the parent first; the
 follow-up's overall PR diff then reduces to this migration.
 
@@ -124,6 +125,20 @@ not a guarantee against future advisories. Actionlint 1.7.12 validates the
 workflows; external shellcheck/pyflakes integrations were disabled.
 Hosted Windows/Linux and CodeQL checks run on the upgrade PR; their current-head
 results, including native Linux package execution, are required before merge.
+
+The first [hosted Linux run](https://github.com/Narehood/xenadmin/actions/runs/37212380398)
+passed both shell configurations (1,050 tests plus three intentional Windows
+skips each), then failed the shared locked restore with NU1004. The SDK infers
+`win-x86` for Framework executables only on Windows. Commit `1d996b507` explicitly
+includes that RID in `RuntimeIdentifiers` on every host, keeping the restore
+graph portable and retaining the existing AnyCPU executable behavior. Both
+shared suites pass again locally, with the checked-in lockfile unchanged:
+`artifacts/latest-stable-rid-fix-r2`. Fresh native Linux CI verifies the fix.
+
+CodeRabbit skipped its initial review because the combined unmerged-parent diff
+has 164 files (its limit is 100), and it also reported unavailable review
+capacity. Its success status does not establish completed review. Cursor review
+and all new findings are tracked on PR #64.
 
 Physical Windows/Linux desktops and display scaling, actual installation and
 updater/UAC/rollback/restart, native RDP/guest reboot, and live-pool performance,

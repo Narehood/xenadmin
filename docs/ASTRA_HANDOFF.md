@@ -6,7 +6,8 @@ Last updated: 2026-10-04 (local date). Initial review, remediation, and moderniz
 
 ### Latest stable platform migration (2026-10-04)
 
-The next platform migration follows the tested beta at `c9911533c`, on branch
+The next platform migration in [PR #64](https://github.com/Narehood/xenadmin/pull/64)
+follows the tested beta at `c9911533c`, on branch
 `modernization/latest-stable-platform`. It upgrades Avalonia to 12.1.3,
 SkiaSharp/native assets to 4.153.1, HarfBuzzSharp/native assets to 14.2.1.301,
 D-Bus to 0.95.1, and xUnit to the v3 MTP-off package 4.0.1. Transitive compatibility
@@ -25,6 +26,10 @@ PNG encoder probe in `artifacts/latest-stable-png-api-20261004`. No stable packa
 updates or known NuGet vulnerabilities remain in the audited graphs.
 The follow-up targets `development` and depends on PR #63; merge the parent first
 and check the upgrade PR's current-head Windows/Linux, CodeQL and review results.
+The initial Linux shared restore exposed a Windows-only inferred Framework RID;
+`1d996b507` makes the restore RID list explicit on all hosts. Both shared suites
+pass again locally and the portable lock stays unchanged. CodeRabbit's initial
+file/capacity skip remains a review availability limitation.
 The user reports that the published beta seems to work; the full manual release
 checklist remains pending. This follow-up does not replace or publish that beta.
 
