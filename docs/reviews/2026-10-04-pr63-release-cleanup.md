@@ -78,6 +78,36 @@ Final-head hosted Windows/Linux, CodeQL and both review results are tracked on
 [PR #63](https://github.com/Narehood/xenadmin/pull/63) and must pass before merge.
 Local builds reuse trusted RDP interop; hosted Windows regenerates it with the SDK.
 
+Hosted cleanup head `89c52b72d` passes
+[Windows/Linux builds, tests, UI and packaging](https://github.com/Narehood/xenadmin/actions/runs/37176812579),
+[CodeQL](https://github.com/Narehood/xenadmin/actions/runs/37176810291) and
+[dependency submission](https://github.com/Narehood/xenadmin/actions/runs/37176808451).
+Downloaded evidence is in `artifacts/pr63-cleanup-windows-ci` and
+`artifacts/pr63-cleanup-linux-ci`. Windows confirms the local suite counts.
+Linux passes 1,050 shell tests per configuration with three expected Windows-only
+test skips, plus 113 shared tests. Its acceptance manifest records ten passed
+checks and six skipped Windows-only UI modes; its real packaged desktop produces
+a complete synthetic capture with no samples or drops and all live phases pending.
+The tested merge commit's parents are integration head `84cb0b57c` and cleanup
+head `89c52b72d`.
+
+## Cleanup review follow-up
+
+[Cursor approved `89c52b72d`](https://github.com/Narehood/xenadmin/pull/63#pullrequestreview-5404340019)
+with no actionable findings. [CodeRabbit's completed review](https://github.com/Narehood/xenadmin/pull/63#pullrequestreview-5404337979)
+raised [one valid tag-baseline issue](https://github.com/Narehood/xenadmin/pull/63#discussion_r4176149323):
+rerunning an older publication after a newer version is tagged on the same commit
+could produce empty notes against that newer baseline.
+
+`2b962b007` restricts the baseline to reachable numeric tags strictly below the
+requested version. A new isolated-history regression failed before the fix in
+both artifact and notes-only modes and passes afterward; all seven release-note
+fixtures pass. Logs: `artifacts/pr63-release-tag-before.log` and
+`artifacts/pr63-release-tag-after.log`. No application binaries or dependency
+versions change in this follow-up. Acceptance documentation also corrects the
+six UI modes used by both the final log validation and Linux skipped coverage.
+The PR tracks final-head hosted checks and the reviewers' follow-up dispositions.
+
 This is an unsigned release candidate. Installer modernization and signing
 remain deferred at the user's direction. There is no disposable XCP-ng pool in
 this workspace. Physical Windows/Linux desktops and scaling, live-pool

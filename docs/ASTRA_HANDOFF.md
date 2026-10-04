@@ -23,6 +23,11 @@ Release/Debug solution builds, 1,056 shell tests each, 113 shared .NET 10 and
 112 Framework tests, WinForms/proxy checks, all six UI modes, and fresh Windows
 package/legal/startup verification. Evidence:
 `artifacts/pr63-cleanup-complete-20261004`; portable locks are preserved.
+Hosted Windows/Linux and CodeQL also pass at `89c52b72d`. Cursor approved that
+cleanup; CodeRabbit found one valid release-rerun tag baseline issue, fixed in
+`2b962b007` with a failing-before/passing-after regression in both publication
+modes. All seven release-note fixtures pass. Final-head checks and review
+dispositions are tracked in the cleanup record and PR.
 Current acceptance documentation describes the refreshed versions and fixtures.
 Use that record and final-head hosted checks when assessing readiness; older
 validation counts below are dated snapshots.

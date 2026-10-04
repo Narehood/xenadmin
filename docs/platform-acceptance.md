@@ -18,7 +18,7 @@ compatibility.
 | Shell tests | Release and Debug | Release and Debug |
 | Performance capture | Provider-isolated collection, shutdown/overload/blocked-output tests and nine report fixtures | Same; real desktop CLI capture and synthetic summary during package smoke |
 | Redistribution notices | 13 notice fixtures and exact packaged package/runtime identities | Same |
-| Release notes | Six isolated Git-history and CLI fixtures | Same |
+| Release notes | Seven isolated Git-history and CLI fixtures | Same |
 | Acceptance evidence failure fixtures | PowerShell 5.1 native exit/UI-log failures and skipped coverage | PowerShell native exit/UI-log failures and skipped coverage |
 | Self-contained package | win-x64 ZIP | linux-x64 tar.gz |
 | Package execution | Four malformed updater helper modes reject with exit 1 | Same, using the native Linux executable |
@@ -78,7 +78,7 @@ package revision in the manifest and published archive.
 
 Each Windows editor probe must exit successfully and write a nonempty
 `results.log` without a `FAIL:` line before its check can pass. The final summary
-rechecks all four logs. Linux records four explicit `skipped` entries and a
+rechecks all six logs. Linux records six explicit `skipped` entries and a
 different result summary; its package desktop smoke does not claim editor-probe
 coverage. `scripts/Test-PlatformAcceptanceChecks.ps1` exercises native failures,
 missing/empty/failed UI evidence, final evidence validation, benign native stderr,
