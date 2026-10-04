@@ -1,169 +1,50 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-03 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-04 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
 
-### PR #63 WinForms metadata database owners (2026-10-03)
+### PR #63 release candidate cleanup (2026-10-04)
 
-Implementation: `dd963ddba`. Cursor confirmed the preceding ownership fixes and
-found that WinForms recovery logged out successful metadata sessions without
-disposing their independent RPC clients. Storage loading, recovery completion
-and prechecks now close metadata sessions with client disposal in a `finally`.
-Precheck cancellation, errors and VDI changes release the current owner; partial
-setup closes a known independent handle through the borrowed caller. Preview
-cleanup remains unchanged. See the [follow-up record](reviews/2026-10-03-pr63-review-followup.md)
-and [RPC ownership contract](rpc-transport.md).
+[PR #63](https://github.com/Narehood/xenadmin/pull/63) targets `development`.
+The supported WinForms client and additive Avalonia preview retain their shared
+.NET 10/Framework contracts. This pass fixes capture duration during output
+draining, rejects malformed report rows, avoids repeated statistics sorting and
+RPC allocations, and consolidates release-note generation with bounded Git
+history and reachable release tags. Avalonia is updated to 11.3.22, log4net to
+3.5.0, and test tooling to current compatible versions. All affected lockfiles
+and exact redistribution notices are refreshed. The dependency audit reports
+no known vulnerabilities at the time of this pass.
 
-All 14 focused ownership cases pass, covering successful `get_record`, successful
-and failed logout, partial setup and preservation of the borrowed pool client.
-The complete Release/Debug shell suites pass 1,055 tests each; shared .NET 10
-passes 113 and Framework passes 112, with no failures or skips. All 26 complete
-acceptance checks pass, including both solution builds, WinForms/proxy checks,
-all six UI modes and fresh Windows package/startup/legal verification. Evidence:
-`artifacts/pr63-metadata-acceptance-20261003`; portable lockfiles are unchanged.
-Hosted CI and review must also validate the final PR head. The live-pool,
-physical desktop/reboot/RDP and installer/signing limits below remain unchanged.
+See the [cleanup and release evidence](reviews/2026-10-04-pr63-release-cleanup.md)
+for regressions, dependency sources, validation and the implementation commit.
+Implementation: `00d15d58e`. All 27 local acceptance checks pass: zero-warning
+Release/Debug solution builds, 1,056 shell tests each, 113 shared .NET 10 and
+112 Framework tests, WinForms/proxy checks, all six UI modes, and fresh Windows
+package/legal/startup verification. Evidence:
+`artifacts/pr63-cleanup-complete-20261004`; portable locks are preserved.
+Current acceptance documentation describes the refreshed versions and fixtures.
+Use that record and final-head hosted checks when assessing readiness; older
+validation counts below are dated snapshots.
 
-### PR #63 remaining session owners (2026-10-03)
+Earlier ownership/review fixes are implemented in `18b4052b1`, `5f6ffd530`
+and `dd963ddba`. The [review follow-up](reviews/2026-10-03-pr63-review-followup.md)
+records dispositions and regressions, including borrowed-client preservation,
+repeated retries, elevated logout and WinForms metadata client disposal.
+The [async/startup/capture record](reviews/2026-10-02-async-winforms-performance.md)
+and [original modernization record](reviews/2026-10-02-legal-console-rpc-performance.md)
+retain earlier implementation and acceptance evidence. Current operational
+contracts are in [RPC transport](rpc-transport.md),
+[capture](performance-capture.md) and [legal maintenance](legal-notices.md).
 
-Implementation: `5f6ffd530`. The second Cursor pass confirmed the prior
-fixes and found remaining clients abandoned during repeated retries and by
-short-lived session owners. Retry cleanup now releases every owned predecessor,
-logs out independent elevated handles, preserves borrowed main/caller clients,
-and replaces cached cancellation clients when their login handle changes.
-Event-next, patch phases, folder caches, action-local and preview management
-clients now have explicit cleanup. WinForms prechecks, HA/diagnosis and disk/RDP
-helpers also release their clients; host menus own their shared pool until close
-or disposal. Patch phases restore their original action session and connection.
-
-See the [follow-up record](reviews/2026-10-03-pr63-review-followup.md) for the
-ownership audit and regressions. All 11 focused ownership cases pass, including
-two consecutive failures, caller/main preservation, elevated logout and folder
-cache cleanup. All 26 full acceptance checks pass: both solution builds, 1,052
-shell tests per configuration, 110 shared .NET 10 and 109 shared Framework tests,
-WinForms/proxy checks, all six UI modes and fresh Windows package/startup/legal
-verification. Evidence: `artifacts/pr63-ownership-complete-20261003`; portable
-lockfiles are unchanged. Final-head hosted checks and bot review remain required.
-The live-pool, physical desktop/reboot/RDP and installer/signing limits below
-remain unchanged.
-
-### PR #63 bot review fixes (2026-10-03)
-
-Implementation: `18b4052b1`, in [PR #63](https://github.com/Narehood/xenadmin/pull/63).
-CodeRabbit and both completed Cursor runs raised 13 threads covering 12 distinct
-issues. All were verified against the code and corrected. See the
-[review dispositions and validation](reviews/2026-10-03-pr63-review-followup.md).
-
-Actions preserve borrowed RBAC/caller sessions and explicitly release owned
-retry/elevation clients. Successful elevation clears the startup token before
-returning; managed RPC clients no longer have a finalizer. Modern RPC pools cap
-connections at 20, follow the application's explicit revocation policy, preserve
-heartbeat retry statuses and reject empty successful bodies as protocol errors.
-Console deadline cancellation between tunnel completion and RFB startup now
-clears connecting state, while stale generations leave status untouched.
-Capture argument/output errors and shutdown write failures report clear errors
-with nonzero exit codes. Notice generation follows configured restore caches
-and immutable upstream sources; verification compares exact package/runtime
-identities instead of accepting version prefixes.
-
-All 26 local acceptance checks pass on the reviewed follow-up source: full
-Release/Debug solution builds, 1,047 shell tests per configuration, 105 shared
-.NET 10 and 104 shared Framework tests, all WinForms resources and lifecycle
-checks, 12 proxy checks, all six UI modes, 13 notice fixtures, seven report
-fixtures and fresh Windows packaging/startup/legal verification. Evidence is in
-`artifacts/pr63-review-acceptance-20261003`; portable lockfiles are unchanged.
-Trusted local RDP interop was reused; final-head hosted Windows/Linux and bot
-reviews must also pass. TLS regressions observe the actual loopback chain policy;
-an OS-trusted certificate with an unreachable CRL was not provisioned.
-
-No disposable pool is available, so live performance and pool acceptance remain
-pending. Physical desktop/reboot/RDP guest and MSI/updater/UAC/rollback acceptance
-also remain pending. Installer modernization and signing stay deferred.
-
-### Async polling, WinForms startup and capture workflow (2026-10-02)
-
-The user selected remaining items 1, 2 and 4, deferred installer work and
-confirmed that no disposable pool is available. Implementation:
-
-- `71cca31ed`: cancellable task-based heartbeat and graph polling, completion
-  handles, retained time conversion/wire shape, local duplicate cleanup and
-  cancellable elevation login.
-- `e8e944992`: shared startup guard in both clients; WinForms login/tunnel/RFB
-  deadlines, cancellation of retries and port discovery, stale-handoff guards,
-  immediate failed-stream cleanup and owned elevated-session logout.
-- `f9ad9b530`: bounded opt-in performance capture, offline statistics/coverage,
-  overload/completeness checks and synthetic Linux desktop CLI capture.
-- `528082be5`: serialize capture admission with queue completion so shutdown
-  cannot publish a footer before dropped-sample accounting. Footers include
-  observed counts; the reader rejects inconsistent loss totals. Concurrent
-  producer/shutdown regression, all eight capture cases and seven report
-  fixtures pass. Full shell suites pass again with 1,021 cases in each
-  configuration; both shared frameworks pass all 96 cases. Follow-up logs are
-  `artifacts/capture-shutdown-*` and `artifacts/performance-capture-shutdown-tests.log`.
-
-See the [implementation/review record](reviews/2026-10-02-async-winforms-performance.md),
-[capture instructions](performance-capture.md) and updated [RPC contract](rpc-transport.md).
-Both solution configurations and full suites pass: 1,020 shell cases per
-configuration, 96 shared cases per framework, 349 WinForms lifecycle/designer
-and 23 archive checks per configuration, all resources and 12 proxy cases.
-All 26 local acceptance gates pass at `f9ad9b530`: both complete solution builds,
-both suites, WinForms/proxy checks, all six UI modes, notice fixtures and fresh
-Windows publish/package execution. Evidence is in
-`artifacts/async-winforms-capture-final-20261002`; the archive SHA-256 is
-`d2d0682063e001637cbc4f17b6b15c4ac0a8d9296164bc7dcd8c3a8b26dc3f96`.
-Portable lockfiles are unchanged. Trusted local RDP interop was reused; hosted
-Windows/Linux and CodeQL must pass on the final PR head. The capture deadline
-test asserts parsed frame dimensions, avoiding accidental matches in timestamps.
-
-Main connection/event and administrative action workers remain synchronous;
-RRD HTTP/XML parsing remains synchronous during active phases. Live timings,
-physical desktop/reboot/RDP and installation/update acceptance remain pending.
-Installer modernization and signing are deferred at the user's direction.
-
-### Legal notices, console startup, RPC and performance (2026-10-02)
-
-The user selected console reliability, shared transport modernization and
-performance instrumentation, and requested restoration of the legal notices.
-Release signing is deferred at the user's direction; no signing account is
-available. The branch starts from merged #62 (`84cb0b57c`). Implementation:
-
-- `6896346c0`: complete offline license/third-party text in both clients and
-  ordinary build/publish artifacts; package legal gates and six rejected fixtures.
-- `0da95103b`: reusable, isolated .NET 10 RPC pools, cancellable async entry point,
-  retained synchronous/generated and Framework contracts, TOFU/proxy adaptation,
-  and owned transport cleanup.
-- `0e1381a9d`: bounded/cancellable console startup with an idle-safe handshake
-  deadline; opt-in inventory/detail/console performance events and expanded-tree
-  measurements.
-
-See the [implementation and validation record](reviews/2026-10-02-legal-console-rpc-performance.md),
-[legal maintenance](legal-notices.md), [RPC contract](rpc-transport.md),
-[console limits](reboot-hang-investigation.md) and
-[performance evidence](performance-baseline.md). The original `LICENSE` remains
-unchanged. The notice bundle covers 48 pinned application packages, legacy
-source/assets, Outfit and the bundled .NET runtime, including log4net's upstream
-`NOTICE`. Both native legal controls retain complete selectable text offline.
-
-Local acceptance passes all 25 automated checks: Release/Debug full solution
-builds, 1,005 shell cases per configuration, 88 shared cases per framework,
-339 lifecycle/designer and 23 archive cases per WinForms configuration, all
-32,138 resources in 289 sets, proxy checks, six UI modes, Windows package legal
-validation/startup and unchanged portable locks during validation. The added
-shared test project reference intentionally updates only its dependency graph;
-central package versions are unchanged. After pinning the DiscUtils license
-source to its package commit and tightening the viewport assertion, focused
-checks pass again: both full builds, both offline-text tests, both native legal
-dialog probes, 24 About checks at three render scales, six rejected notice
-fixtures and a freshly published/verified Windows archive.
-
-Trusted local RDP interop was reused. Hosted Windows/Linux and CodeQL checks
-must pass on the PR head. Physical desktops, actual MSI installation, Visual
-Studio/RDP interop generation, updater/UAC/rollback/restart, RDP guest login and
-live-pool/login/proxy/event/reconnect/import/export/migration acceptance remain
-pending. Startup hardening does not establish the cause or resolution of the
-reported Debian reboot hang. Generated sync RPC calls still need worker threads;
-traces and expanded-tree numbers do not establish live-pool performance.
+The candidate remains unsigned. Installer modernization/signing are deferred
+at the user's direction; no disposable pool is available. Physical desktop and
+scaling, actual MSI/updater/UAC/rollback/restart, live-pool performance/recovery,
+native RDP and guest reboot checks remain pending. Startup hardening does not
+establish a resolution of the reported Debian reboot hang. Main connection/event
+and administrative action workers, plus RRD HTTP/XML parsing during active
+phases, retain synchronous compatibility paths. TLS loopback coverage observes
+chain policy without provisioning an OS-trusted root with an unreachable CRL.
 
 ### PR #62 Cursor review fixes (2026-10-01)
 

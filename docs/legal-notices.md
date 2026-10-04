@@ -30,7 +30,8 @@ upstream network sources; normal builds and the About view do not need a network
 connection. Review the resulting notices alongside the package change. The
 generator reads package folders from each project's restore assets, including
 configured global package caches. Fallback license sources for lzo.net,
-MicroCom and Outfit use reviewed immutable commits.
+MicroCom, Avalonia, log4net and Outfit use reviewed immutable commits. Keep those
+source revisions aligned with package upgrades, including log4net's `NOTICE`.
 The package verifier checks complete file contents, the packaged dependency names
 and versions as exact recorded identities, and runtime coverage; stale or missing
 notices fail acceptance. `python scripts/test-redistribution-notices.py` runs 13

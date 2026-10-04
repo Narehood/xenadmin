@@ -31,6 +31,8 @@ application early also flushes the capture. The buffer holds up to 4096 samples
 and the file up to 128 MiB. Overload drops samples instead of waiting on the UI
 or console worker. The summary records observed, written and dropped counts;
 shutdown waits for admitted callbacks to finish that accounting before flushing.
+The recorded duration ends when collection stops; draining buffered output does
+not add time to that measurement.
 Invalid capture arguments or output paths report an error and return a nonzero
 exit code before desktop startup. A writer failure is reported at shutdown and
 also returns a nonzero exit code, preserving any separate desktop exception.
@@ -78,6 +80,7 @@ available when runtime/CPU investigation is needed.
 `PerformanceCaptureTests` exercises the actual EventListener/writer, provider
 isolation, concurrent shutdown/overload accounting, argument handling, no-overwrite behavior and
 automatic stop.
+Blocked-output coverage verifies that the duration excludes flush time.
 `PerformanceCaptureStartupTests` covers application startup/shutdown errors with
 an actual failing capture output stream.
 `scripts/test-performance-capture.py` checks report statistics, phase coverage
