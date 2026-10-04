@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Reflection;
+using System.Threading.Channels;
 using XcpNgCenter.Rfb;
 using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.ViewModels;
@@ -271,6 +273,84 @@ public sealed class ConsolePasteTests
         Assert.False(vm.ShowText);
         Assert.False(vm.AllowEnterAndTab);
         Assert.Contains("Text sent", vm.Status);
+    }
+
+    [Theory]
+    [InlineData("completed", "Text sent")]
+    [InlineData("stopped", "Paste stopped. Sent 2 characters")]
+    [InlineData("failed", "Paste failed or the console changed. Sent 1 characters")]
+    public async Task QueuedProgressCannotOverwriteTerminalStatusDuringPropertyNotification(string outcome, string expected)
+    {
+        using var connection = new CancellationTokenSource();
+        var target = new ConsolePasteTarget("VM", () => true, () => true, () => { }, key =>
+        {
+            if (key != 'b') return;
+            if (outcome == "stopped") connection.Cancel();
+            else if (outcome == "failed") throw new IOException("private transport details");
+        }, connection.Token);
+        var context = new PasteSynchronizationContext();
+        using var vm = new ConsolePasteViewModel(target, () => Task.FromResult<string?>(null));
+        vm.Text = "abc";
+        string? terminal = null;
+        var drained = 0;
+        vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(vm.Status) || !vm.Status.StartsWith(expected, StringComparison.Ordinal)) return;
+            terminal = vm.Status;
+            // A UI notification can pump messages before the setter returns.
+            drained += context.DrainProgress();
+        };
+
+        await context.Complete(context.Invoke(() => vm.SendCommand.ExecuteAsync(null)));
+
+        Assert.NotNull(terminal);
+        Assert.True(drained > 0);
+        Assert.Equal(terminal, vm.Status);
+        Assert.Equal("", vm.Text);
+        Assert.DoesNotContain("private transport details", vm.Status);
+    }
+
+    [Fact]
+    public async Task QueuedProgressFromFinishedSendCannotOverwriteLaterClipboardRead()
+    {
+        var clipboard = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var context = new PasteSynchronizationContext();
+        using var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => clipboard.Task);
+        vm.Text = "abc";
+        await context.Complete(context.Invoke(() => vm.SendCommand.ExecuteAsync(null)));
+
+        vm.Text = "next draft";
+        var reading = context.Invoke(() => vm.LoadClipboardCommand.ExecuteAsync(null));
+        Assert.Equal(3, context.DrainProgress());
+        Assert.Equal("Reading clipboard...", vm.Status);
+        Assert.Equal("next draft", vm.Text);
+
+        clipboard.SetResult("replacement");
+        await context.Complete(reading);
+        Assert.Equal("replacement", vm.Text);
+        Assert.StartsWith("Clipboard loaded", vm.Status);
+    }
+
+    [Fact]
+    public async Task QueuedProgressCannotUpdateDisposedDialog()
+    {
+        var context = new PasteSynchronizationContext();
+        var vm = new ConsolePasteViewModel(new PasteFixture().Target, () => Task.FromResult<string?>(null));
+        vm.Text = new string('s', ConsolePasteText.MaxLength);
+        var sending = context.Invoke(() => vm.SendCommand.ExecuteAsync(null));
+        await context.ProgressPosted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        vm.Dispose();
+        var statusAtDisposal = vm.Status;
+        Assert.True(context.DrainProgress() > 0);
+        Assert.Equal(statusAtDisposal, vm.Status);
+        await context.Complete(sending);
+        Assert.Equal("", vm.Text);
+        Assert.False(vm.CanSend);
+        Assert.StartsWith("Paste stopped", vm.Status);
+        var terminal = vm.Status;
+        context.DrainProgress();
+        Assert.Equal(terminal, vm.Status);
     }
 
     [Fact]
@@ -545,6 +625,55 @@ public sealed class ConsolePasteTests
     private sealed class InlineProgress(Action<int> report) : IProgress<int>
     {
         public void Report(int value) => report(value);
+    }
+
+    private sealed class PasteSynchronizationContext : SynchronizationContext
+    {
+        private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> _progress = new();
+        private readonly Channel<(SendOrPostCallback Callback, object? State)> _continuations =
+            Channel.CreateUnbounded<(SendOrPostCallback, object?)>();
+        public TaskCompletionSource ProgressPosted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            if (state is int)
+            {
+                _progress.Enqueue((callback, state));
+                ProgressPosted.TrySetResult();
+            }
+            else
+                _continuations.Writer.TryWrite((callback, state));
+        }
+
+        public Task Invoke(Func<Task> action)
+        {
+            var previous = Current;
+            SetSynchronizationContext(this);
+            try { return action(); }
+            finally { SetSynchronizationContext(previous); }
+        }
+
+        public async Task Complete(Task command)
+        {
+            while (!command.IsCompleted)
+            {
+                var continuation = await _continuations.Reader.ReadAsync(TestContext.Current.CancellationToken)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+                _ = Invoke(() => { continuation.Callback(continuation.State); return Task.CompletedTask; });
+            }
+            await command;
+        }
+
+        public int DrainProgress()
+        {
+            var count = 0;
+            while (_progress.TryDequeue(out var progress))
+            {
+                Invoke(() => { progress.Callback(progress.State); return Task.CompletedTask; });
+                count++;
+            }
+            return count;
+        }
     }
 
     private static void Attach(HostedConsoleSession session, Stream stream, bool secure, int generation)

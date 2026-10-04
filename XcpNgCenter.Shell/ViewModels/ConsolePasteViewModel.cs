@@ -9,6 +9,7 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
     private readonly ConsolePasteTarget _target;
     private readonly Func<Task<string?>> _readClipboard;
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly object _sendProgressLock = new();
     private CancellationTokenSource? _operation;
     private bool _disposed;
     private bool _hasSendResult;
@@ -150,26 +151,38 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
         var completed = false;
         var progress = new Progress<int>(count =>
         {
-            if (!_disposed && ReferenceEquals(_operation, sending))
-                Status = $"Sent {count:N0} characters. Stop cannot undo text already sent.";
+            lock (_sendProgressLock)
+            {
+                if (!_disposed && ReferenceEquals(_operation, sending))
+                    Status = $"Sent {count:N0} characters. Stop cannot undo text already sent.";
+            }
         });
+        void SetResult(string status)
+        {
+            lock (_sendProgressLock)
+            {
+                // Retire progress before notifying observers of the terminal result.
+                // The lock also orders callbacks without a UI synchronization context.
+                _operation = null;
+                Status = status;
+            }
+        }
         try
         {
             await _target.SendAsync(Text, AllowEnterAndTab, progress, sending.Token, delivery);
             completed = true;
-            Status = "Text sent. Check the console before continuing; no extra Enter was added.";
+            SetResult("Text sent. Check the console before continuing; no extra Enter was added.");
         }
         catch (OperationCanceledException)
         {
-            Status = SendFailureStatus("Paste stopped", delivery);
+            SetResult(SendFailureStatus("Paste stopped", delivery));
         }
         catch
         {
-            Status = SendFailureStatus("Paste failed or the console changed", delivery);
+            SetResult(SendFailureStatus("Paste failed or the console changed", delivery));
         }
         finally
         {
-            _operation = null;
             if (completed || delivery.MayHaveSentText || _disposed)
             {
                 Text = "";
@@ -193,8 +206,11 @@ public partial class ConsolePasteViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        lock (_sendProgressLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+        }
         _lifetime.Cancel();
         _lifetime.Dispose();
         Text = "";
