@@ -28,7 +28,7 @@ public static class ShellVmHaPrompt
 
         var accepted = ShellConfirmPrompt.Confirm(new ShellConfirmRequest
         {
-            Title = Messages.HIGH_AVAILABILITY,
+            Title = ShellResourceText.WithoutMnemonics(Messages.HIGH_AVAILABILITY),
             Message = message,
             AcceptLabel = "Continue",
             CancelLabel = "Cancel",
@@ -72,7 +72,7 @@ public static class ShellVmHaPrompt
                 startAction.IsStart ? Messages.HA_VM_START_NTOL_ZERO : Messages.HA_VM_RESUME_NTOL_ZERO,
                 poolName,
                 vmName);
-            ShellConfirmPrompt.Alert(Messages.HIGH_AVAILABILITY, msg);
+            ShellConfirmPrompt.Alert(ShellResourceText.WithoutMnemonics(Messages.HIGH_AVAILABILITY), msg);
             return;
         }
 
@@ -85,7 +85,7 @@ public static class ShellVmHaPrompt
 
         var lower = ShellConfirmPrompt.Confirm(new ShellConfirmRequest
         {
-            Title = Messages.HIGH_AVAILABILITY,
+            Title = ShellResourceText.WithoutMnemonics(Messages.HIGH_AVAILABILITY),
             Message = dropMsg,
             AcceptLabel = "Yes",
             CancelLabel = "No",

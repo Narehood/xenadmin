@@ -874,9 +874,9 @@ public partial class MainViewModel
 
         var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
         {
-            Title = Messages.CONFIRM_REBOOT_SERVER_TITLE,
+            Title = ShellResourceText.WithoutMnemonics(Messages.CONFIRM_REBOOT_SERVER_TITLE),
             Message = message,
-            AcceptLabel = Messages.CONFIRM_REBOOT_SERVER_YES_BUTTON_LABEL
+            AcceptLabel = ShellResourceText.WithoutMnemonics(Messages.CONFIRM_REBOOT_SERVER_YES_BUTTON_LABEL)
         });
         if (!accepted)
             return;
@@ -902,9 +902,9 @@ public partial class MainViewModel
 
         var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
         {
-            Title = Messages.CONFIRM_SHUTDOWN_SERVER_TITLE,
+            Title = ShellResourceText.WithoutMnemonics(Messages.CONFIRM_SHUTDOWN_SERVER_TITLE),
             Message = message,
-            AcceptLabel = Messages.CONFIRM_SHUTDOWN_SERVER_YES_BUTTON_LABEL
+            AcceptLabel = ShellResourceText.WithoutMnemonics(Messages.CONFIRM_SHUTDOWN_SERVER_YES_BUTTON_LABEL)
         });
         if (!accepted)
             return;
@@ -921,7 +921,7 @@ public partial class MainViewModel
 
         var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
         {
-            Title = Messages.CONFIRM_RESTART_TOOLSTACK_TITLE,
+            Title = ShellResourceText.WithoutMnemonics(Messages.CONFIRM_RESTART_TOOLSTACK_TITLE),
             Message = string.Format(
                 Messages.CONFIRM_RESTART_TOOLSTACK_ONE_SERVER,
                 host.Name().Ellipsise(30),
@@ -946,7 +946,7 @@ public partial class MainViewModel
         {
             await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
             {
-                Title = Messages.HIGH_AVAILABILITY,
+                Title = ShellResourceText.WithoutMnemonics(Messages.HIGH_AVAILABILITY),
                 Message = string.Format(
                     Messages.HA_CANNOT_EVACUATE_COORDINATOR,
                     Helpers.GetName(host).Ellipsise(Helpers.DEFAULT_NAME_TRIM_LENGTH)),
@@ -963,9 +963,9 @@ public partial class MainViewModel
 
         var accepted = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
         {
-            Title = Messages.ENTER_MAINTENANCE_MODE,
+            Title = ShellResourceText.WithoutMnemonics(Messages.ENTER_MAINTENANCE_MODE),
             Message = message,
-            AcceptLabel = Messages.ENTER_MAINTENANCE_MODE_CONTEXT_MENU
+            AcceptLabel = ShellResourceText.WithoutMnemonics(Messages.ENTER_MAINTENANCE_MODE_CONTEXT_MENU)
         });
         if (!accepted)
             return;
@@ -995,7 +995,7 @@ public partial class MainViewModel
             var names = string.Join("\n", toRestore.Select(vm => Helpers.GetName(vm)));
             resume = await ShellConfirmPrompt.ConfirmAsync(new ShellConfirmRequest
             {
-                Title = Messages.EXIT_MAINTENANCE_MODE,
+                Title = ShellResourceText.WithoutMnemonics(Messages.EXIT_MAINTENANCE_MODE),
                 Message = string.Format(Messages.EXIT_MAINTENANCE_MODE_PROMPT, names),
                 AcceptLabel = "Restore VMs",
                 CancelLabel = "Exit only"
