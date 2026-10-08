@@ -1,8 +1,68 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-04 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-08 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Branch cleanup and async graph follow-up (2026-10-08)
+
+The user requested local/GitHub branch cleanup and chose further async cleanup.
+All 16 local feature branches were ancestors of current `development`
+(`2d15539bbcca3db84373b74d1aaa83066e164ea1`) and matched their GitHub tips, with
+no open PR referring to them. Those local and remote refs were removed; remote
+deletion was atomic and guarded against tip changes. The clean `artifacts/pr52-review`
+and `artifacts/pr53-review` worktrees retain their files at detached commits.
+`development`, `beta`, `2020.03` and four unmerged remote feature/security branches
+remain. Cleanup tip evidence: `artifacts/branch-cleanup-20261008/integrated-branches.json`.
+
+Implementation: `c1b1ab355`, on `modernization/async-rrd-polling`. Initial and
+incremental RRD XML body reads now await both nodes and text values, freeing
+workers during body waits. Cancellation closes the stream, polling completion
+includes active reads, and late fetched results cannot update retired archives.
+Async fetch diagnostics retain elapsed time and report unknown allocation even
+when a continuation returns to the original thread. The shared synchronous
+connection/proxy/TLS/header setup remains on a worker with its existing policy;
+main connection/event and action workers remain synchronous compatibility paths.
+
+Both fragmented async-only body cases failed before the change. All 33 focused
+polling/history/diagnostic cases pass afterward, including unfinished text-value
+cancellation, started-poller completion, late responses, archive resolutions and
+DST history. See the [follow-up record](reviews/2026-10-08-async-rrd-polling.md)
+for full acceptance evidence and remaining limits. Live pool timings, physical
+desktop acceptance, actual updater/UAC/rollback/restart and guest reboot diagnosis
+remain pending. Installer modernization and signing remain deferred.
+
+All 27 full local acceptance checks pass, including zero-warning Release/Debug
+solution builds, 1,067 shell tests in each configuration, 113 shared .NET 10 and
+112 Framework tests, WinForms/proxy checks, six UI modes and a fresh Windows
+package smoke pass. Portable locks are preserved. Two final production-parser
+boundary cases pass in both refreshed shell configurations: 1,069 tests each,
+with no warnings, failures or skips. See the review record for exact
+source/package provenance.
+
+PR #66 review correction: `76d0c4b78` restores the HTTP stream's receive timeout
+for each asynchronous RRD body read. A silent fetch closes and returns failure
+without cancelling the poller, while progressing fragments can exceed a single
+timeout window in total. Non-timeout streams retain their behavior. Both stalled
+full/incremental regressions fail before the correction; all 47 focused cases
+now pass, including healthy retries, unfinished text, both read overloads and
+prompt disposal/cancellation. Both shell configurations pass 1,081 tests each;
+shared .NET 10 / Framework pass 113 / 112. Fresh implementation acceptance
+evidence: `artifacts/pr66-review-20261008-acceptance`. All 27 checks pass with
+zero-warning Release/Debug solution builds and preserved portable locks. The
+linked review record documents the finding and remaining live/desktop limits.
+
+### Current beta publication (verified 2026-10-08)
+
+The paste follow-up [PR #65](https://github.com/Narehood/xenadmin/pull/65) is merged
+into `development` as `2d15539bb`; `beta` points to that same commit.
+[Beta v2026.10.4.249](https://github.com/Narehood/xenadmin/releases/tag/v2026.10.4.249)
+was published on October 4 at 17:06:50 UTC. The source-head
+[Windows/Linux validation](https://github.com/Narehood/xenadmin/actions/runs/37218541493),
+[CodeQL](https://github.com/Narehood/xenadmin/actions/runs/37218537588) and
+[publication workflow](https://github.com/Narehood/xenadmin/actions/runs/37219107004)
+all completed successfully. The earlier publication hold below is a dated
+snapshot. These hosted results do not complete the manual acceptance gates.
 
 ### Paste status follow-up before beta publication (2026-10-04)
 

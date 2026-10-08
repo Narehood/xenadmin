@@ -69,7 +69,10 @@ the capture unsuitable for a performance comparison; malformed records and
 mismatched sample/loss counts are rejected. Summary files are never overwritten.
 
 Measuring-thread allocations omit other threads and native bitmap memory;
-`-1` means unknown. Timings exclude GPU composition and full network/decoder
+`-1` means unknown. Async RRD fetches always report unknown allocation, including
+when a continuation resumes on its original thread: intervening work would
+otherwise contaminate that delta. Their elapsed timing includes connection setup
+and streamed body parsing. Timings exclude GPU composition and full network/decoder
 costs. Frame counts are presented-frame notifications, not input latency or
 proof of guest responsiveness. Use independent guest/server evidence for reboot
 diagnosis. The existing [dotnet-trace option](performance-baseline.md) remains

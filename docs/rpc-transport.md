@@ -43,8 +43,15 @@ transport. Intentional cancellation does not interrupt or log out the pool.
 Its typed adapter retains the generated host-time converter outside generated
 SDK files. Graph polling exposes `Completion`/`DisposeAsync`, cancels its
 metadata RPC and five-second delay, closes blocked GET/XML transport, and drops
-queued UI updates after disposal. Raw RRD HTTP/XML parsing remains synchronous
-inside bounded worker phases; it no longer reserves a worker while sleeping.
+queued UI updates after disposal. The October 8 follow-up reads RRD XML nodes
+and text content asynchronously, including initial history and incremental
+updates. Body waits release their worker, while disposal closes blocked reads
+and waits for the polling loop to finish. Connection/proxy/TLS/response-header
+setup still uses the shared synchronous HTTP helper on a worker. Each body read
+enforces that transport's configured receive timeout, closing only the failed
+fetch on expiry so polling can continue. Progress resets the idle window; there
+is no overall body deadline. Streams without timeout support keep their existing
+behavior. Certificate, proxy-authentication and redirect contracts remain in effect.
 
 WinForms console elevation accepts a per-attempt token through the concrete
 `XenConnection` overload. Failed login/setup attempts release their transport
