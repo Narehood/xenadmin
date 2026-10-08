@@ -53,9 +53,8 @@ public sealed class RfbConsoleView : Control
 
     public RfbConsoleView()
     {
-        // Terminal glyphs are 1px strokes. Prefer nearest-neighbor; fractional DPI/downscales
-        // switch to HighQuality for the image draw so text is not shredded.
-        RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
+        // Leave visual interpolation unspecified: it would take precedence over
+        // the per-image filtering scoped in Render. Keep terminal edges aliased.
         RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
     }
 
