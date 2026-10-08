@@ -4,12 +4,48 @@ using Xunit;
 using Newtonsoft.Json.Linq;
 using System.Text;
 using System.Xml;
+using System.Reflection;
+using XenAdmin.Network;
+using XenAdmin.Core;
 using Task = System.Threading.Tasks.Task;
 
 namespace XcpNgCenter.Shell.Tests;
 
 public sealed class PerformancePollingTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProductionRrdInspectorsConsumeFragmentedBodiesAsynchronously(bool incremental)
+    {
+        using var connection = new XenConnection();
+        connection.Cache.UpdateFrom(connection,
+            [new ObjectChange(typeof(Host), "host", new Host { uuid = "test" })]);
+        var host = connection.Cache.Hosts[0];
+        var name = new string('x', 20000);
+        var id = $"host:test:{name}";
+        var xml = incremental
+            ? $"<xport><meta><legend><entry>AVERAGE:{id}</entry></legend></meta><data>"
+                + "<row><t>1000</t><v>0.5</v></row><row><t>1005</t><v>0.75</v></row></data></xport>"
+            : $"<rrd><step>5</step><lastupdate>1000</lastupdate><ds><name>{name}</name></ds>"
+                + "<rra><cf>AVERAGE</cf><pdp_per_row>1</pdp_per_row><database>"
+                + "<row><v>0.5</v></row><row><v>0.75</v></row></database></rra></rrd>";
+        using var input = new AsyncOnlyRrdStream(xml, 1);
+        using var maintainer = new ShellRrdMaintainer(host, action => action(), (_, _) => input);
+        var inspect = typeof(ShellRrdMaintainer).GetMethod(incremental ? "RrdUpdateInspect" : "RrdFullInspect",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.CreateDelegate<Func<XmlReader, IXenObject, Task>>(maintainer);
+
+        Assert.True(await maintainer.GetAsync(_ => new Uri("http://synthetic.invalid/rrd"), inspect, host));
+
+        var series = incremental
+            ? Assert.Single((List<RrdSeries>)typeof(ShellRrdMaintainer)
+                .GetField("_setsAdded", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(maintainer)!)
+            : maintainer.Archives[RrdArchiveInterval.FiveSecond].SeriesById[id];
+        Assert.Equal(id, series.Id);
+        Assert.Equal(new[] { 0.5, 0.75 }, series.Points.Select(point => point.Value).Order());
+        Assert.True(input.AsyncReads > 0);
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(4096)]
