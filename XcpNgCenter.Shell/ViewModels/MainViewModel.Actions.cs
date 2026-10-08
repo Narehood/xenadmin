@@ -876,7 +876,7 @@ public partial class MainViewModel
         {
             Title = Messages.CONFIRM_REBOOT_SERVER_TITLE,
             Message = message,
-            AcceptLabel = Messages.CONFIRM_REBOOT_SERVER_YES_BUTTON_LABEL
+            AcceptLabel = Messages.CONFIRM_REBOOT_SERVER_YES_BUTTON_LABEL.Replace("&", string.Empty)
         });
         if (!accepted)
             return;
