@@ -54,7 +54,7 @@ public sealed class RfbConsoleView : Control
     public RfbConsoleView()
     {
         // Terminal glyphs are 1px strokes. Prefer nearest-neighbor; fractional DPI/downscales
-        // switch to HighQuality in TryGetDisplayRect so text is not shredded.
+        // switch to HighQuality for the image draw so text is not shredded.
         RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
         RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
     }
@@ -256,9 +256,12 @@ public sealed class RfbConsoleView : Control
         context.FillRectangle(new SolidColorBrush(Color.FromRgb(0x0B, 0x0F, 0x12)), bounds);
 
         var frame = Frame;
-        if (frame == null || !TryGetDisplayRect(out var dest, out _))
+        if (frame == null || !TryGetDisplayRect(out var dest, out _, out var interpolation))
             return;
 
+        // Changing this visual's RenderOptions here invalidates it during the
+        // compositor render pass. Scope filtering to the image draw instead.
+        using var options = context.PushRenderOptions(new RenderOptions { BitmapInterpolationMode = interpolation });
         context.DrawImage(frame, new Rect(frame.Size), dest);
     }
 
@@ -446,7 +449,7 @@ public sealed class RfbConsoleView : Control
     {
         x = 0;
         y = 0;
-        if (!TryGetDisplayRect(out var dest, out var desk))
+        if (!TryGetDisplayRect(out var dest, out var desk, out _))
             return false;
         if (!dest.Contains(local))
             return false;
@@ -462,10 +465,11 @@ public sealed class RfbConsoleView : Control
         return true;
     }
 
-    private bool TryGetDisplayRect(out Rect dest, out PixelSize desk)
+    private bool TryGetDisplayRect(out Rect dest, out PixelSize desk, out BitmapInterpolationMode interpolation)
     {
         dest = default;
         desk = default;
+        interpolation = BitmapInterpolationMode.None;
         var frame = Frame;
         var session = Session;
         var dw = session?.DesktopWidth ?? frame?.PixelSize.Width ?? 0;
@@ -498,9 +502,7 @@ public sealed class RfbConsoleView : Control
         }
 
         var integerScale = Math.Abs(physicalScale - Math.Round(physicalScale)) < 1e-6;
-        RenderOptions.SetBitmapInterpolationMode(
-            this,
-            integerScale ? BitmapInterpolationMode.None : BitmapInterpolationMode.HighQuality);
+        interpolation = integerScale ? BitmapInterpolationMode.None : BitmapInterpolationMode.HighQuality;
 
         var physW = dw * physicalScale;
         var physH = dh * physicalScale;

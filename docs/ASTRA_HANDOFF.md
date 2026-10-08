@@ -4,6 +4,23 @@ Last updated: 2026-10-08 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Shell console crash in regular release (2026-10-08)
+
+The user reported a silent console/startup exit in regular `v2026.10.8.256`,
+source `ca412a4c8`, installed through the shell updater on another Windows PC.
+Their Event Viewer stack matches a local native reproduction: console geometry
+calculation changes the visual's interpolation mode during rendering, and
+Avalonia 12 throws `Visual was invalidated during the render pass`.
+
+On `fix/shell-console-render-crash`, geometry calculation is now pure and image
+filtering is scoped to the drawing context. Five rooted-compositor regressions
+fail before and pass after the fix, covering fractional fitting at four display
+scales and frame/fit transitions. A native Windows probe passes 120 frame/cursor
+updates and repeated resizes. Full acceptance is pending. See the
+[crash review record](reviews/2026-10-08-console-render-crash.md) for evidence,
+the reversible startup workaround and remaining affected-machine/live-pool
+limits. No saved profiles or credentials were changed locally.
+
 ### Branch cleanup and async graph follow-up (2026-10-08)
 
 The user requested local/GitHub branch cleanup and chose further async cleanup.
