@@ -1,6 +1,6 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-04 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-08 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
 
@@ -1517,3 +1517,21 @@ pending ISO selection across inventory events, and repeated guest-console
 failures without new inventory events. Install the documented RDP prerequisites
 before claiming a complete WinForms build. Profile large pools and real console
 activity before broader performance refactoring.
+
+## Reboot confirmation caption follow-up (2026-10-08)
+
+Implementation: `ab4a3d32d`, on `fix/shell-reboot-button-label`. The user reported
+that the Avalonia host reboot prompt displayed `&Yes, Reboot`. The shell adapter
+now removes the WinForms mnemonic marker from that resource-backed button label.
+The shared resource retains its WinForms keyboard shortcut; other shell captions
+retain literal ampersands.
+
+An offscreen Windows probe invoked the actual `RebootHostAsync` command against
+a synthetic host, inspected/rendered its production confirmation window and
+cancelled it. The button reads `Yes, Reboot`; a second real dialog retains
+`Restart & install`. Screenshot and probe evidence are in
+`artifacts/reboot-label-probe-20261008`. No host was connected or rebooted.
+The isolated label branch passes 1,061 shell Release tests, 113 shared .NET 10
+tests and 112 shared Framework tests, with no warnings, failures or skips.
+Evidence: `artifacts/reboot-label-validation-20261008`.
+This caption change does not resolve the separately reported guest reboot hang.
