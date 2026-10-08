@@ -4,6 +4,44 @@ Last updated: 2026-10-08 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Shell console crash in regular release (2026-10-08)
+
+The user reported a silent console/startup exit in regular `v2026.10.8.256`,
+source `ca412a4c8`, installed through the shell updater on another Windows PC.
+Their Event Viewer stack matches a local native reproduction: console geometry
+calculation changes the visual's interpolation mode during rendering, and
+Avalonia 12 throws `Visual was invalidated during the render pass`.
+
+Implementation: `9f5f0d051`, in [PR #68](https://github.com/Narehood/xenadmin/pull/68).
+Geometry calculation is now pure and image filtering is scoped to the drawing
+context. Five rooted-compositor regressions
+fail before and pass after the fix, covering fractional fitting at four display
+scales and frame/fit transitions. A native Windows probe passes 120 frame/cursor
+updates and repeated resizes. All 27 automated acceptance checks pass on the
+clean implementation commit: zero-warning Release/Debug solution builds,
+1,099 shell tests in each configuration, 113 .NET 10 and 112 Framework shared
+tests, WinForms/proxy checks, six UI probes and a fresh Windows package smoke
+pass. Portable locks are preserved. Evidence:
+`artifacts/console-crash-acceptance-20261008`. See the
+[crash review record](reviews/2026-10-08-console-render-crash.md) for evidence,
+the reversible startup workaround and remaining affected-machine/live-pool
+limits. No saved profiles or credentials were changed locally.
+
+PR #68 review correction: `52084ad84` leaves the visual's bitmap interpolation
+unspecified while keeping aliased edges. Avalonia's compositor and Skia option
+merge retain an already specified visual mode, so the initial constructor's
+`None` blocked smoothing. Four contrasting-pixel regressions fail before the
+correction; all 11 console cases pass afterward, including two sharp whole-pixel
+cases and unchanged visual state. Both shell configurations pass 1,105 tests;
+shared .NET 10 / Framework pass 113 / 112. All 27 fresh acceptance checks pass on
+the clean correction, with zero-warning solution builds, preserved locks and a
+fresh package smoke pass: `artifacts/pr68-filtering-acceptance-20261008`.
+A native Windows probe loads the extracted package's shell assembly and passes
+120 frame/cursor updates and repeated resizes. Exact package/assembly evidence:
+`artifacts/pr68-filtering-review-20261008/native-package-probe.json`.
+Current-head hosted checks and review remain pending. The linked crash record includes
+the verified upstream sources, coverage and remaining live-profile limits.
+
 ### Branch cleanup and async graph follow-up (2026-10-08)
 
 The user requested local/GitHub branch cleanup and chose further async cleanup.
