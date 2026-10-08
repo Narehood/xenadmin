@@ -47,8 +47,11 @@ queued UI updates after disposal. The October 8 follow-up reads RRD XML nodes
 and text content asynchronously, including initial history and incremental
 updates. Body waits release their worker, while disposal closes blocked reads
 and waits for the polling loop to finish. Connection/proxy/TLS/response-header
-setup still uses the shared synchronous HTTP helper on a worker. Its existing
-certificate, proxy-authentication and redirect contracts remain in effect.
+setup still uses the shared synchronous HTTP helper on a worker. Each body read
+enforces that transport's configured receive timeout, closing only the failed
+fetch on expiry so polling can continue. Progress resets the idle window; there
+is no overall body deadline. Streams without timeout support keep their existing
+behavior. Certificate, proxy-authentication and redirect contracts remain in effect.
 
 WinForms console elevation accepts a per-attempt token through the concrete
 `XenConnection` overload. Failed login/setup attempts release their transport

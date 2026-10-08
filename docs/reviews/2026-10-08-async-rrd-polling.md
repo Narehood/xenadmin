@@ -73,6 +73,39 @@ incident remain manual acceptance work. Installer modernization and signing
 remain deferred. Synthetic cancellation and history tests do not establish live
 pool performance or guest recovery.
 
+## PR #66 idle-timeout correction (2026-10-08)
+
+The [Cursor finding](https://github.com/Narehood/xenadmin/pull/66#discussion_r4220016141)
+is valid: asynchronous socket reads do not enforce the synchronous receive
+timeout. Implementation `76d0c4b78` wraps timeout-capable HTTP streams and gives
+each body read its own deadline using the stream's existing `ReadTimeout`.
+Expiry closes that fetch and raises `IOException` through the existing warning/
+false-result path. It does not cancel the maintainer; a subsequent fetch on the
+same instance still parses. Byte-array and memory overloads share this behavior.
+Streams without timeout support are left alone. Progress resets the window,
+allowing a complete dump to take longer than one receive-timeout interval.
+Disposal and caller cancellation still abort pending reads immediately.
+
+Both full/incremental stalled-body regressions fail before the correction in
+`artifacts/pr66-review-20261008-before/timeout-before.trx`. All 47 focused
+polling/history/diagnostics cases now pass in
+`artifacts/pr66-review-20261008-focused-final/focused.trx`, including stalls
+before the first XML node and inside long text, a healthy retry, progressing
+fragments, both stream overloads, cancellation without stream token support and
+retirement with timeout-enabled reads. The implementation was validated in
+both shell configurations (1,081 tests each) and both shared frameworks (113
+.NET 10 / 112 Framework), with no failures or skips. Full acceptance evidence
+for this isolated implementation is in `artifacts/pr66-review-20261008-acceptance`:
+all 27 checks passed, including zero-warning Release/Debug solution builds,
+WinForms/proxy checks, six UI probes and fresh Windows package smoke. Portable
+locks are preserved. The manifest records `76d0c4b78`; package SHA-256 is
+`88e9b1e0e34f385ba73e297c6fc065478b96c2e8789552e17351dc27e6763c9b`.
+The manual acceptance limitations above remain.
+
+CodeRabbit reported no actionable code findings; its generic 80% docstring
+coverage warning is not a repository acceptance requirement. The new adapter
+documents the timeout and poller-lifetime contract directly.
+
 ## Branch cleanup
 
 All 16 local feature branch tips were contained in `development` at

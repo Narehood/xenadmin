@@ -40,6 +40,18 @@ boundary cases pass in both refreshed shell configurations: 1,069 tests each,
 with no warnings, failures or skips. See the review record for exact
 source/package provenance.
 
+PR #66 review correction: `76d0c4b78` restores the HTTP stream's receive timeout
+for each asynchronous RRD body read. A silent fetch closes and returns failure
+without cancelling the poller, while progressing fragments can exceed a single
+timeout window in total. Non-timeout streams retain their behavior. Both stalled
+full/incremental regressions fail before the correction; all 47 focused cases
+now pass, including healthy retries, unfinished text, both read overloads and
+prompt disposal/cancellation. Both shell configurations pass 1,081 tests each;
+shared .NET 10 / Framework pass 113 / 112. Fresh implementation acceptance
+evidence: `artifacts/pr66-review-20261008-acceptance`. All 27 checks pass with
+zero-warning Release/Debug solution builds and preserved portable locks. The
+linked review record documents the finding and remaining live/desktop limits.
+
 ### Current beta publication (verified 2026-10-08)
 
 The paste follow-up [PR #65](https://github.com/Narehood/xenadmin/pull/65) is merged
