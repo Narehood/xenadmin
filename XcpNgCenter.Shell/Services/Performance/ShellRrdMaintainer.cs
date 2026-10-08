@@ -264,7 +264,8 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
             // Only that setup occupies a worker; body reads suspend asynchronously.
             using var stream = await AsyncTask.Run(() => _openTransport(uri, _token), _token).ConfigureAwait(false);
             using var registration = _token.Register(stream.Dispose);
-            using var reader = XmlReader.Create(stream, new XmlReaderSettings { Async = true });
+            using var body = RrdReadTimeoutStream.Wrap(stream);
+            using var reader = XmlReader.Create(body, new XmlReaderSettings { Async = true });
             _setsAdded = new List<RrdSeries>();
             while (!_cancel && await reader.ReadAsync().ConfigureAwait(false))
                 await readerMethod(reader, xo).ConfigureAwait(false);

@@ -14,15 +14,55 @@ namespace XcpNgCenter.Shell.Tests;
 public sealed class PerformancePollingTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ProductionRrdInspectorsConsumeFragmentedBodiesAsynchronously(bool incremental)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task StalledRrdBodyTimesOutAndNextFetchStillParses(bool incremental, bool insideText)
     {
         using var connection = new XenConnection();
         connection.Cache.UpdateFrom(connection,
             [new ObjectChange(typeof(Host), "host", new Host { uuid = "test" })]);
         var host = connection.Cache.Hosts[0];
-        var name = new string('x', 20000);
+        var xml = incremental
+            ? "<xport><meta><legend><entry>AVERAGE:host:test:cpu0</entry></legend></meta>"
+                + "<data><row><t>1000</t><v>0.5</v></row></data></xport>"
+            : "<rrd><step>5</step><lastupdate>1000</lastupdate><ds><name>cpu0</name></ds>"
+                + "<rra><cf>AVERAGE</cf><pdp_per_row>1</pdp_per_row><database>"
+                + "<row><v>0.5</v></row></database></rra></rrd>";
+        var prefix = insideText ? xml[..xml.IndexOf("cpu0", StringComparison.Ordinal)] + new string('x', 20000) : "";
+        using var stalled = new BlockingRrdStream(prefix, readTimeout: 100);
+        using var healthy = new AsyncOnlyRrdStream(xml, 1);
+        var requests = 0;
+        using var maintainer = new ShellRrdMaintainer(host, action => action(),
+            (_, _) => requests++ == 0 ? stalled : healthy);
+        var inspect = typeof(ShellRrdMaintainer).GetMethod(incremental ? "RrdUpdateInspect" : "RrdFullInspect",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.CreateDelegate<Func<XmlReader, IXenObject, Task>>(maintainer);
+
+        var failed = maintainer.GetAsync(_ => new Uri("http://synthetic.invalid/rrd"), inspect, host);
+        Assert.False(await failed.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
+        Assert.True(stalled.Closed);
+        Assert.True(await maintainer.GetAsync(_ => new Uri("http://synthetic.invalid/rrd"), inspect, host));
+        Assert.Equal(2, requests);
+        var series = incremental
+            ? Assert.Single((List<RrdSeries>)typeof(ShellRrdMaintainer)
+                .GetField("_setsAdded", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(maintainer)!)
+            : maintainer.Archives[RrdArchiveInterval.FiveSecond].SeriesById["host:test:cpu0"];
+        Assert.Equal(0.5, Assert.Single(series.Points).Value);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task ProductionRrdInspectorsConsumeFragmentedBodiesAsynchronously(bool incremental, bool timedReads)
+    {
+        using var connection = new XenConnection();
+        connection.Cache.UpdateFrom(connection,
+            [new ObjectChange(typeof(Host), "host", new Host { uuid = "test" })]);
+        var host = connection.Cache.Hosts[0];
+        var name = new string('x', timedReads ? 1000 : 20000);
         var id = $"host:test:{name}";
         var xml = incremental
             ? $"<xport><meta><legend><entry>AVERAGE:{id}</entry></legend></meta><data>"
@@ -30,12 +70,15 @@ public sealed class PerformancePollingTests
             : $"<rrd><step>5</step><lastupdate>1000</lastupdate><ds><name>{name}</name></ds>"
                 + "<rra><cf>AVERAGE</cf><pdp_per_row>1</pdp_per_row><database>"
                 + "<row><v>0.5</v></row><row><v>0.75</v></row></database></rra></rrd>";
-        using var input = new AsyncOnlyRrdStream(xml, 1);
+        using var input = new AsyncOnlyRrdStream(xml, timedReads ? 32 : 1,
+            readTimeout: timedReads ? 1000 : Timeout.Infinite, readDelay: timedReads ? 50 : 0);
         using var maintainer = new ShellRrdMaintainer(host, action => action(), (_, _) => input);
         var inspect = typeof(ShellRrdMaintainer).GetMethod(incremental ? "RrdUpdateInspect" : "RrdFullInspect",
             BindingFlags.Instance | BindingFlags.NonPublic)!.CreateDelegate<Func<XmlReader, IXenObject, Task>>(maintainer);
 
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
         Assert.True(await maintainer.GetAsync(_ => new Uri("http://synthetic.invalid/rrd"), inspect, host));
+        if (timedReads) Assert.True(elapsed.ElapsedMilliseconds > input.ReadTimeout);
 
         var series = incremental
             ? Assert.Single((List<RrdSeries>)typeof(ShellRrdMaintainer)
@@ -44,6 +87,40 @@ public sealed class PerformancePollingTests
         Assert.Equal(id, series.Id);
         Assert.Equal(new[] { 0.5, 0.75 }, series.Points.Select(point => point.Value).Order());
         Assert.True(input.AsyncReads > 0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task IdleTimeoutFailsBothAsyncReadOverloadsEvenWithoutStreamCancellation(bool memoryOverload)
+    {
+        using var input = new BlockingRrdStream("", readTimeout: 100);
+        using var body = RrdReadTimeoutStream.Wrap(input);
+        var buffer = new byte[16];
+        var token = TestContext.Current.CancellationToken;
+        var read = memoryOverload ? body.ReadAsync(buffer.AsMemory(), token).AsTask() : body.ReadAsync(buffer, 0, buffer.Length, token);
+
+        await Assert.ThrowsAsync<IOException>(() => read.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
+        Assert.True(input.Closed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CallerCancellationAbortsTimedReadWithoutReportingIdleTimeout(bool memoryOverload)
+    {
+        using var input = new BlockingRrdStream("", readTimeout: 30000);
+        using var body = RrdReadTimeoutStream.Wrap(input);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var buffer = new byte[16];
+        var read = memoryOverload ? body.ReadAsync(buffer.AsMemory(), cancellation.Token).AsTask()
+            : body.ReadAsync(buffer, 0, buffer.Length, cancellation.Token);
+        await input.Reading.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => read.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
+        Assert.True(input.Closed);
     }
 
     [Theory]
@@ -68,11 +145,14 @@ public sealed class PerformancePollingTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task DisposalClosesBlockedAsyncRrdReads(bool insideText)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task DisposalClosesBlockedAsyncRrdReads(bool insideText, bool timedReads)
     {
-        using var stream = new BlockingRrdStream(insideText ? "<rrd><name>" + new string('x', 20000) : "");
+        using var stream = new BlockingRrdStream(insideText ? "<rrd><name>" + new string('x', 20000) : "",
+            readTimeout: timedReads ? 30000 : Timeout.Infinite);
         using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => stream);
         var contentReadStarted = false;
         var work = maintainer.GetAsync(
@@ -227,12 +307,14 @@ public sealed class PerformancePollingTests
         return series;
     }
 
-    private sealed class BlockingRrdStream(string prefix) : Stream
+    private sealed class BlockingRrdStream(string prefix, int readTimeout = Timeout.Infinite) : Stream
     {
         private readonly MemoryStream input = new(Encoding.UTF8.GetBytes(prefix));
         private readonly TaskCompletionSource closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public readonly TaskCompletionSource Reading = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool Closed => closed.Task.IsCompleted;
+        public override bool CanTimeout => readTimeout > 0;
+        public override int ReadTimeout { get => readTimeout; set => throw new NotSupportedException(); }
         public override int Read(byte[] buffer, int offset, int count) => throw new InvalidOperationException("Synchronous RRD body read.");
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
@@ -240,7 +322,8 @@ public sealed class PerformancePollingTests
             if (input.Position < input.Length)
                 return await input.ReadAsync(buffer, offset, count, cancellationToken);
             Reading.TrySetResult();
-            await closed.Task.WaitAsync(cancellationToken);
+            // Deliberately ignore cancellation: closing the transport must release the read.
+            await closed.Task;
             return 0;
         }
         protected override void Dispose(bool disposing) { closed.TrySetResult(); if (disposing) input.Dispose(); base.Dispose(disposing); }
@@ -255,24 +338,29 @@ public sealed class PerformancePollingTests
         public override void SetLength(long value) => throw new NotSupportedException();
     }
 
-    private sealed class AsyncOnlyRrdStream(string xml, int fragmentSize) : Stream
+    private sealed class AsyncOnlyRrdStream(string xml, int fragmentSize,
+        int readTimeout = Timeout.Infinite, int readDelay = 0) : Stream
     {
         private readonly MemoryStream input = new(Encoding.UTF8.GetBytes(xml));
         public int AsyncReads { get; private set; }
+        public override bool CanTimeout => readTimeout > 0;
+        public override int ReadTimeout { get => CanTimeout ? readTimeout : base.ReadTimeout; set => throw new NotSupportedException(); }
         public override int Read(byte[] buffer, int offset, int count) => throw new InvalidOperationException("Synchronous RRD body read.");
         public override int Read(Span<byte> buffer) => throw new InvalidOperationException("Synchronous RRD body read.");
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count,
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             AsyncReads++;
-            return input.ReadAsync(buffer, offset, Math.Min(count, fragmentSize), cancellationToken);
+            if (readDelay > 0) await Task.Delay(readDelay, cancellationToken);
+            return await input.ReadAsync(buffer, offset, Math.Min(count, fragmentSize), cancellationToken);
         }
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             AsyncReads++;
-            return input.ReadAsync(buffer[..Math.Min(buffer.Length, fragmentSize)], cancellationToken);
+            if (readDelay > 0) await Task.Delay(readDelay, cancellationToken);
+            return await input.ReadAsync(buffer[..Math.Min(buffer.Length, fragmentSize)], cancellationToken);
         }
         protected override void Dispose(bool disposing) { if (disposing) input.Dispose(); base.Dispose(disposing); }
         public override bool CanRead => true;
