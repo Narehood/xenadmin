@@ -27,6 +27,21 @@ pass. Portable locks are preserved. Evidence:
 the reversible startup workaround and remaining affected-machine/live-pool
 limits. No saved profiles or credentials were changed locally.
 
+PR #68 review correction: `52084ad84` leaves the visual's bitmap interpolation
+unspecified while keeping aliased edges. Avalonia's compositor and Skia option
+merge retain an already specified visual mode, so the initial constructor's
+`None` blocked smoothing. Four contrasting-pixel regressions fail before the
+correction; all 11 console cases pass afterward, including two sharp whole-pixel
+cases and unchanged visual state. Both shell configurations pass 1,105 tests;
+shared .NET 10 / Framework pass 113 / 112. All 27 fresh acceptance checks pass on
+the clean correction, with zero-warning solution builds, preserved locks and a
+fresh package smoke pass: `artifacts/pr68-filtering-acceptance-20261008`.
+A native Windows probe loads the extracted package's shell assembly and passes
+120 frame/cursor updates and repeated resizes. Exact package/assembly evidence:
+`artifacts/pr68-filtering-review-20261008/native-package-probe.json`.
+Current-head hosted checks and review remain pending. The linked crash record includes
+the verified upstream sources, coverage and remaining live-profile limits.
+
 ### Branch cleanup and async graph follow-up (2026-10-08)
 
 The user requested local/GitHub branch cleanup and chose further async cleanup.

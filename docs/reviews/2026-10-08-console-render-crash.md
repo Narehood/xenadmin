@@ -28,8 +28,10 @@ frames and does not reproduce their live saved-server startup.
 
 Display-rectangle calculation now returns the interpolation mode without
 changing visual state. `Render` scopes that mode to `DrawImage` with
-`DrawingContext.PushRenderOptions`. Whole physical-pixel scales still use
-nearest-neighbor filtering and shrinking still uses high-quality filtering.
+`DrawingContext.PushRenderOptions`. The constructor keeps aliased edges and
+leaves visual interpolation unspecified so it cannot override the per-image
+filter. Whole physical-pixel scales use nearest-neighbor filtering; shrinking
+uses high-quality filtering, verified by the pixel regressions below.
 Pointer coordinates, DPI calculations, transport and framebuffer ownership
 retain their existing behavior. Both embedded and detached consoles use the
 same control.
@@ -46,10 +48,48 @@ and repeated desktop resizes after the fix; it fails before the fix. Existing
 framebuffer tests alone did not exercise the rooted console compositor path.
 Evidence: `artifacts/console-crash-investigation-20261008`.
 
+## PR review filtering correction
+
+Cursor's filtering finding was valid. Avalonia 12.1.3's NuGet metadata identifies
+source commit `8eeda4f6f546165b3f72e63c9f42247abb306905`. Its
+[compositor](https://github.com/AvaloniaUI/Avalonia/blob/8eeda4f6f546165b3f72e63c9f42247abb306905/src/Avalonia.Base/Rendering/Composition/Server/ServerCompositionVisual/ServerCompositionVisual.Render.cs#L139)
+pushes the visual's options before replaying its drawing. The Skia
+[drawing context](https://github.com/AvaloniaUI/Avalonia/blob/8eeda4f6f546165b3f72e63c9f42247abb306905/src/Skia/Avalonia.Skia/DrawingContextImpl.cs#L700)
+merges options using
+[MergeWith](https://github.com/AvaloniaUI/Avalonia/blob/8eeda4f6f546165b3f72e63c9f42247abb306905/src/Avalonia.Base/Media/RenderOptions.cs#L133),
+which retains interpolation that is already specified. The initial crash fix
+left `None` on the control, blocking the draw's `HighQuality` choice. A uniform
+frame could not distinguish those filters.
+
+Correction: `52084ad84` removes that constructor setting while preserving
+`EdgeMode.Aliased` and scoped draw options. Six additional rooted-compositor
+pixel cases use alternating black/white columns. Four shrinking cases at
+100%, 125%, 150% and 200% display scaling produce only black before the correction
+and blended gray afterward. Two whole-physical-pixel cases, including fractional
+display DPI, retain exact black/white pixels. Rendering must leave the visual's
+interpolation unchanged and retain aliased edges. Four cases fail before the
+correction; all 11 console cases pass afterward. Evidence:
+`artifacts/pr68-filtering-review-20261008`.
+
+All 27 fresh acceptance checks pass on clean corrected source `52084ad84`:
+zero-warning Release/Debug solution builds, 1,105 shell tests per configuration,
+113 .NET 10 and 112 Framework shared tests, WinForms/proxy checks, all six UI
+probes and a fresh Windows package smoke pass. Portable locks are preserved.
+Evidence: `artifacts/pr68-filtering-acceptance-20261008/acceptance.json`.
+The corrected package SHA-256 is
+`2cc9a3353cc3f0bc4a61ffad2f8c7d3421a32b03cbcc0bfad40988b21b03deff`.
+A native Windows probe loads the extracted package's shell assembly and passes
+120 frame/cursor updates and repeated resizes. Its receipt records that exact
+assembly path and digest: `artifacts/pr68-filtering-review-20261008/native-package-probe.json`.
+It uses synthetic data and no saved profile or pool connection. The initial
+acceptance below remains evidence for `9f5f0d051`; both acceptance ZIPs use local
+revision `0` and are not published releases. Current-head hosted checks and
+review remain pending before merge/publication.
+
 ## Acceptance and recovery
 
-All 27 automated platform acceptance checks pass on the clean implementation
-commit: zero-warning Release/Debug solution builds, 1,099 shell tests in each
+All 27 automated platform acceptance checks pass on the clean initial crash-fix
+commit `9f5f0d051`: zero-warning Release/Debug solution builds, 1,099 shell tests in each
 configuration, 113 shared .NET 10 tests and 112 Framework tests, WinForms
 resources/lifecycle/plugin checks in both configurations, proxy authentication,
 six UI probe modes and a fresh Windows package smoke pass. Portable locks stay
