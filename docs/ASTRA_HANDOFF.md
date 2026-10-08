@@ -1520,18 +1520,28 @@ activity before broader performance refactoring.
 
 ## Reboot confirmation caption follow-up (2026-10-08)
 
-Implementation: `ab4a3d32d`, on `fix/shell-reboot-button-label`. The user reported
-that the Avalonia host reboot prompt displayed `&Yes, Reboot`. The shell adapter
-now removes the WinForms mnemonic marker from that resource-backed button label.
-The shared resource retains its WinForms keyboard shortcut; other shell captions
-retain literal ampersands.
+Implementation: `41b4e4c7c`, on `fix/shell-reboot-button-label`, supersedes the
+narrow `ab4a3d32d` fix. The user reported `&Yes, Reboot` in the Avalonia host
+reboot prompt. The [PR #67 finding](https://github.com/Narehood/xenadmin/pull/67#discussion_r4219908865)
+identified valid escaped-ampersand, missing-resource and related-caption gaps.
+A null-safe resource adapter now removes single mnemonic markers, collapses
+`&&` to a literal `&`, and applies to every resource-backed confirmation title,
+accept button and cancel button, including host/VM HA prompts. Shared resources
+keep their WinForms shortcuts. Hardcoded captions retain literal ampersands.
 
-An offscreen Windows probe invoked the actual `RebootHostAsync` command against
-a synthetic host, inspected/rendered its production confirmation window and
-cancelled it. The button reads `Yes, Reboot`; a second real dialog retains
-`Restart & install`. Screenshot and probe evidence are in
-`artifacts/reboot-label-probe-20261008`. No host was connected or rebooted.
-The isolated label branch passes 1,061 shell Release tests, 113 shared .NET 10
-tests and 112 shared Framework tests, with no warnings, failures or skips.
-Evidence: `artifacts/reboot-label-validation-20261008`.
+Thirteen regression cases cover reboot/shutdown/maintenance/HA captions, escaped
+ampersands, combined escapes and mnemonics, unchanged text, empty text and null.
+The isolated branch passes 1,074 shell tests in each Release/Debug configuration,
+113 shared .NET 10 tests and 112 shared Framework tests, with no warnings,
+failures or skips. Evidence: `artifacts/pr67-review-20261008-validation`.
+
+An offscreen Windows probe invoked the actual reboot, shutdown and enter-
+maintenance commands against a synthetic cached host, inspected their production
+confirmation titles/buttons and cancelled each. The captions contain no mnemonic
+markers. A production HA-enable prompt displays `Yes` / `No`; a separate real
+dialog retains `Restart & install`. Evidence:
+`artifacts/pr67-review-20261008-probe/probe-r2.log`. No host was connected or
+changed. The earlier reboot screenshot remains in
+`artifacts/reboot-label-probe-20261008`. CodeRabbit was rate-limited on this PR;
+that status is not a completed code review.
 This caption change does not resolve the separately reported guest reboot hang.
