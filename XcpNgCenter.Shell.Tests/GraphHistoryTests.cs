@@ -8,6 +8,7 @@ using XenAPI;
 using XcpNgCenter.Shell.Controls;
 using XcpNgCenter.Shell.Services.Performance;
 using Xunit;
+using Task = System.Threading.Tasks.Task;
 
 namespace XcpNgCenter.Shell.Tests;
 
@@ -63,16 +64,16 @@ public sealed class GraphHistoryTests
     [Theory]
     [InlineData(RrdArchiveInterval.OneHour, 3600, 168)]
     [InlineData(RrdArchiveInterval.OneDay, 86400, 366)]
-    public void IncrementalLongRangePollingPreservesHistoryAndPreviouslyRenderedSnapshot(
+    public async Task IncrementalLongRangePollingPreservesHistoryAndPreviouslyRenderedSnapshot(
         RrdArchiveInterval interval, int seconds, int count)
     {
         var vm = TargetWithSavedCpuGraph();
         var pending = new Queue<Action>();
         using var maintainer = new ShellRrdMaintainer(vm, pending.Enqueue);
-        maintainer.PollArchive(interval, LatestUtc, (_, requestedSeconds) =>
+        await maintainer.PollArchiveAsync(interval, LatestUtc, (_, requestedSeconds) =>
         {
             Assert.Equal(seconds, requestedSeconds);
-            return [Samples(LatestUtc, seconds, count, 27)];
+            return Task.FromResult<List<RrdSeries>?>([Samples(LatestUtc, seconds, count, 27)]);
         });
         Drain(pending);
         var priorGraph = Assert.Single(PerformanceGraphBuilder.Build(vm, maintainer, interval));
@@ -80,18 +81,18 @@ public sealed class GraphHistoryTests
 
         // Fast polling must not consume or replace the separately retained long archive.
         for (var i = 1; i <= 12; i++)
-            maintainer.PollArchive(RrdArchiveInterval.FiveSecond, LatestUtc.AddSeconds(i * 5),
-                (_, _) => [Samples(LatestUtc.AddSeconds(i * 5), 5, 2, 91)]);
+            await maintainer.PollArchiveAsync(RrdArchiveInterval.FiveSecond, LatestUtc.AddSeconds(i * 5),
+                (_, _) => Task.FromResult<List<RrdSeries>?>([Samples(LatestUtc.AddSeconds(i * 5), 5, 2, 91)]));
         Drain(pending);
         Assert.Equal(priorPoints,
             Assert.Single(Assert.Single(PerformanceGraphBuilder.Build(vm, maintainer, interval)).Series).Points);
 
         var next = LatestUtc.AddSeconds(seconds);
-        maintainer.PollArchive(interval, next, (start, requestedSeconds) =>
+        await maintainer.PollArchiveAsync(interval, next, (start, requestedSeconds) =>
         {
             Assert.Equal(new DateTimeOffset(LatestUtc).ToUnixTimeSeconds(), start);
             Assert.Equal(seconds, requestedSeconds);
-            return [Samples(next, seconds, 2, 36)];
+            return Task.FromResult<List<RrdSeries>?>([Samples(next, seconds, 2, 36)]);
         });
         // A response waiting for the UI dispatcher must not mutate a rendered graph.
         Assert.Equal(priorPoints, Assert.Single(priorGraph.Series).Points);
@@ -111,7 +112,7 @@ public sealed class GraphHistoryTests
     [InlineData(RrdArchiveInterval.OneHour, 3600, 168, 11, 3, true)]
     [InlineData(RrdArchiveInterval.OneDay, 86400, 366, 9, 25, false)]
     [InlineData(RrdArchiveInterval.OneDay, 86400, 366, 9, 25, true)]
-    public void FullArchiveKeepsUtcSampleIdentityAndChartDisplaysEachLocalTimestampAcrossDaylightSavingTransitions(
+    public async Task FullArchiveKeepsUtcSampleIdentityAndChartDisplaysEachLocalTimestampAcrossDaylightSavingTransitions(
         RrdArchiveInterval interval, int seconds, int count, int month, int day, bool daylightSaving)
     {
         var zone = daylightSaving ? EasternTimeZone() : TimeZoneInfo.Utc;
@@ -120,7 +121,7 @@ public sealed class GraphHistoryTests
         var lastUpdate = new DateTime(2026, month, day, 12, 0, 17, DateTimeKind.Utc);
         var latest = Align(lastUpdate, seconds);
 
-        ReadFullDump(maintainer, FullDump(lastUpdate, (seconds, count, 27)));
+        await ReadFullDump(maintainer, FullDump(lastUpdate, (seconds, count, 27)));
 
         var graph = Assert.Single(PerformanceGraphBuilder.Build(vm, maintainer, interval));
         var points = Assert.Single(graph.Series).Points;
@@ -133,21 +134,21 @@ public sealed class GraphHistoryTests
         Assert.All(points, point => Assert.Equal(27, point.Value));
         Assert.Equal(interval, graph.Interval);
 
-        maintainer.PollArchive(interval, latest.AddSeconds(seconds), (start, requestedSeconds) =>
+        await maintainer.PollArchiveAsync(interval, latest.AddSeconds(seconds), (start, requestedSeconds) =>
         {
             Assert.Equal(new DateTimeOffset(latest).ToUnixTimeSeconds(), start);
             Assert.Equal(seconds, requestedSeconds);
-            return null;
+            return Task.FromResult<List<RrdSeries>?>(null);
         });
     }
 
     [Fact]
-    public void FullDumpKeepsIndependentWeekAndYearArchivesAndIncludesLeapDay()
+    public async Task FullDumpKeepsIndependentWeekAndYearArchivesAndIncludesLeapDay()
     {
         var vm = TargetWithSavedCpuGraph();
         using var maintainer = new ShellRrdMaintainer(vm, action => action());
         var lastUpdate = new DateTime(2024, 7, 1, 12, 34, 57, DateTimeKind.Utc);
-        ReadFullDump(maintainer, FullDump(lastUpdate,
+        await ReadFullDump(maintainer, FullDump(lastUpdate,
             (5, 120, 91), (60, 120, 82), (3600, 168, 27), (86400, 366, 18)));
 
         var week = Assert.Single(Assert.Single(PerformanceGraphBuilder.Build(
@@ -166,7 +167,7 @@ public sealed class GraphHistoryTests
     }
 
     [Fact]
-    public void FallBackHourRetainsBothSamplesAndPollingCursorDoesNotSkipTheRepeatedHour()
+    public async Task FallBackHourRetainsBothSamplesAndPollingCursorDoesNotSkipTheRepeatedHour()
     {
         var zone = EasternTimeZone();
         var vm = TargetWithSavedCpuGraph();
@@ -175,9 +176,9 @@ public sealed class GraphHistoryTests
         var repeatedOneOClock = firstOneOClock.AddHours(1);
         Assert.Equal(PerformanceChart.LocalDisplayTime(firstOneOClock.Ticks, zone),
             PerformanceChart.LocalDisplayTime(repeatedOneOClock.Ticks, zone));
-        ReadFullDump(maintainer, FullDump(firstOneOClock, (3600, 168, 27)));
+        await ReadFullDump(maintainer, FullDump(firstOneOClock, (3600, 168, 27)));
 
-        maintainer.PollArchive(RrdArchiveInterval.OneHour, repeatedOneOClock, (start, seconds) =>
+        await maintainer.PollArchiveAsync(RrdArchiveInterval.OneHour, repeatedOneOClock, (start, seconds) =>
         {
             Assert.Equal(new DateTimeOffset(firstOneOClock).ToUnixTimeSeconds(), start);
             Assert.Equal(3600, seconds);
@@ -189,23 +190,23 @@ public sealed class GraphHistoryTests
         Assert.Equal(168, points.Count);
         Assert.Equal(new RrdPoint(repeatedOneOClock.Ticks, 38), points[0]);
         Assert.Equal(new RrdPoint(firstOneOClock.Ticks, 27), points[1]);
-        maintainer.PollArchive(RrdArchiveInterval.OneHour, repeatedOneOClock.AddHours(1), (start, seconds) =>
+        await maintainer.PollArchiveAsync(RrdArchiveInterval.OneHour, repeatedOneOClock.AddHours(1), (start, seconds) =>
         {
             Assert.Equal(new DateTimeOffset(repeatedOneOClock).ToUnixTimeSeconds(), start);
             Assert.Equal(3600, seconds);
-            return null;
+            return Task.FromResult<List<RrdSeries>?>(null);
         });
     }
 
     [Fact]
-    public void SpringForwardUpdatesStayOneHourApartWhileDisplaySkipsTheNonexistentHour()
+    public async Task SpringForwardUpdatesStayOneHourApartWhileDisplaySkipsTheNonexistentHour()
     {
         var vm = TargetWithSavedCpuGraph();
         using var maintainer = new ShellRrdMaintainer(vm, action => action());
         var before = new DateTime(2026, 3, 8, 6, 0, 0, DateTimeKind.Utc);
         var after = before.AddHours(1);
-        maintainer.PollArchive(RrdArchiveInterval.OneHour, before, (_, _) => ReadUpdate(maintainer, before, 27));
-        maintainer.PollArchive(RrdArchiveInterval.OneHour, after, (start, _) =>
+        await maintainer.PollArchiveAsync(RrdArchiveInterval.OneHour, before, (_, _) => ReadUpdate(maintainer, before, 27));
+        await maintainer.PollArchiveAsync(RrdArchiveInterval.OneHour, after, (start, _) =>
         {
             Assert.Equal(new DateTimeOffset(before).ToUnixTimeSeconds(), start);
             return ReadUpdate(maintainer, after, 38);
@@ -262,16 +263,16 @@ public sealed class GraphHistoryTests
         return xml.Append("</rrd>").ToString();
     }
 
-    private static void ReadFullDump(ShellRrdMaintainer maintainer, string xml)
+    private static Task ReadFullDump(ShellRrdMaintainer maintainer, string xml)
         => InspectXml(maintainer, xml, "RrdFullInspect");
 
-    private static List<RrdSeries> ReadUpdate(ShellRrdMaintainer maintainer, DateTime time, int value)
+    private static Task<List<RrdSeries>?> ReadUpdate(ShellRrdMaintainer maintainer, DateTime time, int value)
         => InspectXml(maintainer,
             $"<xport><meta><legend><entry>AVERAGE:{SeriesId}</entry></legend></meta><data><row>"
             + $"<t>{new DateTimeOffset(time).ToUnixTimeSeconds()}</t><v>{value}</v></row></data></xport>",
             "RrdUpdateInspect");
 
-    private static List<RrdSeries> InspectXml(ShellRrdMaintainer maintainer, string xml, string method)
+    private static async Task<List<RrdSeries>?> InspectXml(ShellRrdMaintainer maintainer, string xml, string method)
     {
         // Exercise the production streaming inspector without connecting to a server.
         var type = typeof(ShellRrdMaintainer);
@@ -280,9 +281,9 @@ public sealed class GraphHistoryTests
             .SetValue(maintainer, series);
         var inspect = type.GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!;
         using var input = new StringReader(xml);
-        using var reader = XmlReader.Create(input);
-        while (reader.Read())
-            inspect.Invoke(maintainer, [reader, maintainer.XenObject]);
+        using var reader = XmlReader.Create(input, new XmlReaderSettings { Async = true });
+        while (await reader.ReadAsync())
+            await (Task)inspect.Invoke(maintainer, [reader, maintainer.XenObject])!;
         return series;
     }
 

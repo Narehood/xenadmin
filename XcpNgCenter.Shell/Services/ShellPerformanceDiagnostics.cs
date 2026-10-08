@@ -10,7 +10,8 @@ internal sealed class ShellPerformanceDiagnostics : EventSource
     public static readonly ShellPerformanceDiagnostics Log = new();
 
     [NonEvent]
-    public static Measurement Measure(string operation) => Log.IsEnabled() ? new(operation) : default;
+    public static Measurement Measure(string operation, bool measureAllocations = true) =>
+        Log.IsEnabled() ? new(operation, measureAllocations) : default;
 
     [Event(1, Level = EventLevel.Informational)]
     public void Operation(string operation, double milliseconds, long allocatedBytes)
@@ -43,19 +44,20 @@ internal sealed class ShellPerformanceDiagnostics : EventSource
         private readonly long allocated;
         private readonly int thread;
 
-        internal Measurement(string operation)
+        internal Measurement(string operation, bool measureAllocations)
         {
             this.operation = operation;
             started = Stopwatch.GetTimestamp();
-            allocated = GC.GetAllocatedBytesForCurrentThread();
-            thread = Environment.CurrentManagedThreadId;
+            allocated = measureAllocations ? GC.GetAllocatedBytesForCurrentThread() : 0;
+            thread = measureAllocations ? Environment.CurrentManagedThreadId : -1;
         }
 
         public void Dispose()
         {
             if (operation == null) return;
-            // These scopes measure synchronous UI/worker phases. A cross-thread
-            // scope reports unknown allocation rather than a misleading delta.
+            // Async scopes explicitly omit allocation deltas: even resuming on
+            // the original thread can include unrelated work during an await.
+            // Synchronous scopes also reject a cross-thread measurement.
             Log.Operation(operation, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
                 thread == Environment.CurrentManagedThreadId ? GC.GetAllocatedBytesForCurrentThread() - allocated : -1);
         }

@@ -4,6 +4,9 @@ using XcpNgCenter.Shell.Services;
 using XcpNgCenter.Shell.ViewModels;
 using XenAdmin.Network;
 using Xunit;
+using XenAPI;
+using XcpNgCenter.Shell.Services.Performance;
+using Task = System.Threading.Tasks.Task;
 
 namespace XcpNgCenter.Shell.Tests;
 
@@ -13,6 +16,21 @@ public sealed class PerformanceDiagnosticsCollection;
 [Collection("Performance diagnostics")]
 public sealed class PerformanceDiagnosticsTests
 {
+    [Fact]
+    public async Task AsyncRrdFetchReportsElapsedTimeWithUnknownThreadAllocation()
+    {
+        using var listener = new Capture();
+        using var input = new MemoryStream("<rrd/>"u8.ToArray());
+        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => input);
+
+        Assert.True(await maintainer.GetAsync(_ => new Uri("http://synthetic.invalid/rrd"),
+            (_, _) => Task.CompletedTask, maintainer.XenObject));
+
+        var timing = Assert.Single(listener.Events, e => e.Id == 1 && Equals(e.Payload[0], "graphs.rrd-fetch"));
+        Assert.True(Assert.IsType<double>(timing.Payload[1]) >= 0);
+        Assert.Equal(-1, Assert.IsType<long>(timing.Payload[2]));
+    }
+
     [Fact]
     public void RealInventoryBurstsReportCoalescingAndNoIdentifiers()
     {

@@ -20,6 +20,14 @@ pending. Installer automation/replacement is deferred at the user's direction,
 alongside release signing. Main connection/event and administrative action
 workers retain their synchronous compatibility path.
 
+The October 8 async follow-up moves initial and incremental RRD XML body reads
+to asynchronous APIs. Cancellation still closes the transport, polling completion
+includes the active body read, and late archive results are dropped. Connection,
+proxy/TLS negotiation and response-header setup retain the synchronous shared HTTP
+helper; migrating that boundary needs its own cross-client transport review.
+Async fetch timing reports unknown thread allocation. Live graph measurements
+remain pending.
+
 ## Desktop and release acceptance
 
 Use disposable installation directories/profiles and pools to complete

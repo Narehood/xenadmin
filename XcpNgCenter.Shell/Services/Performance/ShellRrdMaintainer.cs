@@ -129,9 +129,9 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
                     if (!_lastPoll.TryGetValue(interval, out var last)
                         || serverWas - last >= TimeSpan.FromSeconds(IntervalSeconds(interval)))
                     {
-                        await AsyncTask.Run(() => PollArchive(interval, serverWas, (start, seconds) =>
-                            Get(xo => UpdateUri(xo, start, seconds), RrdUpdateInspect, XenObject)
-                                ? _setsAdded : null), _token).ConfigureAwait(false);
+                        await PollArchiveAsync(interval, serverWas, async (start, seconds) =>
+                            await GetAsync(xo => UpdateUri(xo, start, seconds), RrdUpdateInspect, XenObject)
+                                .ConfigureAwait(false) ? _setsAdded : null).ConfigureAwait(false);
                     }
                 }
 
@@ -192,7 +192,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
             if (_cancel)
                 return;
 
-            await AsyncTask.Run(() => Get(RrdsUri, RrdFullInspect, XenObject), _token).ConfigureAwait(false);
+            await GetAsync(RrdsUri, RrdFullInspect, XenObject).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (_token.IsCancellationRequested) { throw; }
         catch (Exception e)
@@ -218,8 +218,8 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
         _ => throw new ArgumentOutOfRangeException(nameof(interval))
     };
 
-    internal void PollArchive(RrdArchiveInterval interval, DateTime serverNow,
-        Func<long, int, List<RrdSeries>?> fetch)
+    internal async AsyncTask PollArchiveAsync(RrdArchiveInterval interval, DateTime serverNow,
+        Func<long, int, System.Threading.Tasks.Task<List<RrdSeries>?>> fetch)
     {
         _lastPoll[interval] = serverNow;
         var seconds = IntervalSeconds(interval);
@@ -230,7 +230,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
         var oldestRetained = new DateTimeOffset(serverNow).ToUnixTimeSeconds() - (long)maxPoints * seconds;
         var start = _lastSample.TryGetValue(interval, out var latest)
             ? Math.Max(oldestRetained, latest) : oldestRetained;
-        var sets = fetch(start, seconds);
+        var sets = await fetch(start, seconds).ConfigureAwait(false);
         if (_cancel || sets == null)
             return;
         RecordLatestSample(interval, sets);
@@ -248,7 +248,8 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
             _lastSample[interval] = latest;
     }
 
-    internal bool Get(Func<IXenObject, Uri?> uriBuilder, Action<XmlReader, IXenObject> readerMethod, IXenObject xo)
+    internal async System.Threading.Tasks.Task<bool> GetAsync(Func<IXenObject, Uri?> uriBuilder,
+        Func<XmlReader, IXenObject, AsyncTask> readerMethod, IXenObject xo)
     {
         _setsAdded = null;
         try
@@ -258,13 +259,15 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
             if (uri == null)
                 return false;
 
-            using var timing = ShellPerformanceDiagnostics.Measure("graphs.rrd-fetch");
-            using var stream = _openTransport(uri, _token);
+            using var timing = ShellPerformanceDiagnostics.Measure("graphs.rrd-fetch", measureAllocations: false);
+            // Connection/proxy/TLS/header setup retains the shared SDK contract.
+            // Only that setup occupies a worker; body reads suspend asynchronously.
+            using var stream = await AsyncTask.Run(() => _openTransport(uri, _token), _token).ConfigureAwait(false);
             using var registration = _token.Register(stream.Dispose);
-            using var reader = XmlReader.Create(stream);
+            using var reader = XmlReader.Create(stream, new XmlReaderSettings { Async = true });
             _setsAdded = new List<RrdSeries>();
-            while (!_cancel && reader.Read())
-                readerMethod(reader, xo);
+            while (!_cancel && await reader.ReadAsync().ConfigureAwait(false))
+                await readerMethod(reader, xo).ConfigureAwait(false);
             return !_cancel;
         }
         catch (Exception) when (_token.IsCancellationRequested) { return false; }
@@ -324,7 +327,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
         }.Uri;
     }
 
-    private void RrdFullInspect(XmlReader reader, IXenObject xmo)
+    private async AsyncTask RrdFullInspect(XmlReader reader, IXenObject xmo)
     {
         switch (reader.NodeType)
         {
@@ -371,19 +374,19 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
         {
             case "name":
             {
-                var name = reader.ReadContentAsString();
+                var name = await reader.ReadContentAsStringAsync().ConfigureAwait(false);
                 _setsAdded.Add(CreateSeries(xmo, name, hideForeign: false));
                 break;
             }
             case "step":
-                _stepSize = long.Parse(reader.ReadContentAsString(), CultureInfo.InvariantCulture);
+                _stepSize = long.Parse(await reader.ReadContentAsStringAsync().ConfigureAwait(false), CultureInfo.InvariantCulture);
                 break;
             case "lastupdate":
-                _endTime = long.Parse(reader.ReadContentAsString(), CultureInfo.InvariantCulture);
+                _endTime = long.Parse(await reader.ReadContentAsStringAsync().ConfigureAwait(false), CultureInfo.InvariantCulture);
                 break;
             case "pdp_per_row":
             {
-                _currentInterval = long.Parse(reader.ReadContentAsString(), CultureInfo.InvariantCulture);
+                _currentInterval = long.Parse(await reader.ReadContentAsStringAsync().ConfigureAwait(false), CultureInfo.InvariantCulture);
                 var modInterval = _endTime % (_stepSize * _currentInterval);
                 long stepCount = _currentInterval switch
                 {
@@ -399,7 +402,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
                 break;
             }
             case "cf":
-                if (reader.ReadContentAsString() != "AVERAGE")
+                if (await reader.ReadContentAsStringAsync().ConfigureAwait(false) != "AVERAGE")
                     _bailOut = true;
                 break;
             case "v" when _bailOut || _setsAdded.Count <= _valueCount:
@@ -407,14 +410,14 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
             case "v":
             {
                 var set = _setsAdded[_valueCount];
-                set.AddRawValue(reader.ReadContentAsString(), _currentTimeUtcTicks);
+                set.AddRawValue(await reader.ReadContentAsStringAsync().ConfigureAwait(false), _currentTimeUtcTicks);
                 _valueCount++;
                 break;
             }
         }
     }
 
-    private void RrdUpdateInspect(XmlReader reader, IXenObject xo)
+    private async AsyncTask RrdUpdateInspect(XmlReader reader, IXenObject xo)
     {
         if (reader.NodeType == XmlNodeType.Element)
         {
@@ -428,7 +431,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
 
         if (_lastNode == "entry")
         {
-            var str = reader.ReadContentAsString();
+            var str = await reader.ReadContentAsStringAsync().ConfigureAwait(false);
             RrdSeries? set = null;
             if (RrdSeries.TryParseId(str, out var objType, out var objUuid, out var dsName))
             {
@@ -451,7 +454,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
         }
         else if (_lastNode == "t")
         {
-            _currentTimeUtcTicks = Convert.ToInt64(reader.ReadContentAsString())
+            _currentTimeUtcTicks = Convert.ToInt64(await reader.ReadContentAsStringAsync().ConfigureAwait(false), CultureInfo.InvariantCulture)
                 * TimeSpan.TicksPerSecond + Util.TicksBefore1970;
         }
         else if (_lastNode == "v")
@@ -459,7 +462,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
             if (_setsAdded.Count <= _valueCount)
                 return;
             var set = _setsAdded[_valueCount];
-            set.AddRawValue(reader.ReadContentAsString(), _currentTimeUtcTicks);
+            set.AddRawValue(await reader.ReadContentAsStringAsync().ConfigureAwait(false), _currentTimeUtcTicks);
             _valueCount++;
         }
     }
