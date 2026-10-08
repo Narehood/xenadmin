@@ -12,11 +12,17 @@ Their Event Viewer stack matches a local native reproduction: console geometry
 calculation changes the visual's interpolation mode during rendering, and
 Avalonia 12 throws `Visual was invalidated during the render pass`.
 
-On `fix/shell-console-render-crash`, geometry calculation is now pure and image
-filtering is scoped to the drawing context. Five rooted-compositor regressions
+Implementation: `9f5f0d051`, in [PR #68](https://github.com/Narehood/xenadmin/pull/68).
+Geometry calculation is now pure and image filtering is scoped to the drawing
+context. Five rooted-compositor regressions
 fail before and pass after the fix, covering fractional fitting at four display
 scales and frame/fit transitions. A native Windows probe passes 120 frame/cursor
-updates and repeated resizes. Full acceptance is pending. See the
+updates and repeated resizes. All 27 automated acceptance checks pass on the
+clean implementation commit: zero-warning Release/Debug solution builds,
+1,099 shell tests in each configuration, 113 .NET 10 and 112 Framework shared
+tests, WinForms/proxy checks, six UI probes and a fresh Windows package smoke
+pass. Portable locks are preserved. Evidence:
+`artifacts/console-crash-acceptance-20261008`. See the
 [crash review record](reviews/2026-10-08-console-render-crash.md) for evidence,
 the reversible startup workaround and remaining affected-machine/live-pool
 limits. No saved profiles or credentials were changed locally.

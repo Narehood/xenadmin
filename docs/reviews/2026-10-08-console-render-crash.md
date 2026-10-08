@@ -5,6 +5,9 @@ The user reported that opening a VM console in regular release
 a few seconds after reopening. The affected client was `XcpNgCenter.Shell.exe`
 on another Windows computer, installed through the shell updater.
 
+Implementation: `9f5f0d05144ee8bcd3a95926ab8a71972e9f3985`, in
+[PR #68](https://github.com/Narehood/xenadmin/pull/68).
+
 ## Confirmed cause
 
 The user's .NET Runtime event reports `InvalidOperationException: Visual was
@@ -45,7 +48,19 @@ Evidence: `artifacts/console-crash-investigation-20261008`.
 
 ## Acceptance and recovery
 
-Full automated acceptance is pending. The user can temporarily prevent
+All 27 automated platform acceptance checks pass on the clean implementation
+commit: zero-warning Release/Debug solution builds, 1,099 shell tests in each
+configuration, 113 shared .NET 10 tests and 112 Framework tests, WinForms
+resources/lifecycle/plugin checks in both configurations, proxy authentication,
+six UI probe modes and a fresh Windows package smoke pass. Portable locks stay
+unchanged. Evidence: `artifacts/console-crash-acceptance-20261008/acceptance.json`.
+The verified package SHA-256 is
+`f2f3768289ab8f2bd690af32457d90868c61fa757f03ce49d3b5641739f41ff2`.
+This local package uses revision `0` for acceptance and is not a published
+replacement for the affected release. Current-head hosted Windows/Linux,
+CodeQL and PR review results still need checking before merge/publication.
+
+The user can temporarily prevent
 automatic reconnection by backing up the roaming shell `app-settings.json`,
 then setting `autoReconnectSavedServers` to `false` and
 `lastSelectedDetailTab` to `0`. Saved servers and credentials need not be
