@@ -49,10 +49,10 @@ public static class ShellHaNtolPrompt
         // WinForms returns true to cancel; Confirm returns true to accept.
         var accepted = ShellConfirmPrompt.Confirm(new ShellConfirmRequest
         {
-            Title = Messages.HIGH_AVAILABILITY,
+            Title = ShellResourceText.WithoutMnemonics(Messages.HIGH_AVAILABILITY),
             Message = msg,
-            AcceptLabel = Messages.YES_BUTTON_CAPTION,
-            CancelLabel = Messages.NO_BUTTON_CAPTION
+            AcceptLabel = ShellResourceText.WithoutMnemonics(Messages.YES_BUTTON_CAPTION),
+            CancelLabel = ShellResourceText.WithoutMnemonics(Messages.NO_BUTTON_CAPTION)
         });
         return !accepted;
     }
@@ -69,10 +69,10 @@ public static class ShellHaNtolPrompt
 
         return ShellConfirmPrompt.Confirm(new ShellConfirmRequest
         {
-            Title = Messages.HIGH_AVAILABILITY,
+            Title = ShellResourceText.WithoutMnemonics(Messages.HIGH_AVAILABILITY),
             Message = msg,
-            AcceptLabel = Messages.YES_BUTTON_CAPTION,
-            CancelLabel = Messages.NO_BUTTON_CAPTION
+            AcceptLabel = ShellResourceText.WithoutMnemonics(Messages.YES_BUTTON_CAPTION),
+            CancelLabel = ShellResourceText.WithoutMnemonics(Messages.NO_BUTTON_CAPTION)
         });
     }
 }
