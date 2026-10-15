@@ -20,8 +20,8 @@ FALLBACKS = {
     "microcom.runtime": "https://raw.githubusercontent.com/kekekeks/MicroCom/76785efcafd91b5902fd19dd11145f6dd655b7b4/LICENSE",
     "sharpziplib": "https://raw.githubusercontent.com/icsharpcode/SharpZipLib/v1.4.2/LICENSE.txt",
     "tmds.dbus.protocol": "https://raw.githubusercontent.com/tmds/Tmds.DBus/491bde2c16d65a7904397933cffa24e15e45eb2a/COPYING",
-    "system": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT",
-    "microsoft": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT",
+    "system": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT",
+    "microsoft": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT",
 }
 
 
@@ -84,14 +84,14 @@ def main():
     sections.append("Historical source and asset notices\nCurrent package licenses above apply to the pinned binaries.\n\n" + legacy)
     url = "https://raw.githubusercontent.com/google/fonts/29e94d990c84a54f83644e7c43f42dfc9e1a4ac7/ofl/outfit/OFL.txt"
     sections.append("Outfit fonts\n" + url + "\n\n" + download(url))
-    runtime = package_directory("microsoft.netcore.app.runtime.win-x64/10.0.12", package_folders)
+    runtime = package_directory("microsoft.netcore.app.runtime.win-x64/10.0.13", package_folders)
     for filename in ("LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT"):
         path = runtime / filename
         if not path.is_file():
             raise RuntimeError(f"Restore the pinned Windows runtime package before regeneration: {path}")
         body = path.read_text(encoding="utf-8-sig").strip()
         number = notices.setdefault(body, len(notices) + 1)
-        sections.append(f"Bundled .NET runtime 10.0.12: {filename}\nNotice {number}")
+        sections.append(f"Bundled .NET runtime 10.0.13: {filename}\nNotice {number}")
     sections.extend(f"Notice {number}\n\n{body}" for body, number in notices.items())
     (ROOT / "THIRD-PARTY-NOTICES.txt").write_text(
         "Third-party redistribution notices\n\nApplication license: see LICENSE.\n"

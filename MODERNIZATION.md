@@ -15,7 +15,7 @@ XCP-ng Center is modernized **only on the `development` branch**.
 | CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net10.0` |
 | XenAdmin (WinForms app) | `net10.0-windows` |
 
-SDK 10.0.401 is pinned in `global.json`; see the [.NET 10 migration record](docs/dotnet10-migration.md) for compatibility changes and remaining designer maintenance.
+SDK 10.0.402 is pinned in `global.json`; see the [.NET 10 migration record](docs/dotnet10-migration.md) for compatibility changes and remaining designer maintenance.
 
 **Versioning:** `year.month.day.revision` from `Directory.Build.props` (UTC date; `BuildRevision` defaults to `0`, CI sets `-p:BuildRevision=$GITHUB_RUN_NUMBER`).
 
