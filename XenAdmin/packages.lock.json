@@ -4,9 +4,9 @@
     "net10.0-windows7.0": {
       "System.Management": {
         "type": "Direct",
-        "requested": "[10.0.12, )",
-        "resolved": "10.0.12",
-        "contentHash": "ApUsYmsNG8aPiMxsO6ROGZnqJwSZY8zeMlAQcuQg+ilPFUcIyBUC0BL8qA6wmPLNVsvL4nyhUrhhxh6qn0cx0Q=="
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "cL8qiJmJtlSIcAoZH4s07VTxTdddvEP12MFeM+KBZagn4CuD/0SFQsmKn5g9MLfiSrYjdAxIwOTO0kATY9A0UA=="
       },
       "DiscUtils.Core": {
         "type": "Transitive",
@@ -28,7 +28,7 @@
         "type": "Project",
         "dependencies": {
           "SharpZipLib": "[1.4.2, )",
-          "System.Management": "[10.0.12, )",
+          "System.Management": "[10.0.13, )",
           "log4net": "[3.5.0, )"
         }
       },
@@ -51,7 +51,7 @@
       "xenovfapi": {
         "type": "Project",
         "dependencies": {
-          "System.Management": "[10.0.12, )",
+          "System.Management": "[10.0.13, )",
           "XenCenterLib": "[2026.10.4, )"
         }
       },

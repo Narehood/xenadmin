@@ -1,8 +1,39 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-08 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-14 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### October .NET servicing / 18 Dependabot alerts (2026-10-14)
+
+Implementation: `429e4c328`, on `security/dotnet-10-october-servicing`.
+All 18 open alerts (#2–#19) affect SDK-selected .NET 10 runtime packs at
+10.0.12. SDK 10.0.402 selects patched .NET, ASP.NET Core and Windows Desktop
+10.0.13; all three alerted packages now resolve to that exact version in the
+shared-test restore graph. Central System/compatibility pins, affected portable
+locks and all 50 application notices are refreshed. A package regression rejects
+the previous unpatched runtime. See the [alert mapping and validation record](reviews/2026-10-14-dependabot-dotnet-servicing.md).
+
+All 27 Windows acceptance checks pass on the clean implementation commit:
+zero-warning Release/Debug solution builds, 1,105 shell tests per configuration,
+113 shared .NET 10 and 112 Framework tests, WinForms/proxy checks, six UI modes
+and a fresh self-contained package smoke pass. The package carries runtime
+10.0.13; portable locks stay unchanged during acceptance. Evidence:
+`artifacts/dependabot-servicing-20261014`. Existing trusted RDP interop was reused.
+Independent dependency review found no defects. Hosted Windows/Linux, CodeQL and
+dependency submission pass on `754ef3aab`. Alerts close after the graph refreshes on
+`development`; no alert was dismissed. Existing installations require a new
+self-contained application release or installed Desktop Runtime 10.0.13 or later.
+No release publication or live-pool/manual desktop acceptance was performed.
+
+PR #69 review follow-up: CodeRabbit's coverage objection conflates framework
+references with the SDK's separate runtime downloads. A fresh forced locked
+restore again selects all three alerted families at 10.0.13. The review record
+now includes the exact assets excerpt, reproduction commands, upstream SDK source
+and comment dispositions. No dependency or application correction is needed;
+both required suites pass again (1,105 shell, 113 .NET 10 / 112 Framework), with
+portable locks preserved. Evidence: `artifacts/dependabot-pr69-review`.
+Current-head hosted checks remain pending for this documentation update.
 
 ### Shell console crash in regular release (2026-10-08)
 

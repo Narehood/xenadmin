@@ -191,9 +191,9 @@ Notice 12: https://raw.githubusercontent.com/kekekeks/MicroCom/76785efcafd91b590
 
 ========================================================================
 
-Microsoft.Win32.SystemEvents/10.0.12
+Microsoft.Win32.SystemEvents/10.0.13
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 Notice 14: NuGet package: THIRD-PARTY-NOTICES.TXT
 
 ========================================================================
@@ -248,73 +248,73 @@ Notice 6: NuGet package: LICENSE.txt
 
 System.Buffers/4.6.1
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 
 ========================================================================
 
-System.CodeDom/10.0.12
+System.CodeDom/10.0.13
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 Notice 14: NuGet package: THIRD-PARTY-NOTICES.TXT
 
 ========================================================================
 
-System.Configuration.ConfigurationManager/10.0.12
+System.Configuration.ConfigurationManager/10.0.13
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 Notice 14: NuGet package: THIRD-PARTY-NOTICES.TXT
 
 ========================================================================
 
-System.Diagnostics.EventLog/10.0.12
+System.Diagnostics.EventLog/10.0.13
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 Notice 14: NuGet package: THIRD-PARTY-NOTICES.TXT
 
 ========================================================================
 
-System.Drawing.Common/10.0.12
+System.Drawing.Common/10.0.13
 © Microsoft Corporation. All rights reserved.
 Notice 13: NuGet package: LICENSE.TXT
 Notice 19: NuGet package: THIRD-PARTY-NOTICES.TXT
 
 ========================================================================
 
-System.Management/10.0.12
+System.Management/10.0.13
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 Notice 14: NuGet package: THIRD-PARTY-NOTICES.TXT
 
 ========================================================================
 
 System.Memory/4.6.3
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 
 ========================================================================
 
 System.Numerics.Vectors/4.6.1
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 
 ========================================================================
 
 System.Runtime.CompilerServices.Unsafe/6.1.2
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 
 ========================================================================
 
-System.Security.Cryptography.ProtectedData/10.0.12
+System.Security.Cryptography.ProtectedData/10.0.13
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 Notice 14: NuGet package: THIRD-PARTY-NOTICES.TXT
 
 ========================================================================
 
 System.Threading.Tasks.Extensions/4.6.3
 © Microsoft Corporation. All rights reserved.
-Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.12/LICENSE.TXT
+Notice 13: https://raw.githubusercontent.com/dotnet/runtime/v10.0.13/LICENSE.TXT
 
 ========================================================================
 
@@ -498,12 +498,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 ========================================================================
 
-Bundled .NET runtime 10.0.12: LICENSE.TXT
+Bundled .NET runtime 10.0.13: LICENSE.TXT
 Notice 13
 
 ========================================================================
 
-Bundled .NET runtime 10.0.12: THIRD-PARTY-NOTICES.TXT
+Bundled .NET runtime 10.0.13: THIRD-PARTY-NOTICES.TXT
 Notice 14
 
 ========================================================================

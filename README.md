@@ -67,7 +67,9 @@ Shell and WinForms settings are separate. Installing Awa does not import an olde
 
 ## Building from source
 
-Install the .NET 10 SDK selected by `global.json` (10.0.401 or a later patch in the same feature band). Shared libraries target `net481` and `net10.0`. WinForms is `net10.0-windows`. The shell is `net10.0`. Integration happens on the `development` branch.
+Install the .NET 10 SDK selected by `global.json` (10.0.402 or a later patch in the same feature band). Shared libraries target `net481` and `net10.0`. WinForms is `net10.0-windows`. The shell is `net10.0`. Integration happens on the `development` branch.
+
+For framework-dependent WinForms builds, install .NET Desktop Runtime 10.0.13 or later to receive the October 2026 security fixes. Self-contained shell installations receive runtime fixes through a newly published application package.
 
 `XenAdmin.sln` includes the WinForms app, so build it on Windows:
 
