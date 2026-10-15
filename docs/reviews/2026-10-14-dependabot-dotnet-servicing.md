@@ -27,9 +27,56 @@ retains its original runtime version.
 
 ## Alert coverage
 
-All alerts refer to the same manifest above. The actual restore assets select
-exactly `[10.0.13, 10.0.13]` for each alerted runtime package; the host download is
-also 10.0.13. Runtime names below abbreviate `Microsoft.*.App.Runtime.win-x86`.
+All alerts refer to the same manifest above. A forced locked restore using SDK
+10.0.402 produces the following excerpt from
+`XenCenterLib.Tests/obj/project.assets.json`, at `project.frameworks.net10.0`:
+
+```json
+{
+  "frameworkReferences": {
+    "Microsoft.NETCore.App": {
+      "privateAssets": "all"
+    }
+  },
+  "downloadDependencies": [
+    {
+      "name": "Microsoft.AspNetCore.App.Runtime.win-x86",
+      "version": "[10.0.13, 10.0.13]"
+    },
+    {
+      "name": "Microsoft.NETCore.App.Host.win-x86",
+      "version": "[10.0.13, 10.0.13]"
+    },
+    {
+      "name": "Microsoft.NETCore.App.Runtime.win-x86",
+      "version": "[10.0.13, 10.0.13]"
+    },
+    {
+      "name": "Microsoft.WindowsDesktop.App.Runtime.win-x86",
+      "version": "[10.0.13, 10.0.13]"
+    }
+  ]
+}
+```
+
+The project references only the .NET shared framework. All three alerted runtime
+families appear in its separate package-download graph. The SDK processes known
+frameworks for `RuntimeIdentifiers` and can download packs for potential
+transitive references without using their assets. See
+[SDK 10.0.402's RID download loop](https://github.com/dotnet/sdk/blob/v10.0.402/src/Tasks/Microsoft.NET.Build.Tasks/ProcessFrameworkReferences.cs#L360-L380)
+and [download conditions](https://github.com/dotnet/sdk/blob/v10.0.402/src/Tasks/Microsoft.NET.Build.Tasks/ProcessFrameworkReferences.cs#L693-L699).
+This verifies the alerted package downloads; it does not claim the test executable
+uses ASP.NET Core or Windows Desktop.
+
+Reproduce from the repository root, with the pinned SDK on PATH:
+
+```powershell
+dotnet restore XenCenterLib.Tests/XenCenterLib.Tests.csproj --locked-mode --force
+python -c "import json; d=json.load(open('XenCenterLib.Tests/obj/project.assets.json', encoding='utf-8-sig')); f=d['project']['frameworks']['net10.0']; print(json.dumps({k:f[k] for k in ('frameworkReferences', 'downloadDependencies')}, indent=2))"
+```
+
+Each alerted runtime package and the host download is exactly 10.0.13. Runtime
+names below abbreviate `Microsoft.*.App.Runtime.win-x86`.
 
 | Alert | Runtime | CVE | Advisory |
 | --- | --- | --- | --- |
@@ -84,9 +131,9 @@ Independent dependency review found no substantive defects.
 
 The local full builds reuse the existing trusted RDP interop DLLs with
 `SkipRdpAxImp=true`; they do not regenerate them with Visual Studio/Windows SDK
-tools. Native Linux acceptance and current-head hosted Windows/Linux/CodeQL
-checks remain for the PR. Live-pool, physical desktop and actual updater/UAC
-acceptance were not performed.
+tools. Hosted Windows, native Linux acceptance, CodeQL and dependency submission
+passed on `754ef3aab`; later PR heads need their own hosted checks. Live-pool,
+physical desktop and actual updater/UAC acceptance were not performed.
 
 Dependabot closure requires the updated dependency graph on `development` after
 merge. Already published self-contained installations carry their old runtime
@@ -94,3 +141,27 @@ until an application release is rebuilt, published and installed. Framework-
 dependent WinForms users must install .NET Desktop Runtime 10.0.13 or later;
 updating this SDK does not service their system runtime. No release was published
 as part of this dependency PR.
+
+## PR review disposition
+
+[CodeRabbit's runtime-coverage comment](https://github.com/Narehood/xenadmin/pull/69#discussion_r4277894281)
+correctly identifies the project's sole framework reference, but its conclusion
+about runtime downloads is contradicted by the forced restore and the SDK source
+above. The report now includes the exact excerpt and reproduction commands so
+coverage can be reviewed without the local artifact directory. Dependency pins
+and application code need no correction for this finding.
+
+CodeRabbit's general docstring-coverage warning is advisory. It reports existing
+helpers and test methods touched by version updates; the repository does not
+require its suggested coverage threshold.
+Cursor's review approved the dependency implementation without findings. The
+[Windows/Linux validation](https://github.com/Narehood/xenadmin/actions/runs/38662182335),
+[CodeQL](https://github.com/Narehood/xenadmin/actions/runs/38662180189) and
+[dependency submission](https://github.com/Narehood/xenadmin/actions/runs/38662157648)
+all passed on the reviewed head `754ef3aab`.
+
+Review verification reran both required suites against the unchanged application
+binaries: 1,105 Release shell tests, 113 shared .NET 10 tests and 112 Framework
+tests passed without failures or skips. The forced locked restore preserved
+all portable lockfiles, and the documented JSON excerpt matches its fresh assets
+exactly. Evidence: `artifacts/dependabot-pr69-review`.

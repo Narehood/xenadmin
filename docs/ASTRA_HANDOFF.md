@@ -20,11 +20,20 @@ zero-warning Release/Debug solution builds, 1,105 shell tests per configuration,
 and a fresh self-contained package smoke pass. The package carries runtime
 10.0.13; portable locks stay unchanged during acceptance. Evidence:
 `artifacts/dependabot-servicing-20261014`. Existing trusted RDP interop was reused.
-Independent dependency review found no defects. Hosted Windows/Linux and CodeQL
-checks remain pending. Alerts close after the dependency graph refreshes on
+Independent dependency review found no defects. Hosted Windows/Linux, CodeQL and
+dependency submission pass on `754ef3aab`. Alerts close after the graph refreshes on
 `development`; no alert was dismissed. Existing installations require a new
 self-contained application release or installed Desktop Runtime 10.0.13 or later.
 No release publication or live-pool/manual desktop acceptance was performed.
+
+PR #69 review follow-up: CodeRabbit's coverage objection conflates framework
+references with the SDK's separate runtime downloads. A fresh forced locked
+restore again selects all three alerted families at 10.0.13. The review record
+now includes the exact assets excerpt, reproduction commands, upstream SDK source
+and comment dispositions. No dependency or application correction is needed;
+both required suites pass again (1,105 shell, 113 .NET 10 / 112 Framework), with
+portable locks preserved. Evidence: `artifacts/dependabot-pr69-review`.
+Current-head hosted checks remain pending for this documentation update.
 
 ### Shell console crash in regular release (2026-10-08)
 
