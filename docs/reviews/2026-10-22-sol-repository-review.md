@@ -71,17 +71,17 @@ No release or deployment has been made.
 | Finding | Implemented correction | Permanent evidence |
 | --- | --- | --- |
 | F01 | Compare CPU and memory fields with their opening values. Preserve the static memory ceiling for live allocation edits. Refuse memory changes that require a guest restart, and reject stale memory/state at execution. Shared WinForms callers retain their existing restart behavior. | `ReviewVmPropertiesTests`: untouched and name-only Apply, unequal CPU/memory limits, running and halted edits, restart refusal, stale-state rejection. |
-| F02 | Track successful VDI creates for the current VM before cache delivery. Both rollback paths delete only owned VDIs, including unattached disks. Existing mapped disks receive no VBD ownership marker. Successfully imported earlier VMs are committed separately. | `ReviewImportOwnershipTests`: existing-disk capacity/upload failure, newly created-disk cleanup, existing ISO/disk preservation, owned disk missing from cache. |
-| F03 | Reject TLS downgrades and redirects to new credential recipients before opening their transport. Allow relative/same-authority redirects and HTTPS transfers to members of the authenticated connection's captured host inventory, identified by the exact session token. Rebuild request path and Host for the destination. Proxy redirects fail closed. | `ReviewHttpRedirectTests`: actual CONNECT/GET/PUT redirects, path/Host changes, no connection to rejected authority, TLS policy, matching-token pool inventory and port limits. |
-| F04 | Encode the complete PowerShell command as UTF-16 Base64 for process launch. Serialize substituted values as nonexpanding literals, use literal paths, invoke the configured function as one command name, and remove the raw trailing parameter source. | Built WinForms `--review-fixes` probe executes generated code in Windows PowerShell with expression syntax, quotes, smart quotes, newlines, backslashes and Unicode in a label and metadata; exact values survive. |
+| F02 | Track successful VDI creates for the current VM before cache delivery. Both rollback paths delete only owned VDIs, including unattached disks. Existing mapped disks and ISO-library CD attachments receive no VBD ownership marker. Cleanup queries server allowed operations and retries busy failures for a bounded period; cache absence does not prove release. Successfully imported earlier VMs are committed separately. | `ReviewImportOwnershipTests`: existing-disk capacity/upload failure, newly created-disk cleanup, existing ISO/disk preservation, owned disk missing from cache. |
+| F03 | Reject TLS downgrades and redirects to new credential recipients before opening their transport. Allow relative/same-authority redirects and HTTPS transfers to members of the authenticated connection's captured host inventory, identified by the exact session token. Canonicalize IPv6 and IDN spellings across the origin, connection and member inventory. Rebuild request path and Host for the destination. Proxy redirects fail closed. | `ReviewHttpRedirectTests`: actual CONNECT/GET/PUT redirects, path/Host changes, no connection to rejected authority, TLS policy, matching-token pool inventory and port limits. |
+| F04 | Stage invocation source in an owned UTF-8 payload and pass a short encoded bootstrap on the process command line. Remove the payload before execution and on disposal after launch failure. Escape all five single-quote delimiters, use literal paths, invoke the function as one command name, and keep raw parameter text out of source. | Built WinForms `--review-fixes` probe executes generated code in Windows PowerShell with expression syntax, quotes, smart quotes, newlines, backslashes and Unicode in a label and metadata; exact values survive. |
 | F05 | Await a named-VM/named-snapshot confirmation with a data-loss warning. After acceptance re-resolve the original connection and objects, confirm their UUIDs, relationship, power state and allowed operation, then construct the action. | `ReviewSnapshotTests`: real commands remain pending before review; accept, cancel, and changed-target cases for Revert and Delete. |
 | F06 | Check every checksum-table declaration is present as well as checking every observed block's hash and table membership. Keep legacy exports without a global table readable. | `ReviewArchiveRegressionTests`: complete, missing, extra, damaged and legacy XVA archives. |
 | F07 | Build and finish a fresh ZIP beside its destination, then atomically replace the old report. Cancellation/error cleanup removes the temporary archive and preserves the previous destination. | `ReviewArchiveRegressionTests`: smaller replacement, exact ZIP entry, no stale tail, cancellation and missing-source failure. |
-| F08 | Commit transformed output before deleting the source; destination collisions leave both files intact. Use replacement when decompression has no extension change. Propagate truncated-stream failures. | `ReviewArchiveRegressionTests`: compression/decompression collisions, cancellation and content round trip. |
+| F08 | Commit transformed output before deleting the source; destination collisions leave both files intact. Use replacement when decompression has no extension change. Roll back the new destination if source deletion fails, so retry remains possible. Propagate truncated-stream failures. | `ReviewArchiveRegressionTests`: compression/decompression collisions, cancellation and content round trip. |
 | F09 | Add WinForms `wp2` entries with a random 32-byte salt, PBKDF2-HMAC-SHA256 at 600,000 iterations and separate AES-256-CBC/HMAC-SHA256 keys. Authenticate the version, work factor, salt, IV and ciphertext before decrypting. Derive once per unlocked context and generate a fresh IV for every entry. Migrate a legacy batch only after every entry decrypts and validates; save the settings file atomically. | Dual-framework `PasswordCredentialProtectionTests`: round trip, random salt/IV, wrong password, tampering, work-factor bounds and disposal. Built WinForms probe: real legacy and versioned unlock, bad batch/password, cancelled restore, failed migration/save and new credential writes. |
 
-All **29 Windows automated acceptance checks pass** on the corrected working
-tree: zero-warning/error Release and Debug solution builds; **1,134 shell tests
+Initial submission `f6b90d3bd`: all **29 Windows automated acceptance checks
+passed** on its implementation patch: zero-warning/error Release and Debug solution builds; **1,134 shell tests
 per configuration**, **132 shared .NET 10 tests** and **131 shared Framework
 tests**, for **2,531 passing executions**, none failed or skipped. Both built
 WinForms review probes pass alongside resource, lifecycle/designer and plugin
@@ -92,13 +92,14 @@ was reused. Evidence: `artifacts/sol-review-fixes-20261022/acceptance-r1/`
 The evidence manifest records the dirty working tree against the reviewed base;
 these are local results for the identical implementation patch before commit.
 All 23 production/test/tool files were checked byte for byte against that
-validated patch during PR preparation. Hosted CI is separate and pending.
+validated patch during PR preparation. Hosted Windows/Linux and CodeQL checks
+subsequently passed on `f6b90d3bd`; follow-up validation is recorded below.
 
 Compatibility and remaining limits:
 
 - No real saved profile or pool was used. Tests use synthetic credentials,
-  disposable local files, cached inventory and loopback transports. Opus access
-  remains unavailable; a second-model review has not occurred.
+  disposable local files, cached inventory and loopback transports. The requested Opus review did not run; subsequent CodeRabbit and Cursor
+  feedback is reconciled in the PR follow-up record below.
 - `wp2` is a one-way write upgrade: older WinForms builds cannot read migrated
   password-protected session entries. Legacy entries remain readable in this
   build. Existing backups/copies remain weak until separately replaced. Shell
@@ -119,6 +120,62 @@ Compatibility and remaining limits:
   accepted operation is authorized.
 - Physical desktop, native Linux, real updater/UAC and live-pool acceptance are
   still pending. The separately reported reboot hang is not resolved here.
+
+## PR #70 review follow-up
+
+Implementation: `461cf972d371ebb21d0febfa40258a63c6ed8247`.
+
+Reviewed every inline thread and both submitted reviews on
+[PR #70](https://github.com/Narehood/xenadmin/pull/70) at `f6b90d3bd`.
+Hosted Windows/Linux builds, CodeQL and both automated reviews passed on that
+head, but the review text still identified valid defects. Seven inline threads
+cover six distinct code issues because both reviewers reported the disk cleanup
+race. All six require corrections; none was dismissed solely because CI passed.
+
+| Review feedback | Verified disposition and regression |
+| --- | --- |
+| [Bulk PowerShell command limit](https://github.com/Narehood/xenadmin/pull/70#discussion_r4348658818) | Valid. Invocation payloads now use an owned temporary file and a short bootstrap; the child deletes the file before plugin execution and disposal covers failed starts. The built probe executes 200 target tuples whose source exceeds 32,768 characters while arguments remain below 4,000, and checks cleanup after execution and launch failure. Windows PowerShell supports encoded bootstrap commands, as documented in [the command-line reference](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe?view=powershell-5.1). |
+| [U+201A/U+201B literal breakout](https://github.com/Narehood/xenadmin/pull/70#discussion_r4348738583) | Valid. The Windows PowerShell 5.1 parser confirms both are single-quote delimiters. The serializer now doubles all five aliases, and the built probe preserves labels containing both aliases followed by harmless sentinel statements; no additional statement executes. |
+| [CD ownership](https://github.com/Narehood/xenadmin/pull/70#discussion_r4348738599) | Valid ownership defect; the server-cascade explanation is broader than the verified evidence. The importer now withholds the owner marker from reused ISO media. The regression constructs the CD VBD through production code, inspects the actual VBD.create record, and runs rollback plus VMDestroyAction.DestroyVM(deleteAllOwnerDisks: true), checking that no VDI.destroy targets the ISO. Client deletion selects VBDs using GetIsOwner; this record does not claim that bare VM.destroy generally cascades via that marker. The old disk-path comment assigning that behavior to XenServer is corrected. |
+| [Cache-loss/locked-VDI cleanup](https://github.com/Narehood/xenadmin/pull/70#discussion_r4348658830), [overlapping Cursor finding](https://github.com/Narehood/xenadmin/pull/70#discussion_r4348738607) | Valid. Cleanup asks the server for allowed operations and retries known busy failures for up to 30 seconds between RPCs; the configured RPC timeout still applies to each call. Ownership is removed only after successful destruction or a server HANDLE_INVALID for that exact VDI. Other failures remain tracked for outer cleanup. A regression has no VDI cache entry, first reports a server lock, then races with one failed destroy before succeeding. A created VDI missing after the cache wait now aborts before starting an upload with no UUID. |
+| [IPv6/IDN redirects](https://github.com/Narehood/xenadmin/pull/70#discussion_r4348738617) | Valid compatibility defect that fails closed. Origin, connection hostname, inventoried addresses and targets now share canonical IP/ASCII DNS spelling. Regressions cover unbracketed IPv6 and Unicode/punycode member and origin names, while rejecting the wrong session token, plaintext and unrelated hosts. |
+| [Compression source-delete rollback](https://github.com/Narehood/xenadmin/pull/70#discussion_r4348658855) | Valid. If source deletion fails after the new output is moved into place, cleanup removes only that newly created output and preserves the original failure. A Windows regression uses a read-only source, checks unchanged metadata/source, then clears the attribute and retries successfully. Linux skips this Windows-specific deletion test. |
+
+The secondary VM Properties observation is handled as draft validation, rather
+than partially applying unrelated fields: a restart-requiring memory edit now
+rejects the entire Apply before changing the clone or constructing actions.
+The status explicitly says no changes were applied and the draft remains in the
+dialog. The command regression also checks that no global history actions were
+constructed and that the pending name edit survives.
+
+Comment and docstring review covers every C# method/constructor touched by this
+PR, including the regression fixtures: a local Roslyn audit reports **84/84
+(100%)** with nonempty XML summaries, matching parameter names and no XML parse
+errors. This is the PR scope, not a claim of documentation coverage for every
+method in the repository. Local fixture functions have purpose comments instead
+of unsupported XML documentation. The audit also updates ownership/restart
+claims, distinguishes a hash from a password KDF, replaces obsolete .NET 8
+context, describes prefix/salt matching separately from authentication, and
+adds PowerShell acceptance-runner help and the missing probe usage flag.
+
+Audit source, the complete method inventory and evidence are local under
+`artifacts/pr70-followup-20261022/doc-audit/`. The original requested Opus review
+remains distinct from the automated reviewers whose comments are handled here.
+Normal plugin cleanup is covered; abrupt termination of both parent and child
+before the bootstrap reads its payload can leave the owned temporary file.
+
+Fresh follow-up Windows acceptance passed all **29 checks**: zero-warning/error
+Release/Debug solution builds, **1,139 shell tests per configuration**, **133
+shared .NET 10** and **132 Framework** tests (**2,543 passing executions**, no
+failures or skips), both built WinForms probes, all six UI modes, proxy checks
+and a fresh Windows package smoke pass. Portable lockfiles are unchanged;
+existing trusted RDP interop was reused. Evidence:
+`artifacts/pr70-followup-20261022/acceptance-r1/` (manifest, four TRX files, logs,
+UI results and packaged smoke result). The manifest records the initial
+`f6b90d3bd` base and dirty patch; the implementation was committed as
+`461cf972d` during validation. Later changes are documentation only. Hosted
+checks for the follow-up head are pending; no live pool, real saved profile,
+manual desktop or updater/UAC acceptance was performed.
 
 ## Findings in the reviewed snapshot
 

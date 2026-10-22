@@ -32,14 +32,15 @@ Coverage: `ReviewVmPropertiesTests`, `ReviewImportOwnershipTests`,
 `ReviewHttpRedirectTests`, `ReviewSnapshotTests`,
 `ReviewArchiveRegressionTests`, `PasswordCredentialProtectionTests` and the
 built WinForms `--review-fixes` probe. The probe runs in both configurations as
-part of the acceptance runner. All 29 Windows automated acceptance checks pass:
+part of the acceptance runner. Initial submission `f6b90d3bd` passed all 29
+Windows automated acceptance checks:
 zero-warning/error Release/Debug solution builds, 1,134 shell tests per
 configuration, 132 shared .NET 10 and 131 Framework tests (2,531 executions,
 none failed/skipped), both built WinForms probes, six UI modes, proxy and fresh
 Windows package smoke. Portable locks are unchanged; trusted existing RDP
 interop was reused. Local acceptance ran on the identical patch before commit;
-all 23 production/test/tool files match byte for byte. Hosted CI is separate
-and pending.
+all 23 production/test/tool files matched byte for byte. Hosted Windows/Linux
+and CodeQL checks subsequently passed on `f6b90d3bd`; see follow-up below.
 
 Limits: real profiles and pools were not used. `wp2` entries cannot be read by
 older WinForms builds; the shell `mp2` format is unchanged. A plugin function
@@ -51,6 +52,29 @@ desktop, live-pool and real updater/UAC acceptance remain pending. The separate
 reported reboot hang is not resolved. Original baseline evidence:
 `artifacts/repo-review-20261022/`; fix validation:
 `artifacts/sol-review-fixes-20261022/acceptance-r1/`.
+
+PR #70 review follow-up, implementation `461cf972d`: all seven inline threads
+were checked against
+`f6b90d3bd`; they describe six distinct valid issues (two overlap on locked-disk
+cleanup). Corrections cover all PowerShell quote aliases and bulk payload
+transport/cleanup, production CD ownership, authoritative bounded VDI cleanup,
+IPv6/IDN redirect normalization, and output rollback after source deletion
+failure. VM memory validation now rejects the whole draft before action
+construction and explains that nothing has been applied. Ownership comments
+refer to the client's GetIsOwner deletion path, not an unverified server cascade.
+The [report](reviews/2026-10-22-sol-repository-review.md#pr-70-review-follow-up)
+links every thread and its regression. All 84 touched C# methods/constructors
+have audited XML summaries and matching parameter documentation; legacy hash,
+framework, restart, probe usage and PowerShell help comments are refreshed.
+Fresh follow-up Windows acceptance passed all 29 checks: zero-warning/error
+Release/Debug builds, 1,139 shell tests per configuration, 133 shared .NET 10
+and 132 Framework tests (2,543 executions, none failed/skipped), both built
+WinForms regressions, all six UI modes, proxy and fresh package smoke. Portable
+locks are unchanged; trusted RDP interop was reused. Evidence:
+`artifacts/pr70-followup-20261022/acceptance-r1/`. The run started on the dirty
+patch at `f6b90d3bd`; implementation `461cf972d` was committed during validation.
+Hosted checks passed on `f6b90d3bd`; follow-up head checks remain pending.
+No real profile/pool or manual desktop/updater acceptance was performed.
 
 ### October .NET servicing / 18 Dependabot alerts (2026-10-14)
 
