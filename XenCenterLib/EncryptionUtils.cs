@@ -66,7 +66,6 @@ namespace XenCenterLib
         /// </summary>
         /// <param name="input">The string to hash</param>
         /// <param name="method">Digest used by the compatibility consumer; SHA-256 by default.</param>
-        /// <param name="method">The hash algorithm implementation to use.</param>
         /// <returns>The digest, or null when the input is null.</returns>
         public static byte[] ComputeHash(string input, HashMethod method = HashMethod.Sha256)
         {

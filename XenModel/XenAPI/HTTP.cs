@@ -179,7 +179,7 @@ namespace XenAPI
             }
         }
 
-        /// <summary>Reads the response headers and follows only policy-approved 302 locations; proxy callers without a request/policy reject redirects.</summary>
+        /// <summary>Reads response headers and follows only nonempty, policy-approved 302 locations; proxy callers without a request/policy reject redirects.</summary>
         /// <param name="stream">The transport; replaced only after an approved redirect.</param>
         /// <param name="proxy">Optional configured proxy.</param>
         /// <param name="nodelay">Whether to disable socket coalescing for latency-sensitive traffic.</param>
@@ -262,7 +262,7 @@ namespace XenAPI
                 case 302:
                     var header = headers.FirstOrDefault(h => h.StartsWith("Location:", StringComparison.InvariantCultureIgnoreCase));
                     string url = header == null ? "" : header.Substring(9).Trim();
-                    if (requestUri == null || !Uri.TryCreate(requestUri, url, out var redirect)
+                    if (requestUri == null || string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(requestUri, url, out var redirect)
                         || redirectAllowed == null || !redirectAllowed(redirect))
                         throw new BadServerResponseException("The server returned an unsafe HTTP redirect.");
                     stream.Close();

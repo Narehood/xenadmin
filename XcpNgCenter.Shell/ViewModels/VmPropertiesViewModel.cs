@@ -920,6 +920,7 @@ public partial class VmPropertiesViewModel : ViewModelBase
         var name = NameLabel.Trim();
         var description = Description ?? string.Empty;
         var tags = ParseTags(TagsText);
+        var before = (VM)_clone.Clone();
 
         // General fields on clone → SaveChangesAction
         _clone.name_label = name;
@@ -944,7 +945,9 @@ public partial class VmPropertiesViewModel : ViewModelBase
         if (shadowMultiplierChanged && _original.power_state != vm_power_state.Running)
             _clone.HVM_shadow_multiplier = shadowMultiplier;
 
-        actions.Add(new SaveChangesAction(_clone, suppressHistory: true, _original));
+        // Compare against the opening draft so cache updates cannot make this
+        // general save restore memory or CPU values the user did not edit.
+        actions.Add(new SaveChangesAction(_clone, suppressHistory: true, before));
 
         if (PerformanceAlerts.HasChanges)
         {
@@ -1013,7 +1016,8 @@ public partial class VmPropertiesViewModel : ViewModelBase
                 (_, _) => { },
                 suppressHistory: true,
                 allowReboot: false);
-            actions.Add(memoryAction);
+            // Reject stale memory before any other property action can commit.
+            actions.Insert(0, memoryAction);
         }
 
         var haPriority = SelectedHaPriority?.Priority ?? _origHaPriority;

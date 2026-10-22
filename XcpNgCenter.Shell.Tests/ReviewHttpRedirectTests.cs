@@ -84,17 +84,26 @@ public sealed class ReviewHttpRedirectTests
         Assert.Equal(accepted, policy(new Uri(target)));
     }
 
-    /// <summary>Exercises CONNECT, GET and PUT over loopback, checking redirected path/Host headers and absence of connections to rejected recipients.</summary>
+    /// <summary>Exercises CONNECT, GET and PUT over loopback, checking redirected headers and rejecting missing locations or untrusted recipients before reconnecting.</summary>
     /// <param name="method">The HTTP method exercised by the fixture.</param>
-    /// <param name="external">Whether the response names a different, rejected authority.</param>
+    /// <param name="destination">The relative, external, missing, empty or whitespace redirect fixture.</param>
     [Theory]
-    [InlineData("CONNECT", false)]
-    [InlineData("GET", false)]
-    [InlineData("PUT", false)]
-    [InlineData("CONNECT", true)]
-    [InlineData("GET", true)]
-    [InlineData("PUT", true)]
-    public async Task RealRequestsFollowRelativeRedirectsAndRejectOtherAuthorities(string method, bool external)
+    [InlineData("CONNECT", "relative")]
+    [InlineData("GET", "relative")]
+    [InlineData("PUT", "relative")]
+    [InlineData("CONNECT", "external")]
+    [InlineData("GET", "external")]
+    [InlineData("PUT", "external")]
+    [InlineData("CONNECT", "missing")]
+    [InlineData("GET", "missing")]
+    [InlineData("PUT", "missing")]
+    [InlineData("CONNECT", "empty")]
+    [InlineData("GET", "empty")]
+    [InlineData("PUT", "empty")]
+    [InlineData("CONNECT", "whitespace")]
+    [InlineData("GET", "whitespace")]
+    [InlineData("PUT", "whitespace")]
+    public async Task RealRequestsFollowRelativeRedirectsAndRejectInvalidLocations(string method, string destination)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -102,15 +111,24 @@ public sealed class ReviewHttpRedirectTests
         listener.Start(); recipient.Start();
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         int otherPort = ((IPEndPoint)recipient.LocalEndpoint).Port;
-        string location = external ? $"http://127.0.0.1:{otherPort}/next" : "/next?value=changed";
+        bool accepted = destination == "relative";
+        string? location = destination switch
+        {
+            "relative" => "/next?value=changed",
+            "external" => $"http://127.0.0.1:{otherPort}/next",
+            "empty" => "",
+            "whitespace" => " \t ",
+            _ => null
+        };
         var serving = Task.Run(async () =>
         {
             using (var first = await listener.AcceptTcpClientAsync(deadline.Token))
             {
                 await Headers(first.GetStream(), deadline.Token);
-                await first.GetStream().WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.0 302 Found\r\nLocation: {location}\r\n\r\n"), deadline.Token);
+                string header = location == null ? "" : $"Location: {location}\r\n";
+                await first.GetStream().WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.0 302 Found\r\n{header}\r\n"), deadline.Token);
             }
-            if (external) return "";
+            if (!accepted) return "";
             using var next = await listener.AcceptTcpClientAsync(deadline.Token);
             var request = await Headers(next.GetStream(), deadline.Token);
             await next.GetStream().WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.0 200 OK\r\n\r\n"), deadline.Token);
@@ -127,11 +145,12 @@ public sealed class ReviewHttpRedirectTests
                 _ => HTTP.HttpPutStream(uri, null, 0, 3000)
             };
         }
-        if (external) await Assert.ThrowsAsync<HTTP.BadServerResponseException>(() => Task.Run(Open, deadline.Token));
+        if (!accepted) await Assert.ThrowsAsync<HTTP.BadServerResponseException>(() => Task.Run(Open, deadline.Token));
         else await Task.Run(Open, deadline.Token);
         string received = await serving;
         Assert.False(recipient.Pending());
-        if (!external)
+        Assert.False(listener.Pending());
+        if (accepted)
         {
             Assert.StartsWith(method + " /next?value=changed HTTP/1.0", received);
             Assert.Contains($"Host: 127.0.0.1:{port}", received);
