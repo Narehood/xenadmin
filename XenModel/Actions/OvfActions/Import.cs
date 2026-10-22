@@ -95,6 +95,7 @@ namespace XenAdmin.Actions.OvfActions
             for (int i = 0; i < vmsToImport.Count; i++)
             {
                 CheckForCancellation();
+                createdVdis.Clear();
 
                 int curVm = i;
                 VirtualSystem_Type vSystem = vmsToImport[i];
@@ -128,6 +129,7 @@ namespace XenAdmin.Actions.OvfActions
 
                     HandleInstallSection(Connection.Session, vmRef, vSystem);
                     VM.remove_from_other_config(Connection.Session, vmRef, "HideFromXenCenter");
+                    createdVdis.Clear();
                     PercentComplete = 20 + (i + 1) * 80 / vmsToImport.Count;
                 }
                 catch
@@ -391,7 +393,11 @@ namespace XenAdmin.Actions.OvfActions
                         is_a_snapshot = false
                     };
 
-                    VDI vdi = Connection.WaitForCache(VDI.create(Connection.Session, newVdi));
+                    // Record ownership at the successful create response, before
+                    // waiting for cache delivery or starting an upload.
+                    vdiRef = VDI.create(Connection.Session, newVdi);
+                    createdVdis.Add(vdiRef.opaque_ref);
+                    VDI vdi = Connection.WaitForCache(vdiRef);
                     if (vdi != null)
                     {
                         vdiuuid = vdi.uuid;
@@ -447,7 +453,7 @@ namespace XenAdmin.Actions.OvfActions
             }
             catch (Exception e)
             {
-                if (vdiRef != null)
+                if (vdiRef != null && createdVdis.Contains(vdiRef.opaque_ref))
                 {
                     log.Info($"Import interrupted. Destroying VDI {vdiRef.opaque_ref}");
                     try
@@ -456,9 +462,10 @@ namespace XenAdmin.Actions.OvfActions
                         Connection.WaitFor(() =>
                         {
                             var vdi = Connection.Resolve(vdiRef);
-                            return vdi != null && vdi.allowed_operations.Contains(vdi_operations.destroy);
+                            return vdi == null || vdi.allowed_operations.Contains(vdi_operations.destroy);
                         }, null);
                         VDI.destroy(Connection.Session, vdiRef);
+                        createdVdis.Remove(vdiRef.opaque_ref);
                     }
                     catch
                     {
@@ -1066,7 +1073,9 @@ namespace XenAdmin.Actions.OvfActions
                         storage_lock = false,
                         status_code = 0,
                         // below other_config keys XS to delete the disk along with the VM.
-                        other_config = new Dictionary<string, string> {{"owner", "true"}}
+                        other_config = vdiRef != null && createdVdis.Contains(vdiRef.opaque_ref)
+                            ? new Dictionary<string, string> {{"owner", "true"}}
+                            : new Dictionary<string, string>()
                     };
 
                     if (!vbd.userdevice.EndsWith("+"))
@@ -1269,20 +1278,10 @@ namespace XenAdmin.Actions.OvfActions
 
         private void CleanUpVm(XenRef<VM> vmRef)
         {
-            var vdiRefs = new List<XenRef<VDI>>();
-
-            var vm = Connection.Resolve(vmRef);
-            if (vm != null)
-                foreach (var vbdRef in vm.VBDs)
-                {
-                    VBD vbd = Connection.Resolve(vbdRef);
-                    if (vbd != null)
-                    {
-                        var vdi = Connection.Resolve(vbd.VDI);
-                        if (vdi != null)
-                            vdiRefs.Add(vbd.VDI);
-                    }
-                }
+            // Attachments may refer to existing LUNs or ISO library media. They
+            // do not establish ownership. Include owned, not-yet-attached VDIs
+            // too, so incomplete VBD/cache delivery cannot orphan new disks.
+            var vdiRefs = createdVdis.ToArray();
 
             try
             {
@@ -1297,10 +1296,11 @@ namespace XenAdmin.Actions.OvfActions
                 try
                 {
                     VDI.destroy(Connection.Session, vdiRef);
+                    createdVdis.Remove(vdiRef);
                 }
                 catch
                 {
-                    log.Error($"Failed to destroy VDI {vdiRef.opaque_ref} after interrupted import.");
+                    log.Error($"Failed to destroy VDI {vdiRef} after interrupted import.");
                 }
         }
     }
