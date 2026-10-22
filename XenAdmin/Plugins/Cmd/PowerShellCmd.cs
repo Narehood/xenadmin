@@ -70,12 +70,9 @@ namespace XenAdmin.Plugins
                                          "& {{ {0} }}",
                                          XenServerPowershellCmd.MakeInvocationExpression(Filename, Function, procParams, Params, targets, Debug));
 
-            // finally we escape the entire command statement again as it is being passed into the -Command parameter in quotes
-            command = XenServerPowershellCmd.EscapeQuotes(XenServerPowershellCmd.EscapeBackSlashes(command));
-
             Process proc = new Process();
             proc.StartInfo.FileName = PluginDescriptor.PowerShellExecutable;
-            proc.StartInfo.Arguments = string.Format("-NoLogo -Command \"{0}\" {1}", command, string.Join(" ", new List<string>(Params).ToArray()));
+            proc.StartInfo.Arguments = XenServerPowershellCmd.EncodedArguments(command);
             proc.StartInfo.UseShellExecute = false;
             proc.StartInfo.CreateNoWindow = !Window;
             proc.StartInfo.WindowStyle = !Window ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal;

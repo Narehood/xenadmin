@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -87,15 +88,12 @@ namespace XenAdmin.Plugins
 
             string command = MakeInvocationExpression(Filename, Function, procParams, Params, targets, Debug);
 
-            //escape the entire command statement as it is being passed into the -Command parameter in quotes
-            command = EscapeQuotes(EscapeBackSlashes(command));
-
             return new Process
             {
                 StartInfo =
                 {
                     FileName = PluginDescriptor.PowerShellExecutable,
-                    Arguments = $"-NoLogo -Command \"Import-Module XenServerPSModule; {command}\"",
+                    Arguments = EncodedArguments("Import-Module XenServerPSModule; " + command),
                     UseShellExecute = false,
                     CreateNoWindow = !Window,
                     WindowStyle = Window ? ProcessWindowStyle.Normal : ProcessWindowStyle.Hidden
@@ -103,26 +101,22 @@ namespace XenAdmin.Plugins
             };
         }
 
-        public static string EscapeQuotes(string s)
-        {
-            return s.Replace("\"", "\\\"");
-        }
+        public static string EncodedArguments(string command) =>
+            "-NoLogo -EncodedCommand " + Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
 
-        public static string EscapeBackSlashes(string s)
-        {
-            return s.Replace("\\", "\\\\");
-        }
+        private static string Literal(string value) => "'" + (value ?? string.Empty)
+            .Replace("'", "''").Replace("\u2018", "\u2018\u2018").Replace("\u2019", "\u2019\u2019") + "'";
 
         public static string MakeInvocationExpression(string filename, string function, IList<string> proc_params,
             IList<string> extra_params, IList<IXenObject> objs, bool debug)
         {
             filename = Placeholders.Substitute(filename, objs);
-            var expression = $"Invoke-Expression $(Get-Content -Path \"{filename}\" -Raw)";
+            var expression = $"Invoke-Expression $(Get-Content -LiteralPath {Literal(filename)} -Raw)";
 
             if (!string.IsNullOrEmpty(function))
                 function = Placeholders.Substitute(function, objs);
             if (!string.IsNullOrEmpty(function))
-                expression = $"{expression}; {function}";
+                expression = $"{expression}; & {Literal(function)}";
 
             if (debug)
                 expression = string.Format(DebugFunction, expression);
@@ -130,7 +124,7 @@ namespace XenAdmin.Plugins
             string xenArrayStatement = XenArrayStatement(proc_params);
             string extraArrayStatement = ExtraArrayStatement(extra_params, objs);
 
-            return $"cd \"{Program.AssemblyDir}\"; {xenArrayStatement} {extraArrayStatement} {expression};";
+            return $"Set-Location -LiteralPath {Literal(Program.AssemblyDir)}; {xenArrayStatement} {extraArrayStatement} {expression};";
         }
 
         private static string XenArrayStatement(IList<string> procParams)
@@ -147,11 +141,11 @@ namespace XenAdmin.Plugins
                 if (i > 0)
                     sb.Append(',');
                 int index = i * 4;
-                sb.AppendFormat(" @{{{0}=\"{1}\"; {2}=\"{3}\"; {4}=\"{5}\"; {6}=\"{7}\"}}",
-                    XEN_PARAM_ARRAY_HASH_KEY_URL, EscapeQuotes(EscapeBackSlashes(procParams[index])),
-                    XEN_PARAM_ARRAY_HASH_KEY_SESSION_REF, EscapeQuotes(EscapeBackSlashes(procParams[index + 1])),
-                    XEN_PARAM_ARRAY_HASH_KEY_CLASS, EscapeQuotes(EscapeBackSlashes(procParams[index + 2])),
-                    XEN_PARAM_ARRAY_HASH_KEY_OBJECT_UUID, EscapeQuotes(EscapeBackSlashes(procParams[index + 3])));
+                sb.AppendFormat(" @{{{0}={1}; {2}={3}; {4}={5}; {6}={7}}}",
+                    XEN_PARAM_ARRAY_HASH_KEY_URL, Literal(procParams[index]),
+                    XEN_PARAM_ARRAY_HASH_KEY_SESSION_REF, Literal(procParams[index + 1]),
+                    XEN_PARAM_ARRAY_HASH_KEY_CLASS, Literal(procParams[index + 2]),
+                    XEN_PARAM_ARRAY_HASH_KEY_OBJECT_UUID, Literal(procParams[index + 3]));
             }
             sb.Append(");");
             return sb.ToString();
@@ -166,9 +160,7 @@ namespace XenAdmin.Plugins
             {
                 if (i > 0)
                     sb.Append(',');
-                sb.Append('"');
-                sb.Append(EscapeQuotes(EscapeBackSlashes(Placeholders.Substitute(extraParams[i], objs))));
-                sb.Append('"');
+                sb.Append(Literal(Placeholders.Substitute(extraParams[i], objs)));
             }
             sb.Append(");");
 

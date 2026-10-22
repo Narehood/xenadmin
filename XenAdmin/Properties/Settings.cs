@@ -931,10 +931,21 @@ namespace XenAdmin.Properties
 
         internal void Save()
         {
-            using (var fs = new FileStream(_settingsPath, FileMode.Create))
+            string pending = _settingsPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
             {
-                XmlSerializer x = new XmlSerializer(typeof(Settings));
-                x.Serialize(fs, Default);
+                using (var fs = new FileStream(pending, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    XmlSerializer x = new XmlSerializer(typeof(Settings));
+                    x.Serialize(fs, Default);
+                    fs.Flush(true);
+                }
+                if (File.Exists(_settingsPath)) File.Replace(pending, _settingsPath, null);
+                else File.Move(pending, _settingsPath);
+            }
+            finally
+            {
+                if (File.Exists(pending)) File.Delete(pending);
             }
         }
 

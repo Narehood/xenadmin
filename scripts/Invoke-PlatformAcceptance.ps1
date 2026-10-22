@@ -143,6 +143,8 @@ try {
                 '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"), '--lifecycle-designer')
             Invoke-Check "winforms-plugin-archive-$configuration" $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
                 '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"), '--plugin-archive')
+            Invoke-Check "winforms-review-fixes-$configuration" $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
+                '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot "XenAdmin/bin/$configuration/net10.0-windows/XCP-ng Center.dll"), '--review-fixes')
         }
         Invoke-Check 'proxy-auth' $dotnet @('run', '--project', 'tools/WinForms.CompatibilityProbe/WinForms.CompatibilityProbe.csproj',
             '-c', 'Release', '--no-build', '--no-restore', '--', (Join-Path $repoRoot 'XenAdmin/bin/Release/net10.0-windows/XCP-ng Center.dll'), '--proxy-auth')

@@ -47,6 +47,7 @@ namespace XenAdmin
 {
     public static class Settings
     {
+        private static PasswordCredentialProtection credentialProtection;
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <summary>
@@ -193,6 +194,7 @@ namespace XenAdmin
                 encServerList = Properties.Settings.Default.ServerAddressList ?? new string[0];
             }
 
+            PasswordCredentialProtection unlocked = null;
             string[] decryptedList = new string[encServerList.Length];
             if (!Properties.Settings.Default.RequirePass || !useOriginalList)
             {
@@ -218,13 +220,24 @@ namespace XenAdmin
                 {
                     foreach (string encEntry in encServerList)
                     {
-                        decryptedList[idx] = EncryptionUtils.DecryptString(encEntry, password);
+                        if (PasswordCredentialProtection.IsProtected(encEntry))
+                        {
+                            if (unlocked == null || !unlocked.MatchesEntry(encEntry))
+                            {
+                                unlocked?.Dispose();
+                                unlocked = PasswordCredentialProtection.Open(EncryptionUtils.ComputeHash(password), encEntry);
+                            }
+                            decryptedList[idx] = unlocked.Decrypt(encEntry);
+                        }
+                        else
+                            decryptedList[idx] = EncryptionUtils.DecryptString(encEntry, password);
                         idx++;
                     }
                 }
                 catch (Exception exp)
                 {
                     log.Warn("Could not decrypt session information", exp);
+                    unlocked?.Dispose();
                     // Problem decrypting -> wrong password entered...
                     return false;
                 }
@@ -238,8 +251,32 @@ namespace XenAdmin
                 if (entryComps.Length < 3 || entryComps.Length > 7)
                 {
                     log.Warn("Did not decrypt session list to a valid entry...");
+                    unlocked?.Dispose();
                     return false;
                 }
+            }
+
+            if (Properties.Settings.Default.RequirePass && useOriginalList && password != null)
+            {
+                unlocked = unlocked ?? new PasswordCredentialProtection(EncryptionUtils.ComputeHash(password));
+                if (encServerList.Any(entry => !PasswordCredentialProtection.IsProtected(entry)))
+                {
+                    // Only migrate after the whole list has decrypted and validated.
+                    // Save atomically before replacing the legacy list on disk.
+                    var previousList = Properties.Settings.Default.ServerList;
+                    try
+                    {
+                        Properties.Settings.Default.ServerList = decryptedList.Select(unlocked.Encrypt).ToArray();
+                        Properties.Settings.Default.Save();
+                    }
+                    catch (Exception error)
+                    {
+                        Properties.Settings.Default.ServerList = previousList;
+                        log.Warn("Could not migrate the saved session; preserving the original settings.", error);
+                    }
+                }
+                credentialProtection?.Dispose();
+                credentialProtection = unlocked;
             }
 
             foreach (string entry in decryptedList)
@@ -529,7 +566,20 @@ namespace XenAdmin
                 entryStr += SEPARATOR.ToString();
                 entryStr += members;
             }
-            return Properties.Settings.Default.RequirePass && Program.MainPassword != null ? EncryptionUtils.EncryptString(entryStr, Program.MainPassword) : EncryptionUtils.Protect(entryStr);
+            if (!Properties.Settings.Default.RequirePass)
+            {
+                credentialProtection?.Dispose();
+                credentialProtection = null;
+                return EncryptionUtils.Protect(entryStr);
+            }
+            if (Program.MainPassword == null)
+                throw new InvalidOperationException("Unlock the saved session before saving passwords.");
+            if (credentialProtection == null || !credentialProtection.MatchesPassword(Program.MainPassword))
+            {
+                credentialProtection?.Dispose();
+                credentialProtection = new PasswordCredentialProtection(Program.MainPassword);
+            }
+            return credentialProtection.Encrypt(entryStr);
         }
 
         public static string[] GetServerHistory()
