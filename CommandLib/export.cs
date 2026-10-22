@@ -145,6 +145,10 @@ namespace CommandLib
 
         private void compare_tables(Hashtable recomputed, Hashtable original)
         {
+            foreach (DictionaryEntry declared in original)
+                if (!recomputed.ContainsKey(declared.Key))
+                    throw new BlockChecksumFailed((string)declared.Key, "missing", (string)declared.Value);
+
             foreach (DictionaryEntry x in recomputed)
             {
                 string ours = (string)x.Value;

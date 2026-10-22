@@ -90,7 +90,8 @@ namespace XenOvf
                     else
                         CompressionFactory.UncompressFile(filePath, tempfile, method, cancellingDelegate);
 
-                    File.Delete(filePath);
+                    cancellingDelegate?.Invoke();
+                    string sourcePath = filePath;
                     var ext = method.FileExtension();
 
                     if (compress)
@@ -98,7 +99,14 @@ namespace XenOvf
                     else if (filePath.EndsWith(ext))
                         filePath = filePath.Substring(0, filePath.Length - ext.Length);
 
-                    File.Move(tempfile, filePath);
+                    if (string.Equals(sourcePath, filePath, StringComparison.Ordinal))
+                        File.Replace(tempfile, filePath, null);
+                    else
+                    {
+                        // File.Move fails on collisions while the source is still intact.
+                        File.Move(tempfile, filePath);
+                        File.Delete(sourcePath);
+                    }
                     file.href = stem + Path.GetFileName(filePath);
                     file.compression = compress ? method.StringOf() : null;
                     FileInfo fi = new FileInfo(filePath);
@@ -107,6 +115,7 @@ namespace XenOvf
                 catch (EndOfStreamException eose)
                 {
                     log.Error("End of Stream: ", eose);
+                    throw;
                 }
                 finally
                 {
