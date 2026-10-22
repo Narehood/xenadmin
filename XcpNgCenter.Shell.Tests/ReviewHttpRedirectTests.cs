@@ -13,6 +13,37 @@ namespace XcpNgCenter.Shell.Tests;
 [Collection("Action session ownership")]
 public sealed class ReviewHttpRedirectTests
 {
+    /// <summary>Accepts canonical IPv6/IDN pool members only for the owning token and rejects plaintext or unrelated destinations.</summary>
+    /// <param name="hostname">The connection hostname spelling stored in inventory.</param>
+    /// <param name="member">The inventoried member address spelling.</param>
+    /// <param name="origin">The initial request URI.</param>
+    /// <param name="target">The candidate redirected URI.</param>
+    [Theory]
+    [InlineData("2001:db8::1", "2001:db8::2", "https://[2001:db8::1]/console", "https://[2001:db8::2]/console")]
+    [InlineData("pool.example", "m\u00fcnchen.example", "https://pool.example/console", "https://xn--mnchen-3ya.example/console")]
+    [InlineData("m\u00fcnchen.example", "member.example", "https://xn--mnchen-3ya.example/console", "https://member.example/console")]
+    public void PoolRedirectCanonicalizesIpv6AndIdnForTheMatchingToken(string hostname, string member, string origin, string target)
+    {
+        using var server = new JsonRpcTransportTests.RpcServer();
+        using var connection = HeartbeatLifecycleTests.Connection(server);
+        connection.Hostname = hostname;
+        connection.Cache.UpdateFrom(connection, [new ObjectChange(typeof(Host), "member", new Host { address = member })]);
+        lock (ConnectionsManager.ConnectionsLock) ConnectionsManager.XenConnections.Add(connection);
+        try
+        {
+            foreach (string token in new[] { "synthetic-token", "wrong-token" })
+            {
+                var policy = (Func<Uri, bool>)typeof(HTTP).GetMethod("CreateRedirectPolicy", BindingFlags.Static | BindingFlags.NonPublic)!
+                    .Invoke(null, [new Uri(origin), new[] { "CONNECT /console HTTP/1.0", "Cookie: session_id=" + token }])!;
+                Assert.Equal(token == "synthetic-token", policy(new Uri(target)));
+                Assert.False(policy(new Uri(target.Replace("https:", "http:", StringComparison.Ordinal))));
+                Assert.False(policy(new Uri("https://unrelated.example/console")));
+            }
+        }
+        finally { lock (ConnectionsManager.ConnectionsLock) ConnectionsManager.XenConnections.Remove(connection); }
+    }
+
+    /// <summary>Requires the owning session token and captured pool inventory before permitting a cross-authority HTTPS redirect.</summary>
     [Fact]
     public void PoolRedirectRequiresTheOwningTokenAndAuthenticatedInventory()
     {
@@ -22,6 +53,7 @@ public sealed class ReviewHttpRedirectTests
         lock (ConnectionsManager.ConnectionsLock) ConnectionsManager.XenConnections.Add(connection);
         try
         {
+            // Capture a fresh policy for each synthetic owning/non-owning token.
             Func<Uri, bool> Policy(string token) => (Func<Uri, bool>)typeof(HTTP).GetMethod("CreateRedirectPolicy", BindingFlags.Static | BindingFlags.NonPublic)!
                 .Invoke(null, [new Uri("https://127.0.0.1/console"), new[] { "CONNECT /console HTTP/1.0", "Cookie: session_id=" + token }])!;
             var allowed = Policy("synthetic-token");
@@ -35,6 +67,9 @@ public sealed class ReviewHttpRedirectTests
         finally { lock (ConnectionsManager.ConnectionsLock) ConnectionsManager.XenConnections.Remove(connection); }
     }
 
+    /// <summary>Rejects new credential recipients, authority changes and TLS downgrades before opening a redirected transport.</summary>
+    /// <param name="target">The candidate redirected URI.</param>
+    /// <param name="accepted">Whether the fixture expects the policy to accept the target.</param>
     [Theory]
     [InlineData("https://pool.example/next", true)]
     [InlineData("http://pool.example/next", false)]
@@ -49,6 +84,9 @@ public sealed class ReviewHttpRedirectTests
         Assert.Equal(accepted, policy(new Uri(target)));
     }
 
+    /// <summary>Exercises CONNECT, GET and PUT over loopback, checking redirected path/Host headers and absence of connections to rejected recipients.</summary>
+    /// <param name="method">The HTTP method exercised by the fixture.</param>
+    /// <param name="external">Whether the response names a different, rejected authority.</param>
     [Theory]
     [InlineData("CONNECT", false)]
     [InlineData("GET", false)]
@@ -79,6 +117,7 @@ public sealed class ReviewHttpRedirectTests
             return request;
         }, deadline.Token);
         var uri = new Uri($"http://127.0.0.1:{port}/original?session_id=synthetic-token");
+        // Exercise the production stream boundary, including recipient checks before reconnecting.
         void Open()
         {
             using var stream = method switch
@@ -100,6 +139,10 @@ public sealed class ReviewHttpRedirectTests
         }
     }
 
+    /// <summary>Reads one bounded fixture header block with cancellation and rejects truncation or oversized headers.</summary>
+    /// <param name="input">The fixture response stream.</param>
+    /// <param name="token">Cancellation for the fixture read.</param>
+    /// <returns>One complete HTTP header block.</returns>
     private static async Task<string> Headers(Stream input, CancellationToken token)
     {
         var result = new StringBuilder();

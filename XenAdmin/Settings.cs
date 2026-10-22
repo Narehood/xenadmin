@@ -174,11 +174,10 @@ namespace XenAdmin
             }
         }
 
-        /// <summary>
-        /// Tries to restore the session list using the given password as the key.
-        /// Returns true if successful, false otherwise (usually due to
-        /// a decryption failure, in turn due to a wrong password).
-        /// </summary>
+        /// <summary>Decrypts and validates the complete selected session list before restoring connections; successful legacy unlock can atomically migrate credentials.</summary>
+        /// <param name="password">The supplied main password; null is used for address-only restore.</param>
+        /// <param name="useOriginalList">Whether to restore credentials rather than the address-only list used after cancellation.</param>
+        /// <returns>True after complete decryption/validation; false for invalid credentials or malformed entries. A migration write failure preserves legacy data and does not prevent a valid unlock.</returns>
         private static bool RestoreSessionWithPassword(string password, bool useOriginalList)
         {
             string[] encServerList;
@@ -552,6 +551,15 @@ namespace XenAdmin
             return EncryptionUtils.Protect(entryStr);
         }
 
+        /// <summary>Serializes a saved connection or VNC credential using DPAPI or the unlocked versioned password context; locked password mode fails closed.</summary>
+        /// <param name="serverName">Server hostname, or VM UUID for a VNC credential.</param>
+        /// <param name="port">Connection port, or the VNC sentinel port.</param>
+        /// <param name="username">Login name, or the VNC entry marker.</param>
+        /// <param name="password">Login or VNC password; null is serialized as the existing missing-password marker.</param>
+        /// <param name="saveDisconnected">Whether to restore this connection without connecting automatically.</param>
+        /// <param name="friendlyName">Optional display name.</param>
+        /// <param name="poolMembers">Optional cached pool-member hostnames.</param>
+        /// <returns>A DPAPI entry or authenticated wp2 entry matching the selected protection mode.</returns>
         private static String EncryptCredentials(String serverName, int port, String username, String password, bool saveDisconnected, string friendlyName, List<string> poolMembers)
         {
             if (password == null)

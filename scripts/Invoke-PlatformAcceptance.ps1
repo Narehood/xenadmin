@@ -1,3 +1,24 @@
+<#
+.SYNOPSIS
+Runs local builds, regression suites, compatibility/UI probes and package smoke checks.
+.DESCRIPTION
+Uses a fresh evidence directory and preserves portable lockfiles. Windows runs
+WinForms probes, including plugin/credential regressions, in both configurations.
+Linux records Windows-only checks as skipped. No saved user profile, live pool,
+release publication or elevated updater operation is exercised.
+.PARAMETER DotnetPath
+Path or command name of the SDK executable selected for this run.
+.PARAMETER PythonPath
+Optional Python executable used for repository and package fixtures.
+.PARAMETER EvidenceDirectory
+New directory for logs, TRX results, screenshots, manifest and packaged application.
+.PARAMETER BuildRevision
+Numeric revision used when building and packaging the application; defaults to zero.
+.PARAMETER SkipRdpAxImp
+Reuse existing trusted Windows RDP interop assemblies instead of regenerating them.
+.EXAMPLE
+./scripts/Invoke-PlatformAcceptance.ps1 -EvidenceDirectory artifacts/acceptance-new -SkipRdpAxImp
+#>
 [CmdletBinding()]
 param(
     [string] $DotnetPath = 'dotnet',

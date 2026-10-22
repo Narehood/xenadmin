@@ -929,6 +929,7 @@ namespace XenAdmin.Properties
             }
         }
 
+        /// <summary>Serializes the default settings to an owned adjacent file, flushes it, and replaces the previous profile only after serialization succeeds.</summary>
         internal void Save()
         {
             string pending = _settingsPath + "." + Guid.NewGuid().ToString("N") + ".tmp";

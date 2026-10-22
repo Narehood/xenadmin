@@ -12,6 +12,10 @@ namespace XcpNgCenter.Shell.Tests;
 
 public sealed class ReviewSnapshotTests
 {
+    /// <summary>Exercises real snapshot commands through pending confirmation, acceptance, cancellation and changed-target rejection.</summary>
+    /// <param name="revert">Whether to revert rather than delete the snapshot.</param>
+    /// <param name="accept">The simulated confirmation decision.</param>
+    /// <param name="change">Whether to replace the target while confirmation is pending.</param>
     [Theory]
     [InlineData(true, true, false)]
     [InlineData(false, true, false)]

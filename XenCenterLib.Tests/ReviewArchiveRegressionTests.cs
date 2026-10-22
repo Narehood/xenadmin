@@ -19,9 +19,16 @@ namespace XenCenterLib.Tests
     public sealed class ReviewArchiveRegressionTests : IDisposable
     {
         private readonly string root = Path.Combine(Path.GetTempPath(), "review-archives-" + Guid.NewGuid().ToString("N"));
+        /// <summary>Creates an isolated directory for archive and transformation fixtures.</summary>
         public ReviewArchiveRegressionTests() => Directory.CreateDirectory(root);
+        /// <summary>Removes only this fixture instance's disposable archive directory.</summary>
         public void Dispose() => Directory.Delete(root, true);
 
+        /// <summary>Verifies exact checksum-table coverage and per-block integrity while preserving legacy archives without a global table.</summary>
+        /// <param name="blocks">Number of payload blocks written into the fixture.</param>
+        /// <param name="declared">Number of blocks declared by the global table; zero exercises the legacy format.</param>
+        /// <param name="damage">Whether to damage the first payload without changing its checksum.</param>
+        /// <param name="valid">Whether the verifier should accept the fixture.</param>
         [Theory]
         [InlineData(2, 2, false, true)]
         [InlineData(1, 2, false, false)]
@@ -59,6 +66,7 @@ namespace XenCenterLib.Tests
             }
         }
 
+        /// <summary>Checks that replacing a large support report creates a shorter valid ZIP with only the new entry and no temporary output.</summary>
         [Fact]
         public void ReplacingLargeReportContainsOnlyTheNewArchive()
         {
@@ -74,6 +82,8 @@ namespace XenCenterLib.Tests
             Assert.Empty(Directory.GetFiles(root, "*.tmp"));
         }
 
+        /// <summary>Preserves the prior report and removes pending output after archive failure or cancellation.</summary>
+        /// <param name="cancel">Whether to cancel instead of failing with a missing source.</param>
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -90,6 +100,8 @@ namespace XenCenterLib.Tests
             Assert.Empty(Directory.GetFiles(root, "*.tmp"));
         }
 
+        /// <summary>Checks compression and decompression destination collisions leave the source, existing destination and descriptor reference unchanged.</summary>
+        /// <param name="compress">Whether to compress rather than decompress.</param>
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -109,6 +121,7 @@ namespace XenCenterLib.Tests
             Assert.Equal(name, env.References.File[0].href);
         }
 
+        /// <summary>Exercises successful compression and decompression through descriptor updates and verifies the original contents.</summary>
         [Fact]
         public void CompressionRoundTripPreservesContents()
         {
@@ -122,6 +135,32 @@ namespace XenCenterLib.Tests
             Assert.Equal("original data", File.ReadAllText(Path.Combine(root, "disk.iso")));
         }
 
+        /// <summary>Whether this runner can exercise Windows read-only file-deletion behavior.</summary>
+        public static bool IsWindows => Environment.OSVersion.Platform == PlatformID.Win32NT;
+
+        /// <summary>On Windows, makes the source read-only and verifies output rollback, metadata preservation and a later successful retry.</summary>
+        [Fact(Skip = "Read-only source deletion is a Windows file-system behavior.", SkipUnless = nameof(IsWindows))]
+        public void FailedSourceDeletionRollsBackOutputAndAllowsRetry()
+        {
+            var source = Path.Combine(root, "disk.iso");
+            File.WriteAllText(source, "original data");
+            var env = Envelope("disk.iso", null);
+            File.SetAttributes(source, FileAttributes.ReadOnly);
+            try
+            {
+                Assert.Throws<UnauthorizedAccessException>(() => Transform(env, true));
+                Assert.Equal("original data", File.ReadAllText(source));
+                Assert.False(File.Exists(source + ".gz"));
+                Assert.Equal("disk.iso", env.References.File[0].href);
+            }
+            finally { File.SetAttributes(source, FileAttributes.Normal); }
+            Transform(env, true);
+            Assert.True(File.Exists(source + ".gz"));
+            Assert.False(File.Exists(source));
+        }
+
+        /// <summary>Checks cancellation of either transformation direction preserves the source bytes and descriptor reference.</summary>
+        /// <param name="compress">Whether to compress rather than decompress.</param>
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -143,13 +182,24 @@ namespace XenCenterLib.Tests
             Assert.Equal(href, env.References.File[0].href);
         }
 
+        /// <summary>Runs the requested production transformation and descriptor save against the fixture directory.</summary>
+        /// <param name="env">Descriptor whose local payload references are transformed.</param>
+        /// <param name="compress">Whether to compress rather than decompress.</param>
         private void Transform(EnvelopeType env, bool compress)
         {
             if (compress) OVF.CompressFiles(env, Path.Combine(root, "appliance.ovf"), CompressionFactory.Type.Gz, () => { });
             else OVF.UncompressFiles(env, Path.Combine(root, "appliance.ovf"), () => { });
         }
+        /// <summary>Creates a minimal descriptor containing one local payload reference for transformation fixtures.</summary>
+        /// <param name="name">The private production method or payload name selected by the fixture.</param>
+        /// <param name="compression">Optional compression marker on the payload.</param>
+        /// <returns>A minimal one-payload descriptor.</returns>
         private static EnvelopeType Envelope(string name, string compression) => new EnvelopeType
         { References = new References_Type { File = new[] { new File_Type { href = name, compression = compression } } } };
+        /// <summary>Calls the production report writer directly to test its commit boundary without downloading a support bundle.</summary>
+        /// <param name="action">The production report action under test.</param>
+        /// <param name="folder">Input directory to archive.</param>
+        /// <param name="cancel">Whether to cancel instead of failing with a missing source.</param>
         private static void Zip(ZipStatusReportAction action, string folder, Action cancel) =>
             typeof(ZipStatusReportAction).GetMethod("ZipToOutputFile", BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(action, new object[] { folder, cancel, null });

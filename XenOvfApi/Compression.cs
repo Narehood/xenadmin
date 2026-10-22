@@ -50,6 +50,12 @@ namespace XenOvf
             SaveAs(env, ovfPath);
         }
 
+        /// <summary>Commits each transformed payload before source deletion, rolls back new output if deletion fails, and updates metadata only after that file commits.</summary>
+        /// <param name="env">Descriptor whose local payload references are transformed.</param>
+        /// <param name="ovfPath">Descriptor path saved after the per-file transformations.</param>
+        /// <param name="compress">Whether to compress rather than decompress.</param>
+        /// <param name="cancellingDelegate">Optional cancellation check; throwing aborts before destination replacement.</param>
+        /// <param name="method">Compression algorithm for output, or the supported algorithm inferred from each input marker.</param>
         private static void ProcessCompression(EnvelopeType env, string ovfPath, bool compress,
             Action cancellingDelegate, CompressionFactory.Type method = CompressionFactory.Type.Gz)
         {
@@ -105,7 +111,15 @@ namespace XenOvf
                     {
                         // File.Move fails on collisions while the source is still intact.
                         File.Move(tempfile, filePath);
-                        File.Delete(sourcePath);
+                        try { File.Delete(sourcePath); }
+                        catch
+                        {
+                            // Only this successful move establishes ownership of
+                            // the new destination. Undo it so the source can be retried.
+                            try { File.Delete(filePath); }
+                            catch (Exception rollbackError) { log.Warn("Could not remove uncommitted transformed output.", rollbackError); }
+                            throw;
+                        }
                     }
                     file.href = stem + Path.GetFileName(filePath);
                     file.compression = compress ? method.StringOf() : null;

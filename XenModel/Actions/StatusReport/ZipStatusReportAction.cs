@@ -70,6 +70,7 @@ namespace XenAdmin.Actions
             _destFile = destFile;
         }
 
+        /// <summary>Packages downloaded support data, attempts raw fallback on failure, and preserves the previous destination unless a complete ZIP is committed.</summary>
         protected override void Run()
         {
             Status = ReportStatus.inProgress;
@@ -187,6 +188,10 @@ namespace XenAdmin.Actions
                 throw new CancelledException();
         }
 
+        /// <summary>Finishes a fresh adjacent ZIP and checks cancellation before atomically replacing an existing report; failed writes preserve the old destination.</summary>
+        /// <param name="folderToZip">Directory containing completed report inputs.</param>
+        /// <param name="cancellingDelegate">Optional cancellation check; throwing aborts before destination replacement.</param>
+        /// <param name="progressDelegate">Optional archive progress callback.</param>
         private void ZipToOutputFile(string folderToZip, Action cancellingDelegate = null, Action<int> progressDelegate = null)
         {
             // Finish a new archive beside the destination before replacing it.
@@ -210,6 +215,7 @@ namespace XenAdmin.Actions
             }
         }
 
+        /// <summary>Best-effort removal of downloaded/extracted temporary folders; the committed or preexisting destination report is preserved.</summary>
         private void CleanupFiles()
         {
             try

@@ -48,8 +48,20 @@ namespace XenAdmin.Actions
         private readonly Host _vmHost;
         private readonly bool _allowReboot;
 
+        /// <summary>Whether the VM state captured at construction requires shutdown/restart for the requested bounds.</summary>
         public bool RequiresReboot => _needReboot;
 
+        /// <summary>Captures requested memory bounds and restart requirements; callers may forbid restarts and require execution-time state revalidation.</summary>
+        /// <param name="vm">The VM whose opening state and fields are captured.</param>
+        /// <param name="title">Action history title.</param>
+        /// <param name="staticMin">Requested static minimum in bytes.</param>
+        /// <param name="dynamicMin">Requested dynamic minimum in bytes.</param>
+        /// <param name="dynamicMax">Requested dynamic maximum in bytes.</param>
+        /// <param name="staticMax">Requested static maximum in bytes.</param>
+        /// <param name="warningDialogHaInvalidConfig">Callback for an HA warning during a permitted restart.</param>
+        /// <param name="startDiagnosticForm">Callback for a start failure during a permitted restart.</param>
+        /// <param name="suppressHistory">Whether to suppress the action history entry.</param>
+        /// <param name="allowReboot">Whether the caller permits the existing shutdown/restart workflow; false also checks opening memory and power state before execution.</param>
         public ChangeMemorySettingsAction(VM vm, string title,
             long staticMin, long dynamicMin, long dynamicMax, long staticMax, Action<VM, bool> warningDialogHaInvalidConfig, Action<VMStartAbstractAction, Failure> startDiagnosticForm, bool suppressHistory, bool allowReboot = true)
             : base(vm.Connection, title, suppressHistory)
@@ -95,6 +107,7 @@ namespace XenAdmin.Actions
             #endregion
         }
 
+        /// <summary>Applies memory limits using the action session; restart-forbidden callers reject changed VM state before any mutation or shutdown.</summary>
         protected override void Run()
         {
             if (!_allowReboot)
@@ -109,7 +122,8 @@ namespace XenAdmin.Actions
                 VM = current;
             }
             // If either of the static memories has changed, we need to shut down the VM
-            // before and reboot afterwards. The user has already been warned about this.
+            // before and reboot afterwards. Legacy callers authorize that workflow;
+            // restart-forbidden callers have already passed the state guard above.
 
             if (_needReboot)
             {

@@ -13,6 +13,10 @@ namespace XcpNgCenter.Shell.Tests;
 [Collection("Action session ownership")]
 public sealed class ReviewVmPropertiesTests
 {
+    /// <summary>Checks untouched drafts, live and halted memory edits, stale-state rejection and all-or-nothing validation before action construction.</summary>
+    /// <param name="edit">The requested draft edit or null for untouched Apply.</param>
+    /// <param name="memoryExpected">Whether a memory action should be queued.</param>
+    /// <param name="halted">Whether the guest is halted when the draft opens.</param>
     [Theory]
     [InlineData(null, false, false)]
     [InlineData("rename", false, false)]
@@ -40,8 +44,13 @@ public sealed class ReviewVmPropertiesTests
             var editor = new VmPropertiesViewModel(vm, () => { }, null, action => queued = (MultipleAction)action);
             if (edit == "rename") editor.NameLabel = "renamed";
             if (edit == "memory") editor.MemoryMibText = "9216";
-            if (edit == "too large") editor.MemoryMibText = "32768";
-            editor.ApplyCommand.Execute(null);
+            if (edit == "too large") { editor.MemoryMibText = "32768"; editor.NameLabel = "pending name"; }
+            int constructed = 0;
+            // Rejected drafts must not leave constructed actions in global history.
+            void Count(ActionBase _) => constructed++;
+            ActionBase.NewAction += Count;
+            try { editor.ApplyCommand.Execute(null); }
+            finally { ActionBase.NewAction -= Count; }
             Assert.Empty(queued?.SubActions.OfType<ChangeVCPUSettingsAction>() ?? []);
             if (memoryExpected)
             {
@@ -59,6 +68,10 @@ public sealed class ReviewVmPropertiesTests
             {
                 Assert.Null(queued);
                 Assert.Contains("Shut down", editor.StatusMessage);
+                Assert.Contains("No changes have been applied", editor.StatusMessage);
+                Assert.Equal(0, constructed);
+                Assert.Equal("pending name", editor.NameLabel);
+                Assert.Equal("VM", vm.name_label);
             }
             if (edit == null) Assert.Null(queued);
             queued?.Dispose();

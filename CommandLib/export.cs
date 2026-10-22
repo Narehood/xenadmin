@@ -143,6 +143,9 @@ namespace CommandLib
             return table;
         }
 
+        /// <summary>Requires a matching digest for every observed and declared XVA block; missing declarations fail verification.</summary>
+        /// <param name="recomputed">Observed block names and recomputed digests.</param>
+        /// <param name="original">Block names and digests declared by the checksum table.</param>
         private void compare_tables(Hashtable recomputed, Hashtable original)
         {
             foreach (DictionaryEntry declared in original)

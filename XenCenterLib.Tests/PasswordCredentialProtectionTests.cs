@@ -8,6 +8,7 @@ namespace XenCenterLib.Tests
 {
     public sealed class PasswordCredentialProtectionTests
     {
+        /// <summary>Checks versioned round trips, independent salts, fresh IVs and absence of a persisted fast password verifier.</summary>
         [Fact]
         public void CredentialsRoundTripWithIndependentSaltAndIvAndNoPersistedPasswordHash()
         {
@@ -29,6 +30,8 @@ namespace XenCenterLib.Tests
             }
         }
 
+        /// <summary>Rejects modifications to authenticated fields and rejects a context derived from a wrong password.</summary>
+        /// <param name="field">The authenticated envelope field to tamper with.</param>
         [Theory]
         [InlineData(2)]
         [InlineData(3)]
@@ -50,6 +53,7 @@ namespace XenCenterLib.Tests
             }
         }
 
+        /// <summary>Rejects unsupported iteration values before KDF work and prevents use of disposed key material.</summary>
         [Fact]
         public void RejectsUnsupportedWorkFactorsBeforeDerivingAndClearsDisposedKeys()
         {

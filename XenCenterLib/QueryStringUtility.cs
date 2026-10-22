@@ -36,7 +36,7 @@ using System.Net;
 namespace XenCenterLib
 {
     /// <summary>
-    /// Query-string helpers that avoid System.Web (HttpUtility) so libraries can target .NET 8.
+    /// Query-string helpers shared by .NET Framework and modern .NET without a System.Web dependency.
     /// </summary>
     public static class QueryStringUtility
     {

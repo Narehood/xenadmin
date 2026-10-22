@@ -1386,15 +1386,27 @@ public partial class MainViewModel
         SnapshotStatusMessage = $"{SelectedSnapshotType.Label} queued — see Logs.";
     }
 
+    /// <summary>Requests confirmation before reverting a real snapshot of the selected VM.</summary>
+    /// <param name="row">The selected snapshot row; null or synthetic rows are ignored.</param>
+    /// <returns>Completion of review/queueing, not completion of the server-side revert.</returns>
     [RelayCommand]
     private Task RevertSnapshotAsync(SnapshotItemRow? row) => ReviewSnapshotAsync(row, revert: true);
 
+    /// <summary>Requests confirmation before permanently deleting a real snapshot of the selected VM.</summary>
+    /// <param name="row">The selected snapshot row; null or synthetic rows are ignored.</param>
+    /// <returns>Completion of review/queueing, not completion of the server-side delete.</returns>
     [RelayCommand]
     private Task DeleteSnapshotAsync(SnapshotItemRow? row) => ReviewSnapshotAsync(row, revert: false);
 
+    /// <summary>Optional confirmation seam for command tests; null uses the production modal prompt.</summary>
     internal Func<ShellConfirmRequest, Task<bool>>? ConfirmSnapshot { get; set; }
+    /// <summary>Optional queue seam for command tests; null uses normal RBAC/elevation and action execution.</summary>
     internal Action<AsyncAction>? QueueSnapshotAction { get; set; }
 
+    /// <summary>Confirms a named destructive operation, then re-resolves and validates the original VM/snapshot identities and operation before queueing.</summary>
+    /// <param name="row">The selected snapshot row; null or synthetic rows are ignored.</param>
+    /// <param name="revert">Whether to revert rather than delete the snapshot.</param>
+    /// <returns>Completion after rejection or queueing; accepted server actions continue asynchronously.</returns>
     private async Task ReviewSnapshotAsync(SnapshotItemRow? row, bool revert)
     {
         if (row == null || row.IsNow || row.IsBase || SelectedVm is not { } parent
