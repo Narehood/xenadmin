@@ -46,13 +46,17 @@ namespace XenAdmin.Actions
         private readonly bool _staticChanged;
         private readonly bool _needReboot;
         private readonly Host _vmHost;
+        private readonly bool _allowReboot;
+
+        public bool RequiresReboot => _needReboot;
 
         public ChangeMemorySettingsAction(VM vm, string title,
-            long staticMin, long dynamicMin, long dynamicMax, long staticMax, Action<VM, bool> warningDialogHaInvalidConfig, Action<VMStartAbstractAction, Failure> startDiagnosticForm, bool suppressHistory)
+            long staticMin, long dynamicMin, long dynamicMax, long staticMax, Action<VM, bool> warningDialogHaInvalidConfig, Action<VMStartAbstractAction, Failure> startDiagnosticForm, bool suppressHistory, bool allowReboot = true)
             : base(vm.Connection, title, suppressHistory)
         {
             _warningDialogHaInvalidConfig = warningDialogHaInvalidConfig;
             _startDiagnosticForm = startDiagnosticForm;
+            _allowReboot = allowReboot;
             VM = vm;
 
             _staticMin = staticMin;
@@ -93,6 +97,17 @@ namespace XenAdmin.Actions
 
         protected override void Run()
         {
+            if (!_allowReboot)
+            {
+                var current = Connection.Resolve(new XenRef<VM>(VM.opaque_ref));
+                if (current == null || current.uuid != VM.uuid || current.power_state != VM.power_state
+                    || current.memory_static_min != VM.memory_static_min || current.memory_static_max != VM.memory_static_max
+                    || current.memory_dynamic_min != VM.memory_dynamic_min || current.memory_dynamic_max != VM.memory_dynamic_max)
+                    throw new InvalidOperationException("The VM or its memory configuration changed. Reopen Properties before changing memory.");
+                if (_needReboot)
+                    throw new InvalidOperationException("Shut down the VM before changing its static memory limits.");
+                VM = current;
+            }
             // If either of the static memories has changed, we need to shut down the VM
             // before and reboot afterwards. The user has already been warned about this.
 
