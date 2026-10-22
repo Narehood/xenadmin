@@ -45,7 +45,7 @@ namespace XenAdmin.Plugins
         public readonly bool Debug;
 
         /// <summary>
-        /// (Optional) "function" attribute on the "PowerShellCmd" tag
+        /// Optional command/function name from the PowerShellCmd tag; arguments belong in ParamArray.
         /// </summary>
         public readonly string Function;
 
@@ -59,27 +59,21 @@ namespace XenAdmin.Plugins
             Function = Helpers.GetStringXmlAttribute(node, ATT_FUNCTION);
         }
 
+        /// <summary>Creates an unstarted PowerShell plugin process whose literal arguments are staged outside the process command line.</summary>
+        /// <param name="procParams">Ordered URL/session/class/UUID tuples, four strings per target.</param>
+        /// <param name="targets">Objects used for placeholder substitution; null is supported for the console node.</param>
+        /// <returns>An unstarted process; the caller must dispose it even if launch fails.</returns>
         public override Process CreateProcess(List<string> procParams, IList<IXenObject> targets)
         {
             Registry.AssertPowerShellInstalled();
 
-            // get ourselves in the correct directory
-            // put the parameters in the objInfoArray variable
-            // exectute the plugin, with debugging if required
+            // Preserve the legacy ObjInfoArray/ParamArray scope while passing all
+            // substituted data through the shared literal serializer and payload transport.
             string command = string.Format(
                                          "& {{ {0} }}",
                                          XenServerPowershellCmd.MakeInvocationExpression(Filename, Function, procParams, Params, targets, Debug));
 
-            // finally we escape the entire command statement again as it is being passed into the -Command parameter in quotes
-            command = XenServerPowershellCmd.EscapeQuotes(XenServerPowershellCmd.EscapeBackSlashes(command));
-
-            Process proc = new Process();
-            proc.StartInfo.FileName = PluginDescriptor.PowerShellExecutable;
-            proc.StartInfo.Arguments = string.Format("-NoLogo -Command \"{0}\" {1}", command, string.Join(" ", new List<string>(Params).ToArray()));
-            proc.StartInfo.UseShellExecute = false;
-            proc.StartInfo.CreateNoWindow = !Window;
-            proc.StartInfo.WindowStyle = !Window ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal;
-            return proc;
+            return XenServerPowershellCmd.CreateCommandProcess(command, Window);
         }
     }
 }

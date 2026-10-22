@@ -31,6 +31,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -55,6 +56,11 @@ namespace XenAdmin.Actions.OvfActions
 
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+        /// <summary>Imports VMs sequentially, tracking VDIs for the current partial VM and committing ownership after each successful VM.</summary>
+        /// <param name="ovfObj">Parsed appliance descriptor.</param>
+        /// <param name="pathToOvf">Contained appliance working directory.</param>
+        /// <param name="applianceName">Optional appliance display name.</param>
+        /// <returns>The imported VM or appliance object.</returns>
         protected object Process(EnvelopeType ovfObj, string pathToOvf, string applianceName = null)
         {
             //Normalise the process
@@ -95,6 +101,7 @@ namespace XenAdmin.Actions.OvfActions
             for (int i = 0; i < vmsToImport.Count; i++)
             {
                 CheckForCancellation();
+                createdVdis.Clear();
 
                 int curVm = i;
                 VirtualSystem_Type vSystem = vmsToImport[i];
@@ -128,6 +135,7 @@ namespace XenAdmin.Actions.OvfActions
 
                     HandleInstallSection(Connection.Session, vmRef, vSystem);
                     VM.remove_from_other_config(Connection.Session, vmRef, "HideFromXenCenter");
+                    createdVdis.Clear();
                     PercentComplete = 20 + (i + 1) * 80 / vmsToImport.Count;
                 }
                 catch
@@ -255,6 +263,17 @@ namespace XenAdmin.Actions.OvfActions
             }
         }
 
+        /// <summary>Uploads a contained appliance payload to a new or mapped VDI, tracking only successful creates and retrying owned cleanup after failure.</summary>
+        /// <param name="diskName">Display name for a newly created disk.</param>
+        /// <param name="pathToOvf">Contained appliance working directory.</param>
+        /// <param name="filename">Payload path relative to the contained appliance working directory.</param>
+        /// <param name="compression">Optional source compression algorithm; null means uncompressed.</param>
+        /// <param name="sruuid">Destination storage UUID for a newly created VDI.</param>
+        /// <param name="description">Description assigned to a newly created disk.</param>
+        /// <param name="vdiuuid">Optional existing VDI UUID; mapped disks are never owned by the import.</param>
+        /// <param name="isEncrypted">Whether the source payload needs decryption.</param>
+        /// <param name="updatePercentage">Progress callback for bytes uploaded.</param>
+        /// <returns>The uploaded VDI reference, or null when the payload is intentionally skipped.</returns>
         private XenRef<VDI> ImportFile(string diskName, string pathToOvf, string filename, CompressionFactory.Type? compression, string sruuid, string description, string vdiuuid, bool isEncrypted, Action<float> updatePercentage)
         {
             if (filename == null)
@@ -391,7 +410,13 @@ namespace XenAdmin.Actions.OvfActions
                         is_a_snapshot = false
                     };
 
-                    VDI vdi = Connection.WaitForCache(VDI.create(Connection.Session, newVdi));
+                    // Record ownership at the successful create response, before
+                    // waiting for cache delivery or starting an upload.
+                    vdiRef = VDI.create(Connection.Session, newVdi);
+                    createdVdis.Add(vdiRef.opaque_ref);
+                    VDI vdi = Connection.WaitForCache(vdiRef);
+                    if (vdi == null)
+                        throw new InvalidOperationException("The created disk did not arrive in the cache. The import cannot continue.");
                     if (vdi != null)
                     {
                         vdiuuid = vdi.uuid;
@@ -447,18 +472,12 @@ namespace XenAdmin.Actions.OvfActions
             }
             catch (Exception e)
             {
-                if (vdiRef != null)
+                if (vdiRef != null && createdVdis.Contains(vdiRef.opaque_ref))
                 {
                     log.Info($"Import interrupted. Destroying VDI {vdiRef.opaque_ref}");
                     try
                     {
-                        //need to wait for a bit until the VDI is released from the import task
-                        Connection.WaitFor(() =>
-                        {
-                            var vdi = Connection.Resolve(vdiRef);
-                            return vdi != null && vdi.allowed_operations.Contains(vdi_operations.destroy);
-                        }, null);
-                        VDI.destroy(Connection.Session, vdiRef);
+                        DestroyCreatedVdi(vdiRef.opaque_ref);
                     }
                     catch
                     {
@@ -754,6 +773,13 @@ namespace XenAdmin.Actions.OvfActions
             }
         }
 
+        /// <summary>Creates the mapped network, CD/DVD or disk attachment; only VDIs created by this import receive a client ownership marker.</summary>
+        /// <param name="ovfObj">Parsed appliance descriptor.</param>
+        /// <param name="vmRef">The partial VM being populated or rolled back.</param>
+        /// <param name="rasd">OVF resource allocation record describing the attachment.</param>
+        /// <param name="pathToOvf">Contained appliance working directory.</param>
+        /// <param name="vifDeviceIndex">Next virtual network device number; advanced when a VIF is created.</param>
+        /// <param name="updatePercentage">Progress callback for bytes uploaded.</param>
         private void AddResourceSettingData(EnvelopeType ovfObj, XenRef<VM> vmRef, RASD_Type rasd, string pathToOvf, ref int vifDeviceIndex, Action<float> updatePercentage)
         {
             switch (rasd.ResourceType.Value)
@@ -921,7 +947,11 @@ namespace XenAdmin.Actions.OvfActions
                     }
 
                     isoVbd.userdevice = VerifyUserDevice(vmRef, isoVbd.userdevice);
-                    isoVbd.other_config = new Dictionary<string, string> {{"owner", "true"}};
+                    // Existing ISO library media is borrowed, even when attached
+                    // to a VM created by this import. Never transfer its ownership.
+                    isoVbd.other_config = vdiRef != null && createdVdis.Contains(vdiRef.opaque_ref)
+                        ? new Dictionary<string, string> {{"owner", "true"}}
+                        : new Dictionary<string, string>();
 
                     if (!isoVbd.userdevice.EndsWith("+"))
                     {
@@ -1065,8 +1095,11 @@ namespace XenAdmin.Actions.OvfActions
                         currently_attached = false,
                         storage_lock = false,
                         status_code = 0,
-                        // below other_config keys XS to delete the disk along with the VM.
-                        other_config = new Dictionary<string, string> {{"owner", "true"}}
+                        // Client deletion workflows use this marker when selecting
+                        // VM-owned disks. A borrowed VDI must never receive it.
+                        other_config = vdiRef != null && createdVdis.Contains(vdiRef.opaque_ref)
+                            ? new Dictionary<string, string> {{"owner", "true"}}
+                            : new Dictionary<string, string>()
                     };
 
                     if (!vbd.userdevice.EndsWith("+"))
@@ -1267,22 +1300,14 @@ namespace XenAdmin.Actions.OvfActions
             rasd.Connection[0].Value = $"{rasd.Connection[0].Value},bootable={isBootable}";
         }
 
+        /// <summary>Best-effort rollback of the partial VM and owned disks, including uncached/unattached VDIs; failed disk references remain tracked.</summary>
+        /// <param name="vmRef">The partial VM being populated or rolled back.</param>
         private void CleanUpVm(XenRef<VM> vmRef)
         {
-            var vdiRefs = new List<XenRef<VDI>>();
-
-            var vm = Connection.Resolve(vmRef);
-            if (vm != null)
-                foreach (var vbdRef in vm.VBDs)
-                {
-                    VBD vbd = Connection.Resolve(vbdRef);
-                    if (vbd != null)
-                    {
-                        var vdi = Connection.Resolve(vbd.VDI);
-                        if (vdi != null)
-                            vdiRefs.Add(vbd.VDI);
-                    }
-                }
+            // Attachments may refer to existing LUNs or ISO library media. They
+            // do not establish ownership. Include owned, not-yet-attached VDIs
+            // too, so cleanup can attempt them without relying on cache delivery.
+            var vdiRefs = createdVdis.ToArray();
 
             try
             {
@@ -1296,12 +1321,51 @@ namespace XenAdmin.Actions.OvfActions
             foreach (var vdiRef in vdiRefs)
                 try
                 {
-                    VDI.destroy(Connection.Session, vdiRef);
+                    DestroyCreatedVdi(vdiRef);
                 }
                 catch
                 {
-                    log.Error($"Failed to destroy VDI {vdiRef.opaque_ref} after interrupted import.");
+                    log.Error($"Failed to destroy VDI {vdiRef} after interrupted import.");
                 }
+        }
+
+        /// <summary>Uses authoritative allowed operations and bounded busy retries to destroy an owned VDI; removes tracking only after success or confirmed absence.</summary>
+        /// <param name="vdiRef">Opaque reference known to the current import ownership ledger.</param>
+        /// <remarks>Retries for up to 30 seconds between RPCs; each RPC retains the configured connection timeout. Cancellation does not abandon rollback. Failure leaves the reference tracked for the outer cleanup.</remarks>
+        private void DestroyCreatedVdi(string vdiRef)
+        {
+            if (!createdVdis.Contains(vdiRef)) return;
+            var elapsed = Stopwatch.StartNew();
+            do
+            {
+                try
+                {
+                    // Cache loss does not release a server-side import lock.
+                    // Ask the server, then tolerate a lock acquired before destroy.
+                    if (VDI.get_allowed_operations(Connection.Session, vdiRef).Contains(vdi_operations.destroy))
+                    {
+                        VDI.destroy(Connection.Session, vdiRef);
+                        createdVdis.Remove(vdiRef);
+                        return;
+                    }
+                }
+                catch (Failure error)
+                {
+                    string code = error.ErrorDescription.FirstOrDefault();
+                    if (code == "HANDLE_INVALID" && error.ErrorDescription.Count >= 3
+                        && error.ErrorDescription[1] == "VDI" && error.ErrorDescription[2] == vdiRef)
+                    {
+                        createdVdis.Remove(vdiRef);
+                        return;
+                    }
+                    if (code != "OTHER_OPERATION_IN_PROGRESS" && code != "OPERATION_NOT_ALLOWED" && code != "VDI_IN_USE")
+                        throw;
+                }
+                Thread.Sleep(500);
+            } while (elapsed.Elapsed < TimeSpan.FromSeconds(30));
+
+            // Keep ownership so outer cleanup can retry after destroying the VM.
+            throw new TimeoutException("The created disk is still in use; cleanup can be retried after its task releases it.");
         }
     }
 }

@@ -157,6 +157,9 @@ public partial class VmPropertiesViewModel : ViewModelBase
     private readonly VM _clone;
     private readonly Action _close;
     private readonly Action<string>? _status;
+    private readonly Action<AsyncAction> _runProperties;
+    private readonly long _initialVcpus;
+    private readonly long _initialMemoryMib;
     private readonly List<VGPU> _originalGpus;
     private readonly long _origOrder;
     private readonly long _origStartDelay;
@@ -174,12 +177,31 @@ public partial class VmPropertiesViewModel : ViewModelBase
     private bool _cloudConfigLoadStarted;
     private bool _bootFromCd;
 
+    /// <summary>Captures the VM and its opening hardware values in an editable draft; action execution can be injected for command-boundary tests.</summary>
+    /// <param name="vm">The VM whose opening state and fields are captured.</param>
+    /// <param name="close">Callback after a successful queue or no-op Apply.</param>
+    /// <param name="status">Optional callback receiving action status.</param>
     public VmPropertiesViewModel(VM vm, Action close, Action<string>? status = null)
+        : this(vm, close, status, null) { }
+
+    /// <summary>Captures the VM and its opening hardware values in an editable draft; action execution can be injected for command-boundary tests.</summary>
+    /// <param name="vm">The VM whose opening state and fields are captured.</param>
+    /// <param name="close">Callback after a successful queue or no-op Apply.</param>
+    /// <param name="status">Optional callback receiving action status.</param>
+    /// <param name="runProperties">Optional action-queue seam; null uses the normal shell runner.</param>
+    internal VmPropertiesViewModel(VM vm, Action close, Action<string>? status, Action<AsyncAction>? runProperties)
     {
         _original = vm;
         _clone = (VM)vm.Clone();
         _close = close;
         _status = status;
+        _runProperties = runProperties ?? (action => ShellActionRunner.Run(action, message =>
+        {
+            StatusMessage = message;
+            _status?.Invoke(message);
+        }));
+        _initialVcpus = Math.Max(1, vm.VCPUs_at_startup);
+        _initialMemoryMib = Math.Max(1, vm.memory_dynamic_max / (1024 * 1024));
 
         NameLabel = vm.name_label ?? string.Empty;
         Description = vm.name_description ?? string.Empty;
@@ -759,6 +781,7 @@ public partial class VmPropertiesViewModel : ViewModelBase
         StatusMessage = "USB detach queued — see Logs.";
     }
 
+    /// <summary>Validates the complete draft before constructing actions, preserves untouched hardware fields, and refuses memory edits requiring a restart.</summary>
     [RelayCommand]
     private void Apply()
     {
@@ -778,10 +801,24 @@ public partial class VmPropertiesViewModel : ViewModelBase
             return;
         }
 
-        if (!long.TryParse(MemoryMibText.Trim(), out var mib) || mib < 1)
+        if (!long.TryParse(MemoryMibText.Trim(), out var mib) || mib < 1 || mib > long.MaxValue / (1024L * 1024L))
         {
             StatusMessage = "Enter memory in MiB.";
             SelectedSection = VmPropertiesSection.CpuMemory;
+            SelectedSectionItem = Sections.First(s => s.Section == VmPropertiesSection.CpuMemory);
+            return;
+        }
+
+        var bytes = mib * 1024L * 1024L;
+        var staticMin = Math.Min(_clone.memory_static_min, bytes);
+        var dynamicMin = Math.Min(_clone.memory_dynamic_min, bytes);
+        var staticMax = Math.Max(_clone.memory_static_max, bytes);
+        var staticMemoryChanged = staticMin != _clone.memory_static_min || staticMax != _clone.memory_static_max;
+        if (mib != _initialMemoryMib && _clone.power_state != vm_power_state.Halted
+            && (staticMemoryChanged || _clone.power_state != vm_power_state.Running))
+        {
+            // Validate the whole draft before constructing actions or changing its clone.
+            StatusMessage = "No changes have been applied. Shut down the VM and reopen Properties before changing memory outside its current live limits.";
             SelectedSectionItem = Sections.First(s => s.Section == VmPropertiesSection.CpuMemory);
             return;
         }
@@ -883,6 +920,7 @@ public partial class VmPropertiesViewModel : ViewModelBase
         var name = NameLabel.Trim();
         var description = Description ?? string.Empty;
         var tags = ParseTags(TagsText);
+        var before = (VM)_clone.Clone();
 
         // General fields on clone → SaveChangesAction
         _clone.name_label = name;
@@ -907,7 +945,9 @@ public partial class VmPropertiesViewModel : ViewModelBase
         if (shadowMultiplierChanged && _original.power_state != vm_power_state.Running)
             _clone.HVM_shadow_multiplier = shadowMultiplier;
 
-        actions.Add(new SaveChangesAction(_clone, suppressHistory: true, _original));
+        // Compare against the opening draft so cache updates cannot make this
+        // general save restore memory or CPU values the user did not edit.
+        actions.Add(new SaveChangesAction(_clone, suppressHistory: true, before));
 
         if (PerformanceAlerts.HasChanges)
         {
@@ -955,27 +995,29 @@ public partial class VmPropertiesViewModel : ViewModelBase
             }
         }
 
-        if (vcpus != _original.VCPUs_at_startup || vcpus != _original.VCPUs_max)
+        if (vcpus != _initialVcpus)
         {
             var max = Math.Max(vcpus, _original.VCPUs_max);
             actions.Add(new ChangeVCPUSettingsAction(_clone, max, vcpus));
         }
 
-        var bytes = mib * 1024L * 1024L;
-        if (bytes != _original.memory_dynamic_max || bytes != _original.memory_static_max)
+        if (mib != _initialMemoryMib)
         {
-            var staticMin = Math.Min(_original.memory_static_min, bytes);
-            var dynamicMin = Math.Min(_original.memory_dynamic_min, bytes);
-            actions.Add(new ChangeMemorySettingsAction(
+            // Preserve the static ceiling unless the allocation needs it to grow.
+            // Validation above permits that growth only for a halted guest.
+            var memoryAction = new ChangeMemorySettingsAction(
                 _clone,
                 $"Set memory on {name}",
                 staticMin,
                 dynamicMin,
                 bytes,
-                bytes,
+                staticMax,
                 (_, _) => { },
                 (_, _) => { },
-                suppressHistory: true));
+                suppressHistory: true,
+                allowReboot: false);
+            // Reject stale memory before any other property action can commit.
+            actions.Insert(0, memoryAction);
         }
 
         var haPriority = SelectedHaPriority?.Priority ?? _origHaPriority;
@@ -1056,11 +1098,7 @@ public partial class VmPropertiesViewModel : ViewModelBase
             }
         };
 
-        ShellActionRunner.Run(multi, msg =>
-        {
-            StatusMessage = msg;
-            _status?.Invoke(msg);
-        });
+        _runProperties(multi);
 
         StatusMessage = "Changes queued — see Logs.";
         _close();

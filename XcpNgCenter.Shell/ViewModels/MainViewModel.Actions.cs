@@ -1386,38 +1386,68 @@ public partial class MainViewModel
         SnapshotStatusMessage = $"{SelectedSnapshotType.Label} queued — see Logs.";
     }
 
+    /// <summary>Requests confirmation before reverting a real snapshot of the selected VM.</summary>
+    /// <param name="row">The selected snapshot row; null or synthetic rows are ignored.</param>
+    /// <returns>Completion of review/queueing, not completion of the server-side revert.</returns>
     [RelayCommand]
-    private void RevertSnapshot(SnapshotItemRow? row)
+    private Task RevertSnapshotAsync(SnapshotItemRow? row) => ReviewSnapshotAsync(row, revert: true);
+
+    /// <summary>Requests confirmation before permanently deleting a real snapshot of the selected VM.</summary>
+    /// <param name="row">The selected snapshot row; null or synthetic rows are ignored.</param>
+    /// <returns>Completion of review/queueing, not completion of the server-side delete.</returns>
+    [RelayCommand]
+    private Task DeleteSnapshotAsync(SnapshotItemRow? row) => ReviewSnapshotAsync(row, revert: false);
+
+    /// <summary>Optional confirmation seam for command tests; null uses the production modal prompt.</summary>
+    internal Func<ShellConfirmRequest, Task<bool>>? ConfirmSnapshot { get; set; }
+    /// <summary>Optional queue seam for command tests; null uses normal RBAC/elevation and action execution.</summary>
+    internal Action<AsyncAction>? QueueSnapshotAction { get; set; }
+
+    /// <summary>Confirms a named destructive operation, then re-resolves and validates the original VM/snapshot identities and operation before queueing.</summary>
+    /// <param name="row">The selected snapshot row; null or synthetic rows are ignored.</param>
+    /// <param name="revert">Whether to revert rather than delete the snapshot.</param>
+    /// <returns>Completion after rejection or queueing; accepted server actions continue asynchronously.</returns>
+    private async Task ReviewSnapshotAsync(SnapshotItemRow? row, bool revert)
     {
-        if (row == null || SelectedVm?.Connection is not { IsConnected: true } conn)
+        if (row == null || row.IsNow || row.IsBase || SelectedVm is not { } parent
+            || parent.Connection is not { IsConnected: true } conn)
             return;
 
         var snapshot = conn.Resolve(new XenRef<VM>(row.OpaqueRef));
-        if (snapshot == null)
+        var operation = revert ? vm_operations.revert : vm_operations.destroy;
+        if (snapshot == null || !snapshot.is_a_snapshot || snapshot.snapshot_of.opaque_ref != parent.opaque_ref
+            || !snapshot.allowed_operations.Contains(operation))
         {
             SnapshotStatusMessage = "Snapshot no longer available.";
             return;
         }
 
-        RunAction(new VMSnapshotRevertAction(snapshot));
-        SnapshotStatusMessage = "Revert queued — see Logs.";
-    }
-
-    [RelayCommand]
-    private void DeleteSnapshot(SnapshotItemRow? row)
-    {
-        if (row == null || SelectedVm?.Connection is not { IsConnected: true } conn)
-            return;
-
-        var snapshot = conn.Resolve(new XenRef<VM>(row.OpaqueRef));
-        if (snapshot == null)
+        string parentUuid = parent.uuid, snapshotUuid = snapshot.uuid;
+        var powerState = parent.power_state;
+        var accepted = await (ConfirmSnapshot ?? ShellConfirmPrompt.ConfirmAsync)(new ShellConfirmRequest
         {
-            SnapshotStatusMessage = "Snapshot no longer available.";
+            Title = revert ? "Revert snapshot" : "Delete snapshot",
+            Message = revert
+                ? $"Revert VM '{parent.Name()}' to snapshot '{snapshot.Name()}'?\n\nChanges made since this snapshot will be lost. Create a snapshot first if you need to preserve the current state."
+                : $"Permanently delete snapshot '{snapshot.Name()}' of VM '{parent.Name()}'?\n\nYou will no longer be able to restore this snapshot.",
+            AcceptLabel = revert ? "Revert" : "Delete"
+        });
+        if (!accepted) return;
+
+        var currentParent = conn.Resolve(new XenRef<VM>(parent.opaque_ref));
+        snapshot = conn.Resolve(new XenRef<VM>(row.OpaqueRef));
+        if (!conn.IsConnected || SelectedVm?.Connection != conn || SelectedVm.opaque_ref != parent.opaque_ref
+            || currentParent?.uuid != parentUuid || currentParent.power_state != powerState || currentParent.Locked
+            || snapshot?.uuid != snapshotUuid || !snapshot.is_a_snapshot || snapshot.Locked
+            || snapshot.snapshot_of.opaque_ref != parent.opaque_ref || !snapshot.allowed_operations.Contains(operation))
+        {
+            SnapshotStatusMessage = "The VM or snapshot changed. Review the selection and try again.";
             return;
         }
 
-        RunAction(new VMSnapshotDeleteAction(snapshot));
-        SnapshotStatusMessage = "Delete queued — see Logs.";
+        AsyncAction action = revert ? new VMSnapshotRevertAction(snapshot) : new VMSnapshotDeleteAction(snapshot);
+        (QueueSnapshotAction ?? RunAction)(action);
+        SnapshotStatusMessage = revert ? "Revert queued — see Logs." : "Delete queued — see Logs.";
     }
 
     private void CloseConsolePopOut()

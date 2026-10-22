@@ -61,11 +61,12 @@ namespace XenCenterLib
         }
 
         /// <summary>
-        /// Returns a secure hash of the given input string.
+        /// Computes a compatibility digest of UTF-16 text. This is not a password KDF;
+        /// saved main-password credentials use PasswordCredentialProtection instead.
         /// </summary>
         /// <param name="input">The string to hash</param>
-        /// <param name="method">The hash algorithm implementation to use.</param>
-        /// <returns>The secure hash</returns>
+        /// <param name="method">Digest used by the compatibility consumer; SHA-256 by default.</param>
+        /// <returns>The digest, or null when the input is null.</returns>
         public static byte[] ComputeHash(string input, HashMethod method = HashMethod.Sha256)
         {
             if (input == null)
@@ -118,11 +119,12 @@ namespace XenCenterLib
         }
 
         /// <summary>
-        /// Encrypt a given string using the given key.
+        /// Writes the legacy unauthenticated AES-CBC credential format using the supplied key directly.
+        /// New main-password writes use PasswordCredentialProtection; this method remains for compatibility.
         /// </summary>
         /// <param name="clearString">The string to encrypt.</param>
         /// <param name="keyBytes">The key for the encryption algorithm</param>
-        /// <returns>The Base64 encoded cipher text</returns>
+        /// <returns>Base64 ciphertext and IV separated by a comma.</returns>
         public static string EncryptString(string clearString, byte[] keyBytes)
         {
             byte[] saltBytes = GetSalt();

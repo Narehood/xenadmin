@@ -47,6 +47,7 @@ namespace XenAdmin
 {
     public static class Settings
     {
+        private static PasswordCredentialProtection credentialProtection;
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <summary>
@@ -173,11 +174,10 @@ namespace XenAdmin
             }
         }
 
-        /// <summary>
-        /// Tries to restore the session list using the given password as the key.
-        /// Returns true if successful, false otherwise (usually due to
-        /// a decryption failure, in turn due to a wrong password).
-        /// </summary>
+        /// <summary>Decrypts and validates the complete selected session list before restoring connections; successful legacy unlock can atomically migrate credentials.</summary>
+        /// <param name="password">The supplied main password; null is used for address-only restore.</param>
+        /// <param name="useOriginalList">Whether to restore credentials rather than the address-only list used after cancellation.</param>
+        /// <returns>True after complete decryption/validation; false for invalid credentials or malformed entries. A migration write failure preserves legacy data and does not prevent a valid unlock.</returns>
         private static bool RestoreSessionWithPassword(string password, bool useOriginalList)
         {
             string[] encServerList;
@@ -193,6 +193,7 @@ namespace XenAdmin
                 encServerList = Properties.Settings.Default.ServerAddressList ?? new string[0];
             }
 
+            PasswordCredentialProtection unlocked = null;
             string[] decryptedList = new string[encServerList.Length];
             if (!Properties.Settings.Default.RequirePass || !useOriginalList)
             {
@@ -218,13 +219,24 @@ namespace XenAdmin
                 {
                     foreach (string encEntry in encServerList)
                     {
-                        decryptedList[idx] = EncryptionUtils.DecryptString(encEntry, password);
+                        if (PasswordCredentialProtection.IsProtected(encEntry))
+                        {
+                            if (unlocked == null || !unlocked.MatchesEntry(encEntry))
+                            {
+                                unlocked?.Dispose();
+                                unlocked = PasswordCredentialProtection.Open(EncryptionUtils.ComputeHash(password), encEntry);
+                            }
+                            decryptedList[idx] = unlocked.Decrypt(encEntry);
+                        }
+                        else
+                            decryptedList[idx] = EncryptionUtils.DecryptString(encEntry, password);
                         idx++;
                     }
                 }
                 catch (Exception exp)
                 {
                     log.Warn("Could not decrypt session information", exp);
+                    unlocked?.Dispose();
                     // Problem decrypting -> wrong password entered...
                     return false;
                 }
@@ -238,8 +250,32 @@ namespace XenAdmin
                 if (entryComps.Length < 3 || entryComps.Length > 7)
                 {
                     log.Warn("Did not decrypt session list to a valid entry...");
+                    unlocked?.Dispose();
                     return false;
                 }
+            }
+
+            if (Properties.Settings.Default.RequirePass && useOriginalList && password != null)
+            {
+                unlocked = unlocked ?? new PasswordCredentialProtection(EncryptionUtils.ComputeHash(password));
+                if (encServerList.Any(entry => !PasswordCredentialProtection.IsProtected(entry)))
+                {
+                    // Only migrate after the whole list has decrypted and validated.
+                    // Save atomically before replacing the legacy list on disk.
+                    var previousList = Properties.Settings.Default.ServerList;
+                    try
+                    {
+                        Properties.Settings.Default.ServerList = decryptedList.Select(unlocked.Encrypt).ToArray();
+                        Properties.Settings.Default.Save();
+                    }
+                    catch (Exception error)
+                    {
+                        Properties.Settings.Default.ServerList = previousList;
+                        log.Warn("Could not migrate the saved session; preserving the original settings.", error);
+                    }
+                }
+                credentialProtection?.Dispose();
+                credentialProtection = unlocked;
             }
 
             foreach (string entry in decryptedList)
@@ -515,6 +551,15 @@ namespace XenAdmin
             return EncryptionUtils.Protect(entryStr);
         }
 
+        /// <summary>Serializes a saved connection or VNC credential using DPAPI or the unlocked versioned password context; locked password mode fails closed.</summary>
+        /// <param name="serverName">Server hostname, or VM UUID for a VNC credential.</param>
+        /// <param name="port">Connection port, or the VNC sentinel port.</param>
+        /// <param name="username">Login name, or the VNC entry marker.</param>
+        /// <param name="password">Login or VNC password; null is serialized as the existing missing-password marker.</param>
+        /// <param name="saveDisconnected">Whether to restore this connection without connecting automatically.</param>
+        /// <param name="friendlyName">Optional display name.</param>
+        /// <param name="poolMembers">Optional cached pool-member hostnames.</param>
+        /// <returns>A DPAPI entry or authenticated wp2 entry matching the selected protection mode.</returns>
         private static String EncryptCredentials(String serverName, int port, String username, String password, bool saveDisconnected, string friendlyName, List<string> poolMembers)
         {
             if (password == null)
@@ -529,7 +574,20 @@ namespace XenAdmin
                 entryStr += SEPARATOR.ToString();
                 entryStr += members;
             }
-            return Properties.Settings.Default.RequirePass && Program.MainPassword != null ? EncryptionUtils.EncryptString(entryStr, Program.MainPassword) : EncryptionUtils.Protect(entryStr);
+            if (!Properties.Settings.Default.RequirePass)
+            {
+                credentialProtection?.Dispose();
+                credentialProtection = null;
+                return EncryptionUtils.Protect(entryStr);
+            }
+            if (Program.MainPassword == null)
+                throw new InvalidOperationException("Unlock the saved session before saving passwords.");
+            if (credentialProtection == null || !credentialProtection.MatchesPassword(Program.MainPassword))
+            {
+                credentialProtection?.Dispose();
+                credentialProtection = new PasswordCredentialProtection(Program.MainPassword);
+            }
+            return credentialProtection.Encrypt(entryStr);
         }
 
         public static string[] GetServerHistory()

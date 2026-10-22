@@ -70,6 +70,7 @@ namespace XenAdmin.Actions
             _destFile = destFile;
         }
 
+        /// <summary>Packages downloaded support data, attempts raw fallback on failure, and preserves the previous destination unless a complete ZIP is committed.</summary>
         protected override void Run()
         {
             Status = ReportStatus.inProgress;
@@ -145,7 +146,7 @@ namespace XenAdmin.Actions
             }
             catch (CancelledException)
             {
-                CleanupFiles(true);
+                CleanupFiles();
                 log.Info("Packaging system status cancelled");
                 Tick(100, Messages.ACTION_SAVE_STATUS_REPORT_CANCELLED);
                 Status = ReportStatus.cancelled;
@@ -164,7 +165,7 @@ namespace XenAdmin.Actions
                     log.Info("Packaging raw downloaded server cancelled");
                     Tick(100, Messages.ACTION_SAVE_STATUS_REPORT_CANCELLED);
                     Status = ReportStatus.cancelled;
-                    CleanupFiles(true);
+                    CleanupFiles();
                     throw;
                 }
                 catch (Exception exception)
@@ -187,13 +188,35 @@ namespace XenAdmin.Actions
                 throw new CancelledException();
         }
 
+        /// <summary>Finishes a fresh adjacent ZIP and checks cancellation before atomically replacing an existing report; failed writes preserve the old destination.</summary>
+        /// <param name="folderToZip">Directory containing completed report inputs.</param>
+        /// <param name="cancellingDelegate">Optional cancellation check; throwing aborts before destination replacement.</param>
+        /// <param name="progressDelegate">Optional archive progress callback.</param>
         private void ZipToOutputFile(string folderToZip, Action cancellingDelegate = null, Action<int> progressDelegate = null)
         {
-            using (ArchiveWriter zip = ArchiveFactory.Writer(ArchiveFactory.Type.Zip, File.OpenWrite(_destFile)))
-                zip.CreateArchive(folderToZip, cancellingDelegate, progressDelegate);
+            // Finish a new archive beside the destination before replacing it.
+            // A failed or cancelled write must preserve any existing report.
+            string pending = _destFile + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using (ArchiveWriter zip = ArchiveFactory.Writer(ArchiveFactory.Type.Zip,
+                           new FileStream(pending, FileMode.CreateNew, FileAccess.Write, FileShare.None)))
+                    zip.CreateArchive(folderToZip, cancellingDelegate, progressDelegate);
+                cancellingDelegate?.Invoke();
+                if (File.Exists(_destFile))
+                    File.Replace(pending, _destFile, null);
+                else
+                    File.Move(pending, _destFile);
+            }
+            finally
+            {
+                if (File.Exists(pending))
+                    File.Delete(pending);
+            }
         }
 
-        private void CleanupFiles(bool deleteDestFile = false)
+        /// <summary>Best-effort removal of downloaded/extracted temporary folders; the committed or preexisting destination report is preserved.</summary>
+        private void CleanupFiles()
         {
             try
             {
@@ -215,18 +238,6 @@ namespace XenAdmin.Actions
                 log.Warn("Could not delete directory with temporarily extracted files", exn);
             }
 
-            try
-            {
-                if (deleteDestFile)
-                {
-                    log.Debug("Deleting destination zip file");
-                    File.Delete(_destFile);
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Warn("Could not delete destination zip file", ex);
-            }
         }
 
         public override void RecomputeCanCancel()

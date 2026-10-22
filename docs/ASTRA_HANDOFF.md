@@ -1,8 +1,101 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-14 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-22 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Sol repository review and fixes 2026-10-22
+
+The [repository review and remediation record](reviews/2026-10-22-sol-repository-review.md)
+covers `development` at `d831f0b892b3186b79a13bac5aefbde3b6827860`.
+Sol confirmed all nine findings (four P1, five P2) and implemented fixes in the
+feature branch `fix/sol-review-20261022` after the user authorized proceeding
+without Opus. Both configured
+Opus providers failed before producing results; no independent Opus review is
+claimed. Implementation commits: `e6f409a06` (F01/F05), `3893814a7` (F02),
+`e737660ab` (F03), `782bfa10c` (F06-F08), `bd13a703c` (F04/F09).
+The branch targets `development`; no release or deployment has been made.
+
+Changes: untouched shell VM Properties no longer queues CPU/memory changes;
+live memory edits preserve static limits and cannot restart a guest. Import
+rollback deletes only VDIs created for the current VM and does not mark reused
+disks as owned. Shared HTTP rejects TLS downgrade/untrusted redirects while
+allowing captured authenticated pool members and updating destination headers.
+WinForms PowerShell plugins encode commands and preserve substituted values as
+literal data. Snapshot Revert/Delete await confirmation and revalidate targets.
+XVA verification checks missing declarations; report ZIP replacement is atomic;
+OVF transform commits its output before deleting its source. WinForms saved
+credentials use authenticated, salted, iterated `wp2` protection with legacy
+batch migration and atomic settings writes.
+
+Coverage: `ReviewVmPropertiesTests`, `ReviewImportOwnershipTests`,
+`ReviewHttpRedirectTests`, `ReviewSnapshotTests`,
+`ReviewArchiveRegressionTests`, `PasswordCredentialProtectionTests` and the
+built WinForms `--review-fixes` probe. The probe runs in both configurations as
+part of the acceptance runner. Initial submission `f6b90d3bd` passed all 29
+Windows automated acceptance checks:
+zero-warning/error Release/Debug solution builds, 1,134 shell tests per
+configuration, 132 shared .NET 10 and 131 Framework tests (2,531 executions,
+none failed/skipped), both built WinForms probes, six UI modes, proxy and fresh
+Windows package smoke. Portable locks are unchanged; trusted existing RDP
+interop was reused. Local acceptance ran on the identical patch before commit;
+all 23 production/test/tool files matched byte for byte. Hosted Windows/Linux
+and CodeQL checks subsequently passed on `f6b90d3bd`; see follow-up below.
+
+Limits: real profiles and pools were not used. `wp2` entries cannot be read by
+older WinForms builds; the shell `mp2` format is unchanged. A plugin function
+attribute now denotes a command name; data belongs in its parameter array.
+Redirect aliases/custom ports need live acceptance. OVF transformation is not
+atomic across an entire file batch and descriptor save. Snapshot confirmation
+does not automatically create a safety snapshot. Native Linux, physical
+desktop, live-pool and real updater/UAC acceptance remain pending. The separate
+reported reboot hang is not resolved. Original baseline evidence:
+`artifacts/repo-review-20261022/`; fix validation:
+`artifacts/sol-review-fixes-20261022/acceptance-r1/`.
+
+PR #70 review follow-up, implementation `461cf972d`: all seven inline threads
+were checked against
+`f6b90d3bd`; they describe six distinct valid issues (two overlap on locked-disk
+cleanup). Corrections cover all PowerShell quote aliases and bulk payload
+transport/cleanup, production CD ownership, authoritative bounded VDI cleanup,
+IPv6/IDN redirect normalization, and output rollback after source deletion
+failure. VM memory validation now rejects the whole draft before action
+construction and explains that nothing has been applied. Ownership comments
+refer to the client's GetIsOwner deletion path, not an unverified server cascade.
+The [report](reviews/2026-10-22-sol-repository-review.md#pr-70-review-follow-up)
+links every thread and its regression. All 84 touched C# methods/constructors
+have audited XML summaries and matching parameter documentation; legacy hash,
+framework, restart, probe usage and PowerShell help comments are refreshed.
+Fresh follow-up Windows acceptance passed all 29 checks: zero-warning/error
+Release/Debug builds, 1,139 shell tests per configuration, 133 shared .NET 10
+and 132 Framework tests (2,543 executions, none failed/skipped), both built
+WinForms regressions, all six UI modes, proxy and fresh package smoke. Portable
+locks are unchanged; trusted RDP interop was reused. Evidence:
+`artifacts/pr70-followup-20261022/acceptance-r1/`. The run started on the dirty
+patch at `f6b90d3bd`; implementation `461cf972d` was committed during validation.
+Hosted checks passed on `f6b90d3bd` and all eight subsequently passed on `f117238`.
+No real profile/pool or manual desktop/updater acceptance was performed.
+
+Additional CodeRabbit follow-up on `f117238`, implementation `4d740a424`: run the
+memory action first in the Properties stop-on-error batch, so stale-memory
+rejection cannot follow a saved name. A real-batch RPC regression covers both rejection before any mutation and
+successful combined edits. A frozen general-save comparison snapshot prevents
+an immediate memory cache update from causing a second write of the old limits;
+the regression also exercises that cache timing and preserves an external memory
+change before name-only Apply. Reject missing/empty/whitespace redirect locations
+before reconnecting, covered by nine production CONNECT/GET/PUT cases. Remove a
+duplicate `ComputeHash` parameter tag and extend the Roslyn audit to detect
+duplicates; all 85 touched C# methods/constructors pass. These runtime regressions
+fail against the prior behavior. Evidence: `artifacts/pr70-final-review-20261022/`.
+Final Windows acceptance passes all 29 checks: zero-warning/error solution
+builds, 1,152 shell tests per configuration, 133 shared .NET 10 and 132 Framework
+tests (2,569 passing executions), both WinForms probes, all six UI modes, proxy
+and fresh package smoke. Locks are unchanged and trusted RDP interop reused.
+Evidence: `artifacts/pr70-final-review-20261022/acceptance-final/`. The run began
+on the dirty patch at `f117238`, with `4d740a424` committed during validation;
+later changes are documentation only. Hosted checks must rerun after pushing.
+The property batch is not a transaction across all subsequent server RPCs;
+other acceptance limitations above remain.
 
 ### October .NET servicing / 18 Dependabot alerts (2026-10-14)
 

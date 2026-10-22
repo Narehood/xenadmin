@@ -55,6 +55,9 @@ namespace XenAdmin.Actions.OvfActions
         protected readonly bool m_runfixups;
 		protected readonly SR m_selectedIsoSr;
         protected readonly bool _startAutomatically;
+        // Contains only VDIs created for the VM currently being imported. A
+        // completed VM commits its disks; later VM failures must preserve them.
+        private readonly HashSet<string> createdVdis = new HashSet<string>(StringComparer.Ordinal);
 
 		#endregion
 

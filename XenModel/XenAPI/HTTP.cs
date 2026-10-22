@@ -179,11 +179,19 @@ namespace XenAPI
             }
         }
 
-        /// <summary>
-        /// Read HTTP headers, doing any redirects as necessary
-        /// </summary>
-        /// <returns>True if a redirect has occurred - headers will need to be resent.</returns>
-        private static bool ReadHttpHeaders(ref Stream stream, IWebProxy proxy, bool nodelay, int timeout_ms, List<string> headers = null, ConnectionAttempt attempt = null)
+        /// <summary>Reads response headers and follows only nonempty, policy-approved 302 locations; proxy callers without a request/policy reject redirects.</summary>
+        /// <param name="stream">The transport; replaced only after an approved redirect.</param>
+        /// <param name="proxy">Optional configured proxy.</param>
+        /// <param name="nodelay">Whether to disable socket coalescing for latency-sensitive traffic.</param>
+        /// <param name="timeout_ms">Transport timeout in milliseconds; zero disables the timeout.</param>
+        /// <param name="headers">Optional response-header collection used by proxy authentication.</param>
+        /// <param name="attempt">Optional startup cancellation/transport owner.</param>
+        /// <param name="requestUri">The URI producing this response; required to resolve redirects.</param>
+        /// <param name="redirectAllowed">Captured predicate authorizing a candidate redirect recipient.</param>
+        /// <param name="redirected">Callback updating the current URI after an approved connection.</param>
+        /// <returns>True after an approved redirect requiring request retransmission; otherwise false.</returns>
+        private static bool ReadHttpHeaders(ref Stream stream, IWebProxy proxy, bool nodelay, int timeout_ms, List<string> headers = null, ConnectionAttempt attempt = null,
+            Uri requestUri = null, Func<Uri, bool> redirectAllowed = null, Action<Uri> redirected = null)
         {
             // read headers/fields
             string line = ReadLine(stream), initialLine = line, transferEncodingField = null;
@@ -254,9 +262,12 @@ namespace XenAPI
                 case 302:
                     var header = headers.FirstOrDefault(h => h.StartsWith("Location:", StringComparison.InvariantCultureIgnoreCase));
                     string url = header == null ? "" : header.Substring(9).Trim();
-                    Uri redirect = new Uri(url);
+                    if (requestUri == null || string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(requestUri, url, out var redirect)
+                        || redirectAllowed == null || !redirectAllowed(redirect))
+                        throw new BadServerResponseException("The server returned an unsafe HTTP redirect.");
                     stream.Close();
                     stream = ConnectStream(redirect, proxy, nodelay, timeout_ms, attempt);
+                    redirected?.Invoke(redirect);
                     return true; // headers need to be sent again
 
                 default:
@@ -279,20 +290,20 @@ namespace XenAPI
         }
 
         /// <summary>
-        /// Returns a secure MD5 hash of the given input string.
+        /// Computes the MD5 digest required by legacy proxy Digest authentication.
         /// </summary>
         /// <param name="str">The string to hash.</param>
-        /// <returns>The secure hash as a hex string.</returns>
+        /// <returns>The compatibility digest as a hexadecimal string.</returns>
         private static string _MD5Hash(string str)
         {
             return ComputeHash(str, "MD5");
         }
 
         /// <summary>
-        /// Returns a secure SHA256 hash of the given input string.
+        /// Computes the SHA-256 digest used by proxy Digest authentication.
         /// </summary>
         /// <param name="str">The string to hash.</param>
-        /// <returns>The secure hash as a hex string.</returns>
+        /// <returns>The digest as a hexadecimal string.</returns>
         private static string Sha256Hash(string str)
         {
             return ComputeHash(str, "SHA256");
@@ -727,8 +738,19 @@ namespace XenAPI
         private static Stream DoHttp(Uri uri, IWebProxy proxy, bool nodelay, int timeout_ms, params string[] headers)
             => DoHttp(uri, proxy, nodelay, timeout_ms, null, headers);
 
+        /// <summary>Sends a request and follows bounded redirects within the captured recipient policy, rebuilding path and Host for every accepted destination.</summary>
+        /// <param name="uri">The initial destination URI.</param>
+        /// <param name="proxy">Optional configured proxy.</param>
+        /// <param name="nodelay">Whether to disable socket coalescing for latency-sensitive traffic.</param>
+        /// <param name="timeout_ms">Transport timeout in milliseconds; zero disables the timeout.</param>
+        /// <param name="attempt">Optional startup cancellation/transport owner.</param>
+        /// <param name="headers">Request headers, or a response-header collection when reading a response.</param>
+        /// <returns>The response or tunnel stream; the caller owns its disposal.</returns>
         private static Stream DoHttp(Uri uri, IWebProxy proxy, bool nodelay, int timeout_ms, ConnectionAttempt attempt, params string[] headers)
         {
+            var allowed = CreateRedirectPolicy(uri, headers);
+            var currentUri = uri;
+            string method = headers[0].Split(' ')[0];
             Stream stream = ConnectStream(uri, proxy, nodelay, timeout_ms, attempt);
 
             try
@@ -742,13 +764,16 @@ namespace XenAPI
 
                     redirects++;
 
-                    foreach (string header in headers)
-                        WriteLine(header, stream);
+                    WriteLine(string.Format("{0} {1} HTTP/1.0", method, currentUri.PathAndQuery), stream);
+                    foreach (string header in headers.Skip(1))
+                        WriteLine(header.StartsWith("Host:", StringComparison.OrdinalIgnoreCase)
+                            ? "Host: " + currentUri.Authority : header, stream);
                     WriteLine(stream);
 
                     stream.Flush();
                 }
-                while (ReadHttpHeaders(ref stream, proxy, nodelay, timeout_ms, attempt: attempt));
+                while (ReadHttpHeaders(ref stream, proxy, nodelay, timeout_ms, attempt: attempt,
+                    requestUri: currentUri, redirectAllowed: allowed, redirected: target => currentUri = target));
 
                 return stream;
             }
@@ -759,9 +784,65 @@ namespace XenAPI
             }
         }
 
-        /// <summary>
-        /// Adds HTTP CONNECT headers returning the stream ready for use
-        /// </summary>
+        /// <summary>Captures same-authority and owning-token pool recipients, requiring HTTPS and the original port for pool-member redirects.</summary>
+        /// <param name="origin">The initial request URI.</param>
+        /// <param name="headers">Request headers, or a response-header collection when reading a response.</param>
+        /// <returns>A recipient predicate based on the original authority and captured authenticated inventory.</returns>
+        private static Func<Uri, bool> CreateRedirectPolicy(Uri origin, string[] headers)
+        {
+            // A pool can redirect a transfer to another authenticated member.
+            // Snapshot the inventory of the connection owning this exact token;
+            // a Location header must never establish a new credential recipient.
+            string token = QueryStringUtility.ParseQueryString(origin.Query)["session_id"];
+            const string cookiePrefix = "Cookie: session_id=";
+            var cookie = headers.FirstOrDefault(h => h.StartsWith(cookiePrefix, StringComparison.OrdinalIgnoreCase));
+            if (cookie != null) token = cookie.Substring(cookiePrefix.Length);
+            var originHost = CanonicalRedirectHost(origin.IdnHost);
+            var members = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrEmpty(token))
+                foreach (var connection in XenAdmin.ConnectionsManager.XenConnectionsCopy)
+                {
+                    if (!connection.IsConnected || connection.Session?.opaque_ref != token
+                        || connection.Port != origin.Port)
+                        continue;
+                    var hosts = connection.Cache.Hosts.Select(h => CanonicalRedirectHost(h.address)).Where(h => h != null).ToArray();
+                    var connectionHost = CanonicalRedirectHost(connection.Hostname);
+                    if (!string.Equals(originHost, connectionHost, StringComparison.OrdinalIgnoreCase)
+                        && !hosts.Contains(originHost, StringComparer.OrdinalIgnoreCase))
+                        continue;
+                    members.UnionWith(hosts);
+                    if (connectionHost != null) members.Add(connectionHost);
+                }
+            return target =>
+                originHost != null && (target.Scheme == Uri.UriSchemeHttp || target.Scheme == Uri.UriSchemeHttps)
+                && string.IsNullOrEmpty(target.UserInfo) && string.IsNullOrEmpty(target.Fragment)
+                && (!UseSSL(origin) || target.Scheme == Uri.UriSchemeHttps)
+                && (string.Equals(origin.Scheme, target.Scheme, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(originHost, CanonicalRedirectHost(target.IdnHost), StringComparison.OrdinalIgnoreCase) && origin.Port == target.Port
+                    || target.Scheme == Uri.UriSchemeHttps && target.Port == origin.Port && members.Contains(CanonicalRedirectHost(target.IdnHost)));
+        }
+
+        /// <summary>Normalizes IP literals and IDN DNS names for origin, connection and inventory comparisons; invalid host strings return null.</summary>
+        /// <param name="host">Bare DNS name or IP literal, optionally bracketed for IPv6.</param>
+        /// <returns>Canonical IP/ASCII DNS spelling, or null for an invalid host.</returns>
+        private static string CanonicalRedirectHost(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host)) return null;
+            if (IPAddress.TryParse(host, out var address)) return address.ToString();
+            try
+            {
+                string ascii = new System.Globalization.IdnMapping().GetAscii(host.TrimEnd('.'));
+                return Uri.CheckHostName(ascii) == UriHostNameType.Dns ? ascii.ToLowerInvariant() : null;
+            }
+            catch (ArgumentException) { return null; }
+        }
+
+        /// <summary>Opens an authenticated CONNECT stream with constrained redirects; the cancellation overload aborts all startup phases.</summary>
+        /// <param name="uri">The initial destination URI.</param>
+        /// <param name="proxy">Optional configured proxy.</param>
+        /// <param name="session">Authenticated XenAPI session token sent in the CONNECT cookie.</param>
+        /// <param name="timeoutMs">Startup transport timeout in milliseconds.</param>
+        /// <returns>The authenticated tunnel stream; the caller owns its disposal.</returns>
         public static Stream HttpConnectStream(Uri uri, IWebProxy proxy, String session, int timeoutMs)
         {
             return DoHttp(uri, proxy, true, timeoutMs,
