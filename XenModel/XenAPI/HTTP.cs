@@ -183,7 +183,8 @@ namespace XenAPI
         /// Read HTTP headers, doing any redirects as necessary
         /// </summary>
         /// <returns>True if a redirect has occurred - headers will need to be resent.</returns>
-        private static bool ReadHttpHeaders(ref Stream stream, IWebProxy proxy, bool nodelay, int timeout_ms, List<string> headers = null, ConnectionAttempt attempt = null)
+        private static bool ReadHttpHeaders(ref Stream stream, IWebProxy proxy, bool nodelay, int timeout_ms, List<string> headers = null, ConnectionAttempt attempt = null,
+            Uri requestUri = null, Func<Uri, bool> redirectAllowed = null, Action<Uri> redirected = null)
         {
             // read headers/fields
             string line = ReadLine(stream), initialLine = line, transferEncodingField = null;
@@ -254,9 +255,12 @@ namespace XenAPI
                 case 302:
                     var header = headers.FirstOrDefault(h => h.StartsWith("Location:", StringComparison.InvariantCultureIgnoreCase));
                     string url = header == null ? "" : header.Substring(9).Trim();
-                    Uri redirect = new Uri(url);
+                    if (requestUri == null || !Uri.TryCreate(requestUri, url, out var redirect)
+                        || redirectAllowed == null || !redirectAllowed(redirect))
+                        throw new BadServerResponseException("The server returned an unsafe HTTP redirect.");
                     stream.Close();
                     stream = ConnectStream(redirect, proxy, nodelay, timeout_ms, attempt);
+                    redirected?.Invoke(redirect);
                     return true; // headers need to be sent again
 
                 default:
@@ -729,6 +733,9 @@ namespace XenAPI
 
         private static Stream DoHttp(Uri uri, IWebProxy proxy, bool nodelay, int timeout_ms, ConnectionAttempt attempt, params string[] headers)
         {
+            var allowed = CreateRedirectPolicy(uri, headers);
+            var currentUri = uri;
+            string method = headers[0].Split(' ')[0];
             Stream stream = ConnectStream(uri, proxy, nodelay, timeout_ms, attempt);
 
             try
@@ -742,13 +749,16 @@ namespace XenAPI
 
                     redirects++;
 
-                    foreach (string header in headers)
-                        WriteLine(header, stream);
+                    WriteLine(string.Format("{0} {1} HTTP/1.0", method, currentUri.PathAndQuery), stream);
+                    foreach (string header in headers.Skip(1))
+                        WriteLine(header.StartsWith("Host:", StringComparison.OrdinalIgnoreCase)
+                            ? "Host: " + currentUri.Authority : header, stream);
                     WriteLine(stream);
 
                     stream.Flush();
                 }
-                while (ReadHttpHeaders(ref stream, proxy, nodelay, timeout_ms, attempt: attempt));
+                while (ReadHttpHeaders(ref stream, proxy, nodelay, timeout_ms, attempt: attempt,
+                    requestUri: currentUri, redirectAllowed: allowed, redirected: target => currentUri = target));
 
                 return stream;
             }
@@ -757,6 +767,38 @@ namespace XenAPI
                 stream.Dispose();
                 throw;
             }
+        }
+
+        private static Func<Uri, bool> CreateRedirectPolicy(Uri origin, string[] headers)
+        {
+            // A pool can redirect a transfer to another authenticated member.
+            // Snapshot the inventory of the connection owning this exact token;
+            // a Location header must never establish a new credential recipient.
+            string token = QueryStringUtility.ParseQueryString(origin.Query)["session_id"];
+            const string cookiePrefix = "Cookie: session_id=";
+            var cookie = headers.FirstOrDefault(h => h.StartsWith(cookiePrefix, StringComparison.OrdinalIgnoreCase));
+            if (cookie != null) token = cookie.Substring(cookiePrefix.Length);
+            var members = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrEmpty(token))
+                foreach (var connection in XenAdmin.ConnectionsManager.XenConnectionsCopy)
+                {
+                    if (!connection.IsConnected || connection.Session?.opaque_ref != token
+                        || connection.Port != origin.Port)
+                        continue;
+                    var hosts = connection.Cache.Hosts.Select(h => h.address).Where(h => !string.IsNullOrEmpty(h)).ToArray();
+                    if (!string.Equals(origin.Host, connection.Hostname, StringComparison.OrdinalIgnoreCase)
+                        && !hosts.Contains(origin.Host, StringComparer.OrdinalIgnoreCase))
+                        continue;
+                    members.UnionWith(hosts);
+                    members.Add(connection.Hostname);
+                }
+            return target =>
+                (target.Scheme == Uri.UriSchemeHttp || target.Scheme == Uri.UriSchemeHttps)
+                && string.IsNullOrEmpty(target.UserInfo) && string.IsNullOrEmpty(target.Fragment)
+                && (!UseSSL(origin) || target.Scheme == Uri.UriSchemeHttps)
+                && (string.Equals(origin.Scheme, target.Scheme, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(origin.IdnHost, target.IdnHost, StringComparison.OrdinalIgnoreCase) && origin.Port == target.Port
+                    || target.Scheme == Uri.UriSchemeHttps && target.Port == origin.Port && members.Contains(target.Host));
         }
 
         /// <summary>
