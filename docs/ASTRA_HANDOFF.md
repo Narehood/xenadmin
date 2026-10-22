@@ -73,8 +73,29 @@ WinForms regressions, all six UI modes, proxy and fresh package smoke. Portable
 locks are unchanged; trusted RDP interop was reused. Evidence:
 `artifacts/pr70-followup-20261022/acceptance-r1/`. The run started on the dirty
 patch at `f6b90d3bd`; implementation `461cf972d` was committed during validation.
-Hosted checks passed on `f6b90d3bd`; follow-up head checks remain pending.
+Hosted checks passed on `f6b90d3bd` and all eight subsequently passed on `f117238`.
 No real profile/pool or manual desktop/updater acceptance was performed.
+
+Additional CodeRabbit follow-up on `f117238`, implementation `4d740a424`: run the
+memory action first in the Properties stop-on-error batch, so stale-memory
+rejection cannot follow a saved name. A real-batch RPC regression covers both rejection before any mutation and
+successful combined edits. A frozen general-save comparison snapshot prevents
+an immediate memory cache update from causing a second write of the old limits;
+the regression also exercises that cache timing and preserves an external memory
+change before name-only Apply. Reject missing/empty/whitespace redirect locations
+before reconnecting, covered by nine production CONNECT/GET/PUT cases. Remove a
+duplicate `ComputeHash` parameter tag and extend the Roslyn audit to detect
+duplicates; all 85 touched C# methods/constructors pass. These runtime regressions
+fail against the prior behavior. Evidence: `artifacts/pr70-final-review-20261022/`.
+Final Windows acceptance passes all 29 checks: zero-warning/error solution
+builds, 1,152 shell tests per configuration, 133 shared .NET 10 and 132 Framework
+tests (2,569 passing executions), both WinForms probes, all six UI modes, proxy
+and fresh package smoke. Locks are unchanged and trusted RDP interop reused.
+Evidence: `artifacts/pr70-final-review-20261022/acceptance-final/`. The run began
+on the dirty patch at `f117238`, with `4d740a424` committed during validation;
+later changes are documentation only. Hosted checks must rerun after pushing.
+The property batch is not a transaction across all subsequent server RPCs;
+other acceptance limitations above remain.
 
 ### October .NET servicing / 18 Dependabot alerts (2026-10-14)
 

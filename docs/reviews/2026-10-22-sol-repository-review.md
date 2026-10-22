@@ -127,8 +127,8 @@ Implementation: `461cf972d371ebb21d0febfa40258a63c6ed8247`.
 
 Reviewed every inline thread and both submitted reviews on
 [PR #70](https://github.com/Narehood/xenadmin/pull/70) at `f6b90d3bd`.
-Hosted Windows/Linux builds, CodeQL and both automated reviews passed on that
-head, but the review text still identified valid defects. Seven inline threads
+Hosted Windows/Linux builds and CodeQL passed on that head, but Cursor requested
+changes and both automated reviews identified valid defects. Seven inline threads
 cover six distinct code issues because both reviewers reported the disk cleanup
 race. All six require corrections; none was dismissed solely because CI passed.
 
@@ -174,8 +174,61 @@ existing trusted RDP interop was reused. Evidence:
 UI results and packaged smoke result). The manifest records the initial
 `f6b90d3bd` base and dirty patch; the implementation was committed as
 `461cf972d` during validation. Later changes are documentation only. Hosted
-checks for the follow-up head are pending; no live pool, real saved profile,
-manual desktop or updater/UAC acceptance was performed.
+checks subsequently passed on `f117238` (all eight). No live pool, real saved
+profile, manual desktop or updater/UAC acceptance was performed.
+
+### Additional review of `f117238`
+
+Implementation: `4d740a424`.
+
+Passing checks did not end the review: CodeRabbit identified two additional
+valid runtime defects and a duplicate XML parameter tag. All were checked
+against the current source before correction.
+
+- [Memory action ordering](https://github.com/Narehood/xenadmin/pull/70#discussion_r4350232129):
+  a combined name/memory edit saved the name before the worker rejected stale
+  memory. The memory action now runs first in the existing stop-on-error batch.
+  `CombinedPropertiesChecksMemoryBeforeSavingOtherFields` executes that real
+  batch against loopback RPC: stale memory produces no mutation requests and
+  never starts the save action; unchanged memory permits both the memory and
+  name edits, in that order. Both cases fail against the previous ordering.
+  The general save also receives a frozen comparison snapshot: comparing to the
+  live object after the first memory RPC could otherwise write the old memory
+  back when its cache update arrives. A third case delivers that update before
+  the general save and requires exactly one memory mutation request; a fourth
+  changes live memory before a name-only Apply and requires no memory writes.
+  The comparison snapshot preserves the opening draft, matching the existing
+  WinForms before/after comparison pattern.
+  This ordering prevents partial changes on the memory guard; it does not make
+  all later property RPCs a server transaction.
+- Missing/empty redirect Location (outside-diff review comment): `ReadHttpHeaders`
+  now rejects missing, empty and whitespace-only locations before resolving a
+  URI or opening a transport. Nine CONNECT/GET/PUT cases exercise the production
+  stream boundary and assert no second connection to the origin or another
+  recipient. All nine fail against the previous parser; valid relative redirects
+  and untrusted-authority rejection remain covered.
+- Duplicate `EncryptionUtils.ComputeHash` parameter documentation: removed the
+  repeated `method` tag. The local Roslyn audit now checks duplicate tags as well
+  as missing/invalid parameter names, XML summaries and parse errors. All **85/85**
+  touched C# methods/constructors pass, with no duplicate parameter documentation.
+  The earlier coverage count did not detect duplicate tags. CodeRabbit's own
+  coverage check on `f117238` also passed its 80% threshold (81.13% of its broader
+  106-function scope).
+
+Regression and audit evidence: `artifacts/pr70-final-review-20261022/`.
+Preliminary acceptance runs were stopped after both builds and both shell suites
+passed, to expand cache-timing coverage and correct the comparison baseline.
+Final validation passed all **29 Windows automated acceptance checks**: both
+solution builds have zero warnings/errors; both shell configurations pass
+**1,152 tests**, shared .NET 10 passes **133** and Framework passes **132**
+(**2,569 executions**, no failures or skips). Both WinForms probes, all six UI
+modes, proxy checks and a freshly packaged Windows smoke test pass. Portable
+lockfiles are unchanged; trusted RDP interop was reused. Final evidence is under
+`artifacts/pr70-final-review-20261022/acceptance-final/`. Acceptance began on the
+dirty patch at `f117238`; implementation `4d740a424` was committed during the run.
+The five implementation/test files match the recorded validation hashes; later
+changes are documentation only. Hosted checks must run again after pushing.
+No additional live or manual acceptance is claimed.
 
 ## Findings in the reviewed snapshot
 
