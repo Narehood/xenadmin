@@ -1,8 +1,56 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-14 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-22 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Sol repository review and fixes 2026-10-22
+
+The [repository review and remediation record](reviews/2026-10-22-sol-repository-review.md)
+covers `development` at `d831f0b892b3186b79a13bac5aefbde3b6827860`.
+Sol confirmed all nine findings (four P1, five P2) and implemented fixes in the
+feature branch `fix/sol-review-20261022` after the user authorized proceeding
+without Opus. Both configured
+Opus providers failed before producing results; no independent Opus review is
+claimed. Implementation commits: `e6f409a06` (F01/F05), `3893814a7` (F02),
+`e737660ab` (F03), `782bfa10c` (F06-F08), `bd13a703c` (F04/F09).
+The branch targets `development`; no release or deployment has been made.
+
+Changes: untouched shell VM Properties no longer queues CPU/memory changes;
+live memory edits preserve static limits and cannot restart a guest. Import
+rollback deletes only VDIs created for the current VM and does not mark reused
+disks as owned. Shared HTTP rejects TLS downgrade/untrusted redirects while
+allowing captured authenticated pool members and updating destination headers.
+WinForms PowerShell plugins encode commands and preserve substituted values as
+literal data. Snapshot Revert/Delete await confirmation and revalidate targets.
+XVA verification checks missing declarations; report ZIP replacement is atomic;
+OVF transform commits its output before deleting its source. WinForms saved
+credentials use authenticated, salted, iterated `wp2` protection with legacy
+batch migration and atomic settings writes.
+
+Coverage: `ReviewVmPropertiesTests`, `ReviewImportOwnershipTests`,
+`ReviewHttpRedirectTests`, `ReviewSnapshotTests`,
+`ReviewArchiveRegressionTests`, `PasswordCredentialProtectionTests` and the
+built WinForms `--review-fixes` probe. The probe runs in both configurations as
+part of the acceptance runner. All 29 Windows automated acceptance checks pass:
+zero-warning/error Release/Debug solution builds, 1,134 shell tests per
+configuration, 132 shared .NET 10 and 131 Framework tests (2,531 executions,
+none failed/skipped), both built WinForms probes, six UI modes, proxy and fresh
+Windows package smoke. Portable locks are unchanged; trusted existing RDP
+interop was reused. Local acceptance ran on the identical patch before commit;
+all 23 production/test/tool files match byte for byte. Hosted CI is separate
+and pending.
+
+Limits: real profiles and pools were not used. `wp2` entries cannot be read by
+older WinForms builds; the shell `mp2` format is unchanged. A plugin function
+attribute now denotes a command name; data belongs in its parameter array.
+Redirect aliases/custom ports need live acceptance. OVF transformation is not
+atomic across an entire file batch and descriptor save. Snapshot confirmation
+does not automatically create a safety snapshot. Native Linux, physical
+desktop, live-pool and real updater/UAC acceptance remain pending. The separate
+reported reboot hang is not resolved. Original baseline evidence:
+`artifacts/repo-review-20261022/`; fix validation:
+`artifacts/sol-review-fixes-20261022/acceptance-r1/`.
 
 ### October .NET servicing / 18 Dependabot alerts (2026-10-14)
 
