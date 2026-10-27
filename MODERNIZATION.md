@@ -42,6 +42,8 @@ binaries and build/publish outputs. The shell exposes them under Settings → Ab
 WinForms uses About → View Legal Notices. See [notice maintenance](docs/legal-notices.md).
 The shared .NET 10 JSON-RPC path uses reusable, isolated HTTP client pools;
 `net481` retains its compatible transport. See [transport behavior and validation](docs/rpc-transport.md).
+Shell graph polling also awaits shared asynchronous HTTP setup and XML reads;
+the generated synchronous XenAPI methods retain their compatibility workers.
 
 ### UI rewrite
 

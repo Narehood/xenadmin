@@ -46,12 +46,30 @@ metadata RPC and five-second delay, closes blocked GET/XML transport, and drops
 queued UI updates after disposal. The October 8 follow-up reads RRD XML nodes
 and text content asynchronously, including initial history and incremental
 updates. Body waits release their worker, while disposal closes blocked reads
-and waits for the polling loop to finish. Connection/proxy/TLS/response-header
-setup still uses the shared synchronous HTTP helper on a worker. Each body read
+and waits for the polling loop to finish. The October 27 follow-up adds shared
+`HTTP.HttpGetStreamAsync` for asynchronous TCP, proxy authentication, TLS and
+response-header I/O. Graph polling awaits this setup directly, without a
+per-fetch `Task.Run`. A positive proxy timeout bounds the whole setup, including
+redirects; zero disables that deadline. Cancellation or expiry closes the active
+transport. Setup disposes its deadline and callback as it hands off the body.
+Each body read
 enforces that transport's configured receive timeout, closing only the failed
 fetch on expiry so polling can continue. Progress resets the idle window; there
 is no overall body deadline. Streams without timeout support keep their existing
 behavior. Certificate, proxy-authentication and redirect contracts remain in effect.
+
+Known timing follow-up: cancellation/expiry between the final setup token check
+and callback teardown can abort the returned response. The poller handles this
+as a failed fetch and continues on its normal per-archive schedule. Sol classified
+this handoff window as a nonblocking nit; it remains outside this approved patch.
+
+The synchronous HTTP entry points retain synchronous socket/stream operations
+and their existing send/receive timeouts through the same protocol engine.
+Both runtimes use the same selected Basic/Digest authentication and captured
+redirect recipient policy. Digest parsing accepts the standard unquoted
+`algorithm=SHA-256` token as well as legacy quoted challenges; it previously
+fell back to MD5 for the unquoted form. See
+[RFC 7616 section 3.3](https://www.rfc-editor.org/rfc/rfc7616.html#section-3.3).
 
 WinForms console elevation accepts a per-attempt token through the concrete
 `XenConnection` overload. Failed login/setup attempts release their transport

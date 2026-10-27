@@ -4,6 +4,52 @@ Last updated: 2026-10-27 (local date). Initial review, remediation, and moderniz
 
 ## Start here
 
+### Core async HTTP follow-up and release preparation (2026-10-27)
+
+Branch: `modernization/finish-core-20261027`, implementation `4ba76ffbf`, including
+cleanup commit `be91521ec`. Shared `HTTP.HttpGetStreamAsync` now awaits TCP, proxy negotiation,
+TLS, request writes and response headers through the existing protocol engine.
+Graph polling awaits setup directly instead of scheduling a worker per fetch.
+A positive timeout bounds the complete setup, including redirects; cancellation
+or expiry closes its current transport. Handoff retires that deadline, while the
+existing per-read XML body timeouts remain. Synchronous HTTP callers retain
+native synchronous I/O and their existing transport timeouts.
+
+Transport fixtures exposed and now cover a preexisting Digest parsing defect:
+unquoted `algorithm=SHA-256` fell back to MD5. Both standard unquoted and legacy
+quoted challenges now produce a SHA-256 response. Tests cover Basic/Digest,
+proxy reconnect, redirect request rebuilding and recipient rejection, async-only
+header I/O, body ownership, cancellation during headers/proxy/TLS setup,
+setup expiry, actual TLS acceptance/rejection, and poller disposal before XML.
+The shared transport fixtures run on both `net481` and `net10.0`.
+
+All 29 local Windows automated acceptance checks pass: zero-warning/error
+Release/Debug solution builds, 1,173 shell tests per configuration, 146 shared
+.NET 10 and 145 Framework tests (2,637 passing executions, none skipped), both
+configurations' WinForms probes, six UI modes, proxy authentication and a fresh
+Windows package smoke. Portable locks are unchanged; trusted existing RDP interop
+was reused. Evidence: `artifacts/modernization-core-20261027/acceptance-r1/`.
+Validation ran on the identical behavior patch before the implementation commit.
+
+The complete behavior diff received Sol approval in one core review round
+(`codex`, `gpt-6.1-sol`, `xhigh`), following the earlier cleanup-only approval.
+The reviewer inspected source and recorded test evidence without rerunning tests.
+S1 is a deferred nit: cancellation/expiry between the final token check and
+callback teardown can abort a response while setup reports success. The poller
+catches the failed fetch and continues its normal per-archive schedule; the rare
+handoff timing case is recorded as follow-up rather than expanding this approved
+patch. No blocker/should findings remain; usage was not exposed. Hosted PR checks
+remain pending.
+
+Physical Windows/Linux desktops,
+live-pool/reboot diagnosis, native RDP login and real updater/UAC/rollback/restart
+remain pending; previously unavailable disposable environments have not been
+supplied in this session. No production-readiness claim follows from automated
+checks. Generated synchronous connection/event/action compatibility is retained;
+extended DR, embedded RDP/tool parity and deferred installer/signing work require
+their separately documented requirements and acceptance. No release is published
+by this follow-up.
+
 ### Shell cleanup and allocation optimization (2026-10-27)
 
 Local branch: `cleanup/sol-loop-20261027`, based on merged `development`
@@ -39,8 +85,9 @@ needed, and usage was not exposed.
 
 Limits: allocation coverage uses synthetic cached inventory, not a live pool or
 desktop benchmark. RRD sorting remains; no end-to-end polling speedup is claimed.
-WinForms and shared mutation/security code are unchanged. No commit, push,
-release, profile access or live-pool operation has been performed.
+WinForms and shared mutation/security code are unchanged by the cleanup.
+Implementation: `be91521ec`, now included in the core follow-up branch above.
+No release, profile access or live-pool operation was performed by the cleanup.
 
 ### Sol repository review and fixes 2026-10-22
 
