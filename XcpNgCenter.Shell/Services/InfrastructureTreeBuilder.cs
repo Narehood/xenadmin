@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using XenAdmin;
 using XenAdmin.Core;
 using XenAdmin.Network;
@@ -210,12 +209,5 @@ public static class InfrastructureTreeBuilder
             StatusIcon = icon,
             StatusTooltip = tip
         };
-    }
-
-    public static void ReplaceRoots(ObservableCollection<InfraTreeNode> roots, IEnumerable<InfraTreeNode> next)
-    {
-        roots.Clear();
-        foreach (var node in next)
-            roots.Add(node);
     }
 }

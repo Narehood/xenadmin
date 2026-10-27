@@ -48,7 +48,7 @@ public static class ConsoleSummaryBuilder
         var withRfb = 0;
         foreach (var vm in running)
         {
-            if (ResolveConsoles(conn, vm).Any(c => c.protocol == console_protocol.rfb))
+            if (conn.ResolveAll(vm.consoles).Any(c => c.protocol == console_protocol.rfb))
                 withRfb++;
         }
 
@@ -112,7 +112,7 @@ public static class ConsoleSummaryBuilder
 
     private static ConsoleSummary BuildForVm(IXenConnection conn, VM vm, string objectLabel, bool allowLive = true)
     {
-        var consoles = ResolveConsoles(conn, vm);
+        var consoles = conn.ResolveAll(vm.consoles);
         var items = consoles
             .OrderBy(c => ProtocolRank(c.protocol))
             .ThenBy(c => c.uuid, StringComparer.OrdinalIgnoreCase)
@@ -170,9 +170,6 @@ public static class ConsoleSummaryBuilder
         return new ConsoleSummary(totals, items, status, placeholder, live);
     }
 
-    private static List<XenAPI.Console> ResolveConsoles(IXenConnection conn, VM vm)
-        => conn.ResolveAll(vm.consoles).Where(c => c != null).Cast<XenAPI.Console>().ToList();
-
     private static string BuildStatus(VM vm, XenAPI.Console? rfb, bool canLive)
     {
         if (vm.power_state != vm_power_state.Running)
@@ -227,10 +224,10 @@ public static class ConsoleSummaryBuilder
     private static Host? FindHost(IXenConnection conn, string? opaqueRef)
         => string.IsNullOrEmpty(opaqueRef)
             ? null
-            : conn.Cache.Hosts?.FirstOrDefault(h => h.opaque_ref == opaqueRef);
+            : conn.Resolve(new XenRef<Host>(opaqueRef));
 
     private static VM? FindVm(IXenConnection conn, string? opaqueRef)
         => string.IsNullOrEmpty(opaqueRef)
             ? null
-            : conn.Cache.VMs?.FirstOrDefault(v => v.opaque_ref == opaqueRef);
+            : conn.Resolve(new XenRef<VM>(opaqueRef));
 }

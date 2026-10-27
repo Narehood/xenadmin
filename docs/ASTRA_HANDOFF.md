@@ -1,8 +1,46 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-22 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-27 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Shell cleanup and allocation optimization (2026-10-27)
+
+Local branch: `cleanup/sol-loop-20261027`, based on merged `development`
+`0f97cc544f223bc14d381eea3565e000f166628d`. This is a bounded maintenance pass
+over read-only shell detail summaries and RRD sample merging.
+
+Eleven pool/host/VM/SR lookups now use the existing typed cache index instead of
+copying and scanning whole inventory arrays. Null, empty and missing references
+retain their existing fallback behavior. Console summaries use `ResolveAll`
+directly: it already omits unresolved references and returns a list. Removed the
+unused `InfrastructureTreeBuilder.ReplaceRoots` method and its import; current
+inventory updates continue to use the node-preserving updater.
+
+RRD merging now tracks timestamps in a local set instead of scanning all retained
+points for each incoming sample. The redundant incoming sort is removed; the
+final newest-first sort and archive limit remain. Existing values win over an
+overlapping response, and the first incoming value wins for a new timestamp.
+
+Regression coverage: `SummaryAllocationTests` builds all four production VM
+summaries before and after adding 5,000 unrelated cached VMs. Restoring the old
+VM lookups makes that regression fail (4,832 to 164,832 allocated bytes per
+refresh); the indexed implementation passes. `RrdSeriesMergeTests` covers
+overlaps, incoming duplicates, ordering, input preservation, empty updates,
+zero/reduced limits and self-merge. The full locked Release solution build passes
+with zero warnings/errors, reusing the existing trusted RDP interop assemblies
+with `SkipRdpAxImp=true`. Shell Release and Debug each pass 1,157 tests; shared
+.NET 10 / Framework pass 133 / 132 (2,579 passing executions, none skipped).
+Portable lockfiles are unchanged. Evidence is under
+`artifacts/sol-cleanup-20261027/`. Sol-loop round 1 approved the behavior diff
+with no findings (`codex`, `gpt-6.1-sol`, `xhigh`); the reviewer checked existing
+build/TRX evidence without rerunning it. No review-driven behavior changes were
+needed, and usage was not exposed.
+
+Limits: allocation coverage uses synthetic cached inventory, not a live pool or
+desktop benchmark. RRD sorting remains; no end-to-end polling speedup is claimed.
+WinForms and shared mutation/security code are unchanged. No commit, push,
+release, profile access or live-pool operation has been performed.
 
 ### Sol repository review and fixes 2026-10-22
 
