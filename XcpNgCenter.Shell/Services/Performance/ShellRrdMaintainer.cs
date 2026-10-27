@@ -43,7 +43,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
     private readonly Dictionary<RrdArchiveInterval, DateTime> _lastPoll = new();
     private readonly Dictionary<RrdArchiveInterval, long> _lastSample = new();
     private readonly Action<Action> _dispatch;
-    private readonly Func<Uri, CancellationToken, Stream> _openTransport;
+    private readonly Func<Uri, CancellationToken, System.Threading.Tasks.Task<Stream>> _openTransport;
 
     public ShellRrdMaintainer(IXenObject xenObject) : this(xenObject, action =>
     {
@@ -56,12 +56,12 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
     }
 
     internal ShellRrdMaintainer(IXenObject xenObject, Action<Action> dispatch,
-        Func<Uri, CancellationToken, Stream>? openTransport = null)
+        Func<Uri, CancellationToken, System.Threading.Tasks.Task<Stream>>? openTransport = null)
     {
         XenObject = xenObject;
         _dispatch = dispatch;
         _token = _cancellation.Token;
-        _openTransport = openTransport ?? ((uri, token) => HTTP.HttpGetStream(uri,
+        _openTransport = openTransport ?? ((uri, token) => HTTP.HttpGetStreamAsync(uri,
             XenAdminConfigManager.Provider.GetProxyFromSettings(XenObject.Connection, true),
             XenAdminConfigManager.Provider.GetProxyTimeout(true), token));
         Archives[RrdArchiveInterval.FiveSecond] = new RrdArchive(FiveSecondsInTenMinutes + 4);
@@ -260,9 +260,7 @@ public sealed class ShellRrdMaintainer : IDisposable, IAsyncDisposable
                 return false;
 
             using var timing = ShellPerformanceDiagnostics.Measure("graphs.rrd-fetch", measureAllocations: false);
-            // Connection/proxy/TLS/header setup retains the shared SDK contract.
-            // Only that setup occupies a worker; body reads suspend asynchronously.
-            using var stream = await AsyncTask.Run(() => _openTransport(uri, _token), _token).ConfigureAwait(false);
+            using var stream = await _openTransport(uri, _token).ConfigureAwait(false);
             using var registration = _token.Register(stream.Dispose);
             using var body = RrdReadTimeoutStream.Wrap(stream);
             using var reader = XmlReader.Create(body, new XmlReaderSettings { Async = true });
