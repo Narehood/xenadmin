@@ -464,6 +464,43 @@ namespace XenAPI
             return uri.Uri;
         }
 
+        private static Dictionary<string, string> ParseDigestParameters(string challenge)
+        {
+            var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            int start = 0;
+            bool quoted = false, escaped = false;
+            for (int i = 0; i <= challenge.Length; i++)
+            {
+                if (i < challenge.Length)
+                {
+                    char value = challenge[i];
+                    if (escaped) { escaped = false; continue; }
+                    if (quoted && value == '\\') { escaped = true; continue; }
+                    if (value == '"') { quoted = !quoted; continue; }
+                    if (quoted || value != ',') continue;
+                }
+
+                string directive = challenge.Substring(start, i - start).Trim();
+                start = i + 1;
+                int separator = directive.IndexOf('=');
+                if (separator < 1) continue;
+                string name = directive.Substring(0, separator).Trim();
+                string text = directive.Substring(separator + 1).Trim();
+                if (text.Length >= 2 && text[0] == '"' && text[text.Length - 1] == '"')
+                {
+                    var unquoted = new StringBuilder();
+                    for (int j = 1; j < text.Length - 1; j++)
+                    {
+                        if (text[j] == '\\' && j < text.Length - 2) j++;
+                        unquoted.Append(text[j]);
+                    }
+                    text = unquoted.ToString();
+                }
+                parameters[name] = text;
+            }
+            return parameters;
+        }
+
         private static string GetPartOrNull(string str, int partIndex)
         {
             string[] parts = str.Split(new char[] { ' ' }, partIndex + 2, StringSplitOptions.RemoveEmptyEntries);
@@ -490,7 +527,7 @@ namespace XenAPI
 #if NET8_0_OR_GREATER
                     await socket.ConnectAsync(uri.Host, uri.Port, attempt.Token).ConfigureAwait(false);
 #else
-                    await socket.ConnectAsync(uri.Host, uri.Port).ConfigureAwait(false);
+                    await AwaitFrameworkConnectAsync(socket.ConnectAsync(uri.Host, uri.Port), attempt.Token).ConfigureAwait(false);
 #endif
                 }
                 else
@@ -510,6 +547,25 @@ namespace XenAPI
                 throw;
             }
         }
+
+#if !NET8_0_OR_GREATER
+        private static async Tasks.Task AwaitFrameworkConnectAsync(Tasks.Task connection, CancellationToken token)
+        {
+            var cancelled = new Tasks.TaskCompletionSource<bool>(Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+            using (token.Register(() => cancelled.TrySetResult(true)))
+            {
+                if (await Tasks.Task.WhenAny(connection, cancelled.Task).ConfigureAwait(false) != connection)
+                {
+                    // Framework DNS cannot be stopped, but its caller can stop waiting.
+                    _ = connection.ContinueWith(failed => { _ = failed.Exception; }, CancellationToken.None,
+                        Tasks.TaskContinuationOptions.OnlyOnFaulted | Tasks.TaskContinuationOptions.ExecuteSynchronously,
+                        Tasks.TaskScheduler.Default);
+                    token.ThrowIfCancellationRequested();
+                }
+                await connection.ConfigureAwait(false);
+            }
+        }
+#endif
 
         /// <summary>
         /// This function will connect a stream to a uri (host and port),
@@ -652,62 +708,27 @@ namespace XenAPI
                     "Proxy-Authorization: Digest username=\"{0}\", uri=\"{1}:{2}\"",
                     credentials.UserName, uri.Host, uri.Port);
 
-                int len = "Proxy-Authorization: Digest".Length;
-                string directiveString = digestField.Substring(len, digestField.Length - len);
-                string[] directives = directiveString.Split(new[] {", ", "\""}, StringSplitOptions.RemoveEmptyEntries);
+                var parameters = ParseDigestParameters(digestField.Substring("Proxy-Authenticate: Digest".Length));
+                if (parameters.TryGetValue("stale", out var stale) && string.Equals(stale, "true", StringComparison.OrdinalIgnoreCase))
+                    throw new ProxyServerAuthenticationException("Stale nonce in Digest authentication attempt.");
+                parameters.TryGetValue("algorithm", out var algorithm);
+                parameters.TryGetValue("realm", out var realm);
+                parameters.TryGetValue("nonce", out var nonce);
+                foreach (var name in new[] { "realm", "nonce", "opaque" })
+                    if (parameters.TryGetValue(name, out var value))
+                        authenticationFieldReply += string.Format(", {0}=\"{1}\"", name, value.Replace("\\", "\\\\").Replace("\"", "\\\""));
+                if (algorithm != null)
+                    authenticationFieldReply += string.Format(", algorithm={0}", algorithm);
 
-                string algorithm = null; // optional
-                string opaque = null;    // optional
-                string qop = null;       // optional
-                string realm = null;
-                string nonce = null;
-
-                for (int i = 0; i < directives.Length; ++i)
+                string qop = null;
+                if (parameters.TryGetValue("qop", out var quality))
                 {
-                    // RFC 7616 sends algorithm as a token; retain quoted legacy challenges too.
-                    const string algorithmPrefix = "algorithm=";
-                    if (directives[i].StartsWith(algorithmPrefix, StringComparison.OrdinalIgnoreCase)
-                        && directives[i].Length > algorithmPrefix.Length)
-                    {
-                        algorithm = directives[i].Substring(algorithmPrefix.Length);
-                        authenticationFieldReply += string.Format(", algorithm={0}", algorithm);
-                        continue;
-                    }
-                    switch (directives[i].ToLowerInvariant())
-                    {
-                        case "stale=":
-                            if (directives[++i].ToLowerInvariant() == "true")
-                                throw new ProxyServerAuthenticationException("Stale nonce in Digest authentication attempt.");
-                            break;
-                        case "realm=":
-                            authenticationFieldReply += string.Format(", realm=\"{0}\"", directives[++i]);
-                            realm = directives[i];
-                            break;
-                        case "nonce=":
-                            authenticationFieldReply += string.Format(", nonce=\"{0}\"", directives[++i]);
-                            nonce = directives[i];
-                            break;
-                        case "opaque=":
-                            authenticationFieldReply += string.Format(", opaque=\"{0}\"", directives[++i]);
-                            opaque = directives[i];
-                            break;
-                        case "algorithm=":
-                            authenticationFieldReply += string.Format(", algorithm={0}", directives[++i]); //unquoted; see RFC7616-3.4
-                            algorithm = directives[i];
-                            break;
-                        case "qop=":
-                            var qops = directives[++i].Split(',');
-                            if (qops.Length > 0)
-                            {
-                                qop = qops.FirstOrDefault(q => q.ToLowerInvariant() == "auth") ??
-                                      qops.FirstOrDefault(q => q.ToLowerInvariant() == "auth-int");
-                                if (qop == null)
-                                      throw new ProxyServerAuthenticationException(
-                                          "Digest authentication's quality-of-protection directive is not supported.");
-                                authenticationFieldReply += string.Format(", qop={0}", qop); //unquoted; see RFC7616-3.4
-                            }
-                            break;
-                    }
+                    var qops = quality.Split(',').Select(value => value.Trim()).ToArray();
+                    qop = qops.FirstOrDefault(value => string.Equals(value, "auth", StringComparison.OrdinalIgnoreCase))
+                          ?? qops.FirstOrDefault(value => string.Equals(value, "auth-int", StringComparison.OrdinalIgnoreCase));
+                    if (qop == null)
+                        throw new ProxyServerAuthenticationException("Digest authentication's quality-of-protection directive is not supported.");
+                    authenticationFieldReply += string.Format(", qop={0}", qop);
                 }
 
                 string clientNonce = GenerateNonce();
@@ -738,10 +759,11 @@ namespace XenAPI
                         HA1 = algFunc(scratch1);
                         break;
                     case "md5":
-                    default:
                         algFunc = _MD5Hash;
                         HA1 = algFunc(scratch1);
                         break;
+                    default:
+                        throw new ProxyServerAuthenticationException("The proxy Digest algorithm is not supported.");
                 }
 
                 var scratch2 = string.Join(":", GetPartOrNull(header, 0) ?? "CONNECT", uri.Host, uri.Port);
@@ -970,7 +992,12 @@ namespace XenAPI
                 try { transport?.Dispose(); } catch (ObjectDisposedException) { }
             }
 
-            public void Dispose() => registration.Dispose();
+            public void Dispose()
+            {
+                // Wait outside the gate: Abort takes that lock before closing the transport.
+                registration.Dispose();
+                lock (gate) current = null;
+            }
         }
 
         /// <summary>
@@ -1023,15 +1050,19 @@ namespace XenAPI
                     deadline.CancelAfter(timeoutMs);
                 using (var attempt = new ConnectionAttempt(deadline.Token, asynchronous: true))
                 {
+                    Stream stream = null;
                     try
                     {
-                        var stream = await DoHttpAsync(uri, proxy, false, timeoutMs, attempt,
+                        stream = await DoHttpAsync(uri, proxy, false, timeoutMs, attempt,
                             string.Format("GET {0} HTTP/1.0", uri.PathAndQuery), string.Format("Host: {0}", uri.Host)).ConfigureAwait(false);
+                        // Retire every abort callback before deciding whether ownership can pass.
+                        attempt.Dispose();
                         deadline.Token.ThrowIfCancellationRequested();
                         return stream;
                     }
                     catch (Exception error)
                     {
+                        stream?.Dispose();
                         cancellationToken.ThrowIfCancellationRequested();
                         if (deadline.IsCancellationRequested)
                             throw new IOException("HTTP request setup timed out.", error);

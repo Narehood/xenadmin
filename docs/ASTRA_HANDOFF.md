@@ -23,7 +23,7 @@ header I/O, body ownership, cancellation during headers/proxy/TLS setup,
 setup expiry, actual TLS acceptance/rejection, and poller disposal before XML.
 The shared transport fixtures run on both `net481` and `net10.0`.
 
-All 29 local Windows automated acceptance checks pass: zero-warning/error
+Initial SDK 10.0.402 Windows acceptance passed all 29 automated checks: zero-warning/error
 Release/Debug solution builds, 1,173 shell tests per configuration, 146 shared
 .NET 10 and 145 Framework tests (2,637 passing executions, none skipped), both
 configurations' WinForms probes, six UI modes, proxy authentication and a fresh
@@ -34,17 +34,52 @@ Validation ran on the identical behavior patch before the implementation commit.
 The complete behavior diff received Sol approval in one core review round
 (`codex`, `gpt-6.1-sol`, `xhigh`), following the earlier cleanup-only approval.
 The reviewer inspected source and recorded test evidence without rerunning tests.
-S1 is a deferred nit: cancellation/expiry between the final token check and
-callback teardown can abort a response while setup reports success. The poller
-catches the failed fetch and continues its normal per-archive schedule; the rare
-handoff timing case is recorded as follow-up rather than expanding this approved
-patch. No blocker/should findings remain; usage was not exposed. Hosted PR checks
-remain pending.
+S1 was initially recorded as a nonblocking handoff timing follow-up. It is now
+addressed in the Cursor review corrections below. Review usage was not exposed.
+Hosted PR checks remain pending.
 
-Physical Windows/Linux desktops,
+PR #71 servicing follow-up: hosted Linux Release/Debug each passed 1,167 tests
+with three Windows-only skips, and shared .NET 10 passed 145 with one skip.
+Package smoke then rejected bundled runtime 10.0.14 because the notices still
+recorded 10.0.13. The runner selected SDK 10.0.403 through the existing patch
+roll-forward policy. Microsoft released that SDK/runtime in the
+[October 25 out-of-band security update](https://devblogs.microsoft.com/dotnet/dotnet-october-2026-oob-security-updates/).
+The minimum SDK and bundled-runtime notice generator now select 10.0.403 and
+10.0.14. Exact notice fixtures require 10.0.14 and reject both 10.0.12 and
+10.0.13; managed package pins are unchanged. Refreshed SDK 10.0.403/runtime
+10.0.14 acceptance passed all 29 checks and the same 2,637 suite executions in
+`artifacts/modernization-core-20261027/acceptance-r2-servicing/`. Sol core round 2
+approved this servicing delta, independently ran all 14 notice fixtures and
+matched both notice bodies against the restored runtime package.
+
+Cursor subsequently requested changes on `e93b4b6`: the handoff race, raw
+unsupported Digest algorithms/adjacent directives, and Framework DNS wait
+cancellation. These overlapped with CodeRabbit's recorded follow-ups;
+the unsupported-algorithm case adds an explicit authentication correctness issue.
+All three are now corrected: setup retires abort ownership before its final
+token check; the quote-aware parameter reader accepts compact commas and rejects
+unimplemented algorithms before sending credentials; Framework async callers can
+cancel the connect wait while a late resolver/socket failure is observed. The
+new proxy regressions fail four cases on each runtime before the correction and
+pass afterward. Exact SHA-256 response assertions, a cancellation-before-handoff
+case and a deterministic pending-Framework-connect case cover the corrected
+boundaries. Focused transport suites pass 18 .NET 10 / 19 Framework cases.
+The previously deferred Digest-response assertion is included because parameter
+parsing now changes; populated-summary assertions remain a test follow-up.
+Integrated post-Cursor acceptance passed all 29 automated Windows checks with
+SDK 10.0.403/runtime 10.0.14: zero-warning/error Release/Debug solution builds,
+1,178 shell tests per configuration and 151 shared tests per framework (2,658
+passing executions, none skipped), both configurations' WinForms probes, all
+12 proxy cases, six UI modes and a fresh package smoke. Portable lockfiles are
+unchanged; trusted RDP interop was reused. Final Sol review and hosted reruns
+remain pending. Evidence is under
+`artifacts/modernization-core-20261027/cursor-before/`, `cursor-after/` and
+`acceptance-r3-cursor/`.
+
+The user confirmed core modernization/release readiness as this pass's scope
+and reconfirmed that no disposable environments are available. Physical Windows/Linux desktops,
 live-pool/reboot diagnosis, native RDP login and real updater/UAC/rollback/restart
-remain pending; previously unavailable disposable environments have not been
-supplied in this session. No production-readiness claim follows from automated
+remain pending. No production-readiness claim follows from automated
 checks. Generated synchronous connection/event/action compatibility is retained;
 extended DR, embedded RDP/tool parity and deferred installer/signing work require
 their separately documented requirements and acceptance. No release is published

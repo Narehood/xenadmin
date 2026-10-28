@@ -3,7 +3,10 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using XenAPI;
@@ -18,6 +21,33 @@ public sealed class HttpAsyncTransportCollection { }
 [Collection("HTTP async transport")]
 public sealed class HttpAsyncTransportTests
 {
+#if NETFRAMEWORK
+    [Fact]
+    public async Task FrameworkConnectCancellationDoesNotWaitForResolverCompletion()
+    {
+        var connection = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
+        var method = typeof(HTTP).GetMethod("AwaitFrameworkConnectAsync", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var waiting = (Task)method.Invoke(null, new object[] { connection.Task, cancellation.Token })!;
+        cancellation.Cancel();
+        Assert.Same(waiting, await Task.WhenAny(waiting, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
+        Assert.False(connection.Task.IsCompleted);
+        // A late resolver/socket failure must be observed by the abandoned-connect continuation.
+        connection.SetException(new SocketException((int)SocketError.OperationAborted));
+    }
+#endif
+
+    [Fact]
+    public async Task CancellationBeforeHandoffDisposesBodyAndReportsCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var input = new AsyncOnlyStream("HTTP/1.0 200 OK\r\n\r\nbody", cancellation.Cancel);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => HTTP.HttpGetStreamAsync(
+            new Uri("http://example.invalid/rrd"), new MockProxy(input), 0, cancellation.Token));
+        Assert.True(input.Closed);
+    }
+
     [Fact]
     public async Task GetUsesAsyncIoAndLeavesBodyUnreadAndOwnedByCaller()
     {
@@ -106,13 +136,15 @@ public sealed class HttpAsyncTransportTests
     }
 
     [Theory]
-    [InlineData(HTTP.ProxyAuthenticationMethod.Basic, false, false)]
-    [InlineData(HTTP.ProxyAuthenticationMethod.Basic, true, false)]
-    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, false, false)]
-    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, true, false)]
-    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, false, true)]
-    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, true, true)]
-    public async Task ProxyAuthenticationStaysOnConnectAndSupportsReconnect(HTTP.ProxyAuthenticationMethod method, bool reconnect, bool quotedAlgorithm)
+    [InlineData(HTTP.ProxyAuthenticationMethod.Basic, false, false, false)]
+    [InlineData(HTTP.ProxyAuthenticationMethod.Basic, true, false, false)]
+    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, false, false, false)]
+    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, true, false, false)]
+    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, false, true, false)]
+    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, true, true, false)]
+    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, false, false, true)]
+    [InlineData(HTTP.ProxyAuthenticationMethod.Digest, true, true, true)]
+    public async Task ProxyAuthenticationStaysOnConnectAndSupportsReconnect(HTTP.ProxyAuthenticationMethod method, bool reconnect, bool quotedAlgorithm, bool compact)
     {
         using var listener = new TestListener();
         listener.Start();
@@ -130,7 +162,8 @@ public sealed class HttpAsyncTransportTests
             Assert.DoesNotContain("synthetic-password", initial);
             var algorithm = quotedAlgorithm ? "\"SHA-256\"" : "SHA-256";
             var challenge = method == HTTP.ProxyAuthenticationMethod.Basic ? "Basic realm=\"pool\""
-                : $"Digest realm=\"pool\", nonce=\"synthetic-nonce\", algorithm={algorithm}, qop=\"auth\"";
+                : "Digest " + string.Join(compact ? "," : ", ",
+                    "realm=\"pool\"", "nonce=\"synthetic-nonce\"", $"algorithm={algorithm}", "qop=\"auth,auth-int\"");
             await Reply(first.GetStream(), $"HTTP/1.0 407 Authentication Required\r\nProxy-Authenticate: {challenge}\r\n"
                 + (reconnect ? "Proxy-Connection: Close\r\n" : "") + "\r\n", deadline.Token);
             using var replacement = reconnect ? await Accept(listener, deadline.Token) : null;
@@ -140,7 +173,12 @@ public sealed class HttpAsyncTransportTests
             if (method == HTTP.ProxyAuthenticationMethod.Digest)
             {
                 Assert.Contains("algorithm=SHA-256", authenticated);
-                Assert.Matches("response=\"[a-f0-9]{64}\"", authenticated);
+                Assert.Contains("qop=auth,", authenticated);
+                var clientNonce = Regex.Match(authenticated, "cnonce=\"([^\"]+)\"").Groups[1].Value;
+                Assert.NotEmpty(clientNonce);
+                var expected = Sha256Hex(string.Join(":", Sha256Hex("synthetic-user:pool:synthetic-password"),
+                    "synthetic-nonce", "00000001", clientNonce, "auth", Sha256Hex("CONNECT:pool.invalid:80")));
+                Assert.Contains($"response=\"{expected}\"", authenticated);
             }
             await Reply(stream, "HTTP/1.0 200 Connected\r\n\r\n", deadline.Token);
             var request = await Headers(stream, deadline.Token);
@@ -150,6 +188,41 @@ public sealed class HttpAsyncTransportTests
             using var body = await Within(opening);
         }
         finally { HTTP.CurrentProxyAuthenticationMethod = previous; }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnsupportedDigestAlgorithmIsRejectedWithoutAnAuthenticationRequest(bool quoted)
+    {
+        using var listener = new TestListener();
+        listener.Start();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var proxy = new WebProxy(new Uri($"http://127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}"))
+            { Credentials = new NetworkCredential("synthetic-user", "synthetic-password") };
+        var previous = HTTP.CurrentProxyAuthenticationMethod;
+        HTTP.CurrentProxyAuthenticationMethod = HTTP.ProxyAuthenticationMethod.Digest;
+        try
+        {
+            var opening = HTTP.HttpGetStreamAsync(new Uri("http://pool.invalid/rrd"), proxy, 5000, deadline.Token);
+            using var peer = await Accept(listener, deadline.Token);
+            var stream = peer.GetStream();
+            await Headers(stream, deadline.Token);
+            var algorithm = quoted ? "\"SHA-512\"" : "SHA-512";
+            await Reply(stream, $"HTTP/1.0 407 Authentication Required\r\nProxy-Authenticate: Digest realm=\"pool\", nonce=\"nonce\", algorithm={algorithm}\r\n\r\n", deadline.Token);
+            var buffer = new byte[4096];
+            var sent = await stream.ReadAsync(buffer, 0, buffer.Length, deadline.Token);
+            if (sent > 0) await Reply(stream, "HTTP/1.0 407 Authentication Required\r\n\r\n", deadline.Token);
+            await Assert.ThrowsAsync<HTTP.ProxyServerAuthenticationException>(() => Within(opening));
+            Assert.Equal(0, sent);
+        }
+        finally { HTTP.CurrentProxyAuthenticationMethod = previous; }
+    }
+
+    private static string Sha256Hex(string value)
+    {
+        using var algorithm = SHA256.Create();
+        return BitConverter.ToString(algorithm.ComputeHash(Encoding.UTF8.GetBytes(value))).Replace("-", "").ToLowerInvariant();
     }
 
     private static Task Reply(Stream stream, string response, CancellationToken token)
@@ -195,7 +268,7 @@ public sealed class HttpAsyncTransportTests
         public Stream GetStream(Uri uri) => stream;
     }
 
-    private sealed class AsyncOnlyStream(string response) : Stream
+    private sealed class AsyncOnlyStream(string response, Action? headersComplete = null) : Stream
     {
         private readonly MemoryStream input = new(Encoding.ASCII.GetBytes(response));
         private readonly MemoryStream output = new();
@@ -204,7 +277,10 @@ public sealed class HttpAsyncTransportTests
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
-            return Task.FromResult(input.Read(buffer, offset, count));
+            var read = input.Read(buffer, offset, count);
+            if (input.Position == response.IndexOf("\r\n\r\n", StringComparison.Ordinal) + 4)
+                headersComplete?.Invoke();
+            return Task.FromResult(read);
         }
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
