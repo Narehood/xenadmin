@@ -56,7 +56,7 @@ Cursor subsequently requested changes on `e93b4b6`: the handoff race, raw
 unsupported Digest algorithms/adjacent directives, and Framework DNS wait
 cancellation. These overlapped with CodeRabbit's recorded follow-ups;
 the unsupported-algorithm case adds an explicit authentication correctness issue.
-All three are now corrected: setup retires abort ownership before its final
+All three are corrected in `7ba5a6f84`: setup retires abort ownership before its final
 token check; the quote-aware parameter reader accepts compact commas and rejects
 unimplemented algorithms before sending credentials; Framework async callers can
 cancel the connect wait while a late resolver/socket failure is observed. The
@@ -71,8 +71,13 @@ SDK 10.0.403/runtime 10.0.14: zero-warning/error Release/Debug solution builds,
 1,178 shell tests per configuration and 151 shared tests per framework (2,658
 passing executions, none skipped), both configurations' WinForms probes, all
 12 proxy cases, six UI modes and a fresh package smoke. Portable lockfiles are
-unchanged; trusted RDP interop was reused. Final Sol review and hosted reruns
-remain pending. Evidence is under
+unchanged; trusted RDP interop was reused. Sol core round 3 approved `7ba5a6f84`,
+marked S1/C1/C2 resolved and found no new issues. It independently reran the
+Release shell (1,178), shared .NET 10 (151) and Framework (151) suites with no
+failures or skips, and inspected the integrated acceptance evidence. The loop
+is complete: one cleanup round plus three core rounds, all with
+`gpt-6.1-sol`/`xhigh`; usage was not exposed. Hosted reruns remain pending.
+Evidence is under
 `artifacts/modernization-core-20261027/cursor-before/`, `cursor-after/` and
 `acceptance-r3-cursor/`.
 
