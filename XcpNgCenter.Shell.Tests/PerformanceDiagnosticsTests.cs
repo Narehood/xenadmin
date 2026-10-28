@@ -21,7 +21,7 @@ public sealed class PerformanceDiagnosticsTests
     {
         using var listener = new Capture();
         using var input = new MemoryStream("<rrd/>"u8.ToArray());
-        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => input);
+        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => Task.FromResult<Stream>(input));
 
         Assert.True(await maintainer.GetAsync(_ => new Uri("http://synthetic.invalid/rrd"),
             (_, _) => Task.CompletedTask, maintainer.XenObject));

@@ -498,12 +498,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 ========================================================================
 
-Bundled .NET runtime 10.0.13: LICENSE.TXT
+Bundled .NET runtime 10.0.14: LICENSE.TXT
 Notice 13
 
 ========================================================================
 
-Bundled .NET runtime 10.0.13: THIRD-PARTY-NOTICES.TXT
+Bundled .NET runtime 10.0.14: THIRD-PARTY-NOTICES.TXT
 Notice 14
 
 ========================================================================

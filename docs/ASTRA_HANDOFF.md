@@ -1,8 +1,133 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-22 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-10-27 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### Core async HTTP follow-up and release preparation (2026-10-27)
+
+Branch: `modernization/finish-core-20261027`, implementation `4ba76ffbf`, including
+cleanup commit `be91521ec`. Shared `HTTP.HttpGetStreamAsync` now awaits TCP, proxy negotiation,
+TLS, request writes and response headers through the existing protocol engine.
+Graph polling awaits setup directly instead of scheduling a worker per fetch.
+A positive timeout bounds the complete setup, including redirects; cancellation
+or expiry closes its current transport. Handoff retires that deadline, while the
+existing per-read XML body timeouts remain. Synchronous HTTP callers retain
+native synchronous I/O and their existing transport timeouts.
+
+Transport fixtures exposed and now cover a preexisting Digest parsing defect:
+unquoted `algorithm=SHA-256` fell back to MD5. Both standard unquoted and legacy
+quoted challenges now produce a SHA-256 response. Tests cover Basic/Digest,
+proxy reconnect, redirect request rebuilding and recipient rejection, async-only
+header I/O, body ownership, cancellation during headers/proxy/TLS setup,
+setup expiry, actual TLS acceptance/rejection, and poller disposal before XML.
+The shared transport fixtures run on both `net481` and `net10.0`.
+
+Initial SDK 10.0.402 Windows acceptance passed all 29 automated checks: zero-warning/error
+Release/Debug solution builds, 1,173 shell tests per configuration, 146 shared
+.NET 10 and 145 Framework tests (2,637 passing executions, none skipped), both
+configurations' WinForms probes, six UI modes, proxy authentication and a fresh
+Windows package smoke. Portable locks are unchanged; trusted existing RDP interop
+was reused. Evidence: `artifacts/modernization-core-20261027/acceptance-r1/`.
+Validation ran on the identical behavior patch before the implementation commit.
+
+The complete behavior diff received Sol approval in one core review round
+(`codex`, `gpt-6.1-sol`, `xhigh`), following the earlier cleanup-only approval.
+The reviewer inspected source and recorded test evidence without rerunning tests.
+S1 was initially recorded as a nonblocking handoff timing follow-up. It is now
+addressed in the Cursor review corrections below. Review usage was not exposed.
+Hosted PR checks remain pending.
+
+PR #71 servicing follow-up: hosted Linux Release/Debug each passed 1,167 tests
+with three Windows-only skips, and shared .NET 10 passed 145 with one skip.
+Package smoke then rejected bundled runtime 10.0.14 because the notices still
+recorded 10.0.13. The runner selected SDK 10.0.403 through the existing patch
+roll-forward policy. Microsoft released that SDK/runtime in the
+[October 25 out-of-band security update](https://devblogs.microsoft.com/dotnet/dotnet-october-2026-oob-security-updates/).
+The minimum SDK and bundled-runtime notice generator now select 10.0.403 and
+10.0.14. Exact notice fixtures require 10.0.14 and reject both 10.0.12 and
+10.0.13; managed package pins are unchanged. Refreshed SDK 10.0.403/runtime
+10.0.14 acceptance passed all 29 checks and the same 2,637 suite executions in
+`artifacts/modernization-core-20261027/acceptance-r2-servicing/`. Sol core round 2
+approved this servicing delta, independently ran all 14 notice fixtures and
+matched both notice bodies against the restored runtime package.
+
+Cursor subsequently requested changes on `e93b4b6`: the handoff race, raw
+unsupported Digest algorithms/adjacent directives, and Framework DNS wait
+cancellation. These overlapped with CodeRabbit's recorded follow-ups;
+the unsupported-algorithm case adds an explicit authentication correctness issue.
+All three are corrected in `7ba5a6f84`: setup retires abort ownership before its final
+token check; the quote-aware parameter reader accepts compact commas and rejects
+unimplemented algorithms before sending credentials; Framework async callers can
+cancel the connect wait while a late resolver/socket failure is observed. The
+new proxy regressions fail four cases on each runtime before the correction and
+pass afterward. Exact SHA-256 response assertions, a cancellation-before-handoff
+case and a deterministic pending-Framework-connect case cover the corrected
+boundaries. Focused transport suites pass 18 .NET 10 / 19 Framework cases.
+The previously deferred Digest-response assertion is included because parameter
+parsing now changes; populated-summary assertions remain a test follow-up.
+Integrated post-Cursor acceptance passed all 29 automated Windows checks with
+SDK 10.0.403/runtime 10.0.14: zero-warning/error Release/Debug solution builds,
+1,178 shell tests per configuration and 151 shared tests per framework (2,658
+passing executions, none skipped), both configurations' WinForms probes, all
+12 proxy cases, six UI modes and a fresh package smoke. Portable lockfiles are
+unchanged; trusted RDP interop was reused. Sol core round 3 approved `7ba5a6f84`,
+marked S1/C1/C2 resolved and found no new issues. It independently reran the
+Release shell (1,178), shared .NET 10 (151) and Framework (151) suites with no
+failures or skips, and inspected the integrated acceptance evidence. The loop
+is complete: one cleanup round plus three core rounds, all with
+`gpt-6.1-sol`/`xhigh`; usage was not exposed. Hosted reruns remain pending.
+Evidence is under
+`artifacts/modernization-core-20261027/cursor-before/`, `cursor-after/` and
+`acceptance-r3-cursor/`.
+
+The user confirmed core modernization/release readiness as this pass's scope
+and reconfirmed that no disposable environments are available. Physical Windows/Linux desktops,
+live-pool/reboot diagnosis, native RDP login and real updater/UAC/rollback/restart
+remain pending. No production-readiness claim follows from automated
+checks. Generated synchronous connection/event/action compatibility is retained;
+extended DR, embedded RDP/tool parity and deferred installer/signing work require
+their separately documented requirements and acceptance. No release is published
+by this follow-up.
+
+### Shell cleanup and allocation optimization (2026-10-27)
+
+Local branch: `cleanup/sol-loop-20261027`, based on merged `development`
+`0f97cc544f223bc14d381eea3565e000f166628d`. This is a bounded maintenance pass
+over read-only shell detail summaries and RRD sample merging.
+
+Eleven pool/host/VM/SR lookups now use the existing typed cache index instead of
+copying and scanning whole inventory arrays. Null, empty and missing references
+retain their existing fallback behavior. Console summaries use `ResolveAll`
+directly: it already omits unresolved references and returns a list. Removed the
+unused `InfrastructureTreeBuilder.ReplaceRoots` method and its import; current
+inventory updates continue to use the node-preserving updater.
+
+RRD merging now tracks timestamps in a local set instead of scanning all retained
+points for each incoming sample. The redundant incoming sort is removed; the
+final newest-first sort and archive limit remain. Existing values win over an
+overlapping response, and the first incoming value wins for a new timestamp.
+
+Regression coverage: `SummaryAllocationTests` builds all four production VM
+summaries before and after adding 5,000 unrelated cached VMs. Restoring the old
+VM lookups makes that regression fail (4,832 to 164,832 allocated bytes per
+refresh); the indexed implementation passes. `RrdSeriesMergeTests` covers
+overlaps, incoming duplicates, ordering, input preservation, empty updates,
+zero/reduced limits and self-merge. The full locked Release solution build passes
+with zero warnings/errors, reusing the existing trusted RDP interop assemblies
+with `SkipRdpAxImp=true`. Shell Release and Debug each pass 1,157 tests; shared
+.NET 10 / Framework pass 133 / 132 (2,579 passing executions, none skipped).
+Portable lockfiles are unchanged. Evidence is under
+`artifacts/sol-cleanup-20261027/`. Sol-loop round 1 approved the behavior diff
+with no findings (`codex`, `gpt-6.1-sol`, `xhigh`); the reviewer checked existing
+build/TRX evidence without rerunning it. No review-driven behavior changes were
+needed, and usage was not exposed.
+
+Limits: allocation coverage uses synthetic cached inventory, not a live pool or
+desktop benchmark. RRD sorting remains; no end-to-end polling speedup is claimed.
+WinForms and shared mutation/security code are unchanged by the cleanup.
+Implementation: `be91521ec`, now included in the core follow-up branch above.
+No release, profile access or live-pool operation was performed by the cleanup.
 
 ### Sol repository review and fixes 2026-10-22
 

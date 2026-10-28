@@ -5,6 +5,8 @@ using Newtonsoft.Json.Linq;
 using System.Text;
 using System.Xml;
 using System.Reflection;
+using System.Net;
+using System.Net.Sockets;
 using XenAdmin.Network;
 using XenAdmin.Core;
 using Task = System.Threading.Tasks.Task;
@@ -13,6 +15,27 @@ namespace XcpNgCenter.Shell.Tests;
 
 public sealed class PerformancePollingTests
 {
+    [Fact]
+    public async Task DisposalCancelsPendingHttpSetupBeforeXmlParsing()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(),
+            (uri, token) => HTTP.HttpGetStreamAsync(uri, null, 0, token));
+        var parsed = false;
+        var work = maintainer.GetAsync(_ => new Uri($"http://127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}/rrd"),
+            (_, _) => { parsed = true; return Task.CompletedTask; }, maintainer.XenObject);
+        using var peer = await listener.AcceptTcpClientAsync(TestContext.Current.CancellationToken);
+        var buffer = new byte[4096];
+        Assert.True(await peer.GetStream().ReadAsync(buffer, TestContext.Current.CancellationToken) > 0);
+        Assert.False(work.IsCompleted);
+
+        await maintainer.DisposeAsync();
+
+        Assert.False(await work.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        Assert.False(parsed);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -35,7 +58,7 @@ public sealed class PerformancePollingTests
         using var healthy = new AsyncOnlyRrdStream(xml, 1);
         var requests = 0;
         using var maintainer = new ShellRrdMaintainer(host, action => action(),
-            (_, _) => requests++ == 0 ? stalled : healthy);
+            (_, _) => Task.FromResult<Stream>(requests++ == 0 ? stalled : healthy));
         var inspect = typeof(ShellRrdMaintainer).GetMethod(incremental ? "RrdUpdateInspect" : "RrdFullInspect",
             BindingFlags.Instance | BindingFlags.NonPublic)!.CreateDelegate<Func<XmlReader, IXenObject, Task>>(maintainer);
 
@@ -72,7 +95,7 @@ public sealed class PerformancePollingTests
                 + "<row><v>0.5</v></row><row><v>0.75</v></row></database></rra></rrd>";
         using var input = new AsyncOnlyRrdStream(xml, timedReads ? 32 : 1,
             readTimeout: timedReads ? 1000 : Timeout.Infinite, readDelay: timedReads ? 50 : 0);
-        using var maintainer = new ShellRrdMaintainer(host, action => action(), (_, _) => input);
+        using var maintainer = new ShellRrdMaintainer(host, action => action(), (_, _) => Task.FromResult<Stream>(input));
         var inspect = typeof(ShellRrdMaintainer).GetMethod(incremental ? "RrdUpdateInspect" : "RrdFullInspect",
             BindingFlags.Instance | BindingFlags.NonPublic)!.CreateDelegate<Func<XmlReader, IXenObject, Task>>(maintainer);
 
@@ -130,7 +153,7 @@ public sealed class PerformancePollingTests
     {
         var expected = new string('x', 20000);
         using var stream = new AsyncOnlyRrdStream($"<rrd><name>{expected}</name></rrd>", fragmentSize);
-        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => stream);
+        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => Task.FromResult<Stream>(stream));
         string? value = null;
         var success = await maintainer.GetAsync(
             _ => new Uri("http://synthetic.invalid/rrd"), async (reader, _) =>
@@ -153,7 +176,7 @@ public sealed class PerformancePollingTests
     {
         using var stream = new BlockingRrdStream(insideText ? "<rrd><name>" + new string('x', 20000) : "",
             readTimeout: timedReads ? 30000 : Timeout.Infinite);
-        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => stream);
+        using var maintainer = new ShellRrdMaintainer(new Host(), action => action(), (_, _) => Task.FromResult<Stream>(stream));
         var contentReadStarted = false;
         var work = maintainer.GetAsync(
             _ => new Uri("http://synthetic.invalid/rrd"), async (reader, _) =>
@@ -177,7 +200,7 @@ public sealed class PerformancePollingTests
         var host = connection.Cache.Hosts[0];
         host.address = "127.0.0.1";
         using var stream = new BlockingRrdStream("");
-        using var maintainer = new ShellRrdMaintainer(host, action => action(), (_, _) => stream);
+        using var maintainer = new ShellRrdMaintainer(host, action => action(), (_, _) => Task.FromResult<Stream>(stream));
         maintainer.Start();
         await stream.Reading.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.False(maintainer.Completion.IsCompleted);

@@ -15,7 +15,7 @@ XCP-ng Center is modernized **only on the `development` branch**.
 | CommandLib, XenCenterLib, XenOvfApi, XenModel | `net481;net10.0` |
 | XenAdmin (WinForms app) | `net10.0-windows` |
 
-SDK 10.0.402 is pinned in `global.json`; see the [.NET 10 migration record](docs/dotnet10-migration.md) for compatibility changes and remaining designer maintenance.
+SDK 10.0.403 is pinned in `global.json`; see the [.NET 10 migration record](docs/dotnet10-migration.md) for compatibility changes and remaining designer maintenance.
 
 **Versioning:** `year.month.day.revision` from `Directory.Build.props` (UTC date; `BuildRevision` defaults to `0`, CI sets `-p:BuildRevision=$GITHUB_RUN_NUMBER`).
 
@@ -42,6 +42,8 @@ binaries and build/publish outputs. The shell exposes them under Settings → Ab
 WinForms uses About → View Legal Notices. See [notice maintenance](docs/legal-notices.md).
 The shared .NET 10 JSON-RPC path uses reusable, isolated HTTP client pools;
 `net481` retains its compatible transport. See [transport behavior and validation](docs/rpc-transport.md).
+Shell graph polling also awaits shared asynchronous HTTP setup and XML reads;
+the generated synchronous XenAPI methods retain their compatibility workers.
 
 ### UI rewrite
 

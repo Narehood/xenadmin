@@ -168,10 +168,10 @@ public static class NetworkSummaryBuilder
     private static Host? FindHost(IXenConnection conn, string? opaqueRef)
         => string.IsNullOrEmpty(opaqueRef)
             ? null
-            : conn.Cache.Hosts?.FirstOrDefault(h => h.opaque_ref == opaqueRef);
+            : conn.Resolve(new XenRef<Host>(opaqueRef));
 
     private static VM? FindVm(IXenConnection conn, string? opaqueRef)
         => string.IsNullOrEmpty(opaqueRef)
             ? null
-            : conn.Cache.VMs?.FirstOrDefault(v => v.opaque_ref == opaqueRef);
+            : conn.Resolve(new XenRef<VM>(opaqueRef));
 }

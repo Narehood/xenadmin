@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using XcpNgCenter.Shell.Services;
 using XenAPI;
 using Newtonsoft.Json.Linq;
@@ -65,6 +66,56 @@ public sealed class HttpTransportCertificateTests : IDisposable
             Assert.Null(result.ClientError);
         else
             Assert.IsType<AuthenticationException>(result.ClientError);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AsyncGetHonorsApplicationCertificateDecisionBeforeSendingRequest(bool accept)
+    {
+        using var certificate = CreateCertificate();
+        object? senderSeen = null;
+        ServicePointManager.ServerCertificateValidationCallback = (sender, _, _, _) =>
+        {
+            senderSeen = sender;
+            return accept;
+        };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var serving = Task.Run(async () =>
+        {
+            using var peer = await listener.AcceptTcpClientAsync(timeout.Token);
+            await using var tls = new SslStream(peer.GetStream());
+            try
+            {
+                await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+                {
+                    ServerCertificate = certificate, EnabledSslProtocols = SslProtocols.Tls12
+                }, timeout.Token);
+                var text = new StringBuilder();
+                var buffer = new byte[1];
+                while (!text.ToString().EndsWith("\r\n\r\n", StringComparison.Ordinal))
+                {
+                    if (await tls.ReadAsync(buffer, timeout.Token) == 0) return false;
+                    text.Append((char)buffer[0]);
+                }
+                Assert.StartsWith("GET /rrd HTTP/1.0", text.ToString());
+                await tls.WriteAsync("HTTP/1.0 200 OK\r\n\r\n"u8.ToArray(), timeout.Token);
+                return true;
+            }
+            catch (Exception error) when (error is AuthenticationException or IOException) { return false; }
+        }, timeout.Token);
+        var uri = new Uri($"https://127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}/rrd");
+        var error = await Record.ExceptionAsync(async () =>
+        {
+            using var stream = await HTTP.HttpGetStreamAsync(uri, null, 5000, timeout.Token);
+        });
+
+        Assert.Equal("127.0.0.1", senderSeen);
+        Assert.Equal(accept, await serving);
+        if (accept) Assert.Null(error);
+        else Assert.IsType<AuthenticationException>(error);
     }
 
     [Fact]

@@ -40,6 +40,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.Serialization;
 using System.Threading;
+using Tasks = System.Threading.Tasks;
 using XenCenterLib;
 
 namespace XenAPI
@@ -155,11 +156,6 @@ namespace XenAPI
             stream.Write(bytes, 0, bytes.Length);
         }
 
-        private static void WriteLine(Stream stream)
-        {
-            WriteLine("", stream);
-        }
-
         // Stream.ReadByte() is used because using StreamReader in its place causes the reading to become stuck,
         // as it seems the Stream object has trouble recognizing the end of the stream. This seems to be a common
         // problem, of which a common solution is to read each byte until an EndOfStreamException is thrown, as is
@@ -179,6 +175,36 @@ namespace XenAPI
             }
         }
 
+        private static async Tasks.Task WriteLineAsync(string text, Stream stream, ConnectionAttempt attempt)
+        {
+            if (attempt?.IsAsynchronous != true)
+            {
+                WriteLine(text, stream);
+                return;
+            }
+
+            byte[] bytes = Encoding.ASCII.GetBytes(text + "\r\n");
+            await stream.WriteAsync(bytes, 0, bytes.Length, attempt.Token).ConfigureAwait(false);
+        }
+
+        private static async Tasks.Task<string> ReadLineAsync(Stream stream, ConnectionAttempt attempt)
+        {
+            if (attempt?.IsAsynchronous != true)
+                return ReadLine(stream);
+
+            var result = new StringBuilder();
+            var buffer = new byte[1];
+            while (true)
+            {
+                if (await stream.ReadAsync(buffer, 0, 1, attempt.Token).ConfigureAwait(false) == 0)
+                    throw new EndOfStreamException();
+                char value = (char)buffer[0];
+                result.Append(value);
+                if (value == '\n')
+                    return result.ToString();
+            }
+        }
+
         /// <summary>Reads response headers and follows only nonempty, policy-approved 302 locations; proxy callers without a request/policy reject redirects.</summary>
         /// <param name="stream">The transport; replaced only after an approved redirect.</param>
         /// <param name="proxy">Optional configured proxy.</param>
@@ -189,14 +215,14 @@ namespace XenAPI
         /// <param name="requestUri">The URI producing this response; required to resolve redirects.</param>
         /// <param name="redirectAllowed">Captured predicate authorizing a candidate redirect recipient.</param>
         /// <param name="redirected">Callback updating the current URI after an approved connection.</param>
-        /// <returns>True after an approved redirect requiring request retransmission; otherwise false.</returns>
-        private static bool ReadHttpHeaders(ref Stream stream, IWebProxy proxy, bool nodelay, int timeout_ms, List<string> headers = null, ConnectionAttempt attempt = null,
+        /// <returns>The current stream and whether an approved redirect requires request retransmission.</returns>
+        private static async Tasks.Task<(Stream Stream, bool Redirected)> ReadHttpHeadersAsync(Stream stream, IWebProxy proxy, bool nodelay, int timeout_ms, List<string> headers = null, ConnectionAttempt attempt = null,
             Uri requestUri = null, Func<Uri, bool> redirectAllowed = null, Action<Uri> redirected = null)
         {
             // read headers/fields
-            string line = ReadLine(stream), initialLine = line, transferEncodingField = null;
+            string line = await ReadLineAsync(stream, attempt).ConfigureAwait(false), initialLine = line, transferEncodingField = null;
             if (string.IsNullOrEmpty(initialLine)) // sanity check
-                return false;
+                return (stream, false);
             if (headers == null)
                 headers = new List<string>();
             while (!string.IsNullOrWhiteSpace(line)) // IsNullOrWhiteSpace also checks for empty string
@@ -205,7 +231,7 @@ namespace XenAPI
                 headers.Add(line);
                 if (line == "Transfer-Encoding: Chunked")
                     transferEncodingField = line;
-                line = ReadLine(stream);
+                line = await ReadLineAsync(stream, attempt).ConfigureAwait(false);
             }
 
             // read chunks
@@ -216,7 +242,7 @@ namespace XenAPI
                 do
                 {
                     // read chunk size
-                    string chunkSizeStr = ReadLine(stream);
+                    string chunkSizeStr = await ReadLineAsync(stream, attempt).ConfigureAwait(false);
                     chunkSizeStr = chunkSizeStr.TrimEnd('\r', '\n');
                     int chunkSize = 0;
                     int.TryParse(chunkSizeStr, System.Globalization.NumberStyles.HexNumber,
@@ -228,7 +254,9 @@ namespace XenAPI
                     byte[] bytes = new byte[chunkSize];
                     do
                     {
-                        numberOfBytesRead = stream.Read(bytes, totalNumberOfBytesRead, chunkSize - totalNumberOfBytesRead);
+                        numberOfBytesRead = attempt?.IsAsynchronous == true
+                            ? await stream.ReadAsync(bytes, totalNumberOfBytesRead, chunkSize - totalNumberOfBytesRead, attempt.Token).ConfigureAwait(false)
+                            : stream.Read(bytes, totalNumberOfBytesRead, chunkSize - totalNumberOfBytesRead);
                         totalNumberOfBytesRead += numberOfBytesRead;
                     } while (numberOfBytesRead > 0 && totalNumberOfBytesRead < chunkSize);
 
@@ -238,7 +266,7 @@ namespace XenAPI
 
                     entityBody += str;
 
-                    line = ReadLine(stream); // empty line in the end of chunk
+                    line = await ReadLineAsync(stream, attempt).ConfigureAwait(false); // empty line in the end of chunk
 
                     lastChunkSize = chunkSize;
                 } while (lastChunkSize != 0);
@@ -266,16 +294,16 @@ namespace XenAPI
                         || redirectAllowed == null || !redirectAllowed(redirect))
                         throw new BadServerResponseException("The server returned an unsafe HTTP redirect.");
                     stream.Close();
-                    stream = ConnectStream(redirect, proxy, nodelay, timeout_ms, attempt);
+                    stream = await ConnectStreamAsync(redirect, proxy, nodelay, timeout_ms, attempt).ConfigureAwait(false);
                     redirected?.Invoke(redirect);
-                    return true; // headers need to be sent again
+                    return (stream, true); // headers need to be sent again
 
                 default:
                     stream.Close();
                     throw new BadServerResponseException(string.Format("Received error code {0} from the server", initialLine));
             }
 
-            return false;
+            return (stream, false);
         }
 
         private static int getResultCode(string line)
@@ -436,6 +464,43 @@ namespace XenAPI
             return uri.Uri;
         }
 
+        private static Dictionary<string, string> ParseDigestParameters(string challenge)
+        {
+            var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            int start = 0;
+            bool quoted = false, escaped = false;
+            for (int i = 0; i <= challenge.Length; i++)
+            {
+                if (i < challenge.Length)
+                {
+                    char value = challenge[i];
+                    if (escaped) { escaped = false; continue; }
+                    if (quoted && value == '\\') { escaped = true; continue; }
+                    if (value == '"') { quoted = !quoted; continue; }
+                    if (quoted || value != ',') continue;
+                }
+
+                string directive = challenge.Substring(start, i - start).Trim();
+                start = i + 1;
+                int separator = directive.IndexOf('=');
+                if (separator < 1) continue;
+                string name = directive.Substring(0, separator).Trim();
+                string text = directive.Substring(separator + 1).Trim();
+                if (text.Length >= 2 && text[0] == '"' && text[text.Length - 1] == '"')
+                {
+                    var unquoted = new StringBuilder();
+                    for (int j = 1; j < text.Length - 1; j++)
+                    {
+                        if (text[j] == '\\' && j < text.Length - 2) j++;
+                        unquoted.Append(text[j]);
+                    }
+                    text = unquoted.ToString();
+                }
+                parameters[name] = text;
+            }
+            return parameters;
+        }
+
         private static string GetPartOrNull(string str, int partIndex)
         {
             string[] parts = str.Split(new char[] { ' ' }, partIndex + 2, StringSplitOptions.RemoveEmptyEntries);
@@ -444,7 +509,7 @@ namespace XenAPI
 
         #endregion
 
-        private static NetworkStream ConnectSocket(Uri uri, bool nodelay, int timeoutMs, ConnectionAttempt attempt = null)
+        private static async Tasks.Task<NetworkStream> ConnectSocketAsync(Uri uri, bool nodelay, int timeoutMs, ConnectionAttempt attempt = null)
         {
             AddressFamily addressFamily = uri.HostNameType == UriHostNameType.IPv6
                                               ? AddressFamily.InterNetworkV6
@@ -457,12 +522,23 @@ namespace XenAPI
             try
             {
                 attempt?.Track(socket);
+                if (attempt?.IsAsynchronous == true)
+                {
 #if NET8_0_OR_GREATER
-                if (attempt != null)
-                    socket.ConnectAsync(uri.Host, uri.Port, attempt.Token).AsTask().GetAwaiter().GetResult();
-                else
+                    await socket.ConnectAsync(uri.Host, uri.Port, attempt.Token).ConfigureAwait(false);
+#else
+                    await AwaitFrameworkConnectAsync(socket.ConnectAsync(uri.Host, uri.Port), attempt.Token).ConfigureAwait(false);
 #endif
-                socket.Connect(uri.Host, uri.Port);
+                }
+                else
+                {
+#if NET8_0_OR_GREATER
+                    if (attempt != null)
+                        socket.ConnectAsync(uri.Host, uri.Port, attempt.Token).AsTask().GetAwaiter().GetResult();
+                    else
+#endif
+                        socket.Connect(uri.Host, uri.Port);
+                }
                 return new NetworkStream(socket, true);
             }
             catch
@@ -471,6 +547,25 @@ namespace XenAPI
                 throw;
             }
         }
+
+#if !NET8_0_OR_GREATER
+        private static async Tasks.Task AwaitFrameworkConnectAsync(Tasks.Task connection, CancellationToken token)
+        {
+            var cancelled = new Tasks.TaskCompletionSource<bool>(Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+            using (token.Register(() => cancelled.TrySetResult(true)))
+            {
+                if (await Tasks.Task.WhenAny(connection, cancelled.Task).ConfigureAwait(false) != connection)
+                {
+                    // Framework DNS cannot be stopped, but its caller can stop waiting.
+                    _ = connection.ContinueWith(failed => { _ = failed.Exception; }, CancellationToken.None,
+                        Tasks.TaskContinuationOptions.OnlyOnFaulted | Tasks.TaskContinuationOptions.ExecuteSynchronously,
+                        Tasks.TaskScheduler.Default);
+                    token.ThrowIfCancellationRequested();
+                }
+                await connection.ConfigureAwait(false);
+            }
+        }
+#endif
 
         /// <summary>
         /// This function will connect a stream to a uri (host and port),
@@ -498,6 +593,9 @@ namespace XenAPI
         }
 
         private static Stream ConnectStream(Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, ConnectionAttempt attempt)
+            => ConnectStreamAsync(uri, proxy, nodelay, timeoutMs, attempt).GetAwaiter().GetResult();
+
+        private static async Tasks.Task<Stream> ConnectStreamAsync(Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, ConnectionAttempt attempt)
         {
             IMockWebProxy mockProxy = proxy as IMockWebProxy;
             if (mockProxy != null)
@@ -513,11 +611,11 @@ namespace XenAPI
             if (useProxy)
             {
                 Uri proxyURI = proxy.GetProxy(uri);
-                stream = ConnectSocket(proxyURI, nodelay, timeoutMs, attempt);
+                stream = await ConnectSocketAsync(proxyURI, nodelay, timeoutMs, attempt).ConfigureAwait(false);
             }
             else
             {
-                stream = ConnectSocket(uri, nodelay, timeoutMs, attempt);
+                stream = await ConnectSocketAsync(uri, nodelay, timeoutMs, attempt).ConfigureAwait(false);
             }
 
             try
@@ -525,13 +623,19 @@ namespace XenAPI
                 if (useProxy)
                 {
                     string line = string.Format("CONNECT {0}:{1} HTTP/1.0", uri.Host, uri.Port);
-                    WriteLine(line, stream);
-                    WriteLine(stream);
+                    await WriteLineAsync(line, stream, attempt).ConfigureAwait(false);
+                    await WriteLineAsync("", stream, attempt).ConfigureAwait(false);
 
                     List<string> initialResponse = new List<string>();
-                    ReadHttpHeaders(ref stream, proxy, nodelay, timeoutMs, initialResponse, attempt);
+                    await ReadHttpHeadersAsync(stream, proxy, nodelay, timeoutMs, initialResponse, attempt).ConfigureAwait(false);
 
-                    AuthenticateProxy(ref stream, uri, proxy, nodelay, timeoutMs, initialResponse, line, attempt);
+                    if (initialResponse.Any(field => field.StartsWith("Proxy-Authenticate:", StringComparison.InvariantCultureIgnoreCase))
+                        && initialResponse.Any(field => field.StartsWith("Proxy-Connection: Close", StringComparison.InvariantCultureIgnoreCase)))
+                    {
+                        stream.Close();
+                        stream = await ConnectSocketAsync(proxy.GetProxy(uri), nodelay, timeoutMs, attempt).ConfigureAwait(false);
+                    }
+                    await AuthenticateProxyAsync(stream, uri, proxy, nodelay, timeoutMs, initialResponse, line, attempt).ConfigureAwait(false);
                 }
 
                 if (UseSSL(uri))
@@ -550,9 +654,12 @@ namespace XenAPI
 
                             return sslPolicyErrors == SslPolicyErrors.None;
                         }, null);
-                    sslStream.AuthenticateAsClient(uri.Host, null, TlsPolicy.AllowedSslProtocols, true);
-
                     stream = sslStream;
+                    attempt?.Track(stream);
+                    if (attempt?.IsAsynchronous == true)
+                        await sslStream.AuthenticateAsClientAsync(uri.Host, null, TlsPolicy.AllowedSslProtocols, true).ConfigureAwait(false);
+                    else
+                        sslStream.AuthenticateAsClient(uri.Host, null, TlsPolicy.AllowedSslProtocols, true);
                 }
 
                 return stream;
@@ -564,21 +671,12 @@ namespace XenAPI
             }
         }
 
-        private static void AuthenticateProxy(ref Stream stream, Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, List<string> initialResponse, string header, ConnectionAttempt attempt = null)
+        private static async Tasks.Task AuthenticateProxyAsync(Stream stream, Uri uri, IWebProxy proxy, bool nodelay, int timeoutMs, List<string> initialResponse, string header, ConnectionAttempt attempt = null)
         {
             // perform authentication only if proxy requires it
             List<string> fields = initialResponse.FindAll(str => str.StartsWith("Proxy-Authenticate:", StringComparison.InvariantCultureIgnoreCase));
             if (fields.Count <= 0)
                 return;
-
-            // clean up (if initial server response specifies "Proxy-Connection: Close" then stream cannot be re-used)
-            string field = initialResponse.Find(str => str.StartsWith("Proxy-Connection: Close", StringComparison.InvariantCultureIgnoreCase));
-            if (!string.IsNullOrEmpty(field))
-            {
-                stream.Close();
-                Uri proxyURI = proxy.GetProxy(uri);
-                stream = ConnectSocket(proxyURI, nodelay, timeoutMs, attempt);
-            }
 
             if (proxy.Credentials == null)
                 throw new BadServerResponseException(string.Format("Received error code {0} from the server", initialResponse[0]));
@@ -595,9 +693,9 @@ namespace XenAPI
 
                 string authenticationFieldReply = string.Format("Proxy-Authorization: Basic {0}",
                     Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials.UserName + ":" + credentials.Password)));
-                WriteLine(header, stream);
-                WriteLine(authenticationFieldReply, stream);
-                WriteLine(stream);
+                await WriteLineAsync(header, stream, attempt).ConfigureAwait(false);
+                await WriteLineAsync(authenticationFieldReply, stream, attempt).ConfigureAwait(false);
+                await WriteLineAsync("", stream, attempt).ConfigureAwait(false);
             }
             else if (CurrentProxyAuthenticationMethod == ProxyAuthenticationMethod.Digest)
             {
@@ -610,53 +708,27 @@ namespace XenAPI
                     "Proxy-Authorization: Digest username=\"{0}\", uri=\"{1}:{2}\"",
                     credentials.UserName, uri.Host, uri.Port);
 
-                int len = "Proxy-Authorization: Digest".Length;
-                string directiveString = digestField.Substring(len, digestField.Length - len);
-                string[] directives = directiveString.Split(new[] {", ", "\""}, StringSplitOptions.RemoveEmptyEntries);
+                var parameters = ParseDigestParameters(digestField.Substring("Proxy-Authenticate: Digest".Length));
+                if (parameters.TryGetValue("stale", out var stale) && string.Equals(stale, "true", StringComparison.OrdinalIgnoreCase))
+                    throw new ProxyServerAuthenticationException("Stale nonce in Digest authentication attempt.");
+                parameters.TryGetValue("algorithm", out var algorithm);
+                parameters.TryGetValue("realm", out var realm);
+                parameters.TryGetValue("nonce", out var nonce);
+                foreach (var name in new[] { "realm", "nonce", "opaque" })
+                    if (parameters.TryGetValue(name, out var value))
+                        authenticationFieldReply += string.Format(", {0}=\"{1}\"", name, value.Replace("\\", "\\\\").Replace("\"", "\\\""));
+                if (algorithm != null)
+                    authenticationFieldReply += string.Format(", algorithm={0}", algorithm);
 
-                string algorithm = null; // optional
-                string opaque = null;    // optional
-                string qop = null;       // optional
-                string realm = null;
-                string nonce = null;
-
-                for (int i = 0; i < directives.Length; ++i)
+                string qop = null;
+                if (parameters.TryGetValue("qop", out var quality))
                 {
-                    switch (directives[i].ToLowerInvariant())
-                    {
-                        case "stale=":
-                            if (directives[++i].ToLowerInvariant() == "true")
-                                throw new ProxyServerAuthenticationException("Stale nonce in Digest authentication attempt.");
-                            break;
-                        case "realm=":
-                            authenticationFieldReply += string.Format(", realm=\"{0}\"", directives[++i]);
-                            realm = directives[i];
-                            break;
-                        case "nonce=":
-                            authenticationFieldReply += string.Format(", nonce=\"{0}\"", directives[++i]);
-                            nonce = directives[i];
-                            break;
-                        case "opaque=":
-                            authenticationFieldReply += string.Format(", opaque=\"{0}\"", directives[++i]);
-                            opaque = directives[i];
-                            break;
-                        case "algorithm=":
-                            authenticationFieldReply += string.Format(", algorithm={0}", directives[++i]); //unquoted; see RFC7616-3.4
-                            algorithm = directives[i];
-                            break;
-                        case "qop=":
-                            var qops = directives[++i].Split(',');
-                            if (qops.Length > 0)
-                            {
-                                qop = qops.FirstOrDefault(q => q.ToLowerInvariant() == "auth") ??
-                                      qops.FirstOrDefault(q => q.ToLowerInvariant() == "auth-int");
-                                if (qop == null)
-                                      throw new ProxyServerAuthenticationException(
-                                          "Digest authentication's quality-of-protection directive is not supported.");
-                                authenticationFieldReply += string.Format(", qop={0}", qop); //unquoted; see RFC7616-3.4
-                            }
-                            break;
-                    }
+                    var qops = quality.Split(',').Select(value => value.Trim()).ToArray();
+                    qop = qops.FirstOrDefault(value => string.Equals(value, "auth", StringComparison.OrdinalIgnoreCase))
+                          ?? qops.FirstOrDefault(value => string.Equals(value, "auth-int", StringComparison.OrdinalIgnoreCase));
+                    if (qop == null)
+                        throw new ProxyServerAuthenticationException("Digest authentication's quality-of-protection directive is not supported.");
+                    authenticationFieldReply += string.Format(", qop={0}", qop);
                 }
 
                 string clientNonce = GenerateNonce();
@@ -687,10 +759,11 @@ namespace XenAPI
                         HA1 = algFunc(scratch1);
                         break;
                     case "md5":
-                    default:
                         algFunc = _MD5Hash;
                         HA1 = algFunc(scratch1);
                         break;
+                    default:
+                        throw new ProxyServerAuthenticationException("The proxy Digest algorithm is not supported.");
                 }
 
                 var scratch2 = string.Join(":", GetPartOrNull(header, 0) ?? "CONNECT", uri.Host, uri.Port);
@@ -705,9 +778,9 @@ namespace XenAPI
 
                 authenticationFieldReply += string.Format(", response=\"{0}\"", response);
 
-                WriteLine(header, stream);
-                WriteLine(authenticationFieldReply, stream);
-                WriteLine(stream);
+                await WriteLineAsync(header, stream, attempt).ConfigureAwait(false);
+                await WriteLineAsync(authenticationFieldReply, stream, attempt).ConfigureAwait(false);
+                await WriteLineAsync("", stream, attempt).ConfigureAwait(false);
             }
             else
             {
@@ -718,7 +791,7 @@ namespace XenAPI
 
             // handle authentication attempt response
             List<string> authenticatedResponse = new List<string>();
-            ReadHttpHeaders(ref stream, proxy, nodelay, timeoutMs, authenticatedResponse, attempt);
+            await ReadHttpHeadersAsync(stream, proxy, nodelay, timeoutMs, authenticatedResponse, attempt).ConfigureAwait(false);
             if (authenticatedResponse.Count == 0)
                 throw new BadServerResponseException("No response from the proxy server after authentication attempt.");
 
@@ -747,35 +820,42 @@ namespace XenAPI
         /// <param name="headers">Request headers, or a response-header collection when reading a response.</param>
         /// <returns>The response or tunnel stream; the caller owns its disposal.</returns>
         private static Stream DoHttp(Uri uri, IWebProxy proxy, bool nodelay, int timeout_ms, ConnectionAttempt attempt, params string[] headers)
+            => DoHttpAsync(uri, proxy, nodelay, timeout_ms, attempt, headers).GetAwaiter().GetResult();
+
+        private static async Tasks.Task<Stream> DoHttpAsync(Uri uri, IWebProxy proxy, bool nodelay, int timeout_ms, ConnectionAttempt attempt, params string[] headers)
         {
             var allowed = CreateRedirectPolicy(uri, headers);
             var currentUri = uri;
             string method = headers[0].Split(' ')[0];
-            Stream stream = ConnectStream(uri, proxy, nodelay, timeout_ms, attempt);
+            Stream stream = await ConnectStreamAsync(uri, proxy, nodelay, timeout_ms, attempt).ConfigureAwait(false);
 
             try
             {
                 int redirects = 0;
 
-                do
+                while (true)
                 {
                     if (redirects > MAX_REDIRECTS)
                         throw new TooManyRedirectsException(redirects, uri);
 
                     redirects++;
 
-                    WriteLine(string.Format("{0} {1} HTTP/1.0", method, currentUri.PathAndQuery), stream);
+                    await WriteLineAsync(string.Format("{0} {1} HTTP/1.0", method, currentUri.PathAndQuery), stream, attempt).ConfigureAwait(false);
                     foreach (string header in headers.Skip(1))
-                        WriteLine(header.StartsWith("Host:", StringComparison.OrdinalIgnoreCase)
-                            ? "Host: " + currentUri.Authority : header, stream);
-                    WriteLine(stream);
+                        await WriteLineAsync(header.StartsWith("Host:", StringComparison.OrdinalIgnoreCase)
+                            ? "Host: " + currentUri.Authority : header, stream, attempt).ConfigureAwait(false);
+                    await WriteLineAsync("", stream, attempt).ConfigureAwait(false);
 
-                    stream.Flush();
+                    if (attempt?.IsAsynchronous == true)
+                        await stream.FlushAsync(attempt.Token).ConfigureAwait(false);
+                    else
+                        stream.Flush();
+                    var response = await ReadHttpHeadersAsync(stream, proxy, nodelay, timeout_ms, attempt: attempt,
+                        requestUri: currentUri, redirectAllowed: allowed, redirected: target => currentUri = target).ConfigureAwait(false);
+                    stream = response.Stream;
+                    if (!response.Redirected)
+                        return stream;
                 }
-                while (ReadHttpHeaders(ref stream, proxy, nodelay, timeout_ms, attempt: attempt,
-                    requestUri: currentUri, redirectAllowed: allowed, redirected: target => currentUri = target));
-
-                return stream;
             }
             catch
             {
@@ -880,14 +960,17 @@ namespace XenAPI
             private readonly CancellationTokenRegistration registration;
             private IDisposable current;
 
-            public ConnectionAttempt(CancellationToken token)
+            public ConnectionAttempt(CancellationToken token, bool asynchronous = false)
             {
                 this.token = token;
+                IsAsynchronous = asynchronous;
                 token.ThrowIfCancellationRequested();
                 registration = token.Register(Abort);
             }
 
             public CancellationToken Token => token;
+
+            public bool IsAsynchronous { get; }
 
             public void Track(IDisposable transport)
             {
@@ -909,7 +992,12 @@ namespace XenAPI
                 try { transport?.Dispose(); } catch (ObjectDisposedException) { }
             }
 
-            public void Dispose() => registration.Dispose();
+            public void Dispose()
+            {
+                // Wait outside the gate: Abort takes that lock before closing the transport.
+                registration.Dispose();
+                lock (gate) current = null;
+            }
         }
 
         /// <summary>
@@ -945,6 +1033,42 @@ namespace XenAPI
                     return stream;
                 }
                 catch { cancellationToken.ThrowIfCancellationRequested(); throw; }
+            }
+        }
+
+        /// <summary>Opens a GET stream using asynchronous TCP, proxy, TLS and header I/O with a bounded setup deadline.</summary>
+        /// <param name="uri">The initial request URI.</param>
+        /// <param name="proxy">The configured proxy, or null for a direct connection.</param>
+        /// <param name="timeoutMs">Setup deadline and returned transport timeouts, in milliseconds; zero disables timeouts.</param>
+        /// <param name="cancellationToken">Cancels setup; the caller controls cancellation of the returned body stream.</param>
+        /// <returns>The response body stream, owned by the caller.</returns>
+        public static async Tasks.Task<Stream> HttpGetStreamAsync(Uri uri, IWebProxy proxy, int timeoutMs, CancellationToken cancellationToken)
+        {
+            using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                if (timeoutMs > 0)
+                    deadline.CancelAfter(timeoutMs);
+                using (var attempt = new ConnectionAttempt(deadline.Token, asynchronous: true))
+                {
+                    Stream stream = null;
+                    try
+                    {
+                        stream = await DoHttpAsync(uri, proxy, false, timeoutMs, attempt,
+                            string.Format("GET {0} HTTP/1.0", uri.PathAndQuery), string.Format("Host: {0}", uri.Host)).ConfigureAwait(false);
+                        // Retire every abort callback before deciding whether ownership can pass.
+                        attempt.Dispose();
+                        deadline.Token.ThrowIfCancellationRequested();
+                        return stream;
+                    }
+                    catch (Exception error)
+                    {
+                        stream?.Dispose();
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (deadline.IsCancellationRequested)
+                            throw new IOException("HTTP request setup timed out.", error);
+                        throw;
+                    }
+                }
             }
         }
 

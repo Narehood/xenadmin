@@ -28,6 +28,23 @@ helper; migrating that boundary needs its own cross-client transport review.
 Async fetch timing reports unknown thread allocation. Live graph measurements
 remain pending.
 
+The October 27 core follow-up completes asynchronous graph fetch setup through
+the shared HTTP protocol engine: TCP, proxy Basic/Digest authentication, TLS and
+response headers now suspend without a per-fetch worker. The original synchronous
+HTTP entry points remain compatible. Graph XML body timeouts and cancellation
+remain in effect after setup hands off its stream. Focused fixtures run on both
+shared runtime targets, including cancellation, setup deadlines, redirects,
+proxy reconnect/authentication, and asynchronous-only header streams. The
+accompanying shell cleanup removes repeated whole-inventory copies and quadratic
+timestamp deduplication. This closes that specific graph transport boundary;
+it does not establish the environment-dependent acceptance below.
+
+Generated XenAPI signatures and the connection/event/action workers remain
+synchronous compatibility paths. Further conversion requires a concrete caller
+or measured responsiveness need; mechanically wrapping them in `Task.Run` does
+not provide asynchronous network I/O. Extended feature parity, installer
+replacement and signing retain their documented scope and prerequisites.
+
 ## Desktop and release acceptance
 
 Use disposable installation directories/profiles and pools to complete

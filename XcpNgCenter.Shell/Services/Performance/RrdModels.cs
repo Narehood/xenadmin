@@ -68,11 +68,11 @@ public sealed class RrdSeries
 
     public void MergePoints(IEnumerable<RrdPoint> incoming, int maxPoints)
     {
-        foreach (var p in incoming.OrderByDescending(p => p.Ticks))
+        var timestamps = new HashSet<long>(Points.Select(p => p.Ticks));
+        foreach (var p in incoming)
         {
-            if (Points.Any(existing => existing.Ticks == p.Ticks))
-                continue;
-            Points.Add(p);
+            if (timestamps.Add(p.Ticks))
+                Points.Add(p);
         }
 
         Points.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
