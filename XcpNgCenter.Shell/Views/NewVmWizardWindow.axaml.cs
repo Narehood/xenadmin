@@ -149,6 +149,7 @@ public partial class NewVmWizardViewModel : ViewModelBase
     public ObservableCollection<XenAPI.Network> Networks { get; } = new();
     public ObservableCollection<NewVmMediaOption> InstallationMedia { get; } = new();
     public ObservableCollection<NewVmBootOption> BootModes { get; } = new();
+    public bool IsHvmTemplate => SelectedTemplate?.Template.IsHVM() == true;
 
     public string CpuTopologyText => long.TryParse(VcpusMaxText, out var cpus)
         && long.TryParse(CoresPerSocketText, out var cores) && cores > 0
@@ -251,7 +252,7 @@ public partial class NewVmWizardViewModel : ViewModelBase
     {
         var previousRef = SelectedMedia?.Vdi?.opaque_ref;
         InstallationMedia.Clear();
-        InstallationMedia.Add(new NewVmMediaOption("None (empty DVD drive)", null));
+        InstallationMedia.Add(new NewVmMediaOption("None (no installation media)", null));
         if (SelectedTemplate?.Template is { } template && SelectedHost != null)
         {
             foreach (var iso in ShellIsoLibrary.Enumerate(template)
@@ -350,6 +351,7 @@ public partial class NewVmWizardViewModel : ViewModelBase
 
     partial void OnSelectedTemplateChanged(TemplateOption? value)
     {
+        OnPropertyChanged(nameof(IsHvmTemplate));
         var template = value?.Template;
         if (template == null)
             return;
@@ -561,7 +563,8 @@ public partial class NewVmWizardViewModel : ViewModelBase
                 $"Create VM '{VmName}' from '{SelectedTemplate?.Name}'\n" +
                 $"Placement host: {PlacementHostText}\n" +
                 $"Installation media: {SelectedMedia?.Label}\n" +
-                $"Firmware: {SelectedBootMode?.Label}; vTPM: {(EnableVtpm ? "enabled" : "disabled")}\n" +
+                (IsHvmTemplate ? $"Firmware: {SelectedBootMode?.Label}; vTPM: {(EnableVtpm ? "enabled" : "disabled")}\n"
+                    : "Boot: paravirtualized\n") +
                 $"Compute: {VcpusText} startup / {VcpusMaxText} maximum vCPUs; {CpuTopologyText}\n" +
                 $"Memory: {MemoryMibText} MiB\n" +
                 $"Storage repository: {SelectedStorage?.Label ?? "(none)"}\n" +

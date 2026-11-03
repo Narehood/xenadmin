@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using XenAdmin;
 using XenAdmin.Core;
 using XenAdmin.Network;
@@ -57,7 +58,12 @@ sealed partial class ProbeApp
                 window.UpdateLayout();
                 foreach (var scale in new[] { 1d, 1.5d, 2d }) Render(window, "media-firmware-tpm", scale);
                 window.Width = window.MinWidth; window.Height = window.MinHeight;
-                window.UpdateLayout(); Render(window, "media-minimum", 1);
+                window.UpdateLayout();
+                var next = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content?.ToString() == "Next");
+                var footer = next.TranslatePoint(new Point(0, 0), window)!.Value;
+                Require(footer.Y >= 0 && footer.Y + next.Bounds.Height <= window.ClientSize.Height + 1,
+                    "Navigation remains visible at the 600x400 minimum while the setup content scrolls");
+                Render(window, "media-minimum", 1);
                 model.NextCommand.Execute(null);
                 window.FindControl<TextBox>("StartupCpusText")!.Text = "4";
                 window.FindControl<TextBox>("MaximumCpusText")!.Text = "8";
@@ -69,6 +75,13 @@ sealed partial class ProbeApp
                 model.BackCommand.Execute(null);
                 Require(model.SelectedMedia?.Vdi?.opaque_ref == "iso" && model.EnableVtpm && model.SelectedBootMode?.Mode == VmBootMode.SecureUefi,
                     "Back navigation retains media and security settings");
+                var pvTemplate = model.SelectedTemplate!;
+                pvTemplate.Template.HVM_boot_policy = "";
+                model.SelectedTemplate = null; model.SelectedTemplate = pvTemplate;
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+                Require(!firmware.IsEffectivelyVisible && !tpm.IsEffectivelyVisible && media.IsEffectivelyVisible,
+                    "PV templates retain installation media without advertising HVM firmware or TPM settings");
+                window.UpdateLayout(); Render(window, "pv-media", 1);
                 window.Close();
                 File.WriteAllLines(Path.Combine(Evidence, "results.log"), checks.Prepend(
                     "PASS: production Windows New VM wizard with synthetic inventory; no profiles or pool RPCs."));

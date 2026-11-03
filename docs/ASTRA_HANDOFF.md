@@ -44,7 +44,64 @@ this change. See [setup behavior and remaining scope](new-vm-setup.md).
 Sol-loop round 1 approved the complete behavior diff with no findings
 (`gpt-6.1-sol`, `xhigh`). The reviewer independently inspected the surrounding
 code, callers, recorded test evidence and UI screenshots without rerunning the
-suites. Review usage was not exposed. Hosted checks and PR delivery are pending.
+suites. Review usage was not exposed. Implementation: `f2492729f`,
+[PR #72](https://github.com/Narehood/xenadmin/pull/72). Initial hosted Windows and
+Linux builds, tests, package smoke and CodeQL all passed on that submission.
+
+PR #72 runtime review follow-up: Cursor C1 confirmed that the firmware platform
+write could erase the earlier CPU-topology write before cache events arrived,
+and that changing maximum CPUs could violate the clone's old topology. The
+action now uses a compatible temporary topology when required, then explicitly
+includes the requested cores per socket in the final firmware/platform payload.
+No optimistic cache write is required. Cursor C3 and CodeRabbit's overlapping
+boot-order finding are fixed: explicit CD installation on a custom template
+without a DVD puts `d` (CD/DVD) first, preserving other boot methods; existing
+DVD templates retain their order. Creation only uses DVD slots 0–3 and reports
+an error if none is free. Cursor's suggested boot letters were reversed;
+`BootDevice` and the XCP-ng documentation both identify `d` as DVD, `c` as disk.
+
+Cursor C2's blanket certificate-field gate is declined: the current
+[XCP-ng Secure Boot documentation](https://docs.xcp-ng.org/guides/guest-UEFI-Secure-Boot/#83-with-varstored--120-34)
+states that newer `varstored` packages supply default certificates without pool
+configuration. Empty `Pool.uefi_certificates` therefore does not prove that
+Secure Boot cannot start. Existing help still requires certificate provisioning
+and checking actual enforcement; no pool changes are made. Regression cases
+cover explicit Secure Boot with the empty field and `auto` with/without pool
+certificates. CodeRabbit's PV-label finding is fixed by hiding HVM firmware/TPM
+controls for PV guests and reporting paravirtualized boot in confirmation.
+The minimum height is reduced to 400 with scrolling content and a tested visible
+footer; the None/no-drive description and screenshot-coverage wording are corrected.
+
+Runtime regressions execute `SetVMParams`, `SetVMBootParams` and `AddCdDrive`
+against loopback XAPI responses without cache events. The submitted action fails
+nine of the expanded 25 cases; the corrected full Release/Debug shell suites
+each pass 1,204 tests, including 26 New VM cases. Shared .NET 10/Framework each
+pass 151 (2,710 suite executions, no skips). The native UI probe passes six
+checks, including PV visibility and footer layout at 600x400; the media and PV
+screenshots were inspected. Locks remain unchanged. Follow-up evidence:
+`cursor-before-final/`, `cursor-release/`, `cursor-debug/`, `cursor-shared/` and
+`cursor-ui/` under the same evidence directory. Sol round 2 approved these
+corrections and the documented C2 disagreement with no findings. It independently
+reran Release shell (1,204), shared .NET 10 (151) and Framework (151), inspected
+Debug/before-fix evidence and the 600x400 media/PV screenshots. Usage was not exposed.
+
+CodeRabbit's later vTPM follow-up is also corrected: when attachment was requested
+but XAPI 23.11+ omits `create_vtpm` from the cloned VM's allowed operations,
+`AssignVtpm` now fails explicitly instead of silently skipping the TPM. Three
+loopback cases cover no request, rejected request and successful attachment; the
+rejected-request regression fails with the old return and passes with the error.
+The action's existing attachment order and background Logs reporting are retained;
+keeping every creation wizard open through the background action is deferred.
+No TPM rollback or VM-deletion behavior is changed. Final Release/Debug shell
+suites each pass 1,207 tests, including 29 New VM cases; shared .NET 10/Framework
+each pass 151 (2,716 executions, no skips). Evidence: `tpm-before/`, `tpm-after/`,
+`final-release/`, `final-debug/` and `final-shared/`. Sol round 3 approved the
+vTPM correction and accepted the background-wizard lifecycle as a deferred nit,
+with no open blocker/should findings. It independently checked the final TRX
+counts and before/after TPM evidence without rerunning suites. The loop ends
+after three rounds with `gpt-6.1-sol`/`xhigh`; usage was not exposed. The final
+diff grew from 718 to 994 insertions, chiefly runtime fixtures and the review
+record. Hosted reruns remain pending; live-pool/guest limitations above remain.
 
 ### Core async HTTP follow-up and release preparation (2026-10-27)
 

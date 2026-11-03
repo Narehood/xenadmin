@@ -5,7 +5,7 @@
         x:Class="XcpNgCenter.Shell.Views.NewVmWizardWindow"
         x:DataType="views:NewVmWizardViewModel"
         Title="New VM"
-        Width="700" Height="680" MinWidth="600" MinHeight="600"
+        Width="700" Height="680" MinWidth="600" MinHeight="400"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="20"
@@ -88,6 +88,7 @@
           </ComboBox>
           <TextBlock Text="Only media available to the placement host is listed. Add an ISO storage repository to the pool to make more images available."
                      TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
+          <StackPanel IsVisible="{Binding IsHvmTemplate}" Spacing="10">
           <TextBlock Text="Boot firmware" Foreground="{DynamicResource Brush.TextMuted}" />
           <ComboBox x:Name="BootModePicker" HorizontalAlignment="Stretch"
                     ItemsSource="{Binding BootModes}" SelectedItem="{Binding SelectedBootMode}">
@@ -102,6 +103,7 @@
           <CheckBox x:Name="VtpmCheckBox" Content="Enable virtual TPM 2.0" IsChecked="{Binding EnableVtpm}"
                     IsEnabled="{Binding CanEditVtpm}" />
           <TextBlock Text="{Binding VtpmHelpText}" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
+          </StackPanel>
         </StackPanel>
 
         <StackPanel IsVisible="{Binding ShowComputeStep}" Spacing="8">

@@ -98,24 +98,30 @@ public sealed class NewVmWizardTests(InfrastructureRenderingFixture rendering)
             Assert.Null(fixture.Queued);
         });
 
-    [Fact]
-    public Task FirmwareDefaultsAndInheritedTpmArePreserved()
+    [Theory]
+    [InlineData("true", "", VmBootMode.SecureUefi)]
+    [InlineData("auto", "synthetic-certificates", VmBootMode.SecureUefi)]
+    [InlineData("auto", "", VmBootMode.Uefi)]
+    public Task FirmwareDefaultsAndInheritedTpmArePreserved(string secureBoot, string poolCertificates, VmBootMode expectedMode)
         => rendering.Run(() =>
         {
             using var fixture = new WizardFixture();
             var template = fixture.Model.SelectedTemplate!.Template;
             template.HVM_boot_params = new() { ["firmware"] = "uefi" };
-            template.platform = new() { ["vtpm"] = "true", ["secureboot"] = "true" };
+            template.platform = new() { ["vtpm"] = "true", ["secureboot"] = secureBoot };
+            fixture.Connection.Resolve(new XenRef<Pool>("synthetic-pool")).uefi_certificates = poolCertificates;
             template.last_boot_CPU_flags = new() { ["vendor"] = "synthetic" };
             fixture.Model.SelectedTemplate = null;
             fixture.Model.SelectedTemplate = fixture.Model.Templates[0];
-            Assert.Equal(VmBootMode.SecureUefi, fixture.Model.SelectedBootMode?.Mode);
+            Assert.Equal(expectedMode, fixture.Model.SelectedBootMode?.Mode);
             Assert.DoesNotContain(fixture.Model.BootModes, o => o.Mode == VmBootMode.Bios);
             Assert.True(fixture.Model.EnableVtpm);
             Assert.False(fixture.Model.CanEditVtpm);
             for (var i = 0; i < 7; i++) fixture.Model.NextCommand.Execute(null);
             var action = Assert.IsType<CreateVMAction>(fixture.Queued);
             Assert.False(Field<bool>(action, "_assignVtpm"));
+            Assert.Equal(expectedMode, Field<VmBootMode>(action, "_bootMode"));
+            Assert.True(Field<bool>(action, "_startAfter"));
         });
 
     [Fact]
@@ -134,6 +140,32 @@ public sealed class NewVmWizardTests(InfrastructureRenderingFixture rendering)
             model.SelectedBootMode = model.BootModes.Single(o => o.Mode == VmBootMode.Bios);
             Assert.False(model.EnableVtpm);
             Assert.False(model.CanEditVtpm);
+        });
+
+    [Fact]
+    public Task PvTemplateDoesNotAdvertiseHvmFirmwareOrTpm()
+        => rendering.Run(() =>
+        {
+            using var fixture = new WizardFixture();
+            var model = fixture.Model;
+            var option = model.SelectedTemplate!;
+            option.Template.HVM_boot_policy = "";
+            model.SelectedTemplate = null; model.SelectedTemplate = option;
+            var window = new NewVmWizardWindow { DataContext = model };
+            try
+            {
+                window.Show();
+                model.NextCommand.Execute(null); model.NextCommand.Execute(null);
+                Dispatcher.UIThread.RunJobs();
+                Assert.True(window.FindControl<ComboBox>("InstallationMediaPicker")!.IsEffectivelyVisible);
+                Assert.False(window.FindControl<ComboBox>("BootModePicker")!.IsEffectivelyVisible);
+                Assert.False(window.FindControl<CheckBox>("VtpmCheckBox")!.IsEffectivelyVisible);
+                for (var i = 0; i < 4; i++) model.NextCommand.Execute(null);
+                Assert.True(model.IsLastStep, model.StatusMessage);
+                Assert.Contains("Boot: paravirtualized", model.SummaryText);
+                Assert.DoesNotContain("Firmware:", model.SummaryText);
+            }
+            finally { window.Close(); }
         });
 
     [Fact]
