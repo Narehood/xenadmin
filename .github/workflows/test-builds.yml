@@ -92,6 +92,9 @@ jobs:
       - name: Exercise Remote Desktop review dialog
         run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --remote-desktop --evidence-directory artifacts/ui-remote-desktop
 
+      - name: Exercise New VM installation and hardware setup
+        run: dotnet run --project tools/AdvancedNetworking.UiProbe/AdvancedNetworking.UiProbe.csproj -c Release -p:RestoreLockedMode=true -- --new-vm --evidence-directory artifacts/ui-new-vm
+
       - name: Publish and package shell (win-x64)
         shell: pwsh
         run: ./scripts/Publish-Shell.ps1 -RuntimeIdentifier win-x64 -ArchivePath artifacts/XcpNgCenter.Shell-win-x64.zip -BuildRevision '${{ github.run_number }}'
@@ -135,6 +138,7 @@ jobs:
             artifacts/ui-modernization
             artifacts/ui-beta-settings
             artifacts/ui-remote-desktop
+            artifacts/ui-new-vm
             artifacts/acceptance-fixtures
           if-no-files-found: ignore
 

@@ -1,8 +1,50 @@
 # Astra / Astro handoff
 
-Last updated: 2026-10-27 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-11-02 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### New VM media, firmware, TPM and CPU topology (2026-11-02)
+
+Branch: `fix/new-vm-installation-media`, based on `development` at `8a0b9e871`.
+The Avalonia New VM wizard previously skipped installation media and always
+submitted no CD, BIOS, no additional vTPM and zero cores per socket. It now has
+an installation/firmware step with an explicit empty-drive option, host-visible
+ISO libraries and physical DVD drives, supported BIOS/UEFI/Secure Boot modes,
+template defaults, and optional virtual TPM 2.0. Templates supplying a TPM retain
+it without a duplicate request. CPU configuration includes startup/max vCPUs,
+cores per socket and a calculated socket count, with template/host topology
+validation. The confirmation page records the new settings; Back preserves
+selections and changing hosts clears inaccessible media. Creation revalidates
+media and advertised security capabilities. An explicitly chosen ISO can now
+create a DVD drive for a custom template lacking one; no-media custom templates
+keep their existing behavior. The WinForms wizard already exposed these setup
+options and keeps its existing controls.
+
+Proof: all 13 new `NewVmWizardTests`/`NewVmCreationMediaTests` cases pass.
+Restoring the old creation arguments and custom-template drive guard causes four
+of those cases to fail; the fixed Release and Debug shell suites each pass all
+1,191 tests. Shared Release .NET 10 and Framework each pass 151 tests (2,684
+passing suite executions, no skips). Locked restores preserve the portable
+lockfiles. The native Windows `--new-vm` UI probe passes four checks against the
+production window and renders media/security at 100/150/200% plus both new pages
+at minimum size. The rendered media/security and CPU pages were visually
+inspected. CI now runs that probe and uploads its screenshots. A loopback RPC
+fixture observes actual bootable, read-only DVD creation and insertion of the
+chosen VDI. Evidence: `artifacts/new-vm-20261102/`, including `before-fix/`,
+`focused-final/`, `release/`, `debug/`, `shared/` and `ui-r2/`.
+
+Limits: no live pool, guest installation, Secure Boot enforcement or TPM guest
+attestation was exercised. Secure Boot still depends on guest UEFI certificate
+provisioning; this change does not alter pool certificates. Full WinForms build
+and hosted checks run in CI. This covers the specifically requested Xen
+Orchestra setup gaps, not every advanced XO creation feature: multiple
+disks/NICs, URL/PXE install selection, cloud-init and passthrough remain outside
+this change. See [setup behavior and remaining scope](new-vm-setup.md).
+Sol-loop round 1 approved the complete behavior diff with no findings
+(`gpt-6.1-sol`, `xhigh`). The reviewer independently inspected the surrounding
+code, callers, recorded test evidence and UI screenshots without rerunning the
+suites. Review usage was not exposed. Hosted checks and PR delivery are pending.
 
 ### Core async HTTP follow-up and release preparation (2026-10-27)
 
