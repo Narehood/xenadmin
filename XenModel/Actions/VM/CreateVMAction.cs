@@ -279,7 +279,7 @@ namespace XenAdmin.Actions.VMActions
                 return;
 
             if (Helpers.XapiEqualOrGreater_23_11_0(Connection) && !VM.allowed_operations.Contains(vm_operations.create_vtpm))
-                return;
+                throw new InvalidOperationException(Messages.VTPM_OPERATION_DISALLOWED_ADD);
 
             new NewVtpmAction(Connection, VM).RunSync(Session);
         }
@@ -323,6 +323,15 @@ namespace XenAdmin.Actions.VMActions
             Description = Messages.SETTING_VM_PROPERTIES;
             VM.set_name_label(Session, VM.opaque_ref, _nameLabel);
             VM.set_name_description(Session, VM.opaque_ref, _nameDescription);
+            // Changing the maximum must remain valid with the clone's current topology.
+            // One core per socket is compatible with both the old and requested maxima.
+            var currentCores = VM.GetCoresPerSocket();
+            if (currentCores > 0 && _vcpusMax % currentCores != 0)
+            {
+                var transitionPlatform = new Dictionary<string, string>(VM.platform);
+                transitionPlatform["cores-per-socket"] = "1";
+                VM.set_platform(Session, VM.opaque_ref, transitionPlatform);
+            }
             ChangeVCPUSettingsAction vcpuAction = new ChangeVCPUSettingsAction(VM, _vcpusMax, _vcpusAtStartup);
             vcpuAction.RunSync(Session);
 
@@ -379,11 +388,15 @@ namespace XenAdmin.Actions.VMActions
             }
             else
             {
-                var hvmParams = VM.HVM_boot_params;
+                var hvmParams = new Dictionary<string, string>(VM.HVM_boot_params);
                 hvmParams["firmware"] = _bootMode == VmBootMode.Bios ? "bios" : "uefi";
+                if (_installMethod == InstallMethod.CD && Helpers.CustomWithNoDVD(Template))
+                    hvmParams["order"] = "d" + VM.GetBootOrder().ToLowerInvariant().Replace("d", "");
                 VM.set_HVM_boot_params(Session, VM.opaque_ref, hvmParams);
 
-                var platform = VM.platform;
+                var platform = new Dictionary<string, string>(VM.platform);
+                // Events may not have delivered SetVMParams' platform write yet.
+                platform["cores-per-socket"] = _coresPerSocket.ToString();
                 platform["secureboot"] = _bootMode == VmBootMode.SecureUefi ? "true" : "false";
                 VM.set_platform(Session, VM.opaque_ref, platform);
             }
@@ -430,8 +443,8 @@ namespace XenAdmin.Actions.VMActions
 
         private void AddCdDrive()
         {
-            if (Helpers.CustomWithNoDVD(Template))
-                return; // we have skipped the install media page because we are a custom template with no cd drive - the user doesnt want a cd drive
+            if (Helpers.CustomWithNoDVD(Template) && _installMethod != InstallMethod.CD)
+                return; // Preserve a custom template's lack of a drive unless installation media was explicitly selected.
 
             Description = Messages.CREATE_CD_DRIVE;
             VBD cd_drive = null;
@@ -468,8 +481,9 @@ namespace XenAdmin.Actions.VMActions
         private VBD CreateCdDrive()
         {
             var devices = VM.get_allowed_VBD_devices(Session, VM.opaque_ref);
-            if (devices.Length == 0)
-                throw new Exception(Messages.NO_MORE_USERDEVICES);
+            var cdDevice = new[] { "3", "0", "1", "2" }.FirstOrDefault(devices.Contains);
+            if (cdDevice == null)
+                throw new InvalidOperationException("No CD/DVD slot (0-3) is available. Free a slot in the template before creating this VM.");
 
             VBD vbd = new VBD
             {
@@ -478,7 +492,7 @@ namespace XenAdmin.Actions.VMActions
                 unpluggable = true,
                 mode = vbd_mode.RO,
                 type = vbd_type.CD,
-                userdevice = devices.Contains("3") ? "3" : devices[0],
+                userdevice = cdDevice,
                 VM = new XenRef<VM>(VM.opaque_ref)
             };
             RelatedTask = VBD.async_create(Session, vbd);

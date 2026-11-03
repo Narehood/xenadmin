@@ -5,7 +5,7 @@
         x:Class="XcpNgCenter.Shell.Views.NewVmWizardWindow"
         x:DataType="views:NewVmWizardViewModel"
         Title="New VM"
-        Width="640" Height="560"
+        Width="700" Height="680" MinWidth="600" MinHeight="400"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.BgDeep}">
   <Border Margin="16" Padding="20"
@@ -22,7 +22,8 @@
                    IsVisible="{Binding StatusMessage.Length}" />
       </StackPanel>
 
-      <Panel Grid.Row="1" Margin="0,16,0,16">
+      <ScrollViewer Grid.Row="1" Margin="0,16,0,16" HorizontalScrollBarVisibility="Disabled">
+      <Panel>
         <StackPanel IsVisible="{Binding ShowTemplateStep}" Spacing="8">
           <TextBlock Text="Select a template" Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBox PlaceholderText="Filter templates…" Text="{Binding TemplateFilter}" />
@@ -75,8 +76,45 @@
                      Foreground="{DynamicResource Brush.TextMuted}" />
         </StackPanel>
 
-        <StackPanel IsVisible="{Binding ShowComputeStep}" Spacing="10">
-          <TextBox PlaceholderText="vCPUs" Text="{Binding VcpusText}" />
+        <StackPanel IsVisible="{Binding ShowInstallationStep}" Spacing="10">
+          <TextBlock Text="ISO image / physical DVD drive" Foreground="{DynamicResource Brush.TextMuted}" />
+          <ComboBox x:Name="InstallationMediaPicker" HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding InstallationMedia}" SelectedItem="{Binding SelectedMedia}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="views:NewVmMediaOption">
+                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="Only media available to the placement host is listed. Add an ISO storage repository to the pool to make more images available."
+                     TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
+          <StackPanel IsVisible="{Binding IsHvmTemplate}" Spacing="10">
+          <TextBlock Text="Boot firmware" Foreground="{DynamicResource Brush.TextMuted}" />
+          <ComboBox x:Name="BootModePicker" HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding BootModes}" SelectedItem="{Binding SelectedBootMode}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="views:NewVmBootOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="Firmware choices depend on the template and pool. Secure Boot requires guest UEFI certificates on the host; verify enforcement after the first boot."
+                     TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
+          <CheckBox x:Name="VtpmCheckBox" Content="Enable virtual TPM 2.0" IsChecked="{Binding EnableVtpm}"
+                    IsEnabled="{Binding CanEditVtpm}" />
+          <TextBlock Text="{Binding VtpmHelpText}" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding ShowComputeStep}" Spacing="8">
+          <TextBlock Text="vCPUs at startup" Foreground="{DynamicResource Brush.TextMuted}" />
+          <TextBox x:Name="StartupCpusText" Text="{Binding VcpusText}" />
+          <TextBlock Text="Maximum vCPUs" Foreground="{DynamicResource Brush.TextMuted}" />
+          <TextBox x:Name="MaximumCpusText" Text="{Binding VcpusMaxText}" />
+          <TextBlock Text="Cores per socket" Foreground="{DynamicResource Brush.TextMuted}" />
+          <TextBox x:Name="CoresPerSocketText" Text="{Binding CoresPerSocketText}" />
+          <TextBlock Text="{Binding CpuTopologyText}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.AccentText}" />
+          <TextBlock Text="Memory (MiB)" Foreground="{DynamicResource Brush.TextMuted}" />
           <TextBox PlaceholderText="Memory (MiB)" Text="{Binding MemoryMibText}" />
         </StackPanel>
 
@@ -130,6 +168,7 @@
                    FontSize="14"
                    LineHeight="22" />
       </Panel>
+      </ScrollViewer>
 
       <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
         <Button Classes="ghost" Content="Cancel" IsCancel="True" Click="OnCancelClick" />

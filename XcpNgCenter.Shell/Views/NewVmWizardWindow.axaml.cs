@@ -6,6 +6,7 @@ using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using XenAdmin;
+using XenAdmin.Actions;
 using XenAdmin.Actions.VMActions;
 using XenAdmin.Core;
 using XenAdmin.Network;
@@ -53,6 +54,9 @@ public sealed class NewVmStorageOption
     public override string ToString() => Label;
 }
 
+public sealed record NewVmMediaOption(string Label, VDI? Vdi);
+public sealed record NewVmBootOption(VmBootMode Mode, string Label);
+
 public partial class NewVmWizardWindow : Window
 {
     public NewVmWizardWindow()
@@ -72,13 +76,16 @@ public partial class NewVmWizardViewModel : ViewModelBase
 {
     private readonly IXenConnection _connection;
     private readonly Action _close;
+    private readonly Action<AsyncAction> _runAction;
     private readonly List<TemplateOption> _allTemplates = new();
     private readonly List<SR> _allStorageRepositories = new();
 
-    public NewVmWizardViewModel(IXenConnection connection, Action close, Host? preferredHost = null)
+    public NewVmWizardViewModel(IXenConnection connection, Action close, Host? preferredHost = null,
+        Action<AsyncAction>? runAction = null)
     {
         _connection = connection;
         _close = close;
+        _runAction = runAction ?? (action => ShellActionRunner.Run(action));
 
         foreach (var template in connection.Cache.VMs
                      .Where(vm => vm.is_a_template && !vm.is_a_snapshot && vm.Show(XenAdminConfigManager.Provider.ShowHiddenVMs)))
@@ -140,6 +147,28 @@ public partial class NewVmWizardViewModel : ViewModelBase
     public ObservableCollection<Host> Hosts { get; } = new();
     public ObservableCollection<NewVmStorageOption> StorageRepositories { get; } = new();
     public ObservableCollection<XenAPI.Network> Networks { get; } = new();
+    public ObservableCollection<NewVmMediaOption> InstallationMedia { get; } = new();
+    public ObservableCollection<NewVmBootOption> BootModes { get; } = new();
+    public bool IsHvmTemplate => SelectedTemplate?.Template.IsHVM() == true;
+
+    public string CpuTopologyText => long.TryParse(VcpusMaxText, out var cpus)
+        && long.TryParse(CoresPerSocketText, out var cores) && cores > 0
+        && VM.ValidVCPUConfiguration(cpus, cores).Length == 0
+            ? VM.GetTopology(cpus / cores, cores)
+            : "Maximum vCPUs must be a multiple of cores per socket.";
+
+    private bool TemplateProvidesVtpm => SelectedTemplate?.Template is { } template
+        && (template.VTPMs.Count > 0 || template.platform.TryGetValue("vtpm", out var flag)
+            && string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase));
+
+    public bool VtpmSupported => SelectedTemplate?.Template.IsHVM() == true
+        && SelectedBootMode?.Mode is VmBootMode.Uefi or VmBootMode.SecureUefi
+        && Helpers.XapiEqualOrGreater_22_26_0(_connection)
+        && !Helpers.FeatureForbidden(_connection, Host.RestrictVtpm);
+    public bool CanEditVtpm => VtpmSupported && !TemplateProvidesVtpm;
+    public string VtpmHelpText => TemplateProvidesVtpm
+        ? "This template provides a vTPM; it will be retained."
+        : "A virtual TPM 2.0 requires UEFI and vTPM support on the pool.";
 
     public string PlacementHostText => SelectedHost == null
         ? "No placement host selected"
@@ -166,6 +195,7 @@ public partial class NewVmWizardViewModel : ViewModelBase
     [ObservableProperty] private int _stepIndex;
     [ObservableProperty] private bool _showTemplateStep;
     [ObservableProperty] private bool _showNameStep;
+    [ObservableProperty] private bool _showInstallationStep;
     [ObservableProperty] private bool _showComputeStep;
     [ObservableProperty] private bool _showStorageStep;
     [ObservableProperty] private bool _showNetworkStep;
@@ -181,6 +211,11 @@ public partial class NewVmWizardViewModel : ViewModelBase
     [ObservableProperty] private string _vmDescription = string.Empty;
     [ObservableProperty] private Host? _selectedHost;
     [ObservableProperty] private string _vcpusText = "1";
+    [ObservableProperty] private string _vcpusMaxText = "1";
+    [ObservableProperty] private string _coresPerSocketText = "1";
+    [ObservableProperty] private NewVmMediaOption? _selectedMedia;
+    [ObservableProperty] private NewVmBootOption? _selectedBootMode;
+    [ObservableProperty] private bool _enableVtpm;
     [ObservableProperty] private string _memoryMibText = "1024";
     [ObservableProperty] private NewVmStorageOption? _selectedStorage;
     [ObservableProperty] private string _diskGibText = "24";
@@ -194,11 +229,79 @@ public partial class NewVmWizardViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(PlacementHostText));
         RefreshStorageRepositories();
+        RefreshInstallationMedia();
+        RefreshBootModes();
         OnPropertyChanged(nameof(StoragePlacementText));
     }
 
     partial void OnSelectedStorageChanged(NewVmStorageOption? value) =>
         OnPropertyChanged(nameof(StoragePlacementText));
+
+    partial void OnVcpusMaxTextChanged(string value) => OnPropertyChanged(nameof(CpuTopologyText));
+    partial void OnCoresPerSocketTextChanged(string value) => OnPropertyChanged(nameof(CpuTopologyText));
+
+    partial void OnSelectedBootModeChanged(NewVmBootOption? value)
+    {
+        OnPropertyChanged(nameof(VtpmSupported));
+        OnPropertyChanged(nameof(CanEditVtpm));
+        EnableVtpm = VtpmSupported && (TemplateProvidesVtpm || EnableVtpm);
+    }
+
+    /// <summary>Lists pool ISO images and physical DVD drives accessible to the placement host.</summary>
+    private void RefreshInstallationMedia()
+    {
+        var previousRef = SelectedMedia?.Vdi?.opaque_ref;
+        InstallationMedia.Clear();
+        InstallationMedia.Add(new NewVmMediaOption("None (no installation media)", null));
+        if (SelectedTemplate?.Template is { } template && SelectedHost != null)
+        {
+            foreach (var iso in ShellIsoLibrary.Enumerate(template)
+                         .Where(iso => _connection.Resolve(iso.Vdi.SR)?.CanBeSeenFrom(SelectedHost) == true))
+            {
+                var sr = _connection.Resolve(iso.Vdi.SR);
+                var label = sr.Physical()
+                    ? $"Physical DVD: {iso.Name} ({PlacementHostText})"
+                    : iso.DisplayLabel;
+                InstallationMedia.Add(new NewVmMediaOption(label, iso.Vdi));
+            }
+        }
+        SelectedMedia = InstallationMedia.FirstOrDefault(o => o.Vdi?.opaque_ref == previousRef)
+                        ?? InstallationMedia[0];
+    }
+
+    /// <summary>Preserves template firmware defaults and restricts choices to supported pool capabilities.</summary>
+    private void RefreshBootModes()
+    {
+        var template = SelectedTemplate?.Template;
+        var previous = SelectedBootMode?.Mode;
+        var keepVtpm = EnableVtpm;
+        BootModes.Clear();
+        if (template == null)
+            return;
+        var uefi = template.IsDefaultBootModeUefi();
+        var canChange = template.CanChangeBootMode() && !TemplateProvidesVtpm;
+        if (!uefi || canChange)
+            BootModes.Add(new NewVmBootOption(VmBootMode.Bios, "BIOS"));
+        if (template.IsHVM() && Helpers.NaplesOrGreater(_connection)
+            && !Helpers.FeatureForbidden(_connection, Host.UefiBootDisabled)
+            && (uefi || canChange && template.SupportsUefiBoot()))
+        {
+            BootModes.Add(new NewVmBootOption(VmBootMode.Uefi, "UEFI"));
+            if (!Helpers.FeatureForbidden(_connection, Host.UefiSecureBootDisabled)
+                && (template.SupportsSecureUefiBoot() || uefi && template.GetSecureBootMode() == "true"))
+                BootModes.Add(new NewVmBootOption(VmBootMode.SecureUefi, "UEFI with Secure Boot"));
+        }
+        var secureBoot = template.GetSecureBootMode();
+        var defaultMode = uefi
+            ? secureBoot == "true" || secureBoot == "auto" && !string.IsNullOrEmpty(Helpers.GetPoolOfOne(_connection)?.uefi_certificates)
+                ? VmBootMode.SecureUefi : VmBootMode.Uefi
+            : VmBootMode.Bios;
+        SelectedBootMode = BootModes.FirstOrDefault(o => o.Mode == (previous ?? defaultMode))
+                           ?? BootModes.FirstOrDefault(o => o.Mode == defaultMode)
+                           ?? BootModes.FirstOrDefault();
+        EnableVtpm = VtpmSupported && (TemplateProvidesVtpm || keepVtpm);
+        OnPropertyChanged(nameof(VtpmHelpText));
+    }
 
     private void ApplyTemplateFilter()
     {
@@ -248,12 +351,19 @@ public partial class NewVmWizardViewModel : ViewModelBase
 
     partial void OnSelectedTemplateChanged(TemplateOption? value)
     {
+        OnPropertyChanged(nameof(IsHvmTemplate));
         var template = value?.Template;
         if (template == null)
             return;
         if (string.IsNullOrWhiteSpace(VmName))
             VmName = Helpers.DefaultVMName(Helpers.GetName(template), _connection);
         VcpusText = Math.Max(1, template.VCPUs_at_startup).ToString();
+        VcpusMaxText = Math.Max(1, template.VCPUs_max).ToString();
+        CoresPerSocketText = Math.Max(1, template.GetCoresPerSocket()).ToString();
+        SelectedBootMode = null;
+        EnableVtpm = false;
+        RefreshBootModes();
+        RefreshInstallationMedia();
         MemoryMibText = Math.Max(1, template.memory_dynamic_max / (1024 * 1024)).ToString();
         var provisionSize = TryGetProvisionSize(template);
         if (provisionSize > 0)
@@ -298,24 +408,28 @@ public partial class NewVmWizardViewModel : ViewModelBase
             case 1 when SelectedHost == null:
                 StatusMessage = "Select a placement host.";
                 return false;
-            case 2 when !long.TryParse(VcpusText, out var v) || v < 1:
+            case 2:
+                return ValidateInstallation();
+            case 3 when !long.TryParse(VcpusText, out var v) || v < 1:
                 StatusMessage = "Enter a valid vCPU count.";
                 return false;
-            case 2 when !long.TryParse(MemoryMibText, out var m) || m < 1:
+            case 3 when !ValidateCpuTopology():
+                return false;
+            case 3 when !long.TryParse(MemoryMibText, out var m) || m < 1:
                 StatusMessage = "Enter memory in MiB.";
                 return false;
-            case 3 when SelectedStorage == null:
+            case 4 when SelectedStorage == null:
                 StatusMessage = "Select a storage repository visible from the placement host.";
                 return false;
-            case 3 when SelectedHost != null
+            case 4 when SelectedHost != null
                              && SelectedStorage != null
                              && !SelectedStorage.Sr.CanBeSeenFrom(SelectedHost):
                 StatusMessage = "That storage repository is not visible from the placement host.";
                 return false;
-            case 3 when !long.TryParse(DiskGibText, out var g) || g < 1:
+            case 4 when !long.TryParse(DiskGibText, out var g) || g < 1:
                 StatusMessage = "Enter disk size in GiB.";
                 return false;
-            case 4 when SelectedNetwork == null:
+            case 5 when SelectedNetwork == null:
                 StatusMessage = "Select a network.";
                 return false;
         }
@@ -323,10 +437,50 @@ public partial class NewVmWizardViewModel : ViewModelBase
         return true;
     }
 
+    private bool ValidateCpuTopology()
+    {
+        var template = SelectedTemplate?.Template;
+        if (!long.TryParse(VcpusText, out var startup) || !long.TryParse(VcpusMaxText, out var maximum)
+            || startup < 1 || maximum < startup || template == null || maximum > template.MaxVCPUsAllowed()
+            || startup < template.MinVCPUs())
+        {
+            StatusMessage = "Enter valid startup and maximum vCPU counts within the template limits (startup <= maximum).";
+            return false;
+        }
+        if (!long.TryParse(CoresPerSocketText, out var cores) || cores < 1
+            || VM.ValidVCPUConfiguration(maximum, cores).Length != 0
+            || SelectedHost is { } host && host.CoresPerSocket() > 0 && cores > host.CoresPerSocket())
+        {
+            StatusMessage = $"Choose cores per socket that divide maximum vCPUs, fit the placement host, and use at most {VM.MAX_SOCKETS} sockets.";
+            return false;
+        }
+        return true;
+    }
+
+    private bool ValidateInstallation()
+    {
+        if (SelectedBootMode == null || !BootModes.Contains(SelectedBootMode)
+            || SelectedBootMode.Mode != VmBootMode.Bios && (Helpers.FeatureForbidden(_connection, Host.UefiBootDisabled)
+                || !Helpers.NaplesOrGreater(_connection))
+            || SelectedBootMode.Mode == VmBootMode.SecureUefi && Helpers.FeatureForbidden(_connection, Host.UefiSecureBootDisabled))
+            StatusMessage = "Select a boot firmware supported by this template and pool.";
+        else if (EnableVtpm && !VtpmSupported || TemplateProvidesVtpm && !VtpmSupported)
+            StatusMessage = "This vTPM configuration requires UEFI and vTPM support on the pool.";
+        else if (SelectedMedia?.Vdi is { } media
+                 && !ShellIsoLibrary.Enumerate(SelectedTemplate!.Template).Any(iso => iso.Vdi.opaque_ref == media.opaque_ref
+                     && _connection.Resolve(iso.Vdi.SR)?.CanBeSeenFrom(SelectedHost) == true))
+            StatusMessage = "The selected ISO or DVD drive is no longer available on the placement host. Go back and select installation media again.";
+        else
+            return true;
+        return false;
+    }
+
     private void Finish()
     {
         var template = SelectedTemplate?.Template;
         if (template == null || SelectedHost == null || SelectedStorage == null || SelectedNetwork == null)
+            return;
+        if (!ValidateInstallation() || !ValidateCpuTopology())
             return;
         if (!long.TryParse(VcpusText, out var vcpus) || !long.TryParse(MemoryMibText, out var mib)
             || !long.TryParse(DiskGibText, out var gib))
@@ -349,13 +503,13 @@ public partial class NewVmWizardViewModel : ViewModelBase
             copyBiosStringsFrom: null,
             VmName.Trim(),
             VmDescription.Trim(),
-            InstallMethod.None,
+            SelectedMedia?.Vdi == null ? InstallMethod.None : InstallMethod.CD,
             pvArgs: template.PV_args ?? string.Empty,
-            cd: null,
+            cd: SelectedMedia?.Vdi,
             url: string.Empty,
-            VmBootMode.Bios,
+            SelectedBootMode!.Mode,
             SelectedHost,
-            vcpusMax: Math.Max(vcpus, template.VCPUs_max),
+            vcpusMax: long.Parse(VcpusMaxText),
             vcpusAtStartup: vcpus,
             memoryDynamicMin: Math.Min(template.memory_dynamic_min, memory),
             memoryDynamicMax: memory,
@@ -364,15 +518,15 @@ public partial class NewVmWizardViewModel : ViewModelBase
             fullCopySR: null,
             vifs,
             StartAfter,
-            assignVtpm: false,
+            assignVtpm: EnableVtpm && !TemplateProvidesVtpm,
             (_, _) => { },
             (_, _) => { },
             vGpus: null,
             modifyVgpuSettings: false,
-            coresPerSocket: 0,
+            coresPerSocket: long.Parse(CoresPerSocketText),
             cloudConfigDriveTemplateText: string.Empty);
 
-        ShellActionRunner.Run(action);
+        _runAction(action);
         _close();
     }
 
@@ -380,28 +534,39 @@ public partial class NewVmWizardViewModel : ViewModelBase
     {
         ShowTemplateStep = StepIndex == 0;
         ShowNameStep = StepIndex == 1;
-        ShowComputeStep = StepIndex == 2;
-        ShowStorageStep = StepIndex == 3;
-        ShowNetworkStep = StepIndex == 4;
-        ShowConfirmStep = StepIndex == 5;
+        ShowInstallationStep = StepIndex == 2;
+        ShowComputeStep = StepIndex == 3;
+        ShowStorageStep = StepIndex == 4;
+        ShowNetworkStep = StepIndex == 5;
+        ShowConfirmStep = StepIndex == 6;
         CanGoBack = StepIndex > 0;
-        IsLastStep = StepIndex >= 5;
+        IsLastStep = StepIndex >= 6;
         StepTitle = StepIndex switch
         {
             0 => "Template",
             1 => "Name",
-            2 => "CPU & memory",
-            3 => "Storage",
-            4 => "Network",
+            2 => "Installation media & firmware",
+            3 => "CPU & memory",
+            4 => "Storage",
+            5 => "Network",
             _ => "Confirm"
         };
 
+        if (ShowInstallationStep)
+        {
+            RefreshInstallationMedia();
+            RefreshBootModes();
+        }
         if (ShowConfirmStep)
         {
             SummaryText =
                 $"Create VM '{VmName}' from '{SelectedTemplate?.Name}'\n" +
                 $"Placement host: {PlacementHostText}\n" +
-                $"Compute: {VcpusText} vCPU / {MemoryMibText} MiB\n" +
+                $"Installation media: {SelectedMedia?.Label}\n" +
+                (IsHvmTemplate ? $"Firmware: {SelectedBootMode?.Label}; vTPM: {(EnableVtpm ? "enabled" : "disabled")}\n"
+                    : "Boot: paravirtualized\n") +
+                $"Compute: {VcpusText} startup / {VcpusMaxText} maximum vCPUs; {CpuTopologyText}\n" +
+                $"Memory: {MemoryMibText} MiB\n" +
                 $"Storage repository: {SelectedStorage?.Label ?? "(none)"}\n" +
                 $"Disk: {DiskGibText} GiB\n" +
                 $"Network: {Helpers.GetName(SelectedNetwork)}\n" +
