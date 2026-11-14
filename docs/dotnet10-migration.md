@@ -2,7 +2,7 @@
 
 The WinForms client targets `net10.0-windows`; Avalonia, RFB and shell tests target
 `net10.0`. Shared libraries and their tests retain `net481` alongside `net10.0`.
-`global.json` selects SDK 10.0.402 with patch-only roll-forward and no previews.
+`global.json` selects SDK 10.0.404 with patch-only roll-forward and no previews.
 The System packages are centrally pinned to 10.0.13; package lockfiles contain
 the new portable dependency graphs. WinForms uses the configuration, permission
 and resource assemblies supplied by its desktop framework instead of redundant

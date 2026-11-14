@@ -1,8 +1,44 @@
 # Astra / Astro handoff
 
-Last updated: 2026-11-02 (local date). Initial review, remediation, and modernization follow-up.
+Last updated: 2026-11-14 (local date). Initial review, remediation, and modernization follow-up.
 
 ## Start here
+
+### November .NET servicing / 11 Dependabot alerts (2026-11-14)
+
+Open alerts #20–#30 are SDK-selected runtime downloads in
+`XenCenterLib.Tests/XenCenterLib.Tests.csproj`, all resolved at 10.0.14.
+Six are `Microsoft.AspNetCore.App.Runtime.win-x86` and five are
+`Microsoft.NETCore.App.Runtime.win-x86`. Each advisory’s first patched version
+is 10.0.15. SDK 10.0.404, released with the November 10, 2026 security update,
+selects .NET, ASP.NET Core and Windows Desktop runtime 10.0.15. `global.json`
+now requires that SDK and still rolls forward only within the patch band.
+Central System package pins stay at 10.0.13, and the portable lockfiles are
+unchanged. The bundled-runtime notice identity is 10.0.15; its license and
+third-party notice bodies match the restored 10.0.15 runtime package. Notice
+fixtures reject 10.0.12, 10.0.13 and 10.0.14.
+
+A forced locked restore with SDK 10.0.404 records these exact downloads under
+`project.frameworks.net10.0.downloadDependencies`:
+
+```json
+[
+  { "name": "Microsoft.AspNetCore.App.Runtime.win-x86", "version": "[10.0.15, 10.0.15]" },
+  { "name": "Microsoft.NETCore.App.Host.win-x86", "version": "[10.0.15, 10.0.15]" },
+  { "name": "Microsoft.NETCore.App.Runtime.win-x86", "version": "[10.0.15, 10.0.15]" },
+  { "name": "Microsoft.WindowsDesktop.App.Runtime.win-x86", "version": "[10.0.15, 10.0.15]" }
+]
+```
+
+Local checks: 14 redistribution-notice fixtures passed. `XenCenterLib.Tests`
+Release passed 151 tests on `net10.0` and 151 on `net481`, with no skips.
+`XcpNgCenter.Shell.Tests` Release passed 1,207 tests, including both
+`LegalNoticeTests`, with no skips. No alert was dismissed. Dependabot closes
+these after the updated graph is submitted on `development`. Framework-dependent
+WinForms installs need .NET Desktop Runtime 10.0.15 or later. Already published
+self-contained shell packages keep 10.0.14 until a new application package is
+built and installed. No release was published with this change. Full WinForms
+solution builds, hosted CI, and live-pool checks were not run locally.
 
 ### New VM media, firmware, TPM and CPU topology (2026-11-02)
 

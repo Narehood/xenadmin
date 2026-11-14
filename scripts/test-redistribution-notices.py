@@ -37,7 +37,7 @@ class RedistributionNoticeTests(unittest.TestCase):
             for filename in ("LICENSE", "THIRD-PARTY-NOTICES.txt"):
                 (payload / filename).write_bytes((ROOT / filename).read_bytes())
             runtime = {"runtimeOptions": {
-                "tfm": "net10.0", "includedFrameworks": [{"name": "Microsoft.NETCore.App", "version": "10.0.14"}],
+                "tfm": "net10.0", "includedFrameworks": [{"name": "Microsoft.NETCore.App", "version": "10.0.15"}],
                 "configProperties": {"System.StartupHookProvider.IsSupported": False}}}
             (payload / "XcpNgCenter.Shell.runtimeconfig.json").write_text(json.dumps(runtime), encoding="utf-8")
             (payload / "XcpNgCenter.Shell.deps.json").write_text(json.dumps({"libraries": {}}), encoding="utf-8")
@@ -90,7 +90,7 @@ class RedistributionNoticeTests(unittest.TestCase):
         self.reject(change, "Refresh third-party notices for the packaged .NET runtime version.")
 
     def test_previous_unpatched_runtime_is_rejected(self):
-        for version in ("10.0.12", "10.0.13"):
+        for version in ("10.0.12", "10.0.13", "10.0.14"):
             with self.subTest(version=version):
                 def change(payload):
                     path = payload / "XcpNgCenter.Shell.runtimeconfig.json"
@@ -122,8 +122,8 @@ class RedistributionNoticeTests(unittest.TestCase):
         packages, runtimes = verifier.recorded_notice_identities((ROOT / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8"))
         self.assertEqual(50, len(packages))
         self.assertIn(("avalonia", "12.1.3"), packages)
-        self.assertIn(("10.0.14", "LICENSE.TXT"), runtimes)
-        self.assertIn(("10.0.14", "THIRD-PARTY-NOTICES.TXT"), runtimes)
+        self.assertIn(("10.0.15", "LICENSE.TXT"), runtimes)
+        self.assertIn(("10.0.15", "THIRD-PARTY-NOTICES.TXT"), runtimes)
 
 
 class NoticeGeneratorTests(unittest.TestCase):
@@ -137,7 +137,7 @@ class NoticeGeneratorTests(unittest.TestCase):
             (package / "synthetic.package.nuspec").write_text(
                 "<package><metadata><copyright>Synthetic copyright</copyright></metadata></package>", encoding="utf-8")
             (package / "LICENSE").write_text("Synthetic package terms", encoding="utf-8")
-            runtime = cache / "microsoft.netcore.app.runtime.win-x64/10.0.14"
+            runtime = cache / "microsoft.netcore.app.runtime.win-x64/10.0.15"
             runtime.mkdir(parents=True)
             for filename in ("LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT"):
                 (runtime / filename).write_text("Synthetic runtime " + filename, encoding="utf-8")
